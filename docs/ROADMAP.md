@@ -139,6 +139,12 @@ browser) and lands only with green CI.
 - [x] A menu can fade in from black (picture and sound) when it starts,
   once; repeats start after the fade
 
+**P23 — Every setting in the app** (done)
+- [x] Button thumbnails (a picture of the linked title / chapter: place,
+  size, frame, playing in motion menus), shown on the stage; the chapter
+  menu's heading and button texts; the subtitle look (size, colours,
+  outline, margin)
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 
