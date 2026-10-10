@@ -1013,6 +1013,106 @@ class TestSlideshow(unittest.TestCase):
 
 
 @unittest.skipUnless(TOOLS_OK, SKIP_REASON)
+class TestScanModes(unittest.TestCase):
+    """23.976p film gets soft 3:2 pulldown, 1080i and 59.94p sources stay
+    interlaced, and a 25 fps source is converted to progressive 29.97."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-e2e-scan-")
+        rc, _, err = run_cli("init", "s", cwd=cls.tmp)
+        assert rc == 0, err
+        proj = os.path.join(cls.tmp, "s")
+        media = os.path.join(proj, "media")
+
+        def make(name, src, vf, extra):
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", src,
+                            "-f", "lavfi", "-i", "sine=f=440:d=6"] + (["-vf", vf] if vf else [])
+                           + extra + ["-c:a", "aac", "-shortest", os.path.join(media, name)],
+                           check=True)
+        make("film.mp4", "testsrc2=s=1280x720:r=24000/1001:d=6", None, ["-c:v", "libx264"])
+        make("i1080.ts", "testsrc2=s=1920x1080:r=60000/1001:d=6",
+             "interlace=scan=tff,setfield=tff",
+             ["-c:v", "mpeg2video", "-b:v", "12M", "-flags", "+ilme+ildct", "-top", "1"])
+        make("p60.mp4", "testsrc2=s=1280x720:r=60000/1001:d=6", None, ["-c:v", "libx264"])
+        cls.path = os.path.join(proj, "project.oncemore.json")
+        with open(cls.path) as f:
+            data = json.load(f)
+        data["titles"] = [
+            {"id": "film", "source": "media/film.mp4", "chapters": [0, 2.5, 5],
+             "end_action": "menu:main"},
+            {"id": "i1080", "source": "media/i1080.ts", "end_action": "menu:main"},
+            {"id": "p60", "source": "media/p60.mp4", "end_action": "menu:main"},
+            {"id": "pal", "source": "media/sample_b.mp4", "end_action": "menu:main"},
+        ]
+        data["menus"] = [{"id": "main", "buttons": [
+            {"id": t["id"], "label": t["id"].upper(), "x": 100, "y": 120 + 60 * k,
+             "action": f"title:{t['id']}"} for k, t in enumerate(data["titles"])]}]
+        data["disc"]["first_play"] = "menu:main"
+        with open(cls.path, "w") as f:
+            json.dump(data, f)
+        cls.iso = os.path.join(cls.tmp, "s.iso")
+        rc, out, err = run_cli("--json", "iso", cls.path, "-o", cls.iso, "--fast", "--keep-work",
+                               cwd=cls.tmp)
+        assert rc == 0, err + out
+        cls.result = json_lines(out)[-1]
+        cls.work = os.path.join(cls.result["build_dir"], ".work", "titles")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def frames(self, tid):
+        out = subprocess.run(
+            [tools.find("ffprobe"), "-v", "error", "-select_streams", "v", "-show_frames",
+             "-show_entries", "frame=repeat_pict,interlaced_frame,top_field_first",
+             "-of", "json", os.path.join(self.work, f"{tid}.mpg")],
+            capture_output=True, text=True, check=True).stdout
+        return json.loads(out)["frames"]
+
+    def test_modes_reported(self):
+        modes = {t["id"]: t["scan"] for t in self.result["titles"]}
+        self.assertEqual(modes, {"film": "pulldown", "i1080": "interlaced",
+                                 "p60": "interlaced", "pal": "progressive"})
+
+    def test_soft_pulldown(self):
+        fr = self.frames("film")
+        # every film frame once (6 s x 23.976), shown as 3, 2, 3, 2 fields
+        self.assertAlmostEqual(len(fr), 144, delta=2)
+        rff = [f["repeat_pict"] for f in fr]
+        self.assertEqual(rff[:8], [1, 0, 1, 0, 1, 0, 1, 0])
+        tff = [f["top_field_first"] for f in fr]
+        self.assertEqual(tff[:8], [1, 0, 0, 1, 1, 0, 0, 1])
+        v = [s for s in ffprobe_streams(os.path.join(self.work, "film.mpg"))
+             if s["codec_type"] == "video"][0]
+        num, den = map(int, v["avg_frame_rate"].split("/"))
+        self.assertAlmostEqual(num / den, 29.97, delta=0.1)   # shown at the NTSC rate
+        fmt = json.loads(subprocess.run(
+            [tools.find("ffprobe"), "-v", "error", "-show_format", "-of", "json",
+             os.path.join(self.work, "film.mpg")], capture_output=True, text=True).stdout)
+        self.assertAlmostEqual(float(fmt["format"]["duration"]), 6.0, delta=0.15)
+
+    def test_interlaced(self):
+        for tid in ("i1080", "p60"):
+            fr = self.frames(tid)
+            self.assertAlmostEqual(len(fr), 180, delta=2, msg=tid)     # 29.97 frames/s
+            self.assertTrue(all(f["interlaced_frame"] == 1 and f["top_field_first"] == 1
+                                for f in fr), tid)
+        fr = self.frames("pal")
+        self.assertTrue(all(f["interlaced_frame"] == 0 for f in fr))
+
+    @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
+    def test_film_chapters_on_disc(self):
+        with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
+            d.wait_menu()
+            d.activate(1)
+            title, part = d.wait_title()
+            self.assertEqual((part, d.num_parts(title)), (1, 3))
+            seen, _ = d.trace_until_menu()
+            self.assertEqual([p for t, p in seen if t == title], [1, 2, 3])
+
+
+@unittest.skipUnless(TOOLS_OK, SKIP_REASON)
 class TestSubtitleFormats(unittest.TestCase):
     """A WebVTT track whose first cue is placed at the top, and an ASS track
     with a red sign, rendered onto a disc."""

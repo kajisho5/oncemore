@@ -45,7 +45,7 @@ import os
 from xml.sax.saxutils import quoteattr
 
 from . import tools
-from .project import chapter_points, format_time, parse_action
+from .project import chapter_points, format_time, parse_action, title_fps
 
 NAV_REG = "g1"
 PLAYALL_REG = "g2"
@@ -313,9 +313,10 @@ def title_vob(project, title, path):
     """The title's <vob>: chapter marks, or explicit chapter cells when a
     playlist item stops at the end of one of them."""
     ends = item_end_chapters(project, title)
-    points = chapter_points(title.chapters, project.disc.fps)[1]
+    fps = title_fps(title, project.disc)
+    points = chapter_points(title.chapters, fps)[1]
     if not ends:
-        return f'<vob file={quoteattr(path)} chapters="{chapters_attr(title.chapters, project.disc.fps)}"/>'
+        return f'<vob file={quoteattr(path)} chapters="{chapters_attr(title.chapters, fps)}"/>'
     cells = []
     for k, start in enumerate(points, 1):
         end = f' end="{format_time(points[k])}"' if k < len(points) else ""

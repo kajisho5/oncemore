@@ -34,6 +34,9 @@ const I18N = {
     highlight_image: "Highlight picture", highlight_image_hint: "Optional: a picture whose opaque pixels light up when the button is selected.",
     new_menu: "New menu", blank_menu: "Blank", template_hint: "Start from a layout; everything stays editable.",
     motion_bg: "Motion background", animated_thumbs: "Thumbnails play the chapter",
+    scan: "Picture", scan_auto: "Automatic", scan_progressive: "Progressive",
+    scan_interlaced: "Interlaced (keep fields)", scan_pulldown: "Film, 3:2 pulldown (23.976)",
+    scan_hint: "Automatic keeps interlaced and 60p video as fields and stores 23.976 film with pulldown flags.",
     auto_shared: "Automatic (share the disc)", passthrough: "Copy AC-3 unchanged",
     passthrough_hint: "For AC-3 (48 kHz) sources: no re-encoding. Channels must match the source.",
     rom_files: "DVD-ROM files", rom_hint: "Files or folders (one per line, relative to the project) put next to VIDEO_TS for computers.",
@@ -117,6 +120,9 @@ const I18N = {
     highlight_image: "ハイライト画像", highlight_image_hint: "任意：不透明な部分が選択時に光る画像。",
     new_menu: "新しいメニュー", blank_menu: "白紙", template_hint: "レイアウトから始められます。あとから全部編集できます。",
     motion_bg: "動く背景", animated_thumbs: "サムネイルでチャプターを再生",
+    scan: "走査方式", scan_auto: "自動", scan_progressive: "プログレッシブ",
+    scan_interlaced: "インターレース（フィールドを保持）", scan_pulldown: "フィルム・3:2 プルダウン（23.976）",
+    scan_hint: "自動では、インターレースと 60p の映像はフィールドのまま、23.976 のフィルム素材はプルダウン指定で収録します。",
     auto_shared: "自動（ディスク全体で配分）", passthrough: "AC-3 をそのままコピー",
     passthrough_hint: "AC-3（48kHz）素材向け：再エンコードしません。チャンネル数は素材と同じにしてください。",
     rom_files: "DVD-ROM ファイル", rom_hint: "パソコン向けに VIDEO_TS と並べて入れるファイル／フォルダ（1 行に 1 つ、プロジェクトからの相対パス）。",
@@ -792,6 +798,7 @@ function renderTitleInspector(el) {
     ${ti.slideshow ? `<label class="field"><span>${t("source")}</span><div class="hint">${esc(t("slideshow"))}</div></label>`
       : `<label class="field"><span>${t("source")}</span>${selectHtml("source", mediaOf("video").map((v) => [v, v]), ti.source)}</label>`}
     <label class="field"><span>${t("aspect")}</span>${selectHtml("aspect", [["__none__", `${t("auto")} (${P().disc.aspect})`], ["16:9", "16:9"], ["4:3", "4:3"]], ti.aspect || "__none__")}</label>
+    <label class="field"><span>${t("scan")}</span>${selectHtml("scan", [["__none__", t("scan_auto")], ["progressive", t("scan_progressive")], ["interlaced", t("scan_interlaced")], ...(P().disc.standard === "NTSC" ? [["pulldown", t("scan_pulldown")]] : [])], ti.scan || "__none__")}<div class="hint">${esc(t("scan_hint"))}</div></label>
     <label class="field"><span>${t("end_action")}</span>${selectHtml("end_action", [["__none__", t("auto")], ...ends], ti.end_action || "__none__")}</label>
     <label class="field"><span>${t("menu_key")}</span>${selectHtml("remote_menu", [["__none__", t("first_menu")], ...allMenuIds().map((id) => [id, t("menu_item", { m: id })])], ti.remote_menu || "__none__")}</label>
     <h3>${t("audio")}</h3>

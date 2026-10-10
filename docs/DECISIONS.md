@@ -424,3 +424,31 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   Writes are limited to subtitle extensions inside the project and are atomic
   (temp file + rename).
 
+## 32. Interlaced output and soft 3:2 pulldown
+
+* `scan: auto` picks per title from the probed source: interlaced at the
+  disc's frame rate (or reporting its field rate) and progressive 59.94 / 50
+  fps sources are stored interlaced, 23.976 fps progressive sources on NTSC
+  get soft pulldown, everything else stays progressive as before. Exactly
+  24.000 fps is not treated as film: playing it at 23.976 would drift from
+  its audio by 0.1 %.
+* Interlaced: the picture is processed one field at a time (bwdif
+  `send_field` for interlaced sources, the 59.94 / 50 fps frames as they
+  are), scaled, and woven back with `interlace=scan=tff`, so resizing never
+  mixes the two moments in one field. The low-pass against line twitter is
+  used only when the picture was resized; same-size sources keep their
+  original lines. Encoded top field first with interlaced motion estimation
+  and DCT, and alternate scan.
+* Pulldown: ffmpeg's MPEG-2 encoder cannot write repeat_first_field, so the
+  film frames are encoded at 23.976 into an elementary stream and
+  `oncemore/pulldown.py` edits fixed-position header bits afterwards
+  (frame_rate_code 4, progressive_sequence 0, and per picture
+  progressive_frame 1 with top_field_first / repeat_first_field cycling
+  (1,1) (0,0) (0,1) (1,0) by display order from temporal_reference). No
+  byte is added, the file is memory-mapped, and the stream is then muxed
+  with `-c:v copy` and generated timestamps. Players show 3, 2, 3, 2 fields
+  per frame and the field parity never breaks, as on film DVDs.
+* Film GOPs are at most 14 pictures (35 fields, under the 36-field NTSC
+  limit) and at least 10 (25 fields, over 0.4 s); chapter marks and forced
+  key frames use the 23.976 frame grid of the encoded pictures.
+

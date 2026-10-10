@@ -35,6 +35,8 @@ def inspect(project, reporter=None):
         info = probe(t.source)
         infos[t.id] = info
         where = f"titles[{i}]"
+        if info.get("has_video") and info.get("fps"):
+            t.video_mode = encode.video_mode(t, info, project.disc)
         for j, tr in enumerate(t.audio_tracks):
             have = probe(tr.source).get("audio_streams", 0)
             if tr.stream >= have and not (tr.source == t.source and tr.stream == 0):
@@ -135,6 +137,7 @@ def summary(project, infos, plan):
                              f"@{float(infos[t.id]['fps'] or 0):.3f}",
                     "chapters": t.chapters, "audio": t.audio_codec,
                     "audio_channels": t.audio_channels, "aspect": t.aspect,
+                    "scan": t.video_mode,
                     "titleset": t.titleset, "global_number": t.global_number,
                     "video_bps": dict(zip([x.id for x in project.titles],
                                           plan.get("per_title", []))).get(t.id),
@@ -245,7 +248,7 @@ def title_cache_key(project, title, info, vbps, fast):
             "width", "height", "sar", "fps", "duration", "interlaced", "field_order")},
         "tracks": [(_file_sig(tr.source), tr.stream) for tr in title.audio_tracks],
         "disc": [disc.standard, disc.aspect, disc.width, disc.height],
-        "chapters": title.chapters, "vbps": vbps, "fast": fast,
+        "chapters": title.chapters, "vbps": vbps, "fast": fast, "scan": title.video_mode,
         "audio": [title.audio_codec, title.audio_bitrate, title.audio_channels,
                   title.audio_passthrough]})
 

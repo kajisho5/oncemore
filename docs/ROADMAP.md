@@ -33,13 +33,13 @@ browser) and lands only with green CI.
 - [x] Menu templates (main, scene selection, setup) to start from
 - [x] Animated (video) thumbnail buttons in motion menus
 
-**P4 — Content and encoding**
+**P4 — Content and encoding** (done)
 - [x] Slideshows: pictures with durations, cross-fades, pan & zoom, music
 - [x] WebVTT / ASS input; top / bottom placement and colour per track and per cue
 - [x] Subtitle editing in the app
 - [x] Encode cache (unchanged titles and menus are not re-encoded) and
   per-title quality (bitrate) settings
-- [ ] Interlaced output for interlaced sources; soft 3:2 pulldown for 23.976p film
+- [x] Interlaced output for interlaced sources; soft 3:2 pulldown for 23.976p film
 - [x] AC-3 pass-through
 - [x] DVD-ROM content (extra files next to VIDEO_TS on the disc)
 
@@ -120,4 +120,4 @@ First menu-less BDMV (titles + chapters), then IGS menus.
 * Replace dvdauthor with a built-in IFO/VOB writer.
 * Built-in UDF 1.02 + ISO 9660 bridge writer, so no external ISO tool is
   needed on any platform (xorriso cannot write UDF; see DECISIONS.md).
-* Telecine / inverse telecine for film sources.
+* Inverse telecine for film that was already telecined to 29.97i.

@@ -83,6 +83,10 @@ def gop_limits(fps):
     """
     num, den = fps
     rate = num / den
+    if rate < 24.5:
+        # film with soft pulldown on NTSC: 14 pictures show as 35 fields (the
+        # 36-field GOP limit); 10 pictures last 25 fields = 0.417 s
+        return (14, 10)
     return (18, 12) if rate > 26 else (15, 10)
 
 
@@ -120,6 +124,14 @@ def keyframe_plan(chapter_frames, fps):
                 m += 1
         prev = c
     return sorted(keys)
+
+
+FILM_FPS = (24000, 1001)
+
+
+def title_fps(title, disc):
+    """Frame rate the title is encoded at: 23.976 for soft pulldown, else the disc's."""
+    return FILM_FPS if getattr(title, "video_mode", None) == "pulldown" else disc.fps
 
 
 def chapter_points(chapters, fps):
@@ -249,6 +261,8 @@ class Title:
     audio_passthrough: bool = False   # copy AC-3 from the sources
     chapter_names: list = field(default_factory=list)    # per chapter, or None
     chapter_posters: list = field(default_factory=list)  # thumbnail time per chapter, or None
+    scan: str = "auto"       # "auto" | "progressive" | "interlaced" | "pulldown"
+    video_mode: str = None   # what `scan` resolved to for the source (set by build.inspect)
 
     @property
     def track_bps(self):
@@ -663,7 +677,10 @@ class _Builder:
             video_bitrate=parse_bitrate(t["video_bitrate"]) if "video_bitrate" in t else None,
             audio_passthrough=bool(audio.get("passthrough")),
             aspect=t.get("aspect"),
+            scan=t.get("scan", "auto"),
         )
+        if title.scan == "pulldown" and self._disc.standard != "NTSC":
+            self.err(f"{where}.scan", "3:2 pulldown is for NTSC discs (PAL plays film at 25 fps)")
         if title.video_bitrate is not None and not 1_000_000 <= title.video_bitrate <= 8_000_000:
             self.err(f"{where}.video_bitrate", "must be between 1M and 8M")
         if title.audio_passthrough and codec != "ac3":
