@@ -975,6 +975,25 @@ class TestGuiBrowser(unittest.TestCase):
             page.locator("#tc-input").wait_for()
             self.assertNotEqual(page.input_value("#tc-input"), "00:00:00.000")
             self.assertTrue(self.s.app.check(self.project())["valid"])
+            # a still picture: shown for a time (no in / out), filling the frame
+            clip = lambda k: self.project()["titles"][1]["clips"][k]  # noqa: E731
+            page.select_option("#clip-add", "media/menu_bg.png")
+            page.locator("tr[data-clip='2'] [data-cd]").wait_for(timeout=60000)
+            self.assertEqual(page.locator("tr[data-clip='2'] [data-cf]").count(), 0)
+            self.wait_saved(page)
+            page.fill("tr[data-clip='2'] [data-cd]", "2")
+            page.press("tr[data-clip='2'] [data-cd]", "Enter")
+            self.poll(lambda: clip(2).get("duration") == 2)
+            self.wait_saved(page)
+            page.select_option("tr[data-clip='2'] [data-cfit]", "fill")
+            self.poll(lambda: clip(2).get("fit") == "fill")
+            self.assertEqual(clip(2), {"source": "media/menu_bg.png", "duration": 2, "fit": "fill"})
+            self.assertTrue(self.s.app.check(self.project())["valid"])
+            page.locator(".chapter-list li").nth(2).wait_for(timeout=180000)   # joined with it
+            page.click("tr[data-clip='2'] [data-crm]")
+            self.poll(lambda: len(self.project()["titles"][1]["clips"]) == 2)
+            page.locator("tr[data-clip='2']").wait_for(state="detached")
+            self.wait_saved(page)
             # first clip moved down, then removed: an ordinary title again
             page.click("tr[data-clip='0'] [data-cmv='1']")
             self.poll(lambda: self.project()["titles"][1]["clips"][0]["source"] ==
@@ -1018,10 +1037,15 @@ class TestGuiBrowser(unittest.TestCase):
             page.check("#ss-pz")
             page.select_option("#ss-tr", "none")
             self.wait_saved(page)
+            page.select_option("#ss-fit", "fill")
+            self.wait_saved(page)
+            page.select_option("[data-slide='1'] [data-f=fit]", "fit")
+            self.poll(lambda: self.project()["titles"][-1]["slideshow"]["slides"][1].get("fit"))
+            self.wait_saved(page)
             sh = self.project()["titles"][-1]["slideshow"]
             self.assertEqual(sh, {"slides": [{"image": "media/menu_bg.png", "duration": 3},
-                                             {"image": "media/menu_bg.png"}],
-                                  "pan_zoom": True, "transition": "none"})
+                                             {"image": "media/menu_bg.png", "fit": "fit"}],
+                                  "pan_zoom": True, "transition": "none", "fit": "fill"})
             self.assertTrue(self.s.app.check(self.project())["valid"])
             page.click("#ss-play")
             page.locator("#player:not([hidden])").wait_for(timeout=180000)

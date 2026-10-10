@@ -146,6 +146,8 @@ def source_at(title, time):
     starts = clip_starts(title)
     k = max(i for i, s in enumerate(starts) if s <= time + 1e-6) if starts else 0
     c = title.clips[k]
+    if c.still:
+        return c.source, 0.0
     return c.source, c.start + (time - starts[k])
 
 
@@ -267,6 +269,20 @@ class Clip:
     start: float = 0.0       # "in" inside the file
     end: float = None        # "out" inside the file (None = its end)
     duration: float = None   # resolved from the file by build.inspect
+    hold: float = None       # a still picture: seconds it is shown (None = a video)
+    fit: str = "fit"         # a still picture: "fit" (whole, bars around) or "fill" (cropped)
+
+    @property
+    def still(self):
+        return self.hold is not None
+
+
+IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp")
+STILL_DEFAULT = 5.0
+
+
+def is_image(path):
+    return os.path.splitext(path or "")[1].lower() in IMAGE_EXTS
 
 
 @dataclass
@@ -733,7 +749,22 @@ class _Builder:
                     start, end = 0.0, None
                 if end is not None and end <= start:
                     self.err(f"{cw}.out", "must be after in")
-                clips.append(Clip(self.file(f"{cw}.source", c["source"]), start, end))
+                clip = Clip(self.file(f"{cw}.source", c["source"]), start, end)
+                if is_image(c["source"]):
+                    if "in" in c or "out" in c:
+                        self.err(cw, "a still picture has no in or out; give its duration")
+                    try:
+                        clip.hold = parse_time(c.get("duration", STILL_DEFAULT))
+                    except ValueError as e:
+                        self.err(f"{cw}.duration", str(e))
+                        clip.hold = STILL_DEFAULT
+                    if not 0.5 <= clip.hold <= 3600:
+                        self.err(f"{cw}.duration", "must be from 0.5 s to 1 hour")
+                    clip.start, clip.end, clip.fit = 0.0, None, c.get("fit", "fit")
+                elif "duration" in c or "fit" in c:
+                    self.err(cw, "duration and fit are for still pictures; a video is "
+                                 "trimmed with in and out")
+                clips.append(clip)
             source = clips[0].source
             if "audio_tracks" in t:
                 self.err(f"{where}.audio_tracks", "a title made of clips uses the clips' own "
@@ -909,14 +940,15 @@ class _Builder:
 
     def slideshow(self, where, spec):
         slides = [slideshow.Slide(self.file(f"{where}.slideshow.slides[{j}].image", s["image"]),
-                                  float(s.get("duration", 5)))
+                                  float(s.get("duration", 5)), s.get("fit"))
                   for j, s in enumerate(spec["slides"])]
         show = slideshow.Slideshow(
             slides=slides, transition=spec.get("transition", "crossfade"),
             transition_duration=float(spec.get("transition_duration", 1.0)),
             pan_zoom=bool(spec.get("pan_zoom")),
             audio=self.file(f"{where}.slideshow.audio", spec.get("audio")),
-            background_color=spec.get("background_color", "#000000"))
+            background_color=spec.get("background_color", "#000000"),
+            fit=spec.get("fit", "fit"))
         if show.fade and any(s.duration <= show.fade for s in slides):
             self.err(f"{where}.slideshow.transition_duration",
                      "every slide must be longer than the cross-fade")

@@ -1293,8 +1293,9 @@ class TestSubtitleFormats(unittest.TestCase):
 @unittest.skipUnless(TOOLS_OK, SKIP_REASON)
 class TestClips(unittest.TestCase):
     """Titles made of clips: parts of three files of different sizes, rates
-    and sound (one without any) joined into one title with a chapter at every
-    clip, and two film clips joined with soft pulldown."""
+    and sound (one without any) and a 4:3 still picture filling the 16:9
+    frame, joined into one title with a chapter at every clip, and two film
+    clips joined with soft pulldown."""
 
     @classmethod
     def setUpClass(cls):
@@ -1308,6 +1309,10 @@ class TestClips(unittest.TestCase):
             subprocess.run(["ffmpeg", "-v", "error", "-y"] + list(args), check=True)
         ff("-f", "lavfi", "-i", "mandelbrot=s=640x360:r=25", "-t", "2", "-c:v", "mpeg4",
            os.path.join(media, "silent.mp4"))
+        # green, with red bands at the top and bottom that filling 16:9 cuts off
+        ff("-f", "lavfi", "-i", "color=c=0x00C000:s=400x300", "-vf",
+           "drawbox=y=0:w=iw:h=30:color=red:t=fill,drawbox=y=270:w=iw:h=30:color=red:t=fill",
+           "-frames:v", "1", os.path.join(media, "still.png"))
         for name, size, tone in (("film1.mp4", "1280x720", 300), ("film2.mp4", "1920x1080", 500)):
             ff("-f", "lavfi", "-i", f"testsrc2=s={size}:r=24000/1001:d=3", "-f", "lavfi", "-i",
                f"sine=f={tone}:d=3", "-c:v", "libx264", "-c:a", "aac", "-shortest",
@@ -1319,7 +1324,8 @@ class TestClips(unittest.TestCase):
             {"id": "mix", "end_action": "menu:main", "clips": [
                 {"source": "media/sample_a.mp4", "in": 2, "out": 5},
                 {"source": "media/silent.mp4"},
-                {"source": "media/sample_b.mp4", "out": "00:00:03"}]},
+                {"source": "media/sample_b.mp4", "out": "00:00:03"},
+                {"source": "media/still.png", "duration": 1.5, "fit": "fill"}]},
             {"id": "film", "end_action": "menu:main", "audio": {"codec": "lpcm"},
              "chapters": [0], "clips": [{"source": "media/film1.mp4"},
                                         {"source": "media/film2.mp4", "in": 0.5}]},
@@ -1362,14 +1368,16 @@ class TestClips(unittest.TestCase):
         mix, film = self.result["titles"]
         f = 1001 / 30000
         self.assertEqual([c["duration"] for c in mix["clips"]],
-                         [round(90 * f, 6), round(60 * f, 6), round(90 * f, 6)])
-        self.assertEqual(mix["chapters"], [0.0, round(90 * f, 6), round(150 * f, 6)])
+                         [round(90 * f, 6), round(60 * f, 6), round(90 * f, 6), round(45 * f, 6)])
+        self.assertEqual(mix["chapters"], [0.0, round(90 * f, 6), round(150 * f, 6),
+                                           round(240 * f, 6)])
         self.assertEqual(mix["scan"], "progressive")
         self.assertEqual(film["scan"], "pulldown")
         self.assertEqual(film["chapters"], [0.0])           # its own chapters are kept
 
     def test_joined_picture_and_sound(self):
-        self.assertEqual(self.frames("mix"), 240)             # 3 + 2 + 3 s at 29.97
+        self.assertEqual(self.frames("mix"), 285)             # 3 + 2 + 3 + 1.5 s at 29.97
+        self.assertLess(self.volume("mix", 8.2, 9.4), -80)    # the picture is silent
         self.assertLess(self.volume("mix", 3.2, 4.8), -80)    # the clip without sound
         self.assertGreater(self.volume("mix", 0.2, 2.8), -40)
         self.assertGreater(self.volume("mix", 5.2, 7.8), -40)
@@ -1390,6 +1398,17 @@ class TestClips(unittest.TestCase):
         self.assertTrue(purple(mean(os.path.join(media, "silent.mp4"), 0.997)))
         self.assertFalse(purple(mean(os.path.join(media, "sample_a.mp4"), 4)))
         self.assertTrue(purple(thumb), thumb)
+
+    def test_still_fills_the_frame(self):
+        # 16 x 9 samples of a frame of the picture: all green, no bars, no red
+        out = subprocess.run(
+            [tools.find("ffmpeg"), "-v", "error", "-ss", "8.8", "-i",
+             os.path.join(self.work, "titles", "mix.mpg"), "-frames:v", "1", "-vf",
+             "scale=16:9:flags=area", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+            capture_output=True, check=True).stdout
+        px = [tuple(out[i:i + 3]) for i in range(0, 16 * 9 * 3, 3)]
+        green = [p for p in px if p[1] > 120 and p[0] < 80 and p[2] < 80]
+        self.assertEqual(len(green), len(px), px)
 
     def test_external_iso_tools_still_work(self):
         from oncemore import iso
@@ -1412,9 +1431,9 @@ class TestClips(unittest.TestCase):
             d.wait_menu()
             d.activate(1)
             title, part = d.wait_title()
-            self.assertEqual((part, d.num_parts(title)), (1, 3))
+            self.assertEqual((part, d.num_parts(title)), (1, 4))
             seen, _ = d.trace_until_menu()
-            self.assertEqual([p for t, p in seen if t == title], [1, 2, 3])
+            self.assertEqual([p for t, p in seen if t == title], [1, 2, 3, 4])
 
 
 

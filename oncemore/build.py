@@ -159,6 +159,8 @@ def _clip_info(project, t, probe, issues, where):
         dur = info.get("duration") or 0.0
         if not info.get("has_video"):
             issues.append({"path": f"{cw}.source", "message": "no video stream"})
+        elif c.still:
+            continue                    # (a picture takes whatever scan its neighbours have)
         elif c.start >= dur > 0:
             issues.append({"path": f"{cw}.in", "message": f"starts after the end of the "
                                                           f"file ({dur:.3f}s)"})
@@ -167,7 +169,8 @@ def _clip_info(project, t, probe, issues, where):
     # clips of different kinds are all made progressive, so they can be joined
     t.video_mode = modes.pop() if len(modes) == 1 else "progressive"
     total = clips.apply(project, t, probe)
-    first = dict(probe(t.clips[0].source))
+    # the title's picture format: its first video (pictures have none of their own)
+    first = dict(probe(next((c for c in t.clips if not c.still), t.clips[0]).source))
     first.update(duration=total, path=None,
                  has_video=all(probe(c.source).get("has_video") for c in t.clips),
                  has_audio=any(probe(c.source).get("has_audio") for c in t.clips))
@@ -295,7 +298,7 @@ def title_cache_key(project, title, info, vbps, fast):
     disc = project.disc_for(title)
     return _cache_key("title", {
         "source": _file_sig(title.source),
-        "clips": [[_file_sig(c.source), c.start, c.end] for c in title.clips],
+        "clips": [clips.clip_key(c, _file_sig(c.source)) for c in title.clips],
         "info": {k: info.get(k) for k in (
             "width", "height", "sar", "fps", "duration", "interlaced", "field_order")},
         "tracks": [(_file_sig(tr.source), tr.stream) for tr in title.audio_tracks],

@@ -5,7 +5,8 @@ title source.
 The rendering is a single ffmpeg graph on the disc's square-pixel canvas
 (e.g. 854 x 480 for NTSC 16:9) at the disc frame rate:
 
-  picture -> fit (letterbox in the background colour) [-> zoompan] -> fps
+  picture -> fit (letterbox in the background colour) or fill (cropped)
+             [-> zoompan] -> fps
   slides  -> xfade (cross-fade) or concat
   music   -> trimmed to the slideshow, faded out, padded with silence
 
@@ -29,6 +30,7 @@ CACHE_VERSION = 1
 class Slide:
     image: str
     duration: float = 5.0
+    fit: str = None          # "fit" | "fill" (None = the slideshow's)
 
 
 @dataclass
@@ -39,6 +41,7 @@ class Slideshow:
     pan_zoom: bool = False
     audio: str = None
     background_color: str = "#000000"
+    fit: str = "fit"                  # "fit" (whole picture) | "fill" (cropped to the frame)
     extra: dict = field(default_factory=dict)
 
     @property
@@ -81,10 +84,12 @@ def canvas(disc):
 def output_path(base_dir, show, disc):
     """Where the rendered slideshow lives (keyed by everything it depends on)."""
     key = json.dumps({"v": CACHE_VERSION, "code": _code(),
-                      "slides": [[_sig(s.image), s.duration] for s in show.slides],
+                      "slides": [[_sig(s.image), s.duration] + ([s.fit] if s.fit else [])
+                                 for s in show.slides],
                       "t": [show.transition, show.transition_duration, show.pan_zoom,
                             show.background_color],
                       "audio": _sig(show.audio) if show.audio else None,
+                      **({"fit": show.fit} if show.fit != "fit" else {}),
                       "disc": [disc.standard, disc.aspect, list(canvas(disc)), disc.fps]},
                      sort_keys=True, default=str)
     name = hashlib.sha256(key.encode("utf-8")).hexdigest()[:24] + ".mkv"
@@ -94,6 +99,15 @@ def output_path(base_dir, show, disc):
 def _hex(color):
     c = color.lstrip("#")
     return "0x" + c[:6].upper()
+
+
+def _framed(w, h, fit, bg):
+    """Scale a picture to w x h: whole, with bars in `bg` (fit), or filling
+    it with what is outside cropped (fill)."""
+    if fit == "fill":
+        return f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1"
+    return (f"scale={w}:{h}:force_original_aspect_ratio=decrease,"
+            f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color={bg},setsar=1")
 
 
 def graph(show, disc):
@@ -113,15 +127,13 @@ def graph(show, disc):
             # the slow zoom does not wobble on whole-pixel steps
             args += ["-i", s.image]
             z = (f"1+0.10*on/{frames}" if k % 2 == 0 else f"1.10-0.10*on/{frames}")
-            chain = (f"[{k}:v]scale={2 * W}:{2 * H}:force_original_aspect_ratio=decrease,"
-                     f"pad={2 * W}:{2 * H}:(ow-iw)/2:(oh-ih)/2:color={bg},setsar=1,"
+            chain = (f"[{k}:v]{_framed(2 * W, 2 * H, s.fit or show.fit, bg)},"
                      f"zoompan=z='{z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
                      f"d={frames}:s={W}x{H}:fps={num}/{den}")
         else:
             args += ["-loop", "1", "-framerate", f"{num}/{den}", "-t", f"{length:.3f}",
                      "-i", s.image]
-            chain = (f"[{k}:v]scale={W}:{H}:force_original_aspect_ratio=decrease,"
-                     f"pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color={bg},setsar=1")
+            chain = f"[{k}:v]{_framed(W, H, s.fit or show.fit, bg)}"
         chains.append(chain + f",fps={num}/{den},format=yuv420p,settb=AVTB,"
                               f"setpts=PTS-STARTPTS,trim=duration={length:.3f}[s{k}]")
     if n == 1:

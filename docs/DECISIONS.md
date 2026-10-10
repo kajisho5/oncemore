@@ -909,3 +909,18 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   PGC without commands button 1).
 * On Blu-ray the buttons' composition is muxed at the loop point
   (ffmpeg's -itsoffset on the IG stream), so there are none before it.
+
+## 58. Still pictures in timelines
+
+* A picture in a title's clips is read by ffmpeg as a video of its length
+  (`-loop 1 -framerate <title rate> -t <duration>`), so it goes through the
+  same per-clip fit, frame trim and concat as a video clip, with silence for
+  its sound. Its length is given (`duration`), not probed: a picture file has
+  none of its own. It does not count when the title's scan mode is chosen;
+  it takes the mode of the videos around it.
+* `fill` crops the picture to the frame's display aspect before the usual
+  fit (so nothing is padded); `fit` pads. The crop keeps even sizes, as the
+  chroma needs.
+* In the GUI a title whose only clip is a picture stays a clip title (a
+  title's `source` must be a video).
+

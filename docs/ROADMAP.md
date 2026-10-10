@@ -198,6 +198,11 @@ browser) and lands only with green CI.
 - [x] `buttons_at_loop`: a menu's buttons appear at its loop point (or after
   the fade-in), on DVD and Blu-ray
 
+**P35 — Still pictures in timelines** (done)
+- [x] Still pictures as clips of a title, shown for a set time, silent
+- [x] Scaling of pictures of another shape: fit (bars) or fill (cropped), for
+  clips, slideshows and single slides
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

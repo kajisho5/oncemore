@@ -29,7 +29,15 @@ PROBES = {
                                      "height": 720, "fps": 29.97, "audio_streams": 1},
     "/virtual/media/sample_b.mp4": {"duration": 6.4, "has_video": True, "width": 640,
                                      "height": 480, "fps": 25.0, "audio_streams": 0},
+    "/virtual/media/photo.jpg": {"duration": 0.04, "has_video": True, "width": 400,
+                                  "height": 300, "fps": 25.0, "audio_streams": 0},
 }
+
+
+def with_still(**clip):
+    data = with_clips()
+    data["titles"][1]["clips"].insert(1, dict({"source": "media/photo.jpg"}, **clip))
+    return data
 
 
 class TestClipProject(unittest.TestCase):
@@ -59,6 +67,62 @@ class TestClipProject(unittest.TestCase):
         data = with_clips()
         data["titles"][1]["clips"] = []
         self.assertIn("clips", self.errors(data))
+        # pictures are shown for a time; videos are trimmed
+        self.assertIn("clips[1]: a still picture has no in or out",
+                      self.errors(with_still(out=3)))
+        self.assertIn("clips[1].duration: must be from 0.5 s", self.errors(with_still(duration=0.2)))
+        self.assertIn("fit", self.errors(with_still(fit="stretch")))
+        data = with_clips()
+        data["titles"][1]["clips"][1]["duration"] = 3
+        self.assertIn("clips[1]: duration and fit are for still pictures", self.errors(data))
+
+    def test_still_pictures(self):
+        p = build(with_still(duration="00:00:02.5", fit="fill"))
+        t = p.title("t2")
+        still = t.clips[1]
+        self.assertEqual((still.still, still.hold, still.fit), (True, 2.5, "fill"))
+        self.assertFalse(t.clips[0].still)
+        self.assertEqual(build(with_still()).title("t2").clips[1].hold, 5.0)   # the default
+        # its length is its duration (the file has none), in whole frames
+        clips.apply(p, t, PROBES.__getitem__)
+        f = 1001 / 30000
+        self.assertAlmostEqual(still.duration, 75 * f)
+        self.assertEqual(t.chapters, [0.0, round(90 * f, 6), round(165 * f, 6)])
+        self.assertEqual(P.source_at(t, 4.0), ("/virtual/media/photo.jpg", 0.0))
+        probes = {c.source: PROBES[c.source] for c in t.clips}
+        inputs, graph, _ = encode.clip_graph(t, probes, p.disc, "progressive")
+        # read as a video of its length, at the title's rate
+        self.assertEqual(inputs[6:15], ["-loop", "1", "-framerate", "30000/1001", "-t",
+                                        "2.502500", "-i", "/virtual/media/photo.jpg", "-ss"])
+        # 4:3 filling 16:9: the top and bottom are cut, nothing padded
+        chain = graph.split(";")[2]
+        self.assertTrue(chain.startswith("[1:v:0]setpts=PTS-STARTPTS,crop=400:224,"), chain)
+        self.assertNotIn(",pad=", chain)           # (only tpad, which holds the end)
+        self.assertIn("trim=end_frame=75", chain)
+        self.assertIn("anullsrc", graph.split(";")[3])        # pictures are silent
+        # fit: the whole picture, with bars at the sides
+        t.clips[1].fit = "fit"
+        _, graph, _ = encode.clip_graph(t, probes, p.disc, "progressive")
+        self.assertNotIn("crop=", graph)
+        self.assertIn("pad=720:480", graph.split(";")[2])
+
+    def test_fill_crop(self):
+        info = {"width": 400, "height": 300, "sar": 1}
+        self.assertEqual(encode.fill_crop(info, 16 / 9)[0], "crop=400:224,")
+        self.assertEqual(encode.fill_crop(info, 4 / 3), ("", info))
+        wide = {"width": 1920, "height": 800, "sar": 1}
+        crop, pic = encode.fill_crop(wide, 16 / 9)
+        self.assertEqual((crop, pic["width"], pic["height"]), ("crop=1422:800,", 1422, 800))
+
+    def test_cache_keys_follow_the_picture(self):
+        p = build(with_still(duration=3))
+        t = p.title("t2")
+        a = clips.preview_path("/p", t, p.disc)
+        t.clips[1].fit = "fill"
+        self.assertNotEqual(a, clips.preview_path("/p", t, p.disc))
+        b = clips.preview_path("/p", t, p.disc)
+        t.clips[1].hold = 4.0
+        self.assertNotEqual(b, clips.preview_path("/p", t, p.disc))
 
     def test_lengths_and_chapters(self):
         p = build(with_clips())

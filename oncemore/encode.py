@@ -160,6 +160,18 @@ def is_ivtc(title):
     return getattr(title, "scan", None) == "ivtc"
 
 
+def fill_crop(info, dar):
+    """(crop filter + ",", info of the cropped picture) cutting a picture's
+    edges so that it has the display aspect `dar` (for fill)."""
+    w, h = info["width"], info["height"]
+    sar = float(info.get("sar", 1) or 1)
+    if w * sar / h > dar:
+        cw, ch = min(w, int(round(h * dar / sar / 2)) * 2), h
+    else:
+        cw, ch = w, min(h, int(round(w * sar / dar / 2)) * 2)
+    return f"crop={cw}:{ch}," if (cw, ch) != (w, h) else "", dict(info, width=cw, height=ch)
+
+
 def fit_filter(info, disc, pad_color="black", fps=True, mode="progressive", ivtc=False):
     """ffmpeg -vf chain that converts `info` (from probe) to the disc format.
 
@@ -376,6 +388,8 @@ def clip_graph(title, probes, disc, mode, video=True, audio=True):
     disc format on its own (sizes and rates may differ between clips), and
     the pieces are joined with concat. A clip without sound gets silence of
     its length, so picture and sound stay together across the joins.
+    A still picture is read as a video of its length (-loop 1) and fitted
+    or cropped to the frame (fill_crop); it has no sound, so it gets silence.
     Returns (inputs, filter_complex, [output labels]): "[v]" for the
     picture, then "[a0]" for the sound."""
     inputs, chains, pieces = [], [], []
@@ -385,11 +399,20 @@ def clip_graph(title, probes, disc, mode, video=True, audio=True):
     for k, c in enumerate(title.clips):
         info = probes[c.source]
         dur = c.duration
-        inputs += ["-ss", f"{c.start:.6f}", "-t", f"{dur:.6f}", "-i", c.source]
+        if c.still:
+            inputs += ["-loop", "1", "-framerate", f"{num}/{den}", "-t", f"{dur:.6f}",
+                       "-i", c.source]
+        else:
+            inputs += ["-ss", f"{c.start:.6f}", "-t", f"{dur:.6f}", "-i", c.source]
         if video:
             # exactly the clip's frames: a short file is held on its last one
             frames = round(dur * num / den)
-            chains.append(f"[{k}:v:0]setpts=PTS-STARTPTS,{fit_filter(info, disc, mode=mode, ivtc=is_ivtc(title))},"
+            if c.still:
+                crop, pic = fill_crop(info, disc.dar) if c.fit == "fill" else ("", info)
+                fit = crop + fit_filter(pic, disc, mode=mode)
+            else:
+                fit = fit_filter(info, disc, mode=mode, ivtc=is_ivtc(title))
+            chains.append(f"[{k}:v:0]setpts=PTS-STARTPTS,{fit},"
                           f"tpad=stop_mode=clone:stop_duration=1,trim=end_frame={frames},"
                           f"setpts=PTS-STARTPTS,format=yuv420p[v{k}]")
             pieces.append(f"[v{k}]")
