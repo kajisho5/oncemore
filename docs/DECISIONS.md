@@ -298,7 +298,8 @@ frame-accurate.
 
 Registers: g1 target menu (the root menu consumes it and resets it to 0),
 g2 play-all flag, g3 the Menu-key target of the playing title, g4 the loop
-counter of the current menu, g5-g12 the last button used in menus 1-8.
+counter of the current menu, g5-g11 the last button used in menus 1-7
+(g5-g12 for menus 1-8 until playlists took g12, see 27).
 g13-g15 are left alone: dvdauthor uses them as scratch registers, notably for
 buttons with several statements, which it compiles into a dispatcher in the
 PGC's post commands. That dispatcher falls through from one button's code into
@@ -323,3 +324,22 @@ statements.
 
 All of it is checked by driving a disc through libdvdnav (Menu / Title keys,
 highlight after returning, an intro that plays cells 1, 2, 2 and times out).
+
+## 27. Playlists as a state machine over the existing titles
+
+A playlist does not copy video: every item of every playlist is a state
+number kept in g0, and g12 holds the chapter at which the current item stops
+(0 = the end of the title). Starting an item sets both and jumps to its first
+chapter.
+
+dvdauthor allows exactly one VM instruction per cell command, so a title in
+which some item stops early is written as explicit chapter cells, each with
+`if (g12 == k) jump pgc tail;`. That runs the title's post commands, which
+dispatch on g0: the next item (directly in the same titleset, or through the
+VMGM with g1 = 1000 when it is in another one) or the playlist's end action.
+Titles nobody stops early keep the plain `chapters=` form. Single plays
+(title, chapter, play all) clear g0 and g12 — a stale g12 would otherwise cut
+the next title short at that chapter.
+
+Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
+(1,2) → (2,2) (2,3) → (1,1) → menu, across two titlesets.

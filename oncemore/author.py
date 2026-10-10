@@ -21,9 +21,11 @@ Several titlesets (titles with another aspect ratio or audio codec):
   the root menu of titleset 1, whose dispatcher reads g1. Their own (empty)
   root menu does the same, so the remote's Menu key works there too.
 
-Registers: g1 target menu (consumed by the root menu, then 0), g2 play-all
-flag, g3 Menu-key target of the playing title (`remote_menu`), g4 loop
-counter of the current menu, g5-g12 last button used in menus 1-8.
+Registers: g0 playlist state (which item of which playlist is playing, 0 =
+none), g1 target menu (consumed by the root menu, then 0), g2 play-all flag,
+g3 Menu-key target of the playing title (`remote_menu`), g4 loop counter of
+the current menu, g5-g11 last button used in menus 1-7, g12 the chapter at
+which the current playlist item ends (0 = the end of the title).
 g13-g15 are dvdauthor's scratch registers (multi-statement buttons and
 expressions), so they stay untouched. A multi-statement button that does not
 jump falls through into the next button's code in dvdauthor's dispatcher, so
@@ -49,13 +51,88 @@ NAV_REG = "g1"
 PLAYALL_REG = "g2"
 MENUKEY_REG = "g3"
 LOOP_REG = "g4"
+STATE_REG = "g0"
+ITEM_END_REG = "g12"
+PLAYLIST_ROUTE = 1000   # g1 value: "continue the playlist" (VMGM, between titlesets)
 
 
 def button_reg(menu):
     """Register remembering the last button of `menu`, or None."""
-    if menu.remember_button and menu.number <= 8:
+    if menu.remember_button and menu.number <= 7:
         return f"g{4 + menu.number}"
     return None
+
+
+def _single(project):
+    """Commands that end play-all / playlist mode before a single play."""
+    cmd = f"{PLAYALL_REG} = 0; " if project.uses_playall else ""
+    if project.uses_playlists:
+        cmd += f"{STATE_REG} = 0; {ITEM_END_REG} = 0; "
+    return cmd
+
+
+# -- playlists ---------------------------------------------------------------
+# Every item of every playlist is a state number (g0). Starting an item sets
+# g0 and g12 (its last chapter, unless it runs to the end of the title) and
+# jumps to its first chapter. A chapter cell of a title has the one-instruction
+# cell command "if (g12 == k) jump pgc tail" when some item ends there; the
+# title's post then moves g0 to the next item (or ends the playlist).
+
+def playlist_states(project):
+    """[(state, playlist, index, item)] for every playlist item, states from 1."""
+    out = []
+    for pl in project.playlists:
+        for i, it in enumerate(pl.items):
+            out.append((len(out) + 1, pl, i, it))
+    return out
+
+
+def _item_jump(project, item, domain, ts=1):
+    """Jump to the first chapter of `item` from a menu of titleset 1
+    ("menu"), a title of titleset `ts` ("title") or the VMGM ("vmgm")."""
+    t = project.title(item.title_id)
+    chap = f" chapter {item.first}" if item.first > 1 else ""
+    if domain == "vmgm":
+        return f"jump titleset {t.titleset} title {t.number}{chap};"
+    return f"jump {_title_ref(project, t.id, ts)}{chap};"
+
+
+def _item_start(project, state, item):
+    return f"{STATE_REG} = {state}; {ITEM_END_REG} = {item.last or 0}; "
+
+
+def playlist_start(project, pid, domain):
+    state, _, _, item = next(x for x in playlist_states(project) if x[1].id == pid)
+    flag = f"{PLAYALL_REG} = 0; " if project.uses_playall else ""
+    return flag + _item_start(project, state, item) + _item_jump(project, item, domain)
+
+
+def playlist_dispatch(project, title):
+    """Title post commands continuing the playlists whose current item is
+    `title`: next item, or the playlist's end action."""
+    states = playlist_states(project)
+    cmds = []
+    for state, pl, i, it in states:
+        if it.title_id != title.id:
+            continue
+        if i + 1 < len(pl.items):
+            nxt = pl.items[i + 1]
+            go = _item_start(project, state + 1, nxt)
+            if project.title(nxt.title_id).titleset == title.titleset:
+                go += _item_jump(project, nxt, "title", title.titleset)
+            else:
+                go += f"{NAV_REG} = {PLAYLIST_ROUTE}; call vmgm menu entry title;"
+        else:
+            go = (f"{STATE_REG} = 0; {ITEM_END_REG} = 0; "
+                  + _end_command(project, pl.end_action, title.titleset))
+        cmds.append(f"if ({STATE_REG} == {state}) {{ {go} }}")
+    return " ".join(cmds)
+
+
+def item_end_chapters(project, title):
+    """Chapters of `title` at which some playlist item stops early."""
+    return sorted({it.last for _, _, _, it in playlist_states(project)
+                   if it.title_id == title.id and it.last})
 
 
 def _menu_number(project, mid):
@@ -81,11 +158,14 @@ def button_command(project, action, menu=None):
 
 def _menu_domain_command(project, action):
     kind, target, num = parse_action(action)
-    single = f"{PLAYALL_REG} = 0; " if project.uses_playall else ""
+    single = _single(project)
     if kind == "menu":
         return f"jump menu {_menu_number(project, target)};"
+    if kind == "playlist":
+        return playlist_start(project, target, "menu")
     if kind == "playall":
-        return f"{PLAYALL_REG} = 1; jump {_title_ref(project, project.titles[0].id, 1)};"
+        reset = f"{STATE_REG} = 0; {ITEM_END_REG} = 0; " if project.uses_playlists else ""
+        return f"{reset}{PLAYALL_REG} = 1; jump {_title_ref(project, project.titles[0].id, 1)};"
     if kind == "title":
         return f"{single}jump {_title_ref(project, target, 1)};"
     if kind == "chapter":
@@ -109,6 +189,12 @@ def default_subtitle(project):
 
 def end_command(project, action, title=None):
     """<post> of `title` (default: one in titleset 1)."""
+    lists = playlist_dispatch(project, title) if title is not None else ""
+    rest = _post_rest(project, action, title)
+    return f"{lists} {rest}" if lists else rest
+
+
+def _post_rest(project, action, title):
     ts = title.titleset if title else 1
     if title is not None and project.uses_playall:
         nxt = project.playall_next(title)
@@ -139,6 +225,8 @@ def first_play_command(project):
     if kind == "menu":
         n = _menu_number(project, target)
         return f"{pre}{NAV_REG} = {n}; jump titleset 1 menu entry root;"
+    if kind == "playlist":
+        return pre + playlist_start(project, target, "vmgm")
     if kind == "playall":
         pre += f"{PLAYALL_REG} = 1; "
         target = project.titles[0].id
@@ -159,10 +247,17 @@ def title_pre(project, title):
 def vmgm_title_command(project):
     """The VMGM title menu: Title key, and the route from other titlesets."""
     cmds = []
+    if project.uses_playlists:
+        # a playlist continuing in another titleset
+        go = " ".join(f"if ({STATE_REG} == {state}) {{ {_item_jump(project, it, 'vmgm')} }}"
+                      for state, _, _, it in playlist_states(project))
+        cmds.append(f"if ({NAV_REG} == {PLAYLIST_ROUTE}) {{ {NAV_REG} = 0; {go} }}")
     if project.uses_remote_menu:
         cmds.append(f"{MENUKEY_REG} = 0;")
     tk = project.disc.title_key
-    if tk:
+    if tk and parse_action(tk)[0] == "playlist":
+        cmds.append(f"if ({NAV_REG} == 0) {{ {playlist_start(project, parse_action(tk)[1], 'vmgm')} }}")
+    elif tk:
         kind, target, _ = parse_action(tk)
         if kind == "menu" and _menu_number(project, target) != 1:
             cmds.append(f"if ({NAV_REG} == 0) {{ {NAV_REG} = {_menu_number(project, target)}; }}")
@@ -170,6 +265,8 @@ def vmgm_title_command(project):
             t = project.titles[0] if kind == "playall" else project.title(target)
             flag = (f"{PLAYALL_REG} = {1 if kind == 'playall' else 0}; "
                     if project.uses_playall else "")
+            if project.uses_playlists:
+                flag = f"{STATE_REG} = 0; {ITEM_END_REG} = 0; " + flag
             cmds.append(f"if ({NAV_REG} == 0) {{ {flag}jump title {t.global_number}; }}")
     cmds.append("jump titleset 1 menu entry root;")
     return " ".join(cmds)
@@ -210,6 +307,21 @@ def menu_vob(menu, path):
     lp = format_time(menu.loop_point)
     return (f'<vob file={quoteattr(path)}><cell start="0" end="{lp}" chapter="1"/>'
             f'<cell start="{lp}"/></vob>')
+
+
+def title_vob(project, title, path):
+    """The title's <vob>: chapter marks, or explicit chapter cells when a
+    playlist item stops at the end of one of them."""
+    ends = item_end_chapters(project, title)
+    points = chapter_points(title.chapters, project.disc.fps)[1]
+    if not ends:
+        return f'<vob file={quoteattr(path)} chapters="{chapters_attr(title.chapters, project.disc.fps)}"/>'
+    cells = []
+    for k, start in enumerate(points, 1):
+        end = f' end="{format_time(points[k])}"' if k < len(points) else ""
+        cmd = f"if ({ITEM_END_REG} == {k}) jump pgc tail;" if k in ends else ""
+        cells.append(f'<cell start="{format_time(start)}"{end} chapter="1">{cmd}</cell>')
+    return f"<vob file={quoteattr(path)}>{''.join(cells)}</vob>"
 
 
 def video_tag(disc):
@@ -288,8 +400,7 @@ def build_xml(project, menu_files, title_files, dest):
             pre = title_pre(project, t)
             if pre:
                 x.append(f"        <pre>{pre}</pre>")
-            x.append(f"        <vob file={quoteattr(title_files[t.id])} "
-                     f'chapters="{chapters_attr(t.chapters, disc.fps)}"/>')
+            x.append(f"        {title_vob(project, t, title_files[t.id])}")
             x.append(f"        <post>{end_command(project, t.end_action, t)}</post>")
             x.append("      </pgc>")
         x += ["    </titles>", "  </titleset>"]

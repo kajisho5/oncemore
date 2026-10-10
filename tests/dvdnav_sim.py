@@ -252,6 +252,23 @@ class DvdSim:
         if self.lib.dvdnav_button_activate(self.h, pci) != DVDNAV_STATUS_OK:
             raise NavError("button_activate failed: " + self._err())
 
+    def trace_until_menu(self, max_events=4_000_000):
+        """Play on; return every (title, chapter) seen until a menu shows,
+        and that menu's PGC number."""
+        seen = []
+
+        def step(e):
+            if e != EV_NAV_PACKET:
+                return False
+            if self.domain() == "title":
+                tp = self.title_part()
+                if not seen or seen[-1] != tp:
+                    seen.append(tp)
+                return False
+            return self.domain() in ("vtsm", "vmgm") and self.button_count() > 0
+        self.run_until(step, max_events)
+        return seen, self.pgcn()
+
     MENU_TITLE, MENU_ROOT = 2, 3
 
     def menu_key(self, which=None):

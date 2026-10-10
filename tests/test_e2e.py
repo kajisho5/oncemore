@@ -669,5 +669,66 @@ class TestMenuTimingAndRemote(unittest.TestCase):
             self.assertEqual(intro, [1, 2, 2], d.cells[seen - 1:])
 
 
+@unittest.skipUnless(TOOLS_OK, SKIP_REASON)
+class TestPlaylists(unittest.TestCase):
+    """A playlist of chapter ranges that hops between two titlesets and back,
+    stopping in the middle of titles; named chapters with a poster frame."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-e2e-playlist-")
+        rc, _, err = run_cli("init", "pl", cwd=cls.tmp)
+        assert rc == 0, err
+        path = os.path.join(cls.tmp, "pl", "project.oncemore.json")
+        with open(path) as f:
+            data = json.load(f)
+        t1, t2 = data["titles"]
+        t1["chapters"] = [{"time": 0, "name": "Opening"},
+                          {"time": "00:00:08", "name": "Middle", "poster": 10}, 16]
+        t2.update({"aspect": "4:3", "audio": {"codec": "lpcm"}, "chapters": [0, 4, 8]})
+        data["playlists"] = [{"id": "best", "name": "Best of",
+                              "items": ["t1:2", "t2:2-3", "t1:1"], "end_action": "menu:main"}]
+        data["menus"][0]["buttons"].append({"id": "pl", "label": "BEST OF", "x": 470, "y": 220,
+                                            "action": "playlist:best"})
+        with open(path, "w") as f:
+            json.dump(data, f)
+        cls.path = path
+        cls.iso = os.path.join(cls.tmp, "pl.iso")
+        rc, out, err = run_cli("--json", "iso", path, "-o", cls.iso, "--fast", cwd=cls.tmp)
+        assert rc == 0, err + out
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
+    def test_playlist_plays_its_ranges(self):
+        with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
+            self.assertEqual(d.wait_menu(), 1)
+            d.activate(4)                                     # BEST OF
+            seen, menu = d.trace_until_menu()
+            # t1 ch2 (stops before ch3), t2 ch2-3, t1 ch1 (stops before ch2), menu
+            self.assertEqual(seen, [(1, 2), (2, 2), (2, 3), (1, 1)])
+            self.assertEqual(menu, 1)
+            # a single title afterwards is not part of the playlist any more
+            d.activate(3)                                     # SAMPLE TITLE B
+            seen, menu = d.trace_until_menu()
+            self.assertEqual((seen, menu), ([(2, 1), (2, 2), (2, 3)], 1))
+            # and play all still plays whole titles
+            d.activate(1)
+            seen, menu = d.trace_until_menu()
+            self.assertEqual((seen, menu), ([(1, 1), (1, 2), (1, 3), (2, 1), (2, 2), (2, 3)], 1))
+
+    def test_named_chapter_menu(self):
+        from oncemore import menu as menu_mod
+        from oncemore.project import load_project
+        project = load_project(self.path)
+        ch = project.menu("chapters")
+        self.assertEqual([b.label for b in ch.buttons[:3]], ["Opening", "Middle", "Chapter 3"])
+        out = os.path.join(self.tmp, "chapters.png")
+        menu_mod.MenuBuilder(project, os.path.join(self.tmp, "work")).preview(ch, out)
+        self.assertTrue(os.path.getsize(out) > 1000)
+
+
 if __name__ == "__main__":
     unittest.main()

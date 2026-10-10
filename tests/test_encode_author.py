@@ -190,6 +190,64 @@ class TestAuthorXml(unittest.TestCase):
         self.assertIn("no menu with id 'missing'", msg)
         self.assertIn("titles[0].remote_menu", msg)
 
+    def p2_project(self):
+        d = sample_project()
+        d["titles"][1].update({"aspect": "4:3", "audio": {"codec": "lpcm"}, "chapters": [0, 4, 8]})
+        d["titles"][0]["chapters"] = [{"time": 0, "name": "Opening"},
+                                      {"time": "00:00:08", "name": "Middle", "poster": 10}, 16]
+        d["playlists"] = [{"id": "best", "items": ["t1:2", "t2:2-3", "t1:1"],
+                           "end_action": "menu:main"}]
+        d["menus"][0]["buttons"].append({"id": "pl", "label": "BEST", "x": 470, "y": 220,
+                                         "action": "playlist:best"})
+        return build_project(d, "/v/project.oncemore.json", check_files=False)
+
+    def test_playlists(self):
+        p = self.p2_project()
+        self.assertEqual([(i.title_id, i.first, i.last) for i in p.playlist("best").items],
+                         [("t1", 2, 2), ("t2", 2, None), ("t1", 1, 1)])   # t2:2-3 runs to the end
+        x = author.build_xml(p, {"main": "m", "chapters": "c"}, {"t1": "a", "t2": "b"}, "/o")
+        # start: state 1, stop after chapter 2
+        self.assertIn('<button name="pl">g5 = button; g2 = 0; g0 = 1; g12 = 2; '
+                      'jump title 1 chapter 2;</button>', x)
+        # single plays leave playlist and play-all mode
+        self.assertIn('<button name="b">g5 = button; g2 = 0; g0 = 0; g12 = 0; '
+                      'jump titleset 2 title 1;</button>', x)
+        # t1's chapter cells stop early for items ending at chapters 1 and 2
+        self.assertIn('<cell start="0:00:00.000" end="0:00:08.025" chapter="1">'
+                      'if (g12 == 1) jump pgc tail;</cell>', x)
+        self.assertIn('<cell start="0:00:08.025" end="0:00:16.033" chapter="1">'
+                      'if (g12 == 2) jump pgc tail;</cell><cell start="0:00:16.033" chapter="1"></cell>', x)
+        # t1 post: state 1 -> state 2 in titleset 2 (through the VMGM); state 3 -> end
+        self.assertIn("if (g0 == 1) { g0 = 2; g12 = 0; g1 = 1000; call vmgm menu entry title; }", x)
+        self.assertIn("if (g0 == 3) { g0 = 0; g12 = 0; g1 = 1; call menu entry root; }", x)
+        # t2 post: state 2 -> state 3 back in titleset 1
+        self.assertIn("if (g0 == 2) { g0 = 3; g12 = 1; g1 = 1000; call vmgm menu entry title; }", x)
+        self.assertIn("if (g1 == 1000) { g1 = 0; if (g0 == 1) { jump titleset 1 title 1 chapter 2; } "
+                      "if (g0 == 2) { jump titleset 2 title 1 chapter 2; } "
+                      "if (g0 == 3) { jump titleset 1 title 1; } }", x)
+        # chapter names and poster frames on the chapter menu
+        ch = p.menu("chapters")
+        self.assertEqual([b.label for b in ch.buttons[:3]], ["Opening", "Middle", "Chapter 3"])
+        self.assertEqual(ch.buttons[1].thumb.time, 10.0)
+        import xml.dom.minidom
+        xml.dom.minidom.parseString(x)
+
+    def test_playlist_validation(self):
+        d = sample_project()
+        d["playlists"] = [{"id": "x", "items": ["t1:2-9", "nope", "t2:0"]}]
+        with self.assertRaises(ProjectError) as cm:
+            build_project(d, "/v/project.oncemore.json", check_files=False)
+        msg = json.dumps(cm.exception.issues)
+        self.assertIn("does not match", msg)                      # t2:0 (schema)
+        d["playlists"] = [{"id": "x", "items": ["t1:2-9", "nope"]}]
+        d["menus"][0]["buttons"][0]["action"] = "playlist:missing"
+        with self.assertRaises(ProjectError) as cm:
+            build_project(d, "/v/project.oncemore.json", check_files=False)
+        msg = json.dumps(cm.exception.issues)
+        self.assertIn("has chapters 1-3; 2-9", msg)
+        self.assertIn("no title with id 'nope'", msg)
+        self.assertIn("no playlist with id 'missing'", msg)
+
     def test_end_action_to_non_root_menu(self):
         d = sample_project()
         d["titles"][1]["end_action"] = "menu:chapters"
