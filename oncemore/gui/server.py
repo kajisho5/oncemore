@@ -21,6 +21,9 @@ API (all JSON unless noted):
   POST /api/reveal                   show a file in Finder / the file manager
   POST /api/clips                    a title made of clips: lengths + joined preview
   POST /api/routing                  a menu's computed remote-control routing
+  POST /api/transcode                encode titles now (job), ahead of the build
+  POST /api/encode_status            which titles are already transcoded
+  GET  /api/waveform?path=REL&w&h&s  the sound of a file (stream s) as a PNG
 """
 
 import base64
@@ -197,6 +200,23 @@ class App:
         self.frame_cache[key] = p.stdout
         return p.stdout
 
+    def waveform(self, full, w, h, stream=0):
+        key = ("wave", full, os.path.getmtime(full), w, h, stream)
+        if key in self.frame_cache:
+            return self.frame_cache[key]
+        cmd = [tools.find("ffmpeg"), "-hide_banner", "-nostdin", "-v", "error", "-i", full,
+               "-filter_complex",
+               f"[0:a:{stream}]aformat=channel_layouts=mono,showwavespic=s={w}x{h}:colors=white:"
+               "scale=sqrt,format=rgba", "-frames:v", "1", "-f", "image2", "-c:v", "png", "pipe:1"]
+        p = subprocess.run(cmd, capture_output=True, timeout=300)
+        if p.returncode != 0 or not p.stdout:
+            raise OncemoreError("no sound to draw",
+                                details={"output": tools.tail(p.stderr.decode("utf-8", "replace"))})
+        if len(self.frame_cache) > 400:
+            self.frame_cache.clear()
+        self.frame_cache[key] = p.stdout
+        return p.stdout
+
     # -- playback proxies ----------------------------------------------------------
     # Titles can be any format ffmpeg reads; the page plays a small copy cached
     # in .oncemore-cache/proxy: H.264/AAC MP4 (Safari/WKWebView, Chrome), or
@@ -272,6 +292,21 @@ class App:
 
     # -- jobs --------------------------------------------------------------------
     def start_build(self, kind, fast, cache=True):
+        def work(project, rep):
+            outdir = os.path.join(self.dir, "output")
+            if kind == "iso":
+                return build.build_iso(project, os.path.join(outdir, f"{project.disc.label}.iso"),
+                                       rep, fast=fast, cache=cache)
+            return build.build(project, os.path.join(outdir, project.disc.label), rep,
+                               fast=fast, cache=cache)
+        return self.start_job(kind, work)
+
+    def start_transcode(self, titles, fast):
+        return self.start_job("transcode",
+                              lambda project, rep: build.transcode(project, rep, titles, fast))
+
+    def start_job(self, kind, work):
+        """Run work(project, reporter) in the background; one job at a time."""
         with self.jobs_lock:
             if any(not j.done for j in self.jobs.values()):
                 raise OncemoreError("a build is already running")
@@ -282,13 +317,7 @@ class App:
             rep = job.reporter
             try:
                 project = build_project(self.load(), self.path, check_files=True)
-                outdir = os.path.join(self.dir, "output")
-                if kind == "iso":
-                    res = build.build_iso(project, os.path.join(outdir, f"{project.disc.label}.iso"),
-                                          rep, fast=fast, cache=cache)
-                else:
-                    res = build.build(project, os.path.join(outdir, project.disc.label), rep,
-                                      fast=fast, cache=cache)
+                res = work(project, rep)
                 rep.result(res)
                 job.ok = True
             except ProjectError as e:
@@ -322,16 +351,19 @@ class Handler(BaseHTTPRequestHandler):
 
     # -- plumbing ------------------------------------------------------------------
     def _send(self, status, body, ctype, extra=None):
-        self.send_response(status)
-        self.send_header("Content-Type", ctype)
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("X-Content-Type-Options", "nosniff")
-        for k, v in (extra or {}).items():
-            self.send_header(k, v)
-        self.end_headers()
-        if self.command != "HEAD":
-            self.wfile.write(body)
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            for k, v in (extra or {}).items():
+                self.send_header(k, v)
+            self.end_headers()
+            if self.command != "HEAD":
+                self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass                     # the page no longer wanted it (e.g. a timeline redrawn)
 
     def json(self, obj, status=HTTPStatus.OK):
         self._send(status, json.dumps(obj, ensure_ascii=False).encode("utf-8"),
@@ -353,7 +385,8 @@ class Handler(BaseHTTPRequestHandler):
         token = self.headers.get("X-Oncemore-Token", "")
         # <img> cannot send headers: frames and images may carry ?token=
         if not token and query and self.command in ("GET", "HEAD") and \
-                self.path.startswith(("/api/frame?", "/api/file?", "/api/proxy?")):
+                self.path.startswith(("/api/frame?", "/api/file?", "/api/proxy?",
+                                      "/api/waveform?")):
             token = query.get("token", "")
         return secrets.compare_digest(token, self.app.token)
 
@@ -793,6 +826,33 @@ class Handler(BaseHTTPRequestHandler):
             raise ValueError("kind must be iso or folder")
         job = self.app.start_build(kind, bool(body.get("fast")), cache=not body.get("no_cache"))
         self.json({"job": job.id})
+
+    def api_post_transcode(self, q):
+        """Encode titles now (all, or `titles`), ahead of the build."""
+        body = self.body_json()
+        titles = body.get("titles")
+        if titles is not None and not (isinstance(titles, list) and
+                                       all(isinstance(x, str) for x in titles)):
+            raise ValueError("titles must be a list of title ids")
+        job = self.app.start_transcode(titles, bool(body.get("fast")))
+        self.json({"job": job.id})
+
+    def api_post_encode_status(self, q):
+        """Which titles are already transcoded (in the encode cache)."""
+        body = self.body_json()
+        project = self._project_from(body, check_files=True)
+        self.json({"titles": build.encode_status(project, bool(body.get("fast")))})
+
+    def api_get_waveform(self, q):
+        """The sound of a file drawn as a picture (PNG), for the timeline."""
+        full = self.app.resolve(q.get("path"))
+        if media_kind(full) not in ("video", "audio"):
+            raise PermissionError("only videos and sound files have a waveform")
+        w = max(64, min(int(q.get("w", 800)), 4000))
+        h = max(16, min(int(q.get("h", 40)), 200))
+        stream = max(0, min(int(q.get("s", 0)), 31))
+        self._send(HTTPStatus.OK, self.app.waveform(full, w, h, stream), "image/png",
+                   {"Cache-Control": "private, max-age=600"})
 
     def api_job(self, job_id, q):
         job = self.app.jobs.get(job_id)

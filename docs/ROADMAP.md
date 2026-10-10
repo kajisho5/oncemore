@@ -81,6 +81,11 @@ browser) and lands only with green CI.
 - [x] Drag titles, menus and playlists onto buttons to link them, or onto the
   menu to add a linked button
 
+**P12 — Transcode now** (done)
+- [x] Encode titles ahead of the build (app and `oncemore transcode`), with a
+  transcoded / not yet mark per title; the build reuses them
+- [x] Sound waveforms on the timeline
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

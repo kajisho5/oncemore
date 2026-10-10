@@ -275,6 +275,30 @@ class TestGuiApi(unittest.TestCase):
                          400)
 
     @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/dvdauthor/ISO tool")
+    def test_transcode_now_and_waveform(self):
+        _, st = self.s.call("/api/new", "POST", {"sample": True})
+        status, r = self.s.call("/api/encode_status", "POST", {"project": st["project"]})
+        self.assertEqual((status, r["titles"]), (200, {"t1": False, "t2": False}))
+        status, r = self.s.call("/api/transcode", "POST", {"titles": ["t2"], "fast": True})
+        self.assertEqual(status, 200, r)
+        for _ in range(600):
+            _, j = self.s.call(f"/api/jobs/{r['job']}")
+            if j["done"]:
+                break
+            time.sleep(0.2)
+        self.assertTrue(j["ok"], j["events"][-3:])
+        self.assertEqual(j["events"][-1]["titles"], {"t2": "transcoded"})
+        _, r = self.s.call("/api/encode_status", "POST", {"project": st["project"], "fast": True})
+        self.assertEqual(r["titles"], {"t1": False, "t2": True})
+        self.assertEqual(self.s.call("/api/transcode", "POST", {"titles": "t2"})[0], 400)
+        # the sound of a title, drawn for the timeline
+        status, png = self.s.call("/api/waveform?" + urllib.parse.urlencode(
+            {"path": "media/sample_a.mp4", "w": 400, "h": 40}))
+        self.assertEqual(status, 200)
+        self.assertEqual(png[:8], b"\x89PNG\r\n\x1a\n")
+        self.assertEqual(self.s.call("/api/waveform?path=media/menu_bg.png")[0], 403)
+
+    @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/dvdauthor/ISO tool")
     def test_slideshow_render(self):
         _, st = self.s.call("/api/new", "POST", {"sample": True})
         project = st["project"]
@@ -546,6 +570,28 @@ class TestGuiBrowser(unittest.TestCase):
             b = self.project()["menus"][0]["buttons"][-1]
             self.assertEqual((b["action"], b["label"]), ("menu:chapters", "CHAPTERS"))
             self.assertTrue(self.s.app.check(self.project())["valid"])
+            browser.close()
+        self.assertEqual(errors, [])
+
+    def test_transcode_now_and_waveforms(self):
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click("#np-sample")
+            # not transcoded yet: hollow marks in the project panel
+            page.locator(".nav-item[data-id=t1] .enc:not(.ok)").wait_for(timeout=120000)
+            page.click(".nav-item[data-view=title][data-id=t2]", button="right")
+            page.click(".popup button:has-text('Transcode this title now')")
+            page.locator(".nav-item[data-id=t2] .enc.ok").wait_for(timeout=300000)
+            self.assertEqual(page.locator(".nav-item[data-id=t1] .enc.ok").count(), 0)
+            # the timeline draws the title's sound
+            page.click(".nav-item[data-view=title][data-id=t2]")
+            wave = page.locator("#tl .tl-wave").first
+            wave.wait_for(timeout=60000)
+            self.assertIn("/api/waveform?", wave.get_attribute("src"))
             browser.close()
         self.assertEqual(errors, [])
 

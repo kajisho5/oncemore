@@ -136,6 +136,11 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   frame or by its shape). Use an image or a video as the background. **Exact preview**
   renders the menu exactly as the disc will show it, with button hit areas.
 * ▲/▼ in the right-hand panel change the order of titles and menus.
+* **Transcode now**: titles are encoded when the disc is built, or ahead of
+  time with *Transcode this title now* / *Transcode all titles now* (right-click
+  a title, or the Disc menu); the build then reuses them. A filled dot next to
+  a title in the project panel means it is transcoded. The timeline draws each
+  sound track's waveform.
 * **Linking and routing**: drag a title, menu or playlist from the project
   panel onto a button to link it, or onto an empty part of the menu to add a
   button for it. *Routing* draws where the remote's arrow keys go from each
@@ -203,6 +208,7 @@ oncemore preview-menu <project> --menu main -o main.png [--button id] [--state h
 oncemore simulate <project> --keys down,enter,menu   # press remote keys, no encoding
 oncemore import-psd <project> design.psd --menu main [--first-play]   # a menu from Photoshop
 oncemore gui [<dir>] [--port N] [--no-browser] # the authoring app
+oncemore transcode <project> [--title ID] [--fast] [--status]  # encode titles ahead of the build
 oncemore doctor                                # external tools, versions, ISO backend
 ```
 

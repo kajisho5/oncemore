@@ -354,3 +354,9 @@ table.shortcuts td.mono { font-family: var(--font-mono); text-align: right; whit
 .stage.drop-on { outline: 2px dashed var(--c-kind-remote); outline-offset: 2px; }
 .stage .el.drop-target { outline: 2px solid var(--c-kind-remote); background: var(--c-scrim); }
 .nav-item[draggable="true"] { cursor: grab; }
+
+/* transcode status in the project panel; waveforms on the timeline */
+.nav-item .enc { display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; border: 1px solid var(--c-text-2); vertical-align: 1px; }
+.nav-item .enc.ok { background: var(--c-success); border-color: var(--c-success); }
+.tl-wave { position: absolute; left: 0; top: 4px; height: calc(100% - 8px); opacity: .55; pointer-events: none; z-index: 2; }
+#statusbar .busy { color: var(--c-accent); }
