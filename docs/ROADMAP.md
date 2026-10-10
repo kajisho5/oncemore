@@ -187,6 +187,13 @@ browser) and lands only with green CI.
   or Place on the menu, natural proportions, resize keeping them, opacity,
   Layers; PSD re-import replaces them with the new artwork
 
+**P33 — Blu-ray menus** (done)
+- [x] Every menu as an HDMV interactive title: drawn at HD like the DVD
+  menu, buttons as an Interactive Graphics stream (highlights in full
+  colour, routing, auto-activate), links to titles / chapters / playlists /
+  menus, stream changes, Resume, Top Menu key, last menu; checked by
+  pressing keys in libbluray
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 
@@ -246,7 +253,8 @@ below.
 ## Phase 5 — Blu-ray
 
 Menu-less BDMV with titles, chapters and playlists (P28) and its UDF 2.50
-image (P29) and PGS subtitles (P30): done. Next: IGS menus and pop-up menus.
+image (P29), PGS subtitles (P30) and menus (P33): done. Next: pop-up menus
+(a menu over the playing title), menu loop counts and end actions.
 
 ## Later
 

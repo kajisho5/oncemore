@@ -19,7 +19,7 @@ import struct
 
 from . import encode
 from .errors import OncemoreError, ProjectError
-from .project import title_fps
+from .project import parse_action, title_fps
 
 CAPACITY = {"BD25": 25_025_314_816, "BD50": 50_050_629_632}
 MAX_VIDEO_BPS = 40_000_000     # Blu-ray primary video limit
@@ -31,6 +31,8 @@ TS_RATE = 48_000_000 // 8      # ts_recording_rate: the 48 Mbit/s maximum, in by
 VIDEO_PID = 0x1011
 AUDIO_PID = 0x1100             # + track number
 PG_PID = 0x1200                # + subtitle track number
+IG_PID = 0x1400                # a menu's buttons (Interactive Graphics)
+LAST_MENU_REG = 1              # GPR: title number of the menu shown last
 PMT_PID = 0x0100
 VERSION = b"0200"
 
@@ -44,7 +46,7 @@ FORMATS = {
     (25, 1): (4, 3),           # 1080i 25
     (30000, 1001): (4, 4),     # 1080i 29.97
 }
-CODING_H264, CODING_LPCM, CODING_AC3, CODING_PG = 0x1B, 0x80, 0x81, 0x90
+CODING_H264, CODING_LPCM, CODING_AC3, CODING_PG, CODING_IG = 0x1B, 0x80, 0x81, 0x90, 0x91
 
 # ISO 639-1 (the project's codes) -> ISO 639-2/B (the disc's)
 LANGS = {
@@ -124,6 +126,12 @@ def video_args(title, disc, max_bps, fast):
     fps = title_fps(title, disc)
     if fps not in FORMATS:
         raise OncemoreError(f"title {title.id!r}: {fps[0]}/{fps[1]} fps has no Blu-ray format")
+    return stream_video_args(fps, max_bps, fast, key_times(title.chapters, fps))
+
+
+def stream_video_args(fps, max_bps, fast, keys=()):
+    """x264 options for a Blu-ray video stream at `fps`; `keys`: times to make
+    key frames (chapters, a menu's loop point)."""
     gop = round(fps[0] / fps[1])            # at most one second between key frames
     x264 = (f"bluray-compat=1:slices=4:aud=1:nal-hrd=vbr:keyint={gop}:min-keyint=1:"
             "force-cfr=1")
@@ -135,7 +143,6 @@ def video_args(title, disc, max_bps, fast):
             "-r", f"{fps[0]}/{fps[1]}", "-pix_fmt", "yuv420p", "-aspect", "16:9",
             "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
             "-forced-idr", "1"]
-    keys = key_times(title.chapters, fps)
     if keys:
         args += ["-force_key_frames", ",".join(f"{t:.6f}" for t in keys)]
     return args
@@ -291,8 +298,9 @@ def _pad(data, n):
     return data + b"\0" * (-len(data) % n)
 
 
-def index_bdmv(title_objects, first_play, top_menu, video_format, frame_rate):
-    """title_objects: the movie object of every title (title 1 first)."""
+def index_bdmv(title_objects, first_play, top_menu, video_format, frame_rate, interactive=()):
+    """title_objects: the movie object of every title (title 1 first);
+    interactive: the titles (1-based) that are menus."""
     app = _u32(34) + bytes([0, video_format << 4 | frame_rate]) + bytes(32)
 
     def hdmv(obj, playback_type):
@@ -301,8 +309,8 @@ def index_bdmv(title_objects, first_play, top_menu, video_format, frame_rate):
 
     body = _u32(1 << 30) + hdmv(first_play, 1) + _u32(1 << 30) + hdmv(top_menu, 1)
     body += _u16(len(title_objects))
-    for obj in title_objects:
-        body += _u32(1 << 30) + hdmv(obj, 0)     # HDMV title, access permitted
+    for n, obj in enumerate(title_objects, 1):
+        body += _u32(1 << 30) + hdmv(obj, int(n in interactive))   # HDMV, access permitted
     index_start = 40 + len(app)
     return b"INDX" + VERSION + _u32(index_start) + _u32(0) + bytes(24) + app + \
         _u32(len(body)) + body
@@ -331,6 +339,47 @@ def jump_title(title):
     return _cmd(0x21, 0x81, title)
 
 
+def jump_title_reg(reg):
+    """Jump Title to the number held in general register `reg`."""
+    return _cmd(0x21, 0x01, reg)
+
+
+def jump_object(obj):
+    """Jump Object <obj> (a movie object number)."""
+    return _cmd(0x21, 0x80, obj)
+
+
+def play_pl_mark(playlist, mark):
+    """Play PlayList <playlist> from mark <mark> (0-based)."""
+    return _cmd(0x42, 0xC2, playlist, mark)
+
+
+def goto(pc):
+    """Goto command <pc> of the same object."""
+    return _cmd(0x20, 0x81, pc)
+
+
+def move(reg, value):
+    """Move <value> into general register <reg>."""
+    return _cmd(0x50, 0x40, reg, value, 0x01)
+
+
+def resume():
+    """Resume the title the menu was called from."""
+    return _cmd(0x01, 0x04)
+
+
+def set_streams(audio=None, subtitle=None):
+    """Set Stream: audio track `audio` (1-based) and/or subtitle track
+    `subtitle` shown (0 = subtitles off)."""
+    dst = 0
+    if audio:
+        dst |= 0x80000000 | audio << 16
+    if subtitle is not None:
+        dst |= (0xC000 | subtitle) if subtitle else 0
+    return _cmd(0x51, 0xC0, dst, 0, 0x01)
+
+
 def movie_objects(objects):
     """objects: lists of 12-byte navigation commands."""
     data = b""
@@ -351,19 +400,20 @@ def _audio_attr(track):
     return bytes([coding, fmt << 4 | 1]) + lang.encode("ascii")
 
 
-def _pg_attr(lang):
-    return bytes([CODING_PG]) + lang.encode("ascii") + b"\0"
+def _pg_attr(lang, coding=CODING_PG):
+    return bytes([coding]) + lang.encode("ascii") + b"\0"
 
 
 def mpls(items, marks):
     """A playlist. items: [(clip name, in, out, video_format, frame_rate,
-    audio, pg)] played one after the other, times in 45 kHz on each clip's
-    time line, audio [(coding, channels, lang3)], pg [lang3] (subtitles);
-    marks: chapter marks as (item index, time)."""
+    audio, pg, ig, still)] played one after the other, times in 45 kHz on
+    each clip's time line, audio [(coding, channels, lang3)], pg [lang3]
+    (subtitles), ig: the clip carries menu buttons, still: 2 holds the
+    last picture (a still menu); marks: chapter marks as (item index, time)."""
     app = _u32(14) + bytes([0, 1]) + _u16(0) + bytes(8) + _u16(0)
     body = b""
-    for clip, in_time, out_time, video_format, frame_rate, audio, pg in items:
-        stn = _u16(0) + bytes([1, len(audio), len(pg), 0, 0, 0, 0, 0]) + bytes(4)
+    for clip, in_time, out_time, video_format, frame_rate, audio, pg, ig, still in items:
+        stn = _u16(0) + bytes([1, len(audio), len(pg), int(ig), 0, 0, 0, 0]) + bytes(4)
         entry = _u8(1) + _u16(VIDEO_PID) + bytes(6)
         stn += _u8(len(entry)) + entry + _u8(5) + _video_attr(video_format, frame_rate)
         for k, tr in enumerate(audio):
@@ -372,9 +422,12 @@ def mpls(items, marks):
         for k, lang in enumerate(pg):
             entry = _u8(1) + _u16(PG_PID + k) + bytes(6)
             stn += _u8(len(entry)) + entry + _u8(5) + _pg_attr(lang)
+        if ig:
+            entry = _u8(1) + _u16(IG_PID) + bytes(6)
+            stn += _u8(len(entry)) + entry + _u8(5) + _pg_attr("und", CODING_IG)
         # connection_condition 1: the clips are not seamless; STC id 0
         item = clip.encode("ascii") + b"M2TS" + _u16(1) + _u8(0) + _u32(in_time) + \
-            _u32(out_time) + bytes(8) + _u8(0) + _u8(0) + _u16(0) + _u16(len(stn)) + stn
+            _u32(out_time) + bytes(8) + _u8(0) + _u8(still) + _u16(0) + _u16(len(stn)) + stn
         body += _u16(len(item)) + item
     playlist = _u16(0) + _u16(len(items)) + _u16(0) + body
     playlist = _u32(len(playlist)) + playlist
@@ -412,9 +465,9 @@ def ep_map(entries):
     return head + one
 
 
-def clpi(scan, video_format, frame_rate, audio, pg=()):
+def clpi(scan, video_format, frame_rate, audio, pg=(), ig=False):
     """Clip information of one .m2ts: its streams, time span and EP map.
-    audio: [(coding, channels, lang3)]; pg: [lang3]."""
+    audio: [(coding, channels, lang3)]; pg: [lang3]; ig: menu buttons."""
     ts_type = bytes([0x80]) + b"HDMV" + bytes(9) + bytes(16)
     info = _u16(0) + _u8(1) + _u8(1) + _u32(0) + _u32(TS_RATE) + _u32(scan.packets) + \
         bytes(128) + _u16(len(ts_type)) + ts_type
@@ -433,8 +486,11 @@ def clpi(scan, video_format, frame_rate, audio, pg=()):
     for k, lang in enumerate(pg):
         coding = _pg_attr(lang) + isrc + bytes(4)
         streams += _u16(PG_PID + k) + _u8(len(coding)) + coding
-    prog = _u8(0) + _u8(1) + _u32(0) + _u16(PMT_PID) + _u8(1 + len(audio) + len(pg)) + \
-        _u8(0) + streams
+    if ig:
+        coding = _pg_attr("und", CODING_IG) + isrc + bytes(4)
+        streams += _u16(IG_PID) + _u8(len(coding)) + coding
+    prog = _u8(0) + _u8(1) + _u32(0) + _u16(PMT_PID) + \
+        _u8(1 + len(audio) + len(pg) + int(ig)) + _u8(0) + streams
     prog = _u32(len(prog)) + prog
     cpi = _u16(1) + ep_map(scan.entries)          # 12 reserved bits, CPI_type 1 (EP map)
     cpi = _u32(len(cpi)) + cpi
@@ -468,26 +524,115 @@ class Piece:
     pg: list              # subtitle tracks [lang3]
     marks: list           # chapter starts, 45 kHz on the clip's time line
     end: int              # end of the clip, 45 kHz
+    ig: bool = False      # a menu: the clip carries its buttons
+    still: int = 0        # 2: hold the last picture (a still menu)
 
     def item(self, first=1, last=None):
         """PlayItem covering chapters first..last (1-based, inclusive)."""
         start = self.marks[first - 1]
         stop = self.marks[last] if last and last < len(self.marks) else self.end
-        return (self.clip, start, stop, self.video_format, self.frame_rate, self.audio, self.pg)
+        return (self.clip, start, stop, self.video_format, self.frame_rate, self.audio, self.pg,
+                self.ig, self.still)
+
+
+class Nav:
+    """The disc's navigation: its Blu-ray titles (one per project title, one
+    per project playlist, "play all" when something starts it, then one per
+    menu), the movie objects that play them, and the commands an action
+    (a button's, an end action, first play) turns into.
+
+    Objects: one per Blu-ray title, in title order; then first play; then
+    the top menu key; then one per (title, chapter) a menu button starts."""
+
+    def __init__(self, project):
+        self.project = project
+        p = project
+        titles = [("title", t.id, t.end_action) for t in p.titles]
+        titles += [("playlist", x.id, x.end_action) for x in p.playlists]
+        if p.uses_playall:
+            titles.append(("playall", None, p.titles[-1].end_action))
+        titles += [("menu", m.id, None) for m in p.menus]
+        self.titles = titles
+        self.numbers = {f"{k}:{i}" if i else k: n for n, (k, i, _) in enumerate(titles, 1)}
+        chapters = []
+        for m in p.menus:
+            for b in m.buttons:
+                kind, tid, n = parse_action(b.action)
+                if kind == "chapter" and (tid, n) not in chapters:
+                    chapters.append((tid, n))
+        self.first_play = len(titles)
+        self.top_menu = len(titles) + 1
+        self.chapter_objects = {key: len(titles) + 2 + k for k, key in enumerate(chapters)}
+
+    def menu_number(self, menu_id):
+        return self.numbers.get(f"menu:{menu_id}")
+
+    def go(self, action):
+        """Commands that go where `action` says, or [] (stop, or nowhere)."""
+        kind, ident, n = parse_action(action or "stop")
+        if kind == "chapter":
+            if n == 1:
+                return [jump_title(self.numbers[f"title:{ident}"])]
+            return [jump_object(self.chapter_objects[(ident, n)])]
+        if kind == "lastmenu":
+            return [jump_title_reg(LAST_MENU_REG)] if self.project.menus else []
+        if kind == "resume":
+            return [resume()]
+        key = f"{kind}:{ident}" if ident else kind
+        return [jump_title(self.numbers[key])] if key in self.numbers else []
+
+    def button(self, b):
+        """A menu button's commands: its streams, then its action."""
+        kind, _, n = parse_action(b.action)
+        cmds = []
+        audio = n if kind == "audio" else b.audio
+        sub = n if kind == "subtitle" else b.subtitle
+        if audio or sub is not None:
+            cmds.append(set_streams(audio, sub))
+        if kind not in ("audio", "subtitle"):
+            cmds += self.go(b.action)
+        return cmds
+
+    def _start(self, title):
+        """Subtitles as the title starts: its default track, or none."""
+        if not title.subtitles:
+            return []
+        on = next((k for k, sub in enumerate(title.subtitles, 1) if sub.default), 0)
+        return [set_subtitles(on)]
+
+    def objects(self, menus=None):
+        """All movie objects. menus: {menu id: (still, loop_mark)} for the
+        menus' own objects (a still menu holds its picture; others play
+        again from the loop point, mark 1, or from the start)."""
+        p = self.project
+        menus = menus or {}
+        out = []
+        for n, (kind, ident, end) in enumerate(self.titles, 1):
+            if kind == "menu":
+                still, loop_mark = menus.get(ident, (True, 0))
+                cmds = [move(LAST_MENU_REG, n), play_pl(n)]
+                if not still:
+                    cmds += [play_pl_mark(n, loop_mark), goto(2)]
+                out.append(cmds)
+                continue
+            first = p.title(ident) if kind == "title" else \
+                p.title(p.playlist(ident).items[0].title_id) if kind == "playlist" \
+                else p.titles[0]
+            out.append(self._start(first) + [play_pl(n)] + self.go(end))
+        out.append(self.go(p.disc.first_play) or [jump_title(1)])
+        top = p.disc.title_key or (f"menu:{p.menus[0].id}" if p.menus else None)
+        out.append(self.go(top) or [jump_title(1)])
+        for (tid, n), _ in sorted(self.chapter_objects.items(), key=lambda kv: kv[1]):
+            t = p.title(tid)
+            out.append(self._start(t) + [play_pl_mark(self.numbers[f"title:{tid}"], n - 1)] +
+                       self.go(t.end_action))
+        return out
 
 
 def disc_titles(project):
-    """The Blu-ray titles in order: one per project title, one per project
-    playlist, then "play all" when something starts it. Returns
-    [(kind, id or None, end action)] and {action: title number}."""
-    out = [("title", t.id, t.end_action) for t in project.titles]
-    out += [("playlist", p.id, p.end_action) for p in project.playlists]
-    if project.uses_playall:
-        out.append(("playall", None, project.titles[-1].end_action))
-    numbers = {}
-    for n, (kind, ident, _) in enumerate(out, 1):
-        numbers[f"{kind}:{ident}" if ident else kind] = n
-    return out, numbers
+    """The Blu-ray titles in order and {action: title number} (see Nav)."""
+    nav = Nav(project)
+    return nav.titles, nav.numbers
 
 
 def playlist_items(project, kind, ident, pieces):
@@ -497,6 +642,8 @@ def playlist_items(project, kind, ident, pieces):
     elif kind == "playlist":
         parts = [(pieces[it.title_id], it.first, it.last)
                  for it in project.playlist(ident).items]
+    elif kind == "menu":
+        parts = [(pieces[f"menu:{ident}"], 1, None)]
     else:
         parts = [(pieces[t.id], 1, None) for t in project.titles]
     items, marks = [], []
@@ -507,31 +654,10 @@ def playlist_items(project, kind, ident, pieces):
     return items, marks
 
 
-def navigation(project):
-    """Movie objects: object k plays Blu-ray title k+1 and then does what
-    its end action says; only titles, playlists and "play all" can follow
-    on a disc without menus, anything else stops. Then first play, which
-    starts disc.first_play (the first title when that is a menu), and the
-    top menu key, which starts disc.title_key the same way.
-    Returns (objects, first play object, top menu object)."""
-    titles, numbers = disc_titles(project)
-    objects = []
-    for n, (kind, ident, end) in enumerate(titles, 1):
-        first = project.title(ident) if kind == "title" else \
-            project.title(project.playlist(ident).items[0].title_id) if kind == "playlist" \
-            else project.titles[0]
-        cmds = []
-        if first.subtitles:
-            # the default track shown from the start, or subtitles off
-            on = next((k for k, sub in enumerate(first.subtitles, 1) if sub.default), 0)
-            cmds.append(set_subtitles(on))
-        cmds.append(play_pl(n))
-        if end in numbers:
-            cmds.append(jump_title(numbers[end]))
-        objects.append(cmds)
-    objects.append([jump_title(numbers.get(project.disc.first_play, 1))])
-    objects.append([jump_title(numbers.get(project.disc.title_key or "", 1))])
-    return objects, len(objects) - 2, len(objects) - 1
+def navigation(project, menus=None):
+    """(objects, first play object, top menu object) (see Nav)."""
+    nav = Nav(project)
+    return nav.objects(menus), nav.first_play, nav.top_menu
 
 
 def audio_streams(title):
@@ -550,9 +676,11 @@ def _write(out_dir, rel, data):
             f.write(data)
 
 
-def write_bdmv(project, clips, out_dir):
-    """Write the BDMV folder. clips: {title id: encoded .m2ts}; the streams
-    are moved into BDMV/STREAM."""
+def write_bdmv(project, clips, out_dir, menus=None):
+    """Write the BDMV folder. clips: {title id: encoded .m2ts}; menus:
+    {menu id: {"m2ts", "still", "loop_point"}} (bdmenu.encode_menu). The
+    streams are moved into BDMV/STREAM."""
+    menus = menus or {}
     for d in DIRS:
         os.makedirs(os.path.join(out_dir, d), exist_ok=True)
     pieces = {}
@@ -569,14 +697,35 @@ def write_bdmv(project, clips, out_dir):
         dest = os.path.join(out_dir, "BDMV", "STREAM", f"{name}.m2ts")
         if os.path.abspath(clips[t.id]) != os.path.abspath(dest):
             shutil.move(clips[t.id], dest)
-    titles, _ = disc_titles(project)
+    loops = {}
+    for k, m in enumerate(project.menus, len(project.titles) + 1):
+        name, info = f"{k:05d}", menus[m.id]
+        scan = scan_m2ts(info["m2ts"])
+        video_format, frame_rate = FORMATS[project.disc.fps]
+        audio = [(CODING_AC3, 2, "und")] if info.get("audio") else []
+        marks = [scan.first_pts // 2]
+        if info.get("loop_point"):
+            # the second time round the menu plays from its loop point
+            want = scan.first_pts + round(info["loop_point"] * 90000)
+            marks.append(min((e[0] for e in scan.entries), key=lambda x: abs(x - want)) // 2)
+        pieces[f"menu:{m.id}"] = Piece(name, video_format, frame_rate, audio, [], marks,
+                                       scan.end_pts // 2, ig=True,
+                                       still=2 if info["still"] else 0)
+        loops[m.id] = (info["still"], len(marks) - 1)
+        _write(out_dir, os.path.join("CLIPINF", f"{name}.clpi"),
+               clpi(scan, video_format, frame_rate, audio, (), ig=True))
+        shutil.move(info["m2ts"], os.path.join(out_dir, "BDMV", "STREAM", f"{name}.m2ts"))
+    nav = Nav(project)
+    titles = nav.titles
     for n, (kind, ident, _) in enumerate(titles, 1):
         items, marks = playlist_items(project, kind, ident, pieces)
         _write(out_dir, os.path.join("PLAYLIST", f"{n:05d}.mpls"), mpls(items, marks))
-    objects, first, top = navigation(project)
+    objects, first, top = nav.objects(loops), nav.first_play, nav.top_menu
     first_piece = pieces[project.titles[0].id]
+    interactive = {n for n, (kind, _, _) in enumerate(titles, 1) if kind == "menu"}
     _write(out_dir, "index.bdmv", index_bdmv(list(range(len(titles))), first, top,
-                                             first_piece.video_format, first_piece.frame_rate))
+                                             first_piece.video_format, first_piece.frame_rate,
+                                             interactive))
     _write(out_dir, "MovieObject.bdmv", movie_objects(objects))
     return {"titles": len(titles), "playlists": [f"{n:05d}.mpls" for n in range(1, len(titles) + 1)]}
 
