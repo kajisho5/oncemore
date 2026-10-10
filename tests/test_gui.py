@@ -935,6 +935,10 @@ class TestGuiBrowser(unittest.TestCase):
             page.locator("tr[data-clip='1']").wait_for(state="detached")
             page.fill("tr[data-clip='0'] [data-cf=in]", "")
             page.press("tr[data-clip='0'] [data-cf=in]", "Enter")
+            # let that edit land (and the editor redraw) before the next field: an
+            # input still focused when the editor redraws commits on its own
+            self.poll(lambda: "in" not in self.project()["titles"][1]["clips"][0])
+            self.wait_saved(page)
             page.locator("tr[data-clip='0'] [data-cf=out]").fill("")
             page.press("tr[data-clip='0'] [data-cf=out]", "Enter")
             self.poll(lambda: "source" in self.project()["titles"][1])
