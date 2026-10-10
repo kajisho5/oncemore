@@ -48,6 +48,9 @@ const I18N = {
     render_play: "Render & play", rendering: "Rendering…", add_picture: "+ Add a picture…", seconds: "Seconds on screen",
     transition: "Transition", crossfade: "Cross-fade", cut: "Cut", transition_duration: "Cross-fade (s)",
     pan_zoom: "Slow zoom in / out (pan & zoom)", slideshow_chapters: "Every picture starts a chapter.",
+    clips: "Clips", add_clip: "Add a clip…", clip_in: "In", clip_out: "Out", clip_end: "end",
+    clips_hint: "The clips play one after another as one title. Without chapters of its own, every clip starts a chapter.",
+    joining: "Joining the clips…", clip_whole: "whole file", clips_n: "{n} clips", clip_source_hint: "Add a clip to join more videos into this title.",
     subtitle_editor: "Subtitle cues", no_sub_tracks: "No subtitle track yet.", new_srt: "+ New subtitle file",
     sub_readonly: "WebVTT / ASS files are shown read-only.", convert_srt: "Convert to .srt to edit",
     sub_track_pos: "Track", add_cue: "+ Cue at the playhead", new_cue_text: "New subtitle",
@@ -154,6 +157,9 @@ const I18N = {
     render_play: "書き出して再生", rendering: "書き出し中…", add_picture: "＋写真を追加…", seconds: "表示秒数",
     transition: "切り替え", crossfade: "クロスフェード", cut: "カット", transition_duration: "クロスフェード（秒）",
     pan_zoom: "ゆっくりズーム（パン＆ズーム）", slideshow_chapters: "写真ごとにチャプターになります。",
+    clips: "クリップ", add_clip: "クリップを追加…", clip_in: "イン", clip_out: "アウト", clip_end: "最後",
+    clips_hint: "クリップは順番に続けて 1 つのタイトルとして再生されます。チャプターを指定しなければ、クリップごとにチャプターになります。",
+    joining: "クリップをつないでいます…", clip_whole: "ファイル全体", clips_n: "{n} クリップ", clip_source_hint: "クリップを追加すると、複数の動画を 1 つのタイトルにつなげられます。",
     subtitle_editor: "字幕の編集", no_sub_tracks: "字幕トラックはまだありません。", new_srt: "＋新しい字幕ファイル",
     sub_readonly: "WebVTT / ASS は表示のみです。", convert_srt: ".srt に変換して編集",
     sub_track_pos: "トラック設定", add_cue: "＋再生位置に字幕を追加", new_cue_text: "新しい字幕",
@@ -273,11 +279,79 @@ const discDar = (aspect) => (aspect || P()?.disc?.aspect) === "4:3" ? 4 / 3 : 16
 const displayW = () => Math.round((discH() * discDar()) / 2) * 2;
 // chapters are times or {time, name, poster} objects
 function chapterEntries(title) {
-  const e = (title.chapters || []).map((c) => (typeof c === "object" && c !== null
+  let e = (title.chapters || []).map((c) => (typeof c === "object" && c !== null
     ? { time: parseTime(c.time), name: c.name || "", poster: c.poster == null ? null : parseTime(c.poster) }
     : { time: parseTime(c), name: "", poster: null })).sort((a, b) => a.time - b.time);
+  const join = !title.chapters && title.clips ? clipJoinNow(title) : null;
+  if (join) e = join.starts.map((time) => ({ time, name: "", poster: null }));
   if (!e.length || e[0].time > 0) e.unshift({ time: 0, name: "", poster: null });
   return e;
+}
+// titles made of clips: the server joins them into one preview (cached) and
+// says where each clip starts on the title's timeline
+const clipKey = (ti) => JSON.stringify([ti.clips, P().disc.standard, ti.aspect || P().disc.aspect, ti.audio || {}]);
+function clipJoin(ti) {
+  S.clipJoins = S.clipJoins || {};
+  const k = clipKey(ti);
+  if (!S.clipJoins[k]) {
+    S.clipJoins[k] = api("/api/clips", { method: "POST", body: { title: ti.id, project: S.project } })
+      .then((r) => (S.clipJoins[k] = r), (e) => { delete S.clipJoins[k]; throw e; });
+  }
+  return Promise.resolve(S.clipJoins[k]);
+}
+function clipJoinNow(ti) {
+  const r = S.clipJoins && S.clipJoins[clipKey(ti)];
+  return r && !(r instanceof Promise) ? r : null;
+}
+function clipEditorHtml(ti, join) {
+  const list = ti.clips || [];
+  const add = selectHtml("addclip", [["", t("add_clip")], ...mediaOf("video").map((v) => [v, v.replace(/^media\//, "")])], "", 'id="clip-add" class="shrink"');
+  if (!list.length) return `<h3>${t("clips")}</h3><div class="row"><span class="hint">${esc(t("clip_source_hint"))}</span><span class="spacer"></span>${add}</div>`;
+  return `<h3>${t("clips")} (${list.length})</h3><div class="hint">${esc(t("clips_hint"))}</div>
+    <table class="clips"><tbody>${list.map((c, i) => {
+      const j = join && join.clips[i];
+      return `<tr data-clip="${i}"><td class="n">${i + 1}</td>
+        <td class="src" ${j ? `data-cseek="${j.start}"` : ""}>${esc(c.source.replace(/^media\//, ""))}${j ? ` <span class="muted mono">${fmtTime(j.start)} · ${j.duration.toFixed(2)}s</span>` : ""}</td>
+        <td><input class="mono" data-cf="in" value="${c.in != null ? fmtTime(parseTime(c.in)) : ""}" placeholder="00:00:00.000" title="${esc(t("clip_in"))}"></td>
+        <td><input class="mono" data-cf="out" value="${c.out != null ? fmtTime(parseTime(c.out)) : ""}" placeholder="${esc(t("clip_end"))}" title="${esc(t("clip_out"))}"></td>
+        <td class="act"><button class="small" data-cmv="-1" ${i ? "" : "disabled"}>▲</button><button class="small" data-cmv="1" ${i + 1 < list.length ? "" : "disabled"}>▼</button><button class="small danger" data-crm ${list.length > 1 ? "" : "disabled"}>✕</button></td></tr>`;
+    }).join("")}</tbody></table>
+    <div class="row"><span class="spacer"></span>${add}</div>`;
+}
+function bindClipEditor(m, ti, seek) {
+  const edit = (fn) => commit((p) => {
+    const x = p.titles.find((y) => y.id === ti.id);
+    fn(x);
+    // one whole clip left: an ordinary title again
+    if (x.clips && x.clips.length === 1 && x.clips[0].in == null && x.clips[0].out == null) { x.source = x.clips[0].source; delete x.clips; }
+  });
+  const add = m.querySelector("#clip-add");
+  if (add) add.onchange = () => {
+    const v = add.value;
+    if (v) edit((x) => {
+      if (!x.clips) {
+        // the title's own video becomes the first clip; joined clips have one sound track
+        x.clips = [{ source: x.source }]; delete x.source; delete x.audio_tracks;
+        if (x.audio) delete x.audio.passthrough;
+        // only the start marked: let every clip start a chapter instead
+        if ((x.chapters || []).every((c) => typeof c !== "object" && parseTime(c) === 0)) delete x.chapters;
+      }
+      x.clips.push({ source: v });
+    });
+  };
+  m.querySelectorAll("tr[data-clip]").forEach((row) => {
+    const i = Number(row.dataset.clip);
+    row.querySelectorAll("[data-cf]").forEach((inp) => (inp.onchange = () => edit((x) => {
+      const v = inp.value.trim();
+      if (v) x.clips[i][inp.dataset.cf] = fmtTime(parseTime(v)); else delete x.clips[i][inp.dataset.cf];
+    })));
+    row.querySelectorAll("[data-cmv]").forEach((b) => (b.onclick = () => edit((x) => {
+      const j = i + Number(b.dataset.cmv); [x.clips[i], x.clips[j]] = [x.clips[j], x.clips[i]];
+    })));
+    row.querySelector("[data-crm]").onclick = () => edit((x) => { x.clips.splice(i, 1); });
+    const go = row.querySelector("[data-cseek]");
+    if (go && seek) go.onclick = () => seek(Number(go.dataset.cseek));
+  });
 }
 const chaptersOf = (title) => chapterEntries(title).map((e) => e.time);
 function setChapters(title, entries) {
@@ -590,15 +664,27 @@ function renderTitle(m) {
   const ti = curTitle();
   if (!ti) return select("disc");
   if (ti.slideshow) return renderSlideshow(m, ti);
-  const info = S.probes[ti.source];
-  if (!info) { m.innerHTML = `<div class="muted">…</div>`; probe(ti.source).then(() => S.sel.view === "title" && renderMain()); return; }
+  let src = ti.source, join = null;
+  if (ti.clips) {
+    join = clipJoinNow(ti);
+    if (!join) {
+      m.innerHTML = `<div class="card"><h2>${esc(ti.name || ti.id)}</h2><div class="muted" id="clip-wait">${esc(t("joining"))}</div><div id="clip-box">${clipEditorHtml(ti, null)}</div></div>`;
+      bindClipEditor(m, ti);
+      clipJoin(ti).then(() => S.sel.view === "title" && S.sel.id === ti.id && renderMain(),
+        (e) => { const w = $("#clip-wait"); if (w) { w.className = "hint"; w.textContent = e.message; } });
+      return;
+    }
+    src = join.path;
+  }
+  const info = S.probes[src];
+  if (!info) { m.innerHTML = `<div class="muted">…</div>`; probe(src).then(() => S.sel.view === "title" && renderMain()); return; }
   const fps = (() => { const [a, b] = String(info.fps || "30").split(/[/:]/).map(Number); return b ? a / b : a || 30; })();
-  const dur = info.duration || 0;
+  const dur = join ? join.duration : info.duration || 0;
   const ph = Math.min(S.playhead[ti.id] || 0, dur);
   const chapters = chaptersOf(ti);
   const ar = ti.aspect || P().disc.aspect;
   m.innerHTML = `<div class="card">
-    <div class="row"><h2 class="shrink">${esc(ti.name || ti.id)}</h2><span class="muted">${esc(ti.source)} · ${info.width || "?"}×${info.height || "?"} · ${dur.toFixed(2)}s</span></div>
+    <div class="row"><h2 class="shrink">${esc(ti.name || ti.id)}</h2><span class="muted">${join ? esc(t("clips_n", { n: ti.clips.length })) : esc(ti.source) + ` · ${info.width || "?"}×${info.height || "?"}`} · ${dur.toFixed(2)}s</span></div>
     <div class="viewer" style="aspect-ratio:${ar.replace(":", " / ")}"><img id="frame" alt=""><video id="player" playsinline preload="none" hidden></video>
       <span class="tc" id="tc">${fmtTime(ph)}</span><span class="proxy-msg" id="proxy-msg" hidden></span></div>
     <div class="timeline" id="timeline">
@@ -613,6 +699,7 @@ function renderTitle(m) {
       <span class="spacer"></span>
       <button id="add-ch" class="primary">◆ ${t("add_chapter")}</button>
     </div>
+    <div id="clip-box">${clipEditorHtml(ti, join)}</div>
     <h3>${t("chapters")} (${chapters.length})</h3>
     <ul class="chapter-list">${chapterEntries(ti).map((c, i) => `<li><span class="n">${i + 1}</span><span class="t" data-seek="${c.time}">${fmtTime(c.time)}</span>
       <input class="ch-name" data-ch-name="${i}" value="${esc(c.name)}" placeholder="${esc(t("chapter_at", { n: i + 1 }))}" title="${esc(t("chapter_name"))}">
@@ -629,7 +716,7 @@ function renderTitle(m) {
     pending = setTimeout(() => {
       if (Math.abs(time - last) < 1e-4) return;
       last = time;
-      img.src = imgUrl("frame", { path: ti.source, t: time.toFixed(3), w: 960 });
+      img.src = imgUrl("frame", { path: src, t: time.toFixed(3), w: 960 });
     }, 90);
   };
   img.onerror = () => { img.alt = t("frame_err"); };
@@ -663,7 +750,7 @@ function renderTitle(m) {
     playBtn.disabled = true;
     try {
       for (;;) {
-        const st = await api("/api/proxy?" + new URLSearchParams({ path: ti.source, format }), { method: "POST" });
+        const st = await api("/api/proxy?" + new URLSearchParams({ path: src, format }), { method: "POST" });
         if (st.state === "ready") break;
         if (st.state === "error") throw new Error(st.error || t("play_err"));
         msg.hidden = false; msg.textContent = t("preparing", { p: Math.round(st.fraction * 100) });
@@ -673,8 +760,8 @@ function renderTitle(m) {
     } catch (e) { msg.hidden = false; msg.textContent = e.message; return; }
     finally { playBtn.disabled = false; }
     msg.hidden = true;
-    const src = imgUrl("proxy", { path: ti.source, format });
-    if (video.getAttribute("src") !== src) video.src = src;
+    const url = imgUrl("proxy", { path: src, format });
+    if (video.getAttribute("src") !== url) video.src = url;
     video.currentTime = Number(scrub.value) >= dur - 0.05 ? 0 : Number(scrub.value);
     playing = true; video.hidden = false; img.hidden = true;
     playBtn.textContent = "❚❚ " + t("pause");
@@ -709,6 +796,7 @@ function renderTitle(m) {
     e.poster = e.poster != null && b.classList.contains("on") ? null : Number(scrub.value); setChapters(x, list);
   })));
   show(ph);
+  bindClipEditor(m, ti, seek);
   renderSubEditor(ti, () => Number(scrub.value), seek);
 }
 
@@ -947,7 +1035,7 @@ async function renderSimScreen() {
     scr.dataset.menu = "";
     const ti = sim.title, k = ti.chapter, start = ti.chapters[k - 1] || 0;
     const name = (ti.names || [])[k - 1];
-    scr.innerHTML = `<img class="base" src="${imgUrl("frame", { path: ti.source, t: (start + 0.5).toFixed(3), w: 720 })}" alt="">
+    scr.innerHTML = `<img class="base" src="${imgUrl("frame", { path: ti.frame.path, t: ti.frame.t.toFixed(3), w: 720 })}" alt="">
       <div class="sim-osd">${esc(ti.name)} — ${esc(t("chapter_n", { n: k, m: ti.chapters.length }))}${name ? " · " + esc(name) : ""}</div>`;
     st.innerHTML = `<b>${t("now")}:</b> ${t("title")} <span class="mono">${esc(ti.id)}</span> · ${esc(t("chapter_n", { n: k, m: ti.chapters.length }))} · ${esc(flags)}<div class="hint">${esc((s.log || []).join(" → "))}</div>`;
   } else {
@@ -967,7 +1055,7 @@ function renderTitleInspector(el) {
   el.innerHTML = `<h2>${t("title_props")}</h2>
     <label class="field"><span>${t("name")}</span><input data-k="name" value="${esc(ti.name || "")}"></label>
     <label class="field"><span>${t("id")}</span><input id="ti-id" value="${esc(ti.id)}"><div class="hint">${esc(t("rename_hint"))}</div></label>
-    ${ti.slideshow ? `<label class="field"><span>${t("source")}</span><div class="hint">${esc(t("slideshow"))}</div></label>`
+    ${ti.slideshow || ti.clips ? `<label class="field"><span>${t("source")}</span><div class="hint">${esc(ti.clips ? t("clips_n", { n: ti.clips.length }) : t("slideshow"))}</div></label>`
       : `<label class="field"><span>${t("source")}</span>${selectHtml("source", mediaOf("video").map((v) => [v, v]), ti.source)}</label>`}
     <label class="field"><span>${t("aspect")}</span>${selectHtml("aspect", [["__none__", `${t("auto")} (${P().disc.aspect})`], ["16:9", "16:9"], ["4:3", "4:3"]], ti.aspect || "__none__")}</label>
     <label class="field"><span>${t("scan")}</span>${selectHtml("scan", [["__none__", t("scan_auto")], ["progressive", t("scan_progressive")], ["interlaced", t("scan_interlaced")], ...(P().disc.standard === "NTSC" ? [["pulldown", t("scan_pulldown")]] : [])], ti.scan || "__none__")}<div class="hint">${esc(t("scan_hint"))}</div></label>
@@ -989,7 +1077,7 @@ function renderTitleInspector(el) {
         <input type="number" min="0" class="shrink" style="width:52px" data-k="stream" value="${tr.stream || 0}" title="${t("stream")}">
         ${selectHtml("lang", langs, tr.lang || "", 'class="shrink" style="width:90px"')}
         <button class="small danger shrink" data-del-track="${i}">✕</button></div>`).join("")}
-    <button class="small" id="add-track">${t("add_track")}</button>
+    <button class="small" id="add-track" ${ti.clips ? "disabled" : ""}>${t("add_track")}</button>
     <h3>${t("subtitles")}</h3>
     ${subs.map((s, i) => `<div class="row" style="margin:6px 0 4px" data-sub="${i}" data-nobind>
         ${selectHtml("file", mediaOf("subtitle").map((f) => [f, f.replace(/^media\//, "")]), s.file)}
@@ -1931,12 +2019,17 @@ function tlPlayhead(time) {
 async function renderTimeline() {
   const panel = $("#p-timeline"), split = $("#tl-splitter");
   const ti = S.sel.view === "title" && P() ? curTitle() : null;
-  const show = !!(ti && ti.source && !ti.slideshow);
+  const show = !!(ti && (ti.source || ti.clips) && !ti.slideshow);
   panel.hidden = split.hidden = !show;
   if (!show) { S.tl = null; return; }
-  const info = await probe(ti.source);
+  let src = ti.source, join = null;
+  if (ti.clips) {
+    try { join = await clipJoin(ti); } catch (e) { return; }
+    src = join.path;
+  }
+  const info = await probe(src);
   if (S.sel.view !== "title" || curTitle() !== ti) return;
-  const dur = info?.duration || 0;
+  const dur = join ? join.duration : info?.duration || 0;
   const zoom = S.tlZoom || 1;
   $("#tl-head").innerHTML = `<span class="title">${t("timeline")}</span><span class="crumb">${esc(ti.name || ti.id)} · ${fmtTime(dur)}</span><span class="spacer"></span>
     <button class="small" id="tl-out" title="−">−</button><button class="small" id="tl-in" title="+">+</button>`;
@@ -1950,7 +2043,7 @@ async function renderTimeline() {
   const ticks = [];
   for (let x = 0; x <= dur; x += step) ticks.push(`<span class="tick" style="left:${x * pps}px">${fmtTime(x).replace(/\.\d+$/, "").replace(/^00:/, "")}</span>`);
   const thumbW = 78, nThumb = Math.min(200, Math.ceil(width / thumbW));
-  const thumbs = Array.from({ length: nThumb }, (_, k) => `<img src="${imgUrl("frame", { path: ti.source, t: Math.min(dur - 0.05, (k + 0.5) * thumbW / pps).toFixed(2), w: 160 })}" style="width:${thumbW}px" alt="">`).join("");
+  const thumbs = Array.from({ length: nThumb }, (_, k) => `<img src="${imgUrl("frame", { path: src, t: Math.min(dur - 0.05, (k + 0.5) * thumbW / pps).toFixed(2), w: 160 })}" style="width:${thumbW}px" alt="">`).join("");
   const entries = chapterEntries(ti);
   const tracks = ti.audio_tracks && ti.audio_tracks.length ? ti.audio_tracks : [{}];
   const subs = ti.subtitles || [];
@@ -1958,8 +2051,10 @@ async function renderTimeline() {
   box.innerHTML = `<div class="tl" style="width:${LABEL + width + 16}px">
     <div class="tl-row"><span class="tl-label"></span><div class="tl-track tl-ruler" id="tl-ruler" style="width:${width}px">${ticks.join("")}</div></div>
     ${lane(t("video"), "video", thumbs, "title")}
+    ${join ? lane(t("clips"), "clips", join.clips.map((c, k) => `<div class="tl-clip clip ${k % 2 ? "alt" : ""}" data-cstart="${c.start}" style="left:${c.start * pps}px;width:${Math.max(3, c.duration * pps)}px" title="${esc(c.source)}">${k + 1} ${esc(c.source.replace(/^media\//, ""))}</div>`).join(""), "title") : ""}
     ${lane(t("chapters"), "chapters", entries.map((c, i) => `<div class="tl-chapter ${i ? "" : "first"}" data-tlch="${i}" style="left:${c.time * pps}px" title="${esc(fmtTime(c.time))}"><span>${i + 1}${c.name ? " " + esc(c.name) : ""}</span></div>`).join(""), "chapter")}
-    ${tracks.map((a, k) => lane(`${t("audio")} ${k + 1}${a.lang ? " · " + a.lang : ""}`, "", `<div class="tl-clip audio" style="left:0;width:${dur * pps}px">${esc((a.source || ti.source).replace(/^media\//, ""))}${a.stream ? " #" + a.stream : ""}</div>`, "audio")).join("")}
+    ${join ? lane(t("audio"), "", join.clips.map((c) => `<div class="tl-clip audio" style="left:${c.start * pps}px;width:${Math.max(3, c.duration * pps)}px">${esc(c.source.replace(/^media\//, ""))}</div>`).join(""), "audio")
+      : tracks.map((a, k) => lane(`${t("audio")} ${k + 1}${a.lang ? " · " + a.lang : ""}`, "", `<div class="tl-clip audio" style="left:0;width:${dur * pps}px">${esc((a.source || ti.source).replace(/^media\//, ""))}${a.stream ? " #" + a.stream : ""}</div>`, "audio")).join("")}
     ${subs.map((s, k) => lane(`${t("subtitles")} ${k + 1}${s.lang ? " · " + s.lang : ""}`, "", `<span class="hint" data-subk="${k}"></span>`, "subtitle")).join("")}
     <div class="tl-playhead" id="tl-playhead"></div></div>`;
   tlPlayhead(S.playhead[ti.id] || 0);
@@ -1967,6 +2062,7 @@ async function renderTimeline() {
   const seek = (time) => (S.titleSeek ? S.titleSeek(time) : (S.playhead[ti.id] = time, tlPlayhead(time)));
   $("#tl-ruler").onpointerdown = (ev) => seek(at(ev, $("#tl-ruler")));
   box.querySelector(".tl-lane.video").onpointerdown = (ev) => seek(at(ev, ev.currentTarget));
+  box.querySelectorAll(".tl-clip.clip").forEach((c) => (c.onclick = () => seek(Number(c.dataset.cstart))));
   // drag a chapter mark (not the first) to move it, frame-accurately
   const fps = (() => { const [a, b] = String(info.fps || "30").split(/[/:]/).map(Number); return b ? a / b : a || 30; })();
   box.querySelectorAll(".tl-chapter[data-tlch]").forEach((mk) => {

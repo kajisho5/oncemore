@@ -19,6 +19,7 @@ API (all JSON unless noted):
   POST /api/build                    start iso/folder build -> job id
   GET  /api/jobs/ID?since=N          job events (same objects as --json)
   POST /api/reveal                   show a file in Finder / the file manager
+  POST /api/clips                    a title made of clips: lengths + joined preview
 """
 
 import base64
@@ -42,10 +43,10 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 
-from .. import (__version__, build, encode, graph, png4, scaffold, simulate, slideshow,
+from .. import (__version__, build, clips, encode, graph, png4, scaffold, simulate, slideshow,
                subtitles, templates, tools)
 from ..errors import OncemoreError, ProjectError
-from ..project import PROJECT_FILENAME, build_project, read_json
+from ..project import PROJECT_FILENAME, build_project, clip_starts, read_json, source_at
 from ..report import Reporter
 
 MEDIA_EXT = {
@@ -116,6 +117,7 @@ class App:
         self._drawtext = None
         self.sim_cache = {}        # menu signature -> layout / images for the simulator
         self.sim_lock = threading.Lock()
+        self.clip_lock = threading.Lock()
 
     # -- paths -----------------------------------------------------------------
     def resolve(self, rel):
@@ -543,6 +545,28 @@ class Handler(BaseHTTPRequestHandler):
         self.json({"path": self.app.rel(t.source), "duration": t.slideshow.duration,
                    "starts": t.slideshow.starts()})
 
+    def api_post_clips(self, q):
+        """A title made of clips: their lengths and where each starts, and the
+        joined preview (rendered once, then cached) the page shows and plays."""
+        body = self.body_json()
+        project = self._project_from(body, check_files=True)
+        t = project.title(body["title"])
+        if t is None or not t.clips:
+            raise ValueError("not a title made of clips")
+        disc = project.disc_for(t)
+        total = clips.resolve(t, disc, encode.probe)
+        if total <= 0:
+            raise ValueError("the clips are empty")
+        out = clips.preview_path(self.app.dir, t, disc)
+        with self.app.clip_lock:
+            if not os.path.isfile(out):
+                clips.render_preview(t, disc, out, out + ".log")
+        starts = clip_starts(t)
+        self.json({"path": self.app.rel(out), "duration": round(total, 6), "starts": starts,
+                   "clips": [{"source": self.app.rel(c.source), "in": c.start,
+                              "duration": round(c.duration, 6), "start": s}
+                             for c, s in zip(t.clips, starts)]})
+
     # -- flowchart, project check and the disc simulator --------------------------
     def _project_from(self, body, check_files=False):
         return build_project(body.get("project") or self.app.load(), self.app.path,
@@ -550,6 +574,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def api_post_graph(self, q):
         project = self._project_from(self.body_json())
+        try:
+            clips.apply_all(project, encode.probe)       # chapters of titles made of clips
+        except OncemoreError:
+            pass
         self.json({"graph": graph.build(project), "notes": graph.check(project)})
 
     def _sim_menu(self, project, menu, images=False):
@@ -557,7 +585,9 @@ class Handler(BaseHTTPRequestHandler):
         highlight overlay per button) of a menu, cached by its definition."""
         from ..menu import MenuBuilder
         key = json.dumps([dataclasses.asdict(menu), project.disc.standard, project.disc.aspect,
-                          {t.id: [t.source, t.chapters, t.aspect] for t in project.titles}],
+                          {t.id: [t.source, t.chapters, t.aspect,
+                                 [[c.source, c.start, c.end] for c in t.clips]]
+                          for t in project.titles}],
                          sort_keys=True, default=str)
         with self.app.sim_lock:
             hit = self.app.sim_cache.get(key)
@@ -604,6 +634,7 @@ class Handler(BaseHTTPRequestHandler):
         body = self.body_json()
         project = self._project_from(body)
         layouts = {m.id: self._sim_menu(project, m)["buttons"] for m in project.menus}
+        clips.apply_all(project, encode.probe)
         sim = simulate.Simulator(project, layouts)
         state = body.get("state")
         if not state:
@@ -616,9 +647,13 @@ class Handler(BaseHTTPRequestHandler):
         out = {"state": state, "view": list(sim.view(state))}
         if state["domain"] == "title":
             t = project.title(state["title"])
+            # a picture from the chapter: the file playing then, and where in it
+            k = state["chapter"]
+            at = (t.chapters[k - 1] if 0 < k <= len(t.chapters) else 0.0) + 0.5
+            path, at = source_at(t, at)
             out["title"] = {"id": t.id, "name": t.name, "source": self.app.rel(t.source),
-                            "chapters": t.chapters, "chapter": state["chapter"],
-                            "names": t.chapter_names}
+                            "chapters": t.chapters, "chapter": k, "names": t.chapter_names,
+                            "frame": {"path": self.app.rel(path), "t": round(at, 3)}}
         self.json(out)
 
     def api_post_sim_menu(self, q):

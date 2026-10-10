@@ -123,6 +123,11 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   duration and order, cross-fade or cut, slow zoom (pan & zoom) and music;
   **Render & play** shows it as it will be on the disc. Every picture starts a
   chapter.
+* **Clips**: under a title's picture, *Add a clip…* joins more videos into the
+  same title — parts of files (in / out), in any order, of different sizes,
+  frame rates and sound (or none). The title then shows and plays the joined
+  result, the timeline shows each clip, and every clip starts a chapter unless
+  you set chapters yourself.
 * **Menus**: *+ Add* starts blank or from a template (classic, banner, minimal,
   setup), then drag buttons, text and rectangles where you want them —
   Shift-click selects several, with align / distribute buttons, snapping guides,
@@ -272,8 +277,9 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 |---|---|---|
 | `id` | `[A-Za-z0-9_-]{1,40}` | required |
 | `name` | string | the id |
-| `source` | any video ffmpeg reads | required (or `slideshow`) |
+| `source` | any video ffmpeg reads | required (or `slideshow` / `clips`) |
 | `slideshow` | a title made from pictures (below) | none |
+| `clips` | a title made of parts of several videos (below) | none |
 | `chapters` | list of times, or `{time, name, poster}` objects (`name` labels the chapter-menu button, `poster` is the time of its thumbnail); `0` is added if missing | `[0]` |
 | `audio.codec` | `ac3` \| `lpcm` | `ac3` |
 | `audio.bitrate` | AC-3 only, 64k–448k | `192k` (`448k` for 5.1) |
@@ -404,6 +410,30 @@ The pictures are fitted on the disc's square-pixel canvas (854 × 480 for NTSC
 that video is then encoded like any other title (and re-rendered only when a
 picture, a duration or a setting changes). Slide *k* starts at the sum of the
 earlier durations and is a chapter unless `chapters` is given.
+
+### Titles made of clips
+
+```jsonc
+"titles": [{
+  "id": "evening", "name": "The evening",
+  "clips": [
+    { "source": "media/arrival.mov", "in": "00:01:10", "out": "00:03:00" },
+    { "source": "media/speech.mp4" },                  // the whole file
+    { "source": "media/phone.mp4", "out": 42.5 }       // seconds or HH:MM:SS(.mmm)
+  ],
+  "end_action": "menu:main"
+}]
+```
+
+The clips play one after another as one title, joined while the title is
+encoded (nothing is rendered beforehand). Each clip is converted to the
+disc's format on its own, so sizes, frame rates and sound formats can differ;
+a clip without sound gets silence. Clip lengths are rounded up to whole
+frames so picture and sound meet at every join. Clip *k* starts a chapter
+unless `chapters` is given. All clips 23.976p film keep soft pulldown, all
+interlaced stay interlaced; a mix is made progressive. A clip title has one
+sound track (`audio_tracks` and `audio.passthrough` are not available).
+Menu thumbnails and poster frames pick the clip that plays at that time.
 
 ### Audio tracks and subtitles
 

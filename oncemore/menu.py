@@ -20,8 +20,9 @@ import unicodedata
 from dataclasses import dataclass, field
 from xml.sax.saxutils import quoteattr
 
-from . import encode, fontcheck, navigation, png4, tools
+from . import clips, encode, fontcheck, navigation, png4, tools
 from .errors import OncemoreError, ProjectError, ToolFailedError
+from .project import source_at
 
 # Font search order. Japanese-capable fonts first so labels can be Japanese.
 _MAC_FONT_DIRS = ("/System/Library/Fonts", "/Library/Fonts",
@@ -490,12 +491,16 @@ class MenuBuilder:
                 continue
             t = b.thumb
             title = self.project.title(t.title_id)
-            info = self._probe(title.source)
+            if any(c.duration is None for c in title.clips):    # (no build resolved them)
+                clips.resolve(title, self.project.disc_for(title), self._probe)
+            # a title made of clips: the file and moment playing at that time
+            source, at = source_at(title, t.time)
+            info = self._probe(source)
             size = (int(round(t.w * self.sx / 2)) * 2, t.h)
             if t.animated and menu.background_video:
                 # a moving thumbnail: the chapter itself, fitted like the title
                 w, h = size
-                start = max(0.0, min(t.time, (info.get("duration") or t.time + 1) - 1.0))
+                start = max(0.0, min(at, (info.get("duration") or at + 1) - 1.0))
                 num, den = self.disc.fps
                 dur = self.menu_duration(menu)
                 # every input finite: the clip is read for the menu's length only
@@ -504,11 +509,11 @@ class MenuBuilder:
                       + f",scale=iw*sar:ih,setsar=1,scale={w}:{h}:force_original_aspect_ratio="
                         f"decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={num}/{den},"
                         f"tpad=stop_mode=clone:stop_duration={dur:.3f}")
-                out.append((title.source, round(t.x * self.sx), t.y, vf,
+                out.append((source, round(t.x * self.sx), t.y, vf,
                             ["-ss", f"{start:.3f}", "-t", f"{dur:.3f}"]))
                 continue
             path = os.path.join(self.work, f"{menu.id}.{b.id}.thumb.png")
-            encode.extract_thumbnail(title.source, info, self.project.disc_for(title), t.time,
+            encode.extract_thumbnail(source, info, self.project.disc_for(title), at,
                                      size, path,
                                      os.path.join(self.logs, f"thumb-{menu.id}-{b.id}.log"))
             out.append((path, round(t.x * self.sx), t.y))

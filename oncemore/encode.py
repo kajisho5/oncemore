@@ -342,6 +342,48 @@ def audio_graph(title, probes):
     return extra, ";".join(chains), labels
 
 
+def clip_graph(title, probes, disc, mode, video=True, audio=True):
+    """Inputs and filter_complex joining a title's clips (see DECISIONS §36).
+
+    Every clip is cut from its file (-ss / -t before -i), converted to the
+    disc format on its own (sizes and rates may differ between clips), and
+    the pieces are joined with concat. A clip without sound gets silence of
+    its length, so picture and sound stay together across the joins.
+    Returns (inputs, filter_complex, [output labels]): "[v]" for the
+    picture, then "[a0]" for the sound."""
+    inputs, chains, pieces = [], [], []
+    layout = "5.1" if title.audio_channels == 6 and title.audio_codec != "lpcm" else "stereo"
+    fmt = f"aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts={layout}"
+    num, den = title_fps(title, disc)
+    for k, c in enumerate(title.clips):
+        info = probes[c.source]
+        dur = c.duration
+        inputs += ["-ss", f"{c.start:.6f}", "-t", f"{dur:.6f}", "-i", c.source]
+        if video:
+            # exactly the clip's frames: a short file is held on its last one
+            frames = round(dur * num / den)
+            chains.append(f"[{k}:v:0]setpts=PTS-STARTPTS,{fit_filter(info, disc, mode=mode)},"
+                          f"tpad=stop_mode=clone:stop_duration=1,trim=end_frame={frames},"
+                          f"setpts=PTS-STARTPTS,format=yuv420p[v{k}]")
+            pieces.append(f"[v{k}]")
+        if audio:
+            if info.get("audio_streams", 0) > 0:
+                chain = f"[{k}:a:0]aresample=48000,asetpts=PTS-STARTPTS,{fmt},apad"
+            else:
+                chain = f"anullsrc=channel_layout={layout}:sample_rate=48000,{fmt}"
+            chains.append(f"{chain},atrim=end={dur:.6f},asetpts=PTS-STARTPTS[s{k}]")
+            pieces.append(f"[s{k}]")
+    outs = (["[v]"] if video else []) + (["[cat]"] if audio else [])
+    chains.append(f"{''.join(pieces)}concat=n={len(title.clips)}:v={int(video)}:a={int(audio)}"
+                  + "".join(outs))
+    labels = ["[v]"] if video else []
+    if audio:
+        tail = "," + LPCM_FRAME_FILTER if title.audio_codec == "lpcm" else ""
+        chains.append(f"[cat]anull{tail}[a0]")
+        labels.append("[a0]")
+    return inputs, ";".join(chains), labels
+
+
 def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
                  on_progress=None, probes=None):
     """Encode one title to a DVD-compliant MPEG-2 program stream."""
@@ -351,6 +393,12 @@ def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
     target = "ntsc-dvd" if disc.standard == "NTSC" else "pal-dvd"
     probes = dict(probes or {})
     probes.setdefault(title.source, info)
+    mode = getattr(title, "video_mode", None) or "progressive"
+    if title.clips:
+        for c in title.clips:
+            probes.setdefault(c.source, probe(c.source))
+        return _encode_clips(title, disc, video_bps, out_path, work, two_pass, on_progress,
+                             probes, duration, target, mode)
     extra, graph, labels = audio_graph(title, probes)
     inputs = ["-i", title.source] + extra
     if title.audio_passthrough:
@@ -366,24 +414,8 @@ def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
             amap += ["-map", lab]
         acodec = audio_args(title.audio_codec, title.audio_bitrate, framing=False,
                             channels=title.audio_channels)
-    mode = getattr(title, "video_mode", None) or "progressive"
-    fps = title_fps(title, disc)
-    keys, _ = chapter_points(title.chapters, fps)
-    keyframes = ",".join(f"{t:.6f}" for t in keys)
-    video = ["-map", "0:v:0", "-vf", fit_filter(info, disc, mode=mode), "-target", target,
-             "-aspect", disc.aspect, "-b:v", str(video_bps),
-             "-maxrate", str(peak_bitrate(title.audio_bps)), "-bufsize", "1835008",
-             # fixed GOP grid so chapter key frames can be planned (see keyframe_plan)
-             "-g", str(gop_limits(fps)[0]), "-sc_threshold", "1000000000"]
-    if mode == "interlaced":
-        # top field first comes from the frames (setfield=tff in the filter);
-        # ffmpeg 7+ no longer has the -top option
-        video += ["-flags", "+ilme+ildct", "-alternate_scan", "1"]
-    elif mode == "pulldown":
-        video += ["-r", f"{fps[0]}/{fps[1]}"]
-    if keyframes:
-        video += ["-force_key_frames", keyframes]
-    video += _color_args(disc)
+    video = ["-map", "0:v:0", "-vf", fit_filter(info, disc, mode=mode)] + \
+        _video_args(title, disc, video_bps, target, mode)
     passlog = os.path.join(work, f"{title.id}-pass")
     logdir = os.path.join(work, "logs")
     passes = 2 if two_pass else 1
@@ -398,25 +430,87 @@ def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
                    cwd=work, what=f"ffmpeg (title {title.id}, pass 1)")
         video += ["-pass", "2", "-passlogfile", passlog]
     if mode == "pulldown":
-        # film frames go to an elementary stream, get their pulldown flags,
-        # and are then muxed with the audio unchanged
-        m2v = os.path.join(work, f"{title.id}.m2v")
-        run_ffmpeg(inputs + video + ["-an", "-t", f"{duration:.3f}", "-f", "mpeg2video", m2v],
-                   duration, os.path.join(logdir, f"title-{title.id}.log"), prog(passes - 1),
-                   cwd=work, what=f"ffmpeg (title {title.id})")
-        pulldown.patch_file(m2v)
-        n = 1 + len(extra) // 2
-        run_ffmpeg(inputs + ["-fflags", "+genpts", "-i", m2v, "-map", f"{n}:v:0", "-c:v", "copy"]
-                   + amap + acodec + ["-f", "dvd", "-muxrate", "10080000", "-packetsize", "2048",
-                                      "-t", f"{duration:.3f}", out_path],
-                   duration, os.path.join(logdir, f"title-{title.id}-mux.log"), None,
-                   cwd=work, what=f"ffmpeg (title {title.id}, mux)")
-        os.remove(m2v)
+        _pulldown_mux(title, inputs, video, amap, acodec, 1 + len(extra) // 2, duration,
+                      out_path, work, prog(passes - 1))
         return out_path
     run_ffmpeg(inputs + video + amap + acodec + ["-t", f"{duration:.3f}", out_path],
                duration, os.path.join(logdir, f"title-{title.id}.log"), prog(passes - 1),
                cwd=work, what=f"ffmpeg (title {title.id})")
     return out_path
+
+
+def _encode_clips(title, disc, video_bps, out_path, work, two_pass, on_progress, probes,
+                  duration, target, mode):
+    """encode_title for a title made of clips: one filter graph joins them."""
+    inputs, graph, _ = clip_graph(title, probes, disc, mode)
+    _, vgraph, _ = clip_graph(title, probes, disc, mode, audio=False)
+    _, agraph, _ = clip_graph(title, probes, disc, mode, video=False)
+    acodec = audio_args(title.audio_codec, title.audio_bitrate, framing=False,
+                        channels=title.audio_channels)
+    venc = _video_args(title, disc, video_bps, target, mode)
+    # (an unused output of a filter graph is an error, hence the three graphs)
+    vonly = ["-filter_complex", vgraph, "-map", "[v]"] + venc
+    passlog = os.path.join(work, f"{title.id}-pass")
+    logdir = os.path.join(work, "logs")
+    passes = 2 if two_pass else 1
+
+    def prog(i):
+        return (lambda f: on_progress((i + f) / passes)) if on_progress else None
+
+    if two_pass:
+        run_ffmpeg(inputs + vonly + ["-pass", "1", "-passlogfile", passlog,
+                                     "-f", "null", os.devnull],
+                   duration, os.path.join(logdir, f"title-{title.id}-pass1.log"), prog(0),
+                   cwd=work, what=f"ffmpeg (title {title.id}, pass 1)")
+        venc += ["-pass", "2", "-passlogfile", passlog]
+        vonly += ["-pass", "2", "-passlogfile", passlog]
+    if mode == "pulldown":
+        _pulldown_mux(title, inputs, vonly, ["-filter_complex", agraph, "-map", "[a0]"],
+                      acodec, len(title.clips), duration, out_path, work, prog(passes - 1))
+        return out_path
+    run_ffmpeg(inputs + ["-filter_complex", graph, "-map", "[v]", "-map", "[a0]"] + venc +
+               acodec + ["-t", f"{duration:.3f}", out_path],
+               duration, os.path.join(logdir, f"title-{title.id}.log"), prog(passes - 1),
+               cwd=work, what=f"ffmpeg (title {title.id})")
+    return out_path
+
+
+def _video_args(title, disc, video_bps, target, mode):
+    fps = title_fps(title, disc)
+    keys, _ = chapter_points(title.chapters, fps)
+    keyframes = ",".join(f"{t:.6f}" for t in keys)
+    video = ["-target", target,
+             "-aspect", disc.aspect, "-b:v", str(video_bps),
+             "-maxrate", str(peak_bitrate(title.audio_bps)), "-bufsize", "1835008",
+             # fixed GOP grid so chapter key frames can be planned (see keyframe_plan)
+             "-g", str(gop_limits(fps)[0]), "-sc_threshold", "1000000000"]
+    if mode == "interlaced":
+        # top field first comes from the frames (setfield=tff in the filter);
+        # ffmpeg 7+ no longer has the -top option
+        video += ["-flags", "+ilme+ildct", "-alternate_scan", "1"]
+    elif mode == "pulldown":
+        video += ["-r", f"{fps[0]}/{fps[1]}"]
+    if keyframes:
+        video += ["-force_key_frames", keyframes]
+    video += _color_args(disc)
+    return video
+
+
+def _pulldown_mux(title, inputs, video, amap, acodec, n, duration, out_path, work, progress):
+    """Film frames go to an elementary stream, get their pulldown flags, and
+    are then muxed with the sound (input `n` is the patched stream)."""
+    logdir = os.path.join(work, "logs")
+    m2v = os.path.join(work, f"{title.id}.m2v")
+    run_ffmpeg(inputs + video + ["-an", "-t", f"{duration:.3f}", "-f", "mpeg2video", m2v],
+               duration, os.path.join(logdir, f"title-{title.id}.log"), progress,
+               cwd=work, what=f"ffmpeg (title {title.id})")
+    pulldown.patch_file(m2v)
+    run_ffmpeg(inputs + ["-fflags", "+genpts", "-i", m2v, "-map", f"{n}:v:0", "-c:v", "copy"]
+               + amap + acodec + ["-f", "dvd", "-muxrate", "10080000", "-packetsize", "2048",
+                                  "-t", f"{duration:.3f}", out_path],
+               duration, os.path.join(logdir, f"title-{title.id}-mux.log"), None,
+               cwd=work, what=f"ffmpeg (title {title.id}, mux)")
+    os.remove(m2v)
 
 
 def extract_thumbnail(source, info, disc, time, size, out_path, log):

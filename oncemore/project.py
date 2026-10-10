@@ -129,6 +129,26 @@ def keyframe_plan(chapter_frames, fps):
 FILM_FPS = (24000, 1001)
 
 
+def clip_starts(title):
+    """Where each clip of a title begins on the title's timeline (seconds)."""
+    out, t = [], 0.0
+    for c in title.clips:
+        out.append(round(t, 6))
+        t += c.duration or 0.0
+    return out
+
+
+def source_at(title, time):
+    """(file, time inside it) for a moment of the title: titles made of clips
+    map it to the clip playing then."""
+    if not title.clips:
+        return title.source, time
+    starts = clip_starts(title)
+    k = max(i for i, s in enumerate(starts) if s <= time + 1e-6) if starts else 0
+    c = title.clips[k]
+    return c.source, c.start + (time - starts[k])
+
+
 def title_fps(title, disc):
     """Frame rate the title is encoded at: 23.976 for soft pulldown, else the disc's."""
     return FILM_FPS if getattr(title, "video_mode", None) == "pulldown" else disc.fps
@@ -240,6 +260,14 @@ class SubtitleTrack:
 
 
 @dataclass
+class Clip:
+    source: str
+    start: float = 0.0       # "in" inside the file
+    end: float = None        # "out" inside the file (None = its end)
+    duration: float = None   # resolved from the file by build.inspect
+
+
+@dataclass
 class Title:
     id: str
     name: str
@@ -262,6 +290,8 @@ class Title:
     chapter_names: list = field(default_factory=list)    # per chapter, or None
     chapter_posters: list = field(default_factory=list)  # thumbnail time per chapter, or None
     scan: str = "auto"       # "auto" | "progressive" | "interlaced" | "pulldown"
+    clips: list = field(default_factory=list)   # Clip, when made of several videos
+    clip_chapters: bool = False   # a chapter at every clip (set once clip lengths are known)
     video_mode: str = None   # what `scan` resolved to for the source (set by build.inspect)
 
     @property
@@ -645,7 +675,29 @@ class _Builder:
         if codec == "lpcm" and "bitrate" in audio:
             self.warnings.append(f"{where}.audio.bitrate is ignored for lpcm (fixed 1536k)")
         show = None
-        if "slideshow" in t:
+        clips = []
+        if sum(k in t for k in ("source", "slideshow", "clips")) > 1:
+            self.err(where, "give one of source, slideshow or clips")
+        if "clips" in t:
+            for j, c in enumerate(t["clips"]):
+                cw = f"{where}.clips[{j}]"
+                try:
+                    start = parse_time(c.get("in", 0))
+                    end = parse_time(c["out"]) if "out" in c else None
+                except ValueError as e:
+                    self.err(cw, str(e))
+                    start, end = 0.0, None
+                if end is not None and end <= start:
+                    self.err(f"{cw}.out", "must be after in")
+                clips.append(Clip(self.file(f"{cw}.source", c["source"]), start, end))
+            source = clips[0].source
+            if "audio_tracks" in t:
+                self.err(f"{where}.audio_tracks", "a title made of clips uses the clips' own "
+                         "sound (one track)")
+            if audio.get("passthrough"):
+                self.err(f"{where}.audio.passthrough", "clips are joined, so their sound is "
+                         "encoded again")
+        elif "slideshow" in t:
             show = self.slideshow(where, t["slideshow"])
             # the picture show is rendered into the cache; that file is the source
             tdisc = dataclasses.replace(self._disc, aspect=t.get("aspect") or self._disc.aspect)
@@ -674,7 +726,7 @@ class _Builder:
             chapters=chapters, audio_codec=codec, audio_bitrate=bitrate, audio_channels=channels,
             end_action=t.get("end_action", "stop"), audio_tracks=tracks, subtitles=subs,
             remote_menu=t.get("remote_menu"), chapter_names=names, chapter_posters=posters,
-            slideshow=show,
+            slideshow=show, clips=clips, clip_chapters=bool(clips) and "chapters" not in t,
             video_bitrate=parse_bitrate(t["video_bitrate"]) if "video_bitrate" in t else None,
             audio_passthrough=bool(audio.get("passthrough")),
             aspect=t.get("aspect"),

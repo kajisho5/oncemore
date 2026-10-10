@@ -6,6 +6,7 @@ The navigation checks additionally need libdvdnav (skipped otherwise).
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -1185,6 +1186,118 @@ class TestSubtitleFormats(unittest.TestCase):
             d.activate(3)
             self.assertEqual(d.wait_title(), (2, 1))
             self.assertEqual([d.subtitle_lang(0), d.subtitle_lang(1)], ["en", "ja"])
+
+
+@unittest.skipUnless(TOOLS_OK, SKIP_REASON)
+class TestClips(unittest.TestCase):
+    """Titles made of clips: parts of three files of different sizes, rates
+    and sound (one without any) joined into one title with a chapter at every
+    clip, and two film clips joined with soft pulldown."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-e2e-clips-")
+        rc, _, err = run_cli("init", "c", cwd=cls.tmp)
+        assert rc == 0, err
+        proj = os.path.join(cls.tmp, "c")
+        media = os.path.join(proj, "media")
+
+        def ff(*args):
+            subprocess.run(["ffmpeg", "-v", "error", "-y"] + list(args), check=True)
+        ff("-f", "lavfi", "-i", "mandelbrot=s=640x360:r=25", "-t", "2", "-c:v", "mpeg4",
+           os.path.join(media, "silent.mp4"))
+        for name, size, tone in (("film1.mp4", "1280x720", 300), ("film2.mp4", "1920x1080", 500)):
+            ff("-f", "lavfi", "-i", f"testsrc2=s={size}:r=24000/1001:d=3", "-f", "lavfi", "-i",
+               f"sine=f={tone}:d=3", "-c:v", "libx264", "-c:a", "aac", "-shortest",
+               os.path.join(media, name))
+        cls.path = os.path.join(proj, "project.oncemore.json")
+        with open(cls.path) as f:
+            data = json.load(f)
+        data["titles"] = [
+            {"id": "mix", "end_action": "menu:main", "clips": [
+                {"source": "media/sample_a.mp4", "in": 2, "out": 5},
+                {"source": "media/silent.mp4"},
+                {"source": "media/sample_b.mp4", "out": "00:00:03"}]},
+            {"id": "film", "end_action": "menu:main", "audio": {"codec": "lpcm"},
+             "chapters": [0], "clips": [{"source": "media/film1.mp4"},
+                                        {"source": "media/film2.mp4", "in": 0.5}]},
+        ]
+        data["menus"] = [{"id": "main", "buttons": [
+            {"id": "mix", "label": "MIX", "x": 100, "y": 120, "action": "title:mix",
+             # 4 s into the title: inside the silent clip
+             "thumbnail": {"x": 400, "y": 100, "w": 160, "h": 90, "time": 4}},
+            {"id": "film", "label": "FILM", "x": 100, "y": 300, "action": "title:film"}]}]
+        data["disc"]["first_play"] = "menu:main"
+        with open(cls.path, "w") as f:
+            json.dump(data, f)
+        cls.iso = os.path.join(cls.tmp, "c.iso")
+        rc, out, err = run_cli("--json", "iso", cls.path, "-o", cls.iso, "--fast", "--keep-work",
+                               cwd=cls.tmp)
+        assert rc == 0, err + out
+        cls.result = json_lines(out)[-1]
+        cls.work = os.path.join(cls.result["build_dir"], ".work")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def frames(self, tid):
+        out = subprocess.run(
+            [tools.find("ffprobe"), "-v", "error", "-select_streams", "v", "-count_frames",
+             "-show_entries", "stream=nb_read_frames", "-of", "csv=p=0",
+             os.path.join(self.work, "titles", f"{tid}.mpg")],
+            capture_output=True, text=True, check=True).stdout
+        return int(out.strip().strip(","))
+
+    def volume(self, tid, start, end):
+        err = subprocess.run(
+            [tools.find("ffmpeg"), "-v", "info", "-ss", str(start), "-to", str(end), "-i",
+             os.path.join(self.work, "titles", f"{tid}.mpg"), "-vn", "-af", "volumedetect",
+             "-f", "null", "-"], capture_output=True, text=True).stderr
+        return float(re.search(r"mean_volume: (-?[\d.]+) dB", err).group(1))
+
+    def test_summary(self):
+        mix, film = self.result["titles"]
+        f = 1001 / 30000
+        self.assertEqual([c["duration"] for c in mix["clips"]],
+                         [round(90 * f, 6), round(60 * f, 6), round(90 * f, 6)])
+        self.assertEqual(mix["chapters"], [0.0, round(90 * f, 6), round(150 * f, 6)])
+        self.assertEqual(mix["scan"], "progressive")
+        self.assertEqual(film["scan"], "pulldown")
+        self.assertEqual(film["chapters"], [0.0])           # its own chapters are kept
+
+    def test_joined_picture_and_sound(self):
+        self.assertEqual(self.frames("mix"), 240)             # 3 + 2 + 3 s at 29.97
+        self.assertLess(self.volume("mix", 3.2, 4.8), -80)    # the clip without sound
+        self.assertGreater(self.volume("mix", 0.2, 2.8), -40)
+        self.assertGreater(self.volume("mix", 5.2, 7.8), -40)
+        self.assertEqual(self.frames("film"), 132)            # 72 + 60 film frames
+
+    def test_thumbnail_from_the_clip_playing(self):
+        def mean(path, at=None):
+            out = subprocess.run(
+                [tools.find("ffmpeg"), "-v", "error"] + (["-ss", str(at)] if at else []) +
+                ["-i", path, "-frames:v", "1", "-vf", "scale=1:1:flags=area", "-f", "rawvideo",
+                 "-pix_fmt", "rgb24", "-"], capture_output=True, check=True).stdout
+            return list(out[:3])
+        thumb = mean(os.path.join(self.work, "menus", "main.mix.thumb.png"))
+        media = os.path.join(os.path.dirname(self.path), "media")
+        # 4 s into the title is 1 s into the second clip: the purple fractal,
+        # not the grey test pattern of the first file
+        purple = lambda c: c[0] - c[1] > 20 and c[2] - c[1] > 20  # noqa: E731
+        self.assertTrue(purple(mean(os.path.join(media, "silent.mp4"), 0.997)))
+        self.assertFalse(purple(mean(os.path.join(media, "sample_a.mp4"), 4)))
+        self.assertTrue(purple(thumb), thumb)
+
+    @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
+    def test_chapters_on_disc(self):
+        with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
+            d.wait_menu()
+            d.activate(1)
+            title, part = d.wait_title()
+            self.assertEqual((part, d.num_parts(title)), (1, 3))
+            seen, _ = d.trace_until_menu()
+            self.assertEqual([p for t, p in seen if t == title], [1, 2, 3])
 
 
 if __name__ == "__main__":
