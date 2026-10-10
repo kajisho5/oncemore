@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 import unittest
 
-from oncemore import bluray
+from oncemore import bluray, pgs
 from oncemore.errors import ProjectError
 from oncemore.project import build_project
 
@@ -159,13 +159,18 @@ class TestBlurayBuild(unittest.TestCase):
                             os.path.join(d, name)], check=True)
         media("a.mp4", "720x480", "30000/1001", 6, 440)
         media("b.mp4", "640x360", "24000/1001", 4, 660)
+        with open(os.path.join(d, "one.srt"), "w", encoding="utf-8") as f:
+            f.write("1\n00:00:00,500 --> 00:00:01,800\n字幕のテスト\n\n"
+                    "2\n00:00:01,900 --> 00:00:03,000\nSecond line\ntwo rows\n")
         cls.project = {
             "version": 1,
             "disc": {"label": "BD_TEST", "standard": "NTSC", "aspect": "16:9",
                      "first_play": "title:one", "title_key": "playall"},
             "titles": [
                 {"id": "one", "source": "a.mp4", "chapters": [0, 2, 4], "end_action": "title:two",
-                 "audio_tracks": [{"lang": "en"}, {"source": "b.mp4", "lang": "ja"}]},
+                 "audio_tracks": [{"lang": "en"}, {"source": "b.mp4", "lang": "ja"}],
+                 "subtitles": [{"file": "one.srt", "lang": "ja", "default": True},
+                               {"file": "one.srt", "lang": "en", "color": "#FFFF00"}]},
                 {"id": "two", "source": "b.mp4", "chapters": [0, 1.5], "audio": {"codec": "lpcm"}},
             ],
             "playlists": [{"id": "pl", "items": ["two", "one:2"]}],
@@ -209,7 +214,8 @@ class TestBlurayBuild(unittest.TestCase):
         self.assertEqual((v["codec_name"], v["width"], v["height"], v["id"]),
                          ("h264", 1920, 1080, "0x1011"))
         self.assertEqual([(s["codec_name"], s["id"]) for s in streams[1:]],
-                         [("ac3", "0x1100"), ("ac3", "0x1101")])
+                         [("ac3", "0x1100"), ("ac3", "0x1101"),
+                          ("hdmv_pgs_subtitle", "0x1200"), ("hdmv_pgs_subtitle", "0x1201")])
         with open(os.path.join(self.out, "BDMV", "STREAM", "00002.m2ts"), "rb") as f:
             self.assertEqual(f.read(192 * 2)[4], 0x47)       # 192-byte source packets
         p = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries",
@@ -234,6 +240,8 @@ class TestBlurayBuild(unittest.TestCase):
         self.assertEqual(one["video"], [(0x1B, 4, 4)])           # H.264 1080i 29.97
         self.assertEqual([(c, lang) for c, _, lang in one["audio"]],
                          [(0x81, "eng"), (0x81, "jpn")])
+        self.assertEqual(one["pg"], [(0x90, "jpn"), (0x90, "eng")])
+        self.assertEqual(two["pg"], [])
         self.assertEqual(two["video"], [(0x1B, 6, 1)])           # 1080p 23.976 (film)
         self.assertEqual(two["audio"], [(0x80, 3, "und")])       # LPCM stereo
         self.assertAlmostEqual(two["duration"], 4, delta=3 * 1001 / 24000)
@@ -248,10 +256,37 @@ class TestBlurayBuild(unittest.TestCase):
         with bluray_sim.Disc(LIBBLURAY, self.out) as disc:
             disc.info()
             events = [e for e in disc.play() if e[0] != "title" or e[1] != 0xFFFF]
+        # title one shows its default subtitles (track 1) from the start
+        start = events.index(("title", 1))
+        self.assertEqual(events[start + 1:start + 3], [("subtitles_shown", 1),
+                                                       ("subtitle_stream", 1)])
+        events = [e for e in events if not e[0].startswith("subtitle")]
         # first play starts title one, its end action starts title two, which stops
         self.assertEqual(events, [("title", 1), ("playlist", 1), ("chapter", 1), ("chapter", 2),
                                   ("chapter", 3), ("end", 0), ("title", 2), ("playlist", 2),
                                   ("chapter", 1), ("chapter", 2), ("end", 0)])
+
+    def test_subtitles(self):
+        m2ts = os.path.join(self.out, "BDMV", "STREAM", "00001.m2ts")
+        # (ffmpeg writes the .sup on the title's time line: the video starts at 0)
+        sup = os.path.join(self.tmp, "track1.sup")
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", m2ts, "-map", "0:s:1", "-c", "copy",
+                        "-f", "sup", sup], check=True)
+        with open(sup, "rb") as f:
+            sets = pgs.decode(f.read())
+        shown = [(round(pts / 90000, 2), pics, pal) for pts, pics, pal in sets]
+        # nothing at the start; cue 1 from 0.5 s, cleared 0.2 s before cue 2 at
+        # 1.9 s, which ends at 3 s
+        self.assertEqual([(t, len(p)) for t, p, _ in shown],
+                         [(0.0, 0), (0.5, 1), (1.7, 0), (1.9, 1), (3.0, 0)])
+        x, y, w, h, px = shown[3][1][0]
+        self.assertGreater(y, 1080 // 2)                    # at the bottom, in the HD frame
+        self.assertTrue(80 < w < 1920 and h > 60)           # two lines
+        pal = shown[3][2]
+        used = set(px) - {0}
+        fill = max(used)                                    # the fill, fully opaque
+        y_, cb, cr = pgs.ycbcr((255, 255, 0))
+        self.assertEqual(pal[fill], (y_, cr, cb, 255))      # yellow (Y, Cr, Cb, alpha)
 
     @unittest.skipUnless(LIBBLURAY and LIBUDFREAD, "libbluray / libudfread not installed")
     def test_disc_image(self):
@@ -274,7 +309,7 @@ class TestBlurayBuild(unittest.TestCase):
         with bluray_sim.Disc(LIBBLURAY, iso) as disc:
             self.assertEqual(disc.info()["hdmv_titles"], 4)
             self.assertEqual(len(disc.playlist(1)["chapters"]), 3)
-            events = [e for e in disc.play() if e[0] != "title" or e[1] != 0xFFFF]
+            events = [e for e in disc.play() if e[0] in ("title", "playlist") and e[1] != 0xFFFF]
         self.assertEqual(events[:2], [("title", 1), ("playlist", 1)])
         self.assertIn(("title", 2), events)
 

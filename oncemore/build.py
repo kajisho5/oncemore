@@ -1,5 +1,6 @@
 """The build pipeline: probe -> plan -> menus -> titles -> dvdauthor -> (ISO)."""
 
+import concurrent.futures
 import dataclasses
 import functools
 import hashlib
@@ -8,7 +9,7 @@ import os
 import shutil
 import tempfile
 
-from . import author, bluray, clips, encode, iso, lpcmfix, slideshow, subtitles, tools, udf250
+from . import author, bluray, clips, encode, iso, lpcmfix, pgs, slideshow, subtitles, tools, udf250
 from . import menu as menu_module
 from .errors import OncemoreError, ProjectError
 from .menu import (MenuBuilder, check_element_fonts, display_width, find_font, link_font,
@@ -468,9 +469,9 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None, ca
 def build_bluray(project, out_dir, reporter, fast=False, keep_work=False, work=None, cache=True):
     """Write a Blu-ray BDMV folder (and CERTIFICATE) into out_dir: every title
     in HD with its chapters, the project's playlists and "play all", first
-    play and the titles' end actions. Menus and subtitles are DVD-only for
-    now (DECISIONS §53)."""
-    tools.require(["ffmpeg", "ffprobe"])
+    play and the titles' end actions, subtitles as PGS streams. Menus are
+    DVD-only for now (DECISIONS §53)."""
+    tools.require(["ffmpeg", "ffprobe"], need_drawtext=any(t.subtitles for t in project.titles))
     out_dir = os.path.abspath(out_dir)
     work = work or os.path.join(out_dir, ".work")
     os.makedirs(os.path.join(work, "logs"), exist_ok=True)
@@ -480,8 +481,6 @@ def build_bluray(project, out_dir, reporter, fast=False, keep_work=False, work=N
     if project.menus:
         warnings.append("menus are not on Blu-ray discs yet: the disc plays its titles "
                         "(first play, then each title's end action)")
-    if any(t.subtitles for t in project.titles):
-        warnings.append("subtitles are not on Blu-ray discs yet")
     plan["warnings"] = warnings
     for w in warnings:
         reporter.warn(w)
@@ -494,15 +493,17 @@ def build_bluray(project, out_dir, reporter, fast=False, keep_work=False, work=N
     clips = {}
     for t in project.titles:
         out = os.path.join(work, "titles", f"{t.id}.m2ts")
+        sups = bluray_subtitles(project, t, plan, work, reporter) if t.subtitles else []
         key = _cache_key("bluray-title", {
-            "title": title_cache_key(project, t, infos[t.id], plan["max_bps"], fast)})
+            "title": title_cache_key(project, t, infos[t.id], plan["max_bps"], fast),
+            "subtitles": [_digest(p) for p in sups]})
         if _cache_get(cache, key, out):
             reporter.step("encode", f"Title '{t.id}' unchanged (cached)", item=t.id)
         else:
             reporter.step("encode", f"Encoding title '{t.id}' in HD "
                           f"({infos[t.id]['duration']:.1f}s)", item=t.id)
             bluray.encode_title(t, infos[t.id], project.disc, plan["max_bps"], out, work,
-                                fast=fast, probes=plan["_probes"],
+                                fast=fast, probes=plan["_probes"], sups=sups,
                                 on_progress=lambda f, tid=t.id: reporter.progress("encode", f, tid))
             _cache_put(cache, key, out)
         clips[t.id] = out
@@ -529,6 +530,49 @@ def build_bluray(project, out_dir, reporter, fast=False, keep_work=False, work=N
     else:
         shutil.rmtree(work, ignore_errors=True)
     return result
+
+
+def _digest(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def bluray_subtitles(project, title, plan, work, reporter):
+    """Render a title's subtitle tracks as PGS streams for the HD frame (the
+    disc's subtitle style scaled up from its standard). Returns .sup paths."""
+    subdir = os.path.join(work, "subs", title.id)
+    os.makedirs(subdir, exist_ok=True)
+    hd = bluray.HDFrame(project.disc.standard, project.disc.fps)
+    k = hd.height / project.disc.height
+    style = dict(project.disc.subtitle_style)
+    for key in ("size", "margin", "outline_width"):
+        style[key] = round(style[key] * k)
+    renderer = subtitles.SubtitleRenderer(hd, subdir, link_font(plan["font"], subdir),
+                                          display_width(hd), style)
+    sups = []
+    for j, sub in enumerate(title.subtitles):
+        cues = plan["_cues"][(title.id, j)]
+        reporter.step("subtitles", f"Rendering {len(cues)} subtitle(s) for '{title.id}' "
+                      f"(stream {j + 1}{', ' + sub.lang if sub.lang else ''})", item=title.id)
+        times = pgs.timeline(cues)
+        workers = min(8, os.cpu_count() or 2)
+        with concurrent.futures.ThreadPoolExecutor(workers) as pool:
+            frames = list(pool.map(lambda nc: renderer.render_rgba(nc[1], f"pg{j}_{nc[0]:05d}",
+                                                                   sub.position),
+                                   enumerate(cues)))
+        pictures = []
+        for cue, span, rgba in zip(cues, times, frames):
+            if span is None:
+                continue
+            fill = cue.color or sub.color or cue.style_color or style["color"]
+            pictures.append((span[0], span[1], pgs.indexed(rgba, hd.width, hd.height),
+                             pgs.palette(fill, style["outline"])))
+        sups.append(pgs.write_sup(os.path.join(subdir, f"track{j}.sup"), pictures,
+                                  (hd.width, hd.height)))
+    return sups
 
 
 def build_bluray_iso(project, out_iso, reporter, fast=False, keep_work=False, build_dir=None,
