@@ -7,7 +7,7 @@ import shutil
 import sys
 import tempfile
 
-from . import __version__, build, graph, scaffold, tools
+from . import __version__, build, burn, graph, scaffold, tools
 from .errors import OncemoreError, ProjectError
 from .project import PROJECT_FILENAME, load_project
 from .report import Reporter
@@ -197,6 +197,12 @@ def cmd_iso(args, rep):
     return 0
 
 
+def cmd_burn(args, rep):
+    res = burn.burn(args.iso, rep, device=args.device)
+    rep.result(res, f"{res['burned']} written to the DVD")
+    return 0
+
+
 def cmd_transcode(args, rep):
     project = load_project(args.project)
     if args.status:
@@ -311,6 +317,12 @@ def make_parser():
     s.add_argument("--build-dir", help="where to author VIDEO_TS (default: next to the ISO)")
     build_opts(s)
     s.set_defaults(func=cmd_iso)
+
+    s = sub.add_parser("burn", parents=[common], help="write a disc image to a blank DVD")
+    s.add_argument("iso", help="the .iso made by `oncemore iso`")
+    s.add_argument("--device", help="DVD writer (macOS: as `hdiutil burn -list` names it; "
+                                    "elsewhere e.g. /dev/sr0; default: the first one)")
+    s.set_defaults(func=cmd_burn)
 
     s = sub.add_parser("transcode", parents=[common],
                        help="encode titles now; the next build or iso reuses them")

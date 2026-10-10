@@ -47,7 +47,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 
-from .. import (__version__, build, clips, encode, graph, png4, scaffold, simulate, slideshow,
+from .. import (__version__, build, burn, clips, encode, graph, png4, scaffold, simulate, slideshow,
                subtitles, templates, tools, usertemplates)
 from ..errors import OncemoreError, ProjectError
 from ..project import PROJECT_FILENAME, build_project, clip_starts, read_json, source_at
@@ -337,12 +337,16 @@ class App:
             st.update(state="error", error=f"internal error: {e}")
 
     # -- jobs --------------------------------------------------------------------
-    def start_build(self, kind, fast, cache=True):
+    def start_build(self, kind, fast, cache=True, device=None):
         def work(project, rep):
             outdir = os.path.join(self.dir, "output")
-            if kind == "iso":
-                return build.build_iso(project, os.path.join(outdir, f"{project.disc.label}.iso"),
-                                       rep, fast=fast, cache=cache)
+            if kind in ("iso", "disc"):
+                res = build.build_iso(project, os.path.join(outdir, f"{project.disc.label}.iso"),
+                                      rep, fast=fast, cache=cache)
+                if kind == "disc":
+                    res.update(burn.burn(res["iso"], rep, device=device,
+                                         log=os.path.join(outdir, "burn.log")))
+                return res
             return build.build(project, os.path.join(outdir, project.disc.label), rep,
                                fast=fast, cache=cache)
         return self.start_job(kind, work)
@@ -899,9 +903,13 @@ class Handler(BaseHTTPRequestHandler):
     def api_post_build(self, q):
         body = self.body_json()
         kind = body.get("kind", "iso")
-        if kind not in ("iso", "folder"):
-            raise ValueError("kind must be iso or folder")
-        job = self.app.start_build(kind, bool(body.get("fast")), cache=not body.get("no_cache"))
+        if kind not in ("iso", "folder", "disc"):
+            raise ValueError("kind must be iso, folder or disc")
+        device = body.get("device") or None
+        if device is not None and not isinstance(device, str):
+            raise ValueError("device must be a string")
+        job = self.app.start_build(kind, bool(body.get("fast")), cache=not body.get("no_cache"),
+                                   device=device)
         self.json({"job": job.id})
 
     def api_post_transcode(self, q):

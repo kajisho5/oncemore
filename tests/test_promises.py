@@ -1,6 +1,6 @@
 """The promises in README ("What oncemore promises"), checked so that none of
 them can disappear by accident: a Mac app for both architectures, a disc
-image written without any burner, an app that runs in a browser, and an open,
+image written without any burner (burning is an optional step on request), an app that runs in a browser, and an open,
 offline, protection-free tool."""
 
 import ast
@@ -70,10 +70,14 @@ class TestDiscImage(unittest.TestCase):
             tools.reset_cache()
         self.assertTrue(os.path.isfile(os.path.join(ROOT, "oncemore", "udfwriter.py")))
 
-    def test_no_burning_needed(self):
-        # writing to a drive is never required: nothing calls a burner
+    def test_image_without_a_burner(self):
+        # the image never needs a drive: only the burn step, run on request,
+        # knows about burners, and building does not use it
         for path, src in package_sources():
-            self.assertNotRegex(src, r"\b(drutil|growisofs|cdrecord|wodim)\b", path)
+            if path != os.path.join("oncemore", "burn.py"):
+                self.assertNotRegex(src, r"\b(drutil|growisofs|cdrecord|wodim)\b", path)
+        for name in ("build.py", "author.py", "udfwriter.py", "iso.py"):
+            self.assertNotIn("burn", read("oncemore", name).replace("burned", ""), name)
 
 
 class TestBrowserApp(unittest.TestCase):

@@ -114,7 +114,9 @@ const I18N = {
     playall: "Play all titles", resume: "Resume (the title the Menu key left)", channels: "Channels", stereo: "Stereo", surround: "5.1 surround",
     generated_menu: "This menu is generated from the chapters of “{t}”. Change it in that title's settings.",
     go_to_title: "Open title",
-    build_iso: "Disc image (.iso)", build_folder: "VIDEO_TS folder", fast: "Fast (1-pass) encoding",
+    build_iso: "Disc image (.iso)", build_folder: "VIDEO_TS folder", build_disc: "DVD disc (the image, then burned)",
+    recorder: "Recorder", recorder_hint: "Empty: the first DVD writer. Insert a blank DVD before you build.",
+    burned: "Burned to the DVD", step_burn: "Burning the disc", fast: "Fast (1-pass) encoding",
     start_build: "Start", building: "Building…", build_done: "Done", build_failed: "Build failed",
     reveal: "Show in Finder", reveal_other: "Open folder", output: "Output", warnings: "Warnings",
     step_probe: "Checking sources", step_menu: "Rendering menu “{i}”", step_encode: "Encoding title “{i}”",
@@ -295,7 +297,9 @@ const I18N = {
     playall: "全タイトルを連続再生", resume: "再生再開（メニューキーで中断したタイトル）", channels: "チャンネル", stereo: "ステレオ", surround: "5.1ch サラウンド",
     generated_menu: "このメニューは「{t}」のチャプターから自動生成されます。変更はそのタイトルの設定で行います。",
     go_to_title: "タイトルを開く",
-    build_iso: "ディスクイメージ（.iso）", build_folder: "VIDEO_TS フォルダ", fast: "高速（1パス）エンコード",
+    build_iso: "ディスクイメージ（.iso）", build_folder: "VIDEO_TS フォルダ", build_disc: "DVD ディスク（イメージを作って書き込み）",
+    recorder: "ドライブ", recorder_hint: "空欄なら最初の DVD ドライブ。ビルドの前に空の DVD を入れてください。",
+    burned: "DVD に書き込みました", step_burn: "ディスクに書き込み", fast: "高速（1パス）エンコード",
     start_build: "開始", building: "ビルド中…", build_done: "完了", build_failed: "ビルドに失敗",
     reveal: "Finder で表示", reveal_other: "フォルダを開く", output: "出力先", warnings: "警告",
     step_probe: "素材をチェック", step_menu: "メニュー「{i}」を作成", step_encode: "タイトル「{i}」をエンコード",
@@ -2497,6 +2501,9 @@ function renderBuild(m) {
     <fieldset class="group"><legend>${t("output")}</legend>
       <label class="frow"><span class="fl"></span><span><input type="radio" name="kind" value="iso" ${kind === "iso" ? "checked" : ""}> ${t("build_iso")}</span></label>
       <label class="frow"><span class="fl"></span><span><input type="radio" name="kind" value="folder" ${kind === "folder" ? "checked" : ""}> ${t("build_folder")}</span></label>
+      <label class="frow"><span class="fl"></span><span><input type="radio" name="kind" value="disc" ${kind === "disc" ? "checked" : ""}> ${t("build_disc")}</span></label>
+      ${kind === "disc" ? `<label class="frow"><span class="fl">${t("recorder")}</span><input id="recorder" class="mono" value="${esc(S.recorder || "")}" placeholder="${S.platform === "darwin" ? "" : "/dev/sr0"}" title="${esc(t("recorder_hint"))}"></label>
+      <div class="frow"><span class="fl"></span><span class="hint">${esc(t("recorder_hint"))}</span></div>` : ""}
       <div class="frow"><span class="fl">${t("destination")}</span><input class="mono" readonly value="${esc(S.dir)}/output"></div></fieldset>
     <fieldset class="group"><legend>${t("settings")}</legend>
       <label class="frow"><span class="fl"></span><span><input type="checkbox" id="fast" ${S.buildFast ? "checked" : ""}> ${t("fast")}</span></label>
@@ -2514,6 +2521,7 @@ function renderBuild(m) {
   }).join("")}</ul></div>` : ""}
   ${result ? `<div class="card result-ok" style="max-width:720px"><h2>✓ ${t("build_done")}</h2>
       <p class="mono">${esc(result.iso || result.video_ts)}</p><p>${fmtBytes(result.iso_bytes || result.bytes)}</p>
+      ${result.burned ? `<p>✓ ${t("burned")}</p>` : ""}
       <button id="reveal">${t(S.platform === "darwin" ? "reveal" : "reveal_other")}</button>
       ${result.warnings?.length ? `<h3>${t("warnings")}</h3><ul class="issues">${result.warnings.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}</div>` : ""}
   ${error ? `<div class="card result-err" style="max-width:720px"><h2>✕ ${t("build_failed")}</h2><p>${esc(error.message)}</p>
@@ -2521,7 +2529,8 @@ function renderBuild(m) {
       ${error.issues ? `<ul class="issues">${error.issues.map((i) => `<li><span class="path">${esc(i.path)}</span> ${esc(i.message)}</li>`).join("")}</ul>` : ""}
       ${error.output ? `<pre class="log">${esc(error.output)}</pre>` : ""}</div>` : ""}
   ${logs.length ? `<div class="card" style="max-width:720px"><div class="log">${esc(logs.join("\n"))}</div></div>` : ""}`;
-  m.querySelectorAll("input[name=kind]").forEach((r) => (r.onchange = () => (S.buildKind = r.value)));
+  m.querySelectorAll("input[name=kind]").forEach((r) => (r.onchange = () => { S.buildKind = r.value; renderSidebar(); }));
+  if ($("#recorder")) $("#recorder").onchange = (e) => (S.recorder = e.target.value.trim());
   $("#fast").onchange = (e) => (S.buildFast = e.target.checked);
   $("#nocache").onchange = (e) => (S.buildNoCache = e.target.checked);
   $("#start").onclick = startBuild;
@@ -2533,7 +2542,7 @@ const relPath = (abs) => abs.startsWith(S.dir) ? abs.slice(S.dir.length + 1) : a
 async function startBuild() {
   clearTimeout(S.saveTimer); await save();
   try {
-    const r = await api("/api/build", { method: "POST", body: { kind: S.buildKind || "iso", fast: !!S.buildFast, no_cache: !!S.buildNoCache } });
+    const r = await api("/api/build", { method: "POST", body: { kind: S.buildKind || "iso", fast: !!S.buildFast, no_cache: !!S.buildNoCache, device: S.recorder || undefined } });
     S.job = { id: r.job, done: false }; S.jobEvents = []; S.jobNext = 0;
     pollJob();
   } catch (e) { alert(e.message); }

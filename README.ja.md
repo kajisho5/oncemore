@@ -21,8 +21,8 @@ oncemore が存在する理由です。テストと CI がそれぞれを守っ�
 知らないうちに失われることはありません。
 
 * **Mac で動く本格オーサリングアプリ** — Apple シリコンと Intel の Oncemore.app を、変更のたびにビルドして起動確認しています。
-* **書き込みドライブではなくディスクイメージ** — 標準的な ISO（UDF + ISO 9660）か VIDEO_TS フォルダを書き出します。
-  ディスクに焼くのはどのツールでも構いません。
+* **まずディスクイメージ** — 他に何も入れずに標準的な ISO（UDF + ISO 9660）か VIDEO_TS フォルダを書き出します。
+  DVD への書き込みは任意の最後の一手順です（ビルド > 出力：DVD ディスク、または `oncemore burn`）。
 * **ブラウザで動く** — アプリは自分のマシンから配信される Web ページなので Linux でも動き、Python 以外のインストールは不要です。
 * **オープンで、あなたのもの** — GPL-3.0。アカウント不要、ネットワーク通信なし、テレメトリなし、コピーガードは今後も入れません。
   プロジェクトはただの JSON です。
@@ -44,13 +44,13 @@ oncemore 本体は Python 3.11+ の標準ライブラリのみで動きます。
 | `ffmpeg` / `ffprobe`（`drawtext` フィルタ入り） | MPEG-2/AC-3 エンコード、メニュー描画、解析 |
 | `dvdauthor` / `spumux` | DVD-Video 構造（IFO/VOB）、ボタンのハイライト |
 | *（不要）* — UDF + ISO 9660 のディスクイメージは oncemore 自身が書き出します。`hdiutil`・`genisoimage`・`mkisofs` を選ぶこともできます | ディスクイメージ |
+| *（任意）* `growisofs`（dvd+rw-tools。macOS は標準の `hdiutil` を使用） | DVD への書き込み |
 
 ### macOS（Homebrew）
 
 ```sh
 brew install ffmpeg-full dvdauthor
 pip install git+https://github.com/kajisho5/oncemore
-oncemore transcode <project> [--title ID] [--fast] [--status]  # 書き出し前にタイトルをエンコード
 oncemore doctor
 ```
 
@@ -211,6 +211,8 @@ oncemore preview-menu <project> --menu main -o main.png [--button id] [--state h
 oncemore simulate <project> --keys down,enter,menu   # リモコン操作を再現（エンコードなし）
 oncemore import-psd <project> design.psd --menu main [--first-play]   # Photoshop からメニューを作成
 oncemore gui [<dir>] [--port N] [--no-browser] # オーサリングアプリ
+oncemore transcode <project> [--title ID] [--fast] [--status]  # 書き出し前にタイトルをエンコード
+oncemore burn out.iso [--device DEV]           # イメージを空の DVD に書き込み（macOS は hdiutil、他は growisofs）
 oncemore doctor                                # 外部ツールの有無・バージョン・ISO バックエンド
 ```
 
@@ -526,8 +528,8 @@ DVD ナビゲーションライブラリ）でメニューのボタンを実際�
   「ファイル」→「DVD メディアを開く…」でマウントした `VIDEO_TS` フォルダを選びます
   （macOS 26 の DVD プレーヤー 6.0 で VIDEO_TS フォルダを開けることは Apple のガイドに記載）。
   oncemore の出力での動作は **まだ未確認** です。報告を歓迎します。
-* **書き込み** — macOS は Finder または `hdiutil burn demo.iso`、Linux は
-  `growisofs -dvd-compat -Z /dev/dvd=demo.iso`。oncemore 自体は書き込みを行いません。
+* **書き込み** — `oncemore burn demo.iso`（またはビルド > 出力：DVD ディスク）で、macOS は `hdiutil burn`、
+  Linux は `growisofs -dvd-compat` を使って書き込みます。ISO は他の書き込みツールでも焼けます。
 
 ## 再ビルドは速い
 
