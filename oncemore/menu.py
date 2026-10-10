@@ -332,7 +332,7 @@ class MenuBuilder:
         cmd = [self.ffmpeg, "-hide_banner", "-nostdin", "-v", "error", "-f", "lavfi", "-i",
                f"color=c=black:s={self.dw}x{H}:r=1:d=1", "-vf", vf, "-frames:v", "1",
                "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1"]
-        p = subprocess.run(cmd, cwd=self.work, capture_output=True)
+        p = subprocess.run(cmd, cwd=self.work, capture_output=True, timeout=300)
         if p.returncode != 0 or len(p.stdout) < W * H:
             raise ToolFailedError("ffmpeg could not render menu text",
                                   details={"output": tools.tail(p.stderr.decode("utf-8", "replace"))})
@@ -374,7 +374,7 @@ class MenuBuilder:
                f"color=c=black:s={self.dw}x{H}:r=1:d=1", "-i", path,
                "-filter_complex", graph, "-frames:v", "1",
                "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1"]
-        p = subprocess.run(cmd, cwd=self.work, capture_output=True)
+        p = subprocess.run(cmd, cwd=self.work, capture_output=True, timeout=300)
         if p.returncode != 0 or len(p.stdout) < W * H:
             raise ToolFailedError("ffmpeg could not read a button image",
                                   details={"output": tools.tail(p.stderr.decode("utf-8", "replace"))})
@@ -488,12 +488,15 @@ class MenuBuilder:
                 w, h = size
                 start = max(0.0, min(t.time, (info.get("duration") or t.time + 1) - 1.0))
                 num, den = self.disc.fps
+                dur = self.menu_duration(menu)
+                # every input finite: the clip is read for the menu's length only
+                # and held on its last frame if the chapter is shorter
                 vf = (encode.fit_filter(info, self.project.disc_for(title), fps=False)
                       + f",scale=iw*sar:ih,setsar=1,scale={w}:{h}:force_original_aspect_ratio="
                         f"decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={num}/{den},"
-                        f"tpad=stop=-1:stop_mode=clone")
+                        f"tpad=stop_mode=clone:stop_duration={dur:.3f}")
                 out.append((title.source, round(t.x * self.sx), t.y, vf,
-                            ["-ss", f"{start:.3f}"]))
+                            ["-ss", f"{start:.3f}", "-t", f"{dur:.3f}"]))
                 continue
             path = os.path.join(self.work, f"{menu.id}.{b.id}.thumb.png")
             encode.extract_thumbnail(title.source, info, self.project.disc_for(title), t.time,
@@ -516,7 +519,8 @@ class MenuBuilder:
             num, den = self.disc.fps
             inputs += ["-i", menu.background_video]
             # tpad: hold the last frame if `duration` is longer than the video
-            bg = (f"[0:v]fps={num}/{den},tpad=stop=-1:stop_mode=clone,"
+            bg = (f"[0:v]fps={num}/{den},"
+                  f"tpad=stop_mode=clone:stop_duration={self.menu_duration(menu):.3f},"
                   f"scale={self.dw}:{H}:force_original_aspect_ratio=decrease,"
                   f"pad={self.dw}:{H}:(ow-iw)/2:(oh-ih)/2:color={_hex(menu.background_color)},"
                   f"setsar=1,format=rgb24")
@@ -571,7 +575,7 @@ class MenuBuilder:
                   ["-filter_complex", graph, "-map", "[out]", "-frames:v", "1",
                    "-update", "1", out],
                   cwd=self.work, log=os.path.join(self.logs, f"menu-{menu.id}-base.log"),
-                  what=f"ffmpeg (menu {menu.id} background)")
+                  what=f"ffmpeg (menu {menu.id} background)", timeout=600)
         return out
 
     def prepare(self, menu):

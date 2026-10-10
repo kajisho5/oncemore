@@ -3,6 +3,8 @@
 import json
 import os
 import subprocess
+import threading
+import time
 from fractions import Fraction
 
 from . import tools
@@ -181,6 +183,11 @@ def peak_bitrate(audio_bps):
 # running ffmpeg with progress
 # --------------------------------------------------------------------------
 
+# ffmpeg reports progress about twice a second; this long without a single
+# report means it is stuck (it is then stopped and the log tail reported).
+STALL_SECONDS = 300
+
+
 def run_ffmpeg(args, duration, log, on_progress=None, cwd=None, what="ffmpeg"):
     """Run ffmpeg with -progress and report fraction via on_progress(f)."""
     cmd = [tools.find("ffmpeg"), "-hide_banner", "-nostdin", "-y", "-progress", "pipe:1",
@@ -190,10 +197,23 @@ def run_ffmpeg(args, duration, log, on_progress=None, cwd=None, what="ffmpeg"):
         lf.write("$ " + " ".join(tools._q(c) for c in cmd) + "\n")
         lf.flush()
         try:
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=lf, cwd=cwd, text=True)
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=lf, cwd=cwd, text=True,
+                                    stdin=subprocess.DEVNULL)
         except FileNotFoundError as e:
             raise tools.MissingToolsError(f"Cannot execute ffmpeg: {e}", hint=tools.install_hint())
+        last = [time.monotonic()]
+        stalled = threading.Event()
+
+        def watchdog():
+            while proc.poll() is None:
+                if time.monotonic() - last[0] > STALL_SECONDS:
+                    stalled.set()
+                    proc.kill()
+                    return
+                time.sleep(1)
+        threading.Thread(target=watchdog, daemon=True).start()
         for line in proc.stdout:
+            last[0] = time.monotonic()
             key, _, val = line.strip().partition("=")
             if key in ("out_time_us", "out_time_ms") and on_progress and duration:
                 try:
@@ -206,7 +226,8 @@ def run_ffmpeg(args, duration, log, on_progress=None, cwd=None, what="ffmpeg"):
     if rc != 0:
         with open(log, encoding="utf-8", errors="replace") as lf:
             out = lf.read()
-        raise ToolFailedError(f"{what} failed (exit {rc})", details={"log": log, "output": tools.tail(out)})
+        why = f"made no progress for {STALL_SECONDS} s" if stalled.is_set() else f"failed (exit {rc})"
+        raise ToolFailedError(f"{what} {why}", details={"log": log, "output": tools.tail(out)})
     if on_progress:
         on_progress(1.0)
 
@@ -326,5 +347,5 @@ def extract_thumbnail(source, info, disc, time, size, out_path, log):
           f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1")
     tools.run([tools.find("ffmpeg"), "-hide_banner", "-nostdin", "-y", "-ss", f"{t:.3f}",
                "-i", source, "-frames:v", "1", "-vf", vf, out_path], log=log,
-              what="ffmpeg (thumbnail)")
+              what="ffmpeg (thumbnail)", timeout=600)
     return out_path

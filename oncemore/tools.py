@@ -205,8 +205,10 @@ def tail(text, lines=25):
     return "\n".join(parts[-lines:])
 
 
-def run(cmd, *, cwd=None, env=None, stdin=None, stdout=None, log=None, what=None):
-    """Run a command; raise ToolFailedError with the tail of its output on failure.
+def run(cmd, *, cwd=None, env=None, stdin=None, stdout=None, log=None, what=None,
+        timeout=None):
+    """Run a command; raise ToolFailedError with the tail of its output on failure
+    (or when it runs longer than `timeout` seconds).
 
     `log` is a file path that receives stderr (and stdout unless redirected).
     """
@@ -221,8 +223,16 @@ def run(cmd, *, cwd=None, env=None, stdin=None, stdout=None, log=None, what=None
             with open(log, "w", encoding="utf-8", errors="replace") as lf:
                 lf.write("$ " + " ".join(_q(c) for c in cmd) + "\n")
                 lf.flush()
-                p = subprocess.run(cmd, cwd=cwd, env=full_env, stdin=stdin,
-                                   stdout=stdout if stdout is not None else lf, stderr=lf)
+                try:
+                    p = subprocess.run(cmd, cwd=cwd, env=full_env, stdin=stdin,
+                                       stdout=stdout if stdout is not None else lf, stderr=lf,
+                                       timeout=timeout)
+                except subprocess.TimeoutExpired:
+                    lf.flush()
+                    with open(log, encoding="utf-8", errors="replace") as rf:
+                        out = rf.read()
+                    raise ToolFailedError(f"{label} did not finish within {timeout} s",
+                                          details={"log": log, "output": tail(out)})
             if p.returncode != 0:
                 with open(log, encoding="utf-8", errors="replace") as lf:
                     out = lf.read()
@@ -231,7 +241,9 @@ def run(cmd, *, cwd=None, env=None, stdin=None, stdout=None, log=None, what=None
             return p
         p = subprocess.run(cmd, cwd=cwd, env=full_env, stdin=stdin,
                            stdout=stdout if stdout is not None else subprocess.PIPE,
-                           stderr=subprocess.PIPE)
+                           stderr=subprocess.PIPE, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise ToolFailedError(f"{label} did not finish within {timeout} s")
     except FileNotFoundError as e:
         raise MissingToolsError(f"Cannot execute {cmd[0]}: {e}", hint=install_hint())
     if p.returncode != 0:

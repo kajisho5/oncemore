@@ -8,6 +8,7 @@ on:
 
 jobs:
   ubuntu:
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -40,6 +41,7 @@ jobs:
           cd "$RUNNER_TEMP" && oncemore --version && oncemore validate --no-media "$GITHUB_WORKSPACE/examples/basic"
 
   macos:
+    timeout-minutes: 30
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
@@ -53,6 +55,7 @@ jobs:
         run: python -m unittest -v
 
   macos-app:
+    timeout-minutes: 30
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
