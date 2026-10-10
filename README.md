@@ -9,8 +9,11 @@ a still menu with buttons, an auto-generated chapter menu with thumbnails,
 chapter jumps, and "return to the menu when the movie ends". You describe the
 disc in one JSON file and get a `.iso` you can play in VLC, burn, or mount.
 
-This repository is **phase 1: the core CLI and the project file format**. A Mac
-GUI and a web version are planned on top of it (see [docs/ROADMAP.md](docs/ROADMAP.md)).
+It comes as an **authoring app that runs in your browser on your own Mac**
+(`oncemore gui`), on top of a scriptable command-line core. Nothing is uploaded
+anywhere: the app is served from your machine and works on your files.
+
+![The menu editor](docs/images/gui-menu-en.png)
 
 ## Why
 
@@ -62,7 +65,34 @@ Tool locations can be overridden with `ONCEMORE_FFMPEG`, `ONCEMORE_FFPROBE`,
 `ONCEMORE_MKISOFS`, `ONCEMORE_XORRISO`, and the menu font with `ONCEMORE_FONT`.
 If something is missing, oncemore says what and prints the install command.
 
-## Quick start
+## Quick start: the app
+
+```sh
+oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
+```
+
+* **New project** → *Create sample project* gives you a working disc to explore,
+  or start empty and **drop your video files** onto the window.
+* **Titles**: pick a video in *Media* → *Add as title*. Scrub through it and
+  press **◆ Add chapter here** wherever a chapter should start. Tick *Generate a
+  chapter menu* for a thumbnail menu. Set what happens when it ends, audio
+  tracks and subtitles (`.srt`) in the right-hand panel.
+* **Menus**: *+ Add*, then drag buttons and text where you want them. Choose
+  each button's target (a menu, a title, a chapter, an audio or subtitle
+  stream). Use an image or a video as the background. **Exact preview**
+  renders the menu exactly as the disc will show it, with button hit areas.
+* **Check** estimates the size and finds problems; **Build** writes the `.iso`
+  (or a VIDEO_TS folder) into `my-disc/output/`, with progress.
+* Everything is saved automatically to `my-disc/project.oncemore.json`;
+  ⌘Z / Ctrl+Z undoes. The UI follows your browser language (English/日本語,
+  switch with 文A).
+
+![Chapters on the timeline](docs/images/gui-title-en.png)
+
+The app listens on 127.0.0.1 only, with a random per-launch key in the URL;
+it reads and writes files only inside the project folder.
+
+## Quick start: the command line
 
 ```sh
 oncemore init demo                                   # sample project + generated test media
@@ -83,6 +113,7 @@ oncemore validate <project> [--no-media]       # schema + references + media + s
 oncemore build <project> -o out/               # writes out/VIDEO_TS (and out/AUDIO_TS)
 oncemore iso <project> -o out.iso [--iso-tool auto|hdiutil|genisoimage|mkisofs|xorriso]
 oncemore preview-menu <project> --menu main -o main.png [--button id] [--state highlight|select|normal] [--outline]
+oncemore gui [<dir>] [--port N] [--no-browser] # the authoring app
 oncemore doctor                                # external tools, versions, ISO backend
 ```
 

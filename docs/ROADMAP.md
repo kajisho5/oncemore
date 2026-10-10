@@ -12,12 +12,24 @@ stable project format and machine-readable CLI output, and user interfaces on to
   generated chapter menus with thumbnails, frame-accurate chapters
 * End-to-end tests including button presses through libdvdnav
 
-## Phase 2 — Mac GUI
+## Phase 2 — the authoring app
 
-A native menu editor that uses the CLI as its backend (`--json` events for
-progress, `preview-menu` for rendering, the project file as the document):
-drag buttons onto the menu, set chapters on a timeline, live preview,
-one-click "Make ISO".
+Done (as a local web app, `oncemore gui`):
+
+* Media bin with drag & drop, titles with a frame-accurate scrubber and
+  one-click chapters, chapter-menu switch
+* Menu editor: drag buttons and text over the background, pick targets,
+  colours, remote navigation; exact server-side preview with hit areas
+* Check (size estimate, issues) and Build (ISO / folder) with live progress
+* Autosave, undo/redo, English/Japanese UI
+
+Next:
+
+* A native macOS wrapper (.app with a WKWebView around the same UI, signed and
+  notarised) so it starts like any Mac app, without a terminal
+* Playback preview of titles (proxy encode) and of menu navigation
+* Multi-select, alignment guides and snapping in the menu editor
+* Drag-reordering titles and menus; button graphics (images instead of text)
 
 ## Phase 3 — richer discs
 

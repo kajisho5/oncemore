@@ -217,3 +217,29 @@ produce exactly the phase-1 structure (no jumppad). With more groups:
 
 dvdauthor warns "The use of jumppad requires a menu; creating a dummy ENGLISH
 menu" for titlesets without menus; that is expected and harmless.
+
+## 21. The GUI is a local web app
+
+The goal is an authoring app ordinary Mac users can run. A local web app was
+chosen over a native Swift app for phase 2:
+
+* it is built and tested here end to end (Playwright drives the real page:
+  upload, chapters, menu drag and undo, preview, build), which a native UI
+  could not be without a Mac;
+* the same UI becomes the phase 4 in-browser version once the core runs as
+  WebAssembly;
+* it needs nothing beyond what the CLI needs (Python stdlib server, plain
+  HTML/CSS/JS, no npm or build step).
+
+Security: the server binds 127.0.0.1, requires a random per-launch token
+(passed in the URL fragment, so it is never sent in requests or logged)
+on every API call, rejects requests whose Host header is not this server
+(DNS rebinding), serves files only from inside the project folder (images and
+subtitles only), and sets a strict Content-Security-Policy (no inline or
+eval'd script). `<img>` requests carry the token as a query parameter, which
+only the frame/file endpoints accept.
+
+The editor draws menus with HTML for instant dragging; text metrics differ
+slightly from drawtext, so "Exact preview" renders the real menu on the
+server (same code as the build) and shows the true button hit areas. A native
+.app wrapper (WKWebView) is the next step.

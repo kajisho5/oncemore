@@ -9,8 +9,11 @@ oncemore は、動画ファイルから **メニュー付きの DVD-Video ディ
 「本編が終わったらメニューに戻る」を、JSON ファイル 1 つで記述して `.iso` を書き出します。
 できた ISO は VLC で再生・マウント・書き込みができます。
 
-このリポジトリは **フェーズ1：コア CLI とプロジェクトファイル仕様** です。
-Mac GUI と Web 版はこの上に載せる予定です（[docs/ROADMAP.md](docs/ROADMAP.md)）。
+**自分の Mac 上でブラウザから使うオーサリングアプリ**（`oncemore gui`）として動き、
+その下にスクリプトからも使えるコマンドライン版があります。アプリは手元のマシンから配信され、
+ファイルはどこにもアップロードされません。
+
+![メニューエディタ](docs/images/gui-menu-ja.png)
 
 ## 背景
 
@@ -60,7 +63,31 @@ oncemore doctor
 メニューのフォントは `ONCEMORE_FONT` で上書きできます。
 足りないツールがあれば、何が無いかとインストールコマンドを表示して終了します。
 
-## クイックスタート
+## クイックスタート：アプリ
+
+```sh
+oncemore gui my-disc          # ブラウザで http://127.0.0.1:…/ が開きます
+```
+
+* **新しいプロジェクト** →「サンプル付きで作成」で動く見本ディスクを確認できます。
+  空で始めた場合は、**動画ファイルをウィンドウにドロップ**します。
+* **タイトル**：「素材」で動画を選び「タイトルとして追加」。スクラブして、チャプターを切りたい位置で
+  **◆ ここにチャプター**。「サムネイル付きチャプターメニューを自動生成」にチェックするとチャプターメニューができます。
+  再生終了後の動作・音声トラック・字幕（`.srt`）は右のパネルで設定します。
+* **メニュー**：「＋追加」して、ボタンやテキストをドラッグで配置。各ボタンのリンク先
+  （メニュー・タイトル・チャプター・音声/字幕の切替）を選びます。背景には画像か動画を使えます。
+  **実レンダリング確認**で、ディスクで実際に表示される見た目とボタンの当たり判定を確認できます。
+* **チェック**で容量の見積もりと問題点の確認、**書き出し**で `my-disc/output/` に
+  `.iso`（または VIDEO_TS フォルダ）を進捗表示付きで書き出します。
+* 編集は `my-disc/project.oncemore.json` に自動保存され、⌘Z / Ctrl+Z で元に戻せます。
+  表示言語はブラウザに合わせて英語/日本語（文A ボタンで切替）。
+
+![タイムライン上のチャプター](docs/images/gui-title-ja.png)
+
+アプリは 127.0.0.1 でのみ待ち受け、起動ごとのランダムなキーを URL に含めます。
+読み書きするのはプロジェクトフォルダ内のファイルだけです。
+
+## クイックスタート：コマンドライン
 
 ```sh
 oncemore init demo                                   # サンプルプロジェクト＋テスト素材を生成
@@ -81,6 +108,7 @@ oncemore validate <project> [--no-media]       # スキーマ＋参照＋素材�
 oncemore build <project> -o out/               # out/VIDEO_TS（と out/AUDIO_TS）を生成
 oncemore iso <project> -o out.iso [--iso-tool auto|hdiutil|genisoimage|mkisofs|xorriso]
 oncemore preview-menu <project> --menu main -o main.png [--button id] [--state highlight|select|normal] [--outline]
+oncemore gui [<dir>] [--port N] [--no-browser] # オーサリングアプリ
 oncemore doctor                                # 外部ツールの有無・バージョン・ISO バックエンド
 ```
 

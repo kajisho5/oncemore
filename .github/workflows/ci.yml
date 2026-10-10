@@ -19,8 +19,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             ffmpeg dvdauthor genisoimage xorriso libdvdnav4 fonts-dejavu-core fonts-noto-cjk
+      - name: Browser test dependencies (Playwright, test-only)
+        run: |
+          python -m pip install playwright==1.56.0
+          python -m playwright install --with-deps chromium
       - run: python -m oncemore doctor
-      - name: Unit + end-to-end tests
+      - name: Unit + end-to-end + GUI tests
         run: python -m unittest -v
       - name: Completion check (init + iso, no edits)
         run: |
