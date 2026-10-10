@@ -370,6 +370,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
             .separator(),
             cmd("Add Chapter at Playhead", "add_chapter"),
             cmd("Play / Pause", "play"),
+            .separator(),
+            cmd("Transcode This Title Now", "transcode_title"),
+            cmd("Transcode All Titles Now", "transcode_all"),
         ])
         _ = add("View", [
             cmd("Author", "ws_author", "1", .option),

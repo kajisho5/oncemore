@@ -197,6 +197,19 @@ def cmd_iso(args, rep):
     return 0
 
 
+def cmd_transcode(args, rep):
+    project = load_project(args.project)
+    if args.status:
+        st = build.encode_status(project, fast=args.fast)
+        lines = [f"  {'transcoded' if ok else 'not yet   '}  {tid}" for tid, ok in st.items()]
+        rep.result({"titles": st}, "\n".join(lines))
+        return 0
+    res = build.transcode(project, rep, args.title or None, fast=args.fast)
+    n = sum(1 for v in res["titles"].values() if v == "transcoded")
+    rep.result(res, f"{n} title(s) transcoded, {len(res['titles']) - n} already up to date")
+    return 0
+
+
 def cmd_preview(args, rep):
     from .menu import MenuBuilder
 
@@ -298,6 +311,17 @@ def make_parser():
     s.add_argument("--build-dir", help="where to author VIDEO_TS (default: next to the ISO)")
     build_opts(s)
     s.set_defaults(func=cmd_iso)
+
+    s = sub.add_parser("transcode", parents=[common],
+                       help="encode titles now; the next build or iso reuses them")
+    s.add_argument("project", help=proj_help)
+    s.add_argument("--title", action="append", metavar="ID",
+                   help="only this title (repeat for several; default: all)")
+    s.add_argument("--fast", action="store_true",
+                   help="1-pass encoding (use the same choice as the build)")
+    s.add_argument("--status", action="store_true",
+                   help="only show which titles are transcoded")
+    s.set_defaults(func=cmd_transcode)
 
     s = sub.add_parser("preview-menu", parents=[common], help="render a menu to PNG")
     s.add_argument("project", help=proj_help)

@@ -611,3 +611,19 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
 * Linking by dragging uses a private drag type, so it never mixes with
   dropping files into the project; a drop on a button only changes its
   action, a drop elsewhere adds a button labelled with the item's name.
+
+## 40. Transcode now
+
+* Authoring apps let you encode ("transcode") assets while you are still
+  designing menus, so the final build is quick. oncemore already had an
+  encode cache keyed by everything a title's encode depends on; transcoding
+  now just fills that cache ahead of time (`build.transcode`), and the build
+  finds the results the same way it finds titles it encoded before.
+* The key includes the title's share of the disc's bitrate, so adding a title
+  or changing the disc size can make transcoded titles out of date (the mark
+  in the project panel goes hollow again). A title with its own
+  video_bitrate keeps its encode.
+* The status (`build.encode_status`) never encodes or renders anything:
+  slideshows that were not rendered yet count as not transcoded.
+* The transcode uses the same 1- / 2-pass choice as the build; a 2-pass
+  build does not reuse a 1-pass transcode.

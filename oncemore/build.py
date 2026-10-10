@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import shutil
+import tempfile
 
 from . import author, clips, encode, iso, lpcmfix, slideshow, subtitles, tools
 from . import menu as menu_module
@@ -14,8 +15,10 @@ from .menu import (MenuBuilder, check_element_fonts, display_width, find_font, l
                    menu_seconds, menu_text)
 
 
-def inspect(project, reporter=None):
-    """Probe every source and plan the bitrate. Used by validate and build."""
+def inspect(project, reporter=None, prepare=True):
+    """Probe every source and plan the bitrate. Used by validate and build.
+    With prepare=False slideshows that are not rendered yet are planned from
+    their settings instead of being rendered (for a quick status)."""
     tools.require(["ffprobe"])
     issues = []
     infos = {}
@@ -29,10 +32,17 @@ def inspect(project, reporter=None):
         return probes[path]
 
     for i, t in enumerate(project.titles):
+        where = f"titles[{i}]"
+        if t.slideshow and not prepare and not os.path.isfile(t.source):
+            w, h = slideshow.canvas(project.disc_for(t))
+            num, den = project.disc.fps
+            infos[t.id] = {"duration": t.slideshow.duration, "has_video": True, "width": w,
+                           "height": h, "sar": 1, "fps": num / den, "unrendered": True,
+                           "audio_streams": 1 if t.slideshow.audio else 0}
+            continue
         if t.slideshow:
             slideshow.ensure(t, project.disc_for(t),
                              os.path.join(os.path.dirname(t.source), f"{t.id}.log"), reporter)
-        where = f"titles[{i}]"
         if t.clips:
             info = _clip_info(project, t, probe, issues, where)
         else:
@@ -286,6 +296,65 @@ def title_cache_key(project, title, info, vbps, fast):
                   title.audio_passthrough]})
 
 
+def encode_cache_dir(project):
+    return os.path.join(project.base_dir, ".oncemore-cache", "encode")
+
+
+def encode_status(project, fast=False):
+    """{title id: True when its encoded picture and sound are in the encode
+    cache for the current plan}, without encoding or rendering anything."""
+    infos, plan = inspect(project, prepare=False)
+    cache = encode_cache_dir(project)
+    out = {}
+    for t, vbps in zip(project.titles, plan["per_title"]):
+        if infos[t.id].get("unrendered"):
+            out[t.id] = False
+            continue
+        key = title_cache_key(project, t, infos[t.id], vbps, fast)
+        out[t.id] = os.path.isfile(os.path.join(cache, key + ".mpg"))
+    return out
+
+
+def transcode(project, reporter, title_ids=None, fast=False):
+    """Encode titles ahead of the build ("transcode now"): the results go to
+    the encode cache, where the build finds them. A title stays transcoded
+    while its source, its settings and the disc's bitrate plan are the same."""
+    tools.require(["ffmpeg", "ffprobe"])
+    reporter.step("probe", "Checking sources")
+    infos, plan = inspect(project, reporter)
+    cache = encode_cache_dir(project)
+    title_bps = dict(zip([t.id for t in project.titles], plan["per_title"]))
+    wanted = [t for t in project.titles if title_ids is None or t.id in title_ids]
+    unknown = set(title_ids or []) - {t.id for t in project.titles}
+    if unknown:
+        raise OncemoreError(f"no title {sorted(unknown)[0]!r}")
+    done = {}
+    work = tempfile.mkdtemp(prefix="oncemore-transcode-")
+    try:
+        os.makedirs(os.path.join(work, "logs"))
+        for t in wanted:
+            key = title_cache_key(project, t, infos[t.id], title_bps[t.id], fast)
+            if os.path.isfile(os.path.join(cache, key + ".mpg")):
+                reporter.step("encode", f"Title '{t.id}' already transcoded", item=t.id)
+                done[t.id] = "cached"
+                continue
+            reporter.step("encode", f"Transcoding title '{t.id}' ({infos[t.id]['duration']:.1f}s, "
+                          f"{title_bps[t.id] / 1e6:.2f} Mbit/s)", item=t.id)
+            out = os.path.join(work, f"{t.id}.mpg")
+            encode.encode_title(t, infos[t.id], project.disc_for(t), title_bps[t.id], out, work,
+                                two_pass=not fast,
+                                on_progress=lambda f, tid=t.id: reporter.progress("encode", f, tid),
+                                probes=plan["_probes"])
+            if t.audio_codec == "lpcm":
+                lpcmfix.fix_file(out)
+            _cache_put(cache, key, out)
+            os.remove(out)
+            done[t.id] = "transcoded"
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    return {"titles": done, "cache": cache}
+
+
 def menu_cache_key(project, menu, font):
     files = [menu.background, menu.background_video, menu.audio, font] + \
         [b.image for b in menu.buttons] + [b.highlight_image for b in menu.buttons] + \
@@ -313,7 +382,7 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None, ca
         reporter.warn(w)
     vbps = plan["video_bps"]
     title_bps = dict(zip([t.id for t in project.titles], plan["per_title"]))
-    cache = os.path.join(project.base_dir, ".oncemore-cache", "encode") if cache else None
+    cache = encode_cache_dir(project) if cache else None
     reporter.info(f"    video {vbps / 1e6:.2f} Mbit/s average, estimated "
                   f"{plan['estimated_bytes'] / 2**30:.2f} of {plan['capacity'] / 2**30:.2f} GiB")
 

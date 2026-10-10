@@ -50,6 +50,8 @@ const I18N = {
     pan_zoom: "Slow zoom in / out (pan & zoom)", slideshow_chapters: "Every picture starts a chapter.",
     routing: "Routing", routing_hint: "Show where the remote's arrow keys go from each button (solid: set by you, dashed: automatic)",
     link_hint: "Drag a title, menu or playlist from the project panel onto a button to link it, or onto the menu to add a button for it.",
+    cmd_transcode_title: "Transcode this title now", cmd_transcode_all: "Transcode all titles now",
+    transcoding: "Transcoding", transcoded: "Transcoded: the build will reuse it", not_transcoded: "Not transcoded yet (encoded when the disc is built)",
     m_file: "File", m_edit: "Edit", m_disc: "Disc", m_view: "View", m_help: "Help",
     cmd_import_files: "Import files…", cmd_import_psd: "Import Photoshop design…", cmd_check: "Check project",
     cmd_build: "Build disc…", cmd_reveal: "Show project folder", cmd_undo: "Undo", cmd_redo: "Redo",
@@ -171,6 +173,8 @@ const I18N = {
     pan_zoom: "ゆっくりズーム（パン＆ズーム）", slideshow_chapters: "写真ごとにチャプターになります。",
     routing: "ルーティング", routing_hint: "各ボタンからリモコンの矢印キーで移る先を表示（実線：指定、破線：自動）",
     link_hint: "プロジェクトパネルのタイトル・メニュー・プレイリストをボタンにドラッグするとリンク、メニューの空いた所にドラッグするとそのボタンを追加します。",
+    cmd_transcode_title: "このタイトルを今すぐトランスコード", cmd_transcode_all: "すべてのタイトルを今すぐトランスコード",
+    transcoding: "トランスコード中", transcoded: "トランスコード済み（書き出し時に再利用）", not_transcoded: "未トランスコード（書き出し時にエンコード）",
     m_file: "ファイル", m_edit: "編集", m_disc: "ディスク", m_view: "表示", m_help: "ヘルプ",
     cmd_import_files: "ファイルを読み込む…", cmd_import_psd: "Photoshop デザインを読み込む…", cmd_check: "プロジェクトをチェック",
     cmd_build: "ディスクを書き出す…", cmd_reveal: "プロジェクトのフォルダを表示", cmd_undo: "取り消す", cmd_redo: "やり直す",
@@ -503,6 +507,42 @@ async function save() {
     S.check = r.check; S.saveState = "saved";
   } catch (e) { S.saveState = "error"; console.error(e); }
   renderTopbar(); renderStatus();
+  refreshEncodeStatus();
+}
+// which titles are already transcoded (encoded into the cache ahead of the build)
+function refreshEncodeStatus() {
+  clearTimeout(S.encTimer);
+  S.encTimer = setTimeout(async () => {
+    if (!P() || S.check?.issues?.length) { S.encStatus = null; renderSidebar(); return; }
+    try { S.encStatus = (await api("/api/encode_status", { method: "POST", body: { project: S.project } })).titles; }
+    catch (e) { S.encStatus = null; }
+    renderSidebar();
+  }, 800);
+}
+async function transcode(ids) {
+  clearTimeout(S.saveTimer); await save();
+  let r;
+  try { r = await api("/api/transcode", { method: "POST", body: { titles: ids || null } }); }
+  catch (e) { alert(e.message); return; }
+  S.transcoding = { id: r.job, next: 0, text: t("transcoding"), done: false };
+  renderStatus();
+  for (;;) {
+    let j;
+    try { j = await api(`/api/jobs/${r.job}?since=${S.transcoding.next}`); } catch (e) { break; }
+    S.transcoding.next = j.next;
+    for (const ev of j.events) {
+      if (ev.event === "step" && ev.item) S.transcoding.text = `${t("transcoding")} ${ev.item}`;
+      if (ev.event === "progress") S.transcoding.text = `${t("transcoding")} ${ev.item || ""} ${Math.round(ev.fraction * 100)}%`;
+      if (ev.event === "error") S.transcoding.error = ev.message;
+    }
+    renderStatus();
+    if (j.done) break;
+    await new Promise((res) => setTimeout(res, 500));
+  }
+  S.transcoding.done = true;
+  if (S.transcoding.error) alert(S.transcoding.error);
+  S.transcoding = null;
+  renderStatus(); refreshEncodeStatus();
 }
 
 async function refreshMedia() {
@@ -535,6 +575,7 @@ function renderStatus() {
   if (!tl.dvdauthor) miss.push("dvdauthor"); if (!tl.iso) miss.push("ISO");
   bar.innerHTML = `<span class="${issues.length ? "err" : "ok"}" id="st-issues">${issues.length ? "⚠ " + t("issues", { n: issues.length }) : "✓ " + t("no_issues")}</span>
     ${miss.length ? `<span class="warn">${esc(t("tools_missing", { t: miss.join(", ") }))} — <span class="mono">${esc(tl.install || "")}</span></span>` : ""}
+    ${S.transcoding ? `<span class="busy" id="st-transcode">${esc(S.transcoding.text)}</span>` : ""}
     <span class="spacer"></span><span class="mono">${esc(S.dir)}</span>`;
   $("#st-issues").onclick = () => issues.length && showIssues(issues);
 }
@@ -549,9 +590,10 @@ function renderSidebar() {
   const sb = $("#sidebar");
   if (!P()) { sb.innerHTML = ""; return; }
   const v = S.sel;
-  const item = (view, id, label, tag = "") =>
-    `<div class="nav-item ${v.view === view && v.id === id ? "active" : ""}" data-view="${view}" data-id="${esc(id || "")}">${esc(label)}${tag ? `<span class="tag">${esc(tag)}</span>` : ""}</div>`;
-  const titles = (P().titles || []).map((ti) => item("title", ti.id, ti.name || ti.id, ti.aspect || "")).join("");
+  const item = (view, id, label, tag = "", mark = "") =>
+    `<div class="nav-item ${v.view === view && v.id === id ? "active" : ""}" data-view="${view}" data-id="${esc(id || "")}">${mark}${esc(label)}${tag ? `<span class="tag">${esc(tag)}</span>` : ""}</div>`;
+  const enc = (id) => (S.encStatus && id in S.encStatus ? `<span class="enc ${S.encStatus[id] ? "ok" : ""}" title="${esc(t(S.encStatus[id] ? "transcoded" : "not_transcoded"))}"></span>` : "");
+  const titles = (P().titles || []).map((ti) => item("title", ti.id, ti.name || ti.id, ti.aspect || "", enc(ti.id))).join("");
   const menus = (P().menus || []).map((m) => item("menu", m.id, m.id)).join("");
   const gen = generatedMenus().map((g) => item("menu", g.id, g.id, t("generated"))).join("");
   const media = S.media.map((m) => `<div class="media-item ${S.selectedMedia === m.path ? "selected" : ""}" data-media="${esc(m.path)}" draggable="false">
@@ -645,7 +687,7 @@ function renderWelcome(m) {
     </div></div>`;
   const go = async (sample) => {
     const r = await api("/api/new", { method: "POST", body: { sample, label: $("#np-label").value, standard: $("#np-std").value, aspect: $("#np-aspect").value } });
-    applyState(r); S.sel = { view: "disc" }; renderAll();
+    applyState(r); S.sel = { view: "disc" }; renderAll(); refreshEncodeStatus();
   };
   $("#np-empty").onclick = () => go(false);
   $("#np-sample").onclick = () => go(true);
@@ -2086,6 +2128,8 @@ async function renderTimeline() {
   const thumbs = Array.from({ length: nThumb }, (_, k) => `<img src="${imgUrl("frame", { path: src, t: Math.min(dur - 0.05, (k + 0.5) * thumbW / pps).toFixed(2), w: 160 })}" style="width:${thumbW}px" alt="">`).join("");
   const entries = chapterEntries(ti);
   const tracks = ti.audio_tracks && ti.audio_tracks.length ? ti.audio_tracks : [{}];
+  // the sound drawn under its clip (the waveform is the length of the file)
+  const wave = (path, stream, len) => `<img class="tl-wave" alt="" draggable="false" style="width:${len * pps}px" src="${imgUrl("waveform", { path, s: stream, w: Math.round(Math.min(4000, Math.max(64, len * pps))), h: 48 })}">`;
   const subs = ti.subtitles || [];
   const lane = (label, cls, inner, kind = "") => `<div class="tl-row"><span class="tl-label">${kind ? `<span class="kind-dot" style="background:var(--c-kind-${kind})"></span>` : ""}${esc(label)}</span><div class="tl-track tl-lane ${cls}" style="width:${width}px">${inner}</div></div>`;
   box.innerHTML = `<div class="tl" style="width:${LABEL + width + 16}px">
@@ -2093,8 +2137,8 @@ async function renderTimeline() {
     ${lane(t("video"), "video", thumbs, "title")}
     ${join ? lane(t("clips"), "clips", join.clips.map((c, k) => `<div class="tl-clip clip ${k % 2 ? "alt" : ""}" data-cstart="${c.start}" style="left:${c.start * pps}px;width:${Math.max(3, c.duration * pps)}px" title="${esc(c.source)}">${k + 1} ${esc(c.source.replace(/^media\//, ""))}</div>`).join(""), "title") : ""}
     ${lane(t("chapters"), "chapters", entries.map((c, i) => `<div class="tl-chapter ${i ? "" : "first"}" data-tlch="${i}" style="left:${c.time * pps}px" title="${esc(fmtTime(c.time))}"><span>${i + 1}${c.name ? " " + esc(c.name) : ""}</span></div>`).join(""), "chapter")}
-    ${join ? lane(t("audio"), "", join.clips.map((c) => `<div class="tl-clip audio" style="left:${c.start * pps}px;width:${Math.max(3, c.duration * pps)}px">${esc(c.source.replace(/^media\//, ""))}</div>`).join(""), "audio")
-      : tracks.map((a, k) => lane(`${t("audio")} ${k + 1}${a.lang ? " · " + a.lang : ""}`, "", `<div class="tl-clip audio" style="left:0;width:${dur * pps}px">${esc((a.source || ti.source).replace(/^media\//, ""))}${a.stream ? " #" + a.stream : ""}</div>`, "audio")).join("")}
+    ${join ? lane(t("audio"), "", wave(join.path, 0, dur) + join.clips.map((c) => `<div class="tl-clip audio" style="left:${c.start * pps}px;width:${Math.max(3, c.duration * pps)}px">${esc(c.source.replace(/^media\//, ""))}</div>`).join(""), "audio")
+      : tracks.map((a, k) => lane(`${t("audio")} ${k + 1}${a.lang ? " · " + a.lang : ""}`, "", wave(a.source || ti.source, a.stream || 0, dur) + `<div class="tl-clip audio" style="left:0;width:${dur * pps}px">${esc((a.source || ti.source).replace(/^media\//, ""))}${a.stream ? " #" + a.stream : ""}</div>`, "audio")).join("")}
     ${subs.map((s, k) => lane(`${t("subtitles")} ${k + 1}${s.lang ? " · " + s.lang : ""}`, "", `<span class="hint" data-subk="${k}"></span>`, "subtitle")).join("")}
     <div class="tl-playhead" id="tl-playhead"></div></div>`;
   tlPlayhead(S.playhead[ti.id] || 0);
@@ -2103,6 +2147,7 @@ async function renderTimeline() {
   $("#tl-ruler").onpointerdown = (ev) => seek(at(ev, $("#tl-ruler")));
   box.querySelector(".tl-lane.video").onpointerdown = (ev) => seek(at(ev, ev.currentTarget));
   box.querySelectorAll(".tl-clip.clip").forEach((c) => (c.onclick = () => seek(Number(c.dataset.cstart))));
+  box.querySelectorAll(".tl-wave").forEach((img) => (img.onerror = () => img.remove()));     // no sound
   // drag a chapter mark (not the first) to move it, frame-accurately
   const fps = (() => { const [a, b] = String(info.fps || "30").split(/[/:]/).map(Number); return b ? a / b : a || 30; })();
   box.querySelectorAll(".tl-chapter[data-tlch]").forEach((mk) => {
@@ -2174,7 +2219,7 @@ async function boot() {
   const m = location.hash.match(/token=([\w-]+)/);
   if (m) { S.token = m[1]; sessionStorage.setItem("oncemore.token", S.token); history.replaceState(null, "", location.pathname); }
   else S.token = sessionStorage.getItem("oncemore.token") || "";
-  try { applyState(await api("/api/state")); }
+  try { applyState(await api("/api/state")); refreshEncodeStatus(); }
   catch (e) { document.body.innerHTML = `<div class="empty"><h2>oncemore</h2><p>${esc(e.message)}</p><p class="hint">Open the URL printed by <code>oncemore gui</code>.</p></div>`; return; }
   const first = P()?.menus?.[0];
   S.sel = first ? { view: "menu", id: first.id } : { view: "disc" };
@@ -2377,6 +2422,8 @@ const COMMANDS = {
     when: () => hasElements() || (editing() && S.sel.view !== "playlist") },
   delete: { key: "delete", run: (via) => (hasElements() ? deleteElements() : via !== "key" && deleteItem(S.sel.view, S.sel.id)),
     when: () => hasElements() || editing() },
+  transcode_all: { run: () => transcode(null), when: () => hasProject() && (P().titles || []).length > 0 && !S.transcoding },
+  transcode_title: { run: () => transcode([S.sel.id]), when: () => S.sel.view === "title" && editing() && !S.transcoding },
   new_slideshow: { run: () => addSlideshow(), when: hasProject },
   new_menu: { run: () => addMenu(), when: hasProject },
   new_playlist: { run: () => addPlaylist(), when: () => hasProject() && (P().titles || []).length > 0 },
@@ -2394,7 +2441,7 @@ const COMMANDS = {
 const MENUBAR = [
   ["m_file", ["import_files", "import_psd", "-", "check", "build", "-", "reveal"]],
   ["m_edit", ["undo", "redo", "-", "duplicate", "delete"]],
-  ["m_disc", ["new_slideshow", "new_menu", "new_playlist", "-", "add_chapter", "play"]],
+  ["m_disc", ["new_slideshow", "new_menu", "new_playlist", "-", "add_chapter", "play", "-", "transcode_title", "transcode_all"]],
   ["m_view", ["ws_author", "ws_flow", "ws_sim", "ws_build", "-", "theme", "language"]],
   ["m_help", ["shortcuts", "about"]],
 ];
@@ -2467,6 +2514,7 @@ function itemMenu(kind, id) {
   return [
     { label: t("open"), run: () => select(kind, id) },
     ...(kind !== "playlist" ? [{ label: t("cmd_duplicate"), run: () => duplicateItem(kind, id) }] : []),
+    ...(kind === "title" ? [{ label: t("cmd_transcode_title"), disabled: !!S.transcoding, run: () => transcode([id]) }] : []),
     "-",
     { label: t("move_up"), disabled: i === 0, run: () => moveItem(kind, id, -1) },
     { label: t("move_down"), disabled: i === list.length - 1, run: () => moveItem(kind, id, 1) },

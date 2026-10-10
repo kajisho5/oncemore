@@ -1318,5 +1318,38 @@ class TestClips(unittest.TestCase):
             self.assertEqual([p for t, p in seen if t == title], [1, 2, 3])
 
 
+
+@unittest.skipUnless(TOOLS_OK, SKIP_REASON)
+class TestTranscodeNow(unittest.TestCase):
+    """`oncemore transcode` encodes titles ahead of the build, and the build
+    reuses them."""
+
+    def test_transcode_then_build(self):
+        tmp = tempfile.mkdtemp(prefix="oncemore-e2e-tc-")
+        try:
+            rc, _, err = run_cli("init", "t", cwd=tmp)
+            self.assertEqual(rc, 0, err)
+            proj = os.path.join(tmp, "t", "project.oncemore.json")
+            rc, out, err = run_cli("--json", "transcode", proj, "--status", "--fast")
+            self.assertEqual(json_lines(out)[-1]["titles"], {"t1": False, "t2": False})
+            rc, out, err = run_cli("--json", "transcode", proj, "--title", "t2", "--fast")
+            self.assertEqual(rc, 0, err + out)
+            self.assertEqual(json_lines(out)[-1]["titles"], {"t2": "transcoded"})
+            rc, out, err = run_cli("--json", "transcode", proj, "--status", "--fast")
+            self.assertEqual(json_lines(out)[-1]["titles"], {"t1": False, "t2": True})
+            rc, out, err = run_cli("--json", "transcode", proj, "--title", "t2", "--fast")
+            self.assertEqual(json_lines(out)[-1]["titles"], {"t2": "cached"})
+            rc, out, err = run_cli("--json", "iso", proj, "-o", os.path.join(tmp, "t.iso"),
+                                   "--fast")
+            self.assertEqual(rc, 0, err + out)
+            steps = [e.get("message", "") for e in json_lines(out) if e["event"] == "step"]
+            self.assertIn("Title 't2' unchanged (cached)", steps)
+            self.assertTrue(any(m.startswith("Encoding title 't1'") for m in steps), steps)
+            rc, out, err = run_cli("--json", "transcode", proj, "--title", "nope")
+            self.assertNotEqual(rc, 0)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
 if __name__ == "__main__":
     unittest.main()
