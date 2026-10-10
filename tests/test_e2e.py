@@ -754,8 +754,8 @@ class TestPlaylists(unittest.TestCase):
 @unittest.skipUnless(TOOLS_OK, SKIP_REASON)
 class TestMenuDesign(unittest.TestCase):
     """Rectangles, outlined / shadowed text, a font per element, a button
-    with its own highlight picture, and a motion chapter menu whose
-    thumbnails play."""
+    with its own highlight picture, a motion chapter menu whose
+    thumbnails play, and a main menu that fades in from black once."""
 
     @classmethod
     def setUpClass(cls):
@@ -774,6 +774,7 @@ class TestMenuDesign(unittest.TestCase):
             data = json.load(f)
         main = data["menus"][0]
         main["shapes"] = [{"x": 100, "y": 200, "w": 300, "h": 200, "color": "#FF0000"}]
+        main["fade_in"] = 1
         main["texts"][0].update({"outline": "#000000", "outline_width": 3, "shadow": "#00000080"})
         main["buttons"][0]["font"] = find_font(text="PLAY ALL")      # an element's own font
         main["buttons"][1].update({"highlight_image": "media/ring.png", "x": 160})
@@ -834,11 +835,27 @@ class TestMenuDesign(unittest.TestCase):
         diff = sum(abs(p - q) for p, q in zip(a, b)) / len(a)
         self.assertGreater(diff, 2.0, "the chapter thumbnail did not move")
 
+    def test_fade_in(self):
+        vob = iso_extract(self.iso, "/VIDEO_TS/VTS_01_0.VOB", os.path.join(self.tmp, "m.vob"))
+        means = []
+        for n in (0, 15, 60):                        # 0, 0.5 and 2 s (main is the first menu)
+            p = subprocess.run(["ffmpeg", "-v", "error", "-i", vob, "-vf",
+                                f"select=eq(n\\,{n}),scale=72:48,format=gray",
+                                "-frames:v", "1", "-f", "rawvideo", "pipe:1"],
+                               capture_output=True, check=True)
+            means.append(sum(p.stdout) / len(p.stdout))
+        self.assertLess(means[0], 20, means)          # black (video range starts at 16)
+        self.assertLess(means[0] + 3, means[1], means)
+        self.assertLess(means[1] + 3, means[2], means)
+
     @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
     def test_disc_navigates(self):
         with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
             self.assertEqual(d.wait_menu(), 1)
             self.assertEqual(d.button_count(), 3)
+            # the fade is cell 1, played once; the menu repeats cell 2
+            d.run_until(lambda e: [c for dom, pgc, c in d.cells if pgc == 1][-3:] == [1, 2, 2],
+                        max_events=3_000_000)
             d.activate(2)
             self.assertEqual(d.wait_menu(), 2)
             self.assertEqual(d.button_count(), 4)

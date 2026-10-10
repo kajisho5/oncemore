@@ -762,3 +762,16 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
 * A resumed title does not run its `<pre>`, so its Menu key opens the
   first menu rather than its own `remote_menu`. The simulator does the same.
 
+## 49. Menu fade-in
+
+* A transition into a menu is drawn into the menu's own video: the first
+  `fade_in` seconds fade from black (and the sound from silence), and the
+  loop point moves to the end of the fade, so it plays once and the
+  repeats are the menu itself. No extra cells, PGCs or registers.
+* The button subpicture starts with the menu, not after the fade: a
+  subpicture that starts later lands near the cell boundary, and a repeat
+  jumping to the second cell could miss it, leaving the menu without
+  highlights. Buttons work during the fade.
+* Fades between two particular menus (a dissolve from the menu you came
+  from) would need a video per link; not done.
+

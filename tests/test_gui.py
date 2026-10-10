@@ -820,6 +820,14 @@ class TestGuiBrowser(unittest.TestCase):
             page.select_option("#inspector select[data-k=loop]", "forever")
             self.wait_saved(page)
             self.assertNotIn("loop", self.project()["menus"][0])
+            page.fill("#inspector input[data-k=fade_in]", "1.5")         # fade in from black
+            page.locator("#inspector input[data-k=fade_in]").dispatch_event("change")
+            self.wait_saved(page)
+            self.assertEqual(self.project()["menus"][0]["fade_in"], 1.5)
+            page.fill("#inspector input[data-k=fade_in]", "")
+            page.locator("#inspector input[data-k=fade_in]").dispatch_event("change")
+            self.wait_saved(page)
+            self.assertNotIn("fade_in", self.project()["menus"][0])
             # disc: the Title key
             page.click(".nav-item[data-view=disc]")
             page.select_option("select[data-k=title_key]", "title:t1")

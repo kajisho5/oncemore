@@ -747,6 +747,10 @@
           "$ref": "#/$defs/time",
           "description": "Where each repeat starts (motion menus / music): the part before it plays once, as an intro. Default 0."
         },
+        "fade_in": {
+          "$ref": "#/$defs/time",
+          "description": "Seconds the menu fades in from black (picture and sound) when it starts, at most 10. It plays once: repeats start at the end of the fade, or at loop_point if that is later. Default 0 (none)."
+        },
         "end_action": {
           "type": "string",
           "pattern": "^(menu:[A-Za-z0-9_-]{1,40}|title:[A-Za-z0-9_-]{1,40}|chapter:[A-Za-z0-9_-]{1,40}:[1-9][0-9]*|playall|playlist:[A-Za-z0-9_-]{1,40}|stop)$",

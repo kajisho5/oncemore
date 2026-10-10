@@ -399,6 +399,7 @@ class Menu:
     remember_button: bool = True
     shapes: list = field(default_factory=list)
     normal_color: str = None   # the buttons' shapes while not selected (None: not shown)
+    fade_in: float = 0.0       # seconds of fade from black when the menu starts (played once)
 
 
 @dataclass
@@ -805,13 +806,23 @@ class _Builder:
                 loop_point = parse_time(m["loop_point"])
             except ValueError as e:
                 self.err(f"{where}.loop_point", str(e))
+        fade_in = 0.0
+        if "fade_in" in m:
+            try:
+                fade_in = parse_time(m["fade_in"])
+            except ValueError as e:
+                self.err(f"{where}.fade_in", str(e))
+            if fade_in > 10:
+                self.err(f"{where}.fade_in", "a fade-in is at most 10 s")
+        # the fade plays once: repeats start after it at the earliest
+        loop_point = max(loop_point, fade_in)
         if "end_action" in m and loop is None:
             self.warnings.append(f"{where}.end_action is only used with a loop count")
         if m.get("default_button") and m["default_button"] not in ids:
             self.err(f"{where}.default_button", f"no button {m['default_button']!r} in this menu")
         return Menu(
             id=m["id"],
-            loop=loop, loop_point=loop_point, end_action=m.get("end_action", "stop"),
+            loop=loop, loop_point=loop_point, fade_in=fade_in, end_action=m.get("end_action", "stop"),
             default_button=m.get("default_button"),
             remember_button=m.get("remember_button", True),
             shapes=[Shape(s["x"], s["y"], s["w"], s["h"], s.get("color", "#00000080"))

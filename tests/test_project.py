@@ -107,6 +107,19 @@ class TestProject(unittest.TestCase):
             build(data)
         return " | ".join(f"{i['path']}: {i['message']}" for i in cm.exception.issues)
 
+    def test_fade_in(self):
+        d = copy.deepcopy(self.data)
+        m = d["menus"][0]
+        m["fade_in"] = 1.5
+        menu = build(d).menus[0]
+        self.assertEqual((menu.fade_in, menu.loop_point), (1.5, 1.5))   # repeats skip the fade
+        m["loop_point"] = 3
+        self.assertEqual(build(d).menus[0].loop_point, 3.0)              # a later loop point stays
+        m["fade_in"] = 12
+        with self.assertRaises(ProjectError) as cm:
+            build(d)
+        self.assertIn("a fade-in is at most 10 s", json.dumps(cm.exception.issues))
+
     def test_hidden_elements_are_left_out(self):
         d = copy.deepcopy(self.data)
         m = d["menus"][0]
