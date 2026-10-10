@@ -123,6 +123,10 @@ browser) and lands only with green CI.
 - [x] Save menu as template: a per-user template library with copies of the
   files a menu uses; My templates in the Library; Create chapter index
 
+**P18 — Project safety** (done)
+- [x] Automatic versions of the project file (.oncemore-backup, every five
+  minutes at most, the last 30) and File > Revert to a saved version
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

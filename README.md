@@ -136,6 +136,10 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   frame or by its shape). Use an image or a video as the background. **Exact preview**
   renders the menu exactly as the disc will show it, with button hit areas.
 * ▲/▼ in the right-hand panel change the order of titles and menus.
+* **Backups**: before a save replaces the project file, the version it
+  replaces is kept in `.oncemore-backup/` next to it (at most every five
+  minutes, the last 30). **File > Revert to a saved version** goes back to one
+  of them; Undo returns to where you were.
 * **Layers**: the eye switches an element off — it stays in the project but is
   not on the disc (a button's routes to it go too).
 * **Save menu as template** (Menu menu): the menu and copies of its pictures,

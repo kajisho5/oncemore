@@ -63,6 +63,7 @@ MEDIA_EXT = {
     "design": {".psd", ".psb"},
 }
 SKIP_DIRS = {"output", ".work", "__pycache__", "node_modules"}
+BACKUP_RE = re.compile(r"^project-\d{8}-\d{6}\.json$")
 
 
 def media_kind(name):
@@ -156,7 +157,52 @@ class App:
             return None
         return read_json(self.path)
 
+    BACKUP_DIR = ".oncemore-backup"
+    BACKUP_EVERY = 300          # seconds between kept versions
+    BACKUP_KEEP = 30
+
+    def backup_dir(self):
+        return os.path.join(self.dir, self.BACKUP_DIR)
+
+    def backup(self, force=False):
+        """Keep the project file as it is now (the version a save is about to
+        replace), at most every BACKUP_EVERY seconds; the newest BACKUP_KEEP
+        are kept."""
+        if not os.path.isfile(self.path):
+            return None
+        d = self.backup_dir()
+        os.makedirs(d, exist_ok=True)
+        names = sorted(n for n in os.listdir(d) if BACKUP_RE.match(n))
+        now = time.time()
+        if names and not force and now - os.path.getmtime(os.path.join(d, names[-1])) < self.BACKUP_EVERY:
+            return None
+        name = time.strftime("project-%Y%m%d-%H%M%S.json", time.localtime(now))
+        shutil.copy2(self.path, os.path.join(d, name))      # (the same second: replaced)
+        os.utime(os.path.join(d, name), (now, now))
+        for old in sorted(set(names) | {name})[:-self.BACKUP_KEEP]:
+            os.remove(os.path.join(d, old))
+        return name
+
+    def backups(self):
+        d = self.backup_dir()
+        out = []
+        for n in sorted((n for n in os.listdir(d) if BACKUP_RE.match(n)), reverse=True) if os.path.isdir(d) else []:
+            full = os.path.join(d, n)
+            try:
+                with open(full, encoding="utf-8") as f:
+                    data = json.load(f)
+            except (OSError, ValueError):
+                continue
+            out.append({"name": n, "time": os.path.getmtime(full), "bytes": os.path.getsize(full),
+                        "label": (data.get("disc") or {}).get("label"),
+                        "titles": len(data.get("titles") or []), "menus": len(data.get("menus") or [])})
+        return out
+
     def save(self, data):
+        try:
+            self.backup()
+        except OSError:
+            pass                    # a backup that cannot be written never stops a save
         tmp = self.path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
@@ -909,6 +955,16 @@ class Handler(BaseHTTPRequestHandler):
         subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.json({"revealed": True, "path": full})
 
+
+    def api_get_backups(self, q):
+        """Earlier versions of the project file (newest first)."""
+        self.json({"backups": self.app.backups(), "every": self.app.BACKUP_EVERY})
+
+    def api_get_backup(self, q):
+        name = q.get("name", "")
+        if not BACKUP_RE.match(name):
+            raise ValueError("bad backup name")
+        self.json({"project": read_json(os.path.join(self.app.backup_dir(), name))})
 
     def api_post_open(self, q):
         """Open a project file in the program the system uses for it (Edit
