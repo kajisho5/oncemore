@@ -309,6 +309,49 @@ class TestGuiBrowser(unittest.TestCase):
             page.wait_for_selector(".stage img.exact", timeout=60000)
             browser.close()
 
+    def test_playlists_and_chapter_names(self):
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click("#np-sample")
+            page.click(".nav-item[data-view=title][data-id=t1]", timeout=120000)
+            # name chapter 2, poster frame at 10 s
+            page.fill("[data-ch-name='1']", "Middle")
+            page.press("[data-ch-name='1']", "Enter")
+            self.wait_saved(page)
+            page.fill("#tc-input", "00:00:10.000")
+            page.press("#tc-input", "Enter")
+            page.click("[data-poster='1']")
+            self.wait_saved(page)
+            ch = self.project()["titles"][0]["chapters"]
+            self.assertEqual((ch[1]["time"], ch[1]["name"]), ("00:00:08.000", "Middle"))
+            self.assertRegex(ch[1]["poster"], r"^00:00:10\.0\d\d$")     # snapped to a frame
+            self.assertEqual(ch[2], "00:00:16.000")
+            # a playlist: chapter 2 of t1, then all of t2, then the main menu
+            page.click("#add-playlist")
+            page.locator("[data-item='0']").wait_for()
+            page.select_option("[data-item='0'] [data-k=a]", "2")
+            page.select_option("[data-item='0'] [data-k=b]", "2")
+            self.wait_saved(page)
+            page.click("#add-item")
+            page.locator("[data-item='1']").wait_for()
+            page.select_option("[data-item='1'] [data-k=tid]", "t2")
+            page.select_option("select[data-k=end_action]", "menu:main")
+            self.wait_saved(page)
+            pl = self.project()["playlists"][0]
+            self.assertEqual((pl["items"], pl["end_action"]), (["t1:2", "t2"], "menu:main"))
+            # buttons can start it
+            page.click(".nav-item[data-view=menu][data-id=main]")
+            page.locator(".stage .el.button").first.click()
+            page.select_option("#inspector select[data-k=action]", f"playlist:{pl['id']}")
+            self.wait_saved(page)
+            self.assertEqual(self.project()["menus"][0]["buttons"][0]["action"], f"playlist:{pl['id']}")
+            browser.close()
+        self.assertEqual(errors, [])
+
     def test_full_flow(self):
         errors = []
         with sync_playwright() as p:

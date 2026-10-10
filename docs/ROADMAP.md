@@ -20,10 +20,10 @@ browser) and lands only with green CI.
 - [x] Menu key target per title, Title (top menu) key target per disc; the Menu
   key also works in titles outside the first titleset
 
-**P2 — Playlists and chapters**
-- [ ] Playlists: any sequence of titles and chapter ranges with their own end
+**P2 — Playlists and chapters** (done)
+- [x] Playlists: any sequence of titles and chapter ranges with their own end
   action, reachable from buttons (`playlist:<id>`)
-- [ ] Chapter names and poster frames, used by chapter menus
+- [x] Chapter names and poster frames, used by chapter menus
 
 **P3 — Menu design**
 - [ ] Text styles: font per element, outline / shadow; decorative rectangles

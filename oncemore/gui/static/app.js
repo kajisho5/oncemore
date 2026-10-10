@@ -24,6 +24,10 @@ const I18N = {
     add_chapter: "Add chapter here", chapters: "Chapters", delete: "Delete",
     image: "Image", width: "Width", highlight_style: "Highlight", hl_frame: "Frame around it", hl_shape: "Its shape",
     image_hint: "An image button shows the picture instead of the text (PNG with transparency works best).",
+    chapter_name: "Name on the chapter menu", poster: "Poster", poster_hint: "Use the frame at the playhead as this chapter's thumbnail (click again to reset)",
+    playlists: "Playlists", playlist: "Playlist", playlist_item: "Playlist: {p}", items: "Items", add_item: "+ Item",
+    from_chapter: "From chapter", to_chapter: "To chapter", to_end: "the end", playlist_end: "After the last item",
+    playlist_hint: "A playlist plays titles and chapter ranges in this order. Point a button at it (“Playlist: …”).",
     move_up: "Move up", move_down: "Move down", order_title: "Play all follows this order.",
     order_menu: "The first menu opens when the disc starts, unless “When the disc starts” says otherwise.",
     play: "Play", pause: "Pause", preparing: "Preparing preview… {p}%", play_err: "This preview cannot be played here.",
@@ -77,6 +81,10 @@ const I18N = {
     add_chapter: "ここにチャプター", chapters: "チャプター", delete: "削除",
     image: "画像", width: "幅", highlight_style: "ハイライト", hl_frame: "周りに枠", hl_shape: "画像の形",
     image_hint: "画像ボタンは文字の代わりに画像を表示します（透過 PNG がおすすめ）。",
+    chapter_name: "チャプターメニューに出す名前", poster: "サムネイル", poster_hint: "再生位置のフレームをこのチャプターのサムネイルにする（もう一度押すと解除）",
+    playlists: "プレイリスト", playlist: "プレイリスト", playlist_item: "プレイリスト：{p}", items: "再生する内容", add_item: "＋追加",
+    from_chapter: "開始チャプター", to_chapter: "終了チャプター", to_end: "最後まで", playlist_end: "最後まで再生したら",
+    playlist_hint: "プレイリストはタイトルやチャプターの範囲をこの順に再生します。ボタンのリンク先に「プレイリスト：…」を選んでください。",
     move_up: "上へ", move_down: "下へ", order_title: "「全タイトルを連続再生」はこの順番で再生します。",
     order_menu: "ディスク挿入時は先頭のメニューが開きます（「ディスク挿入時」で別の指定がない場合）。",
     play: "再生", pause: "一時停止", preparing: "プレビューを準備中… {p}%", play_err: "このプレビューはここでは再生できません。",
@@ -165,11 +173,25 @@ const P = () => S.project;
 const discH = () => (P()?.disc?.standard === "PAL" ? 576 : 480);
 const discDar = (aspect) => (aspect || P()?.disc?.aspect) === "4:3" ? 4 / 3 : 16 / 9;
 const displayW = () => Math.round((discH() * discDar()) / 2) * 2;
-const chaptersOf = (title) => {
-  const c = (title.chapters || []).map(parseTime).sort((a, b) => a - b);
-  if (!c.length || c[0] > 0) c.unshift(0);
-  return c;
-};
+// chapters are times or {time, name, poster} objects
+function chapterEntries(title) {
+  const e = (title.chapters || []).map((c) => (typeof c === "object" && c !== null
+    ? { time: parseTime(c.time), name: c.name || "", poster: c.poster == null ? null : parseTime(c.poster) }
+    : { time: parseTime(c), name: "", poster: null })).sort((a, b) => a.time - b.time);
+  if (!e.length || e[0].time > 0) e.unshift({ time: 0, name: "", poster: null });
+  return e;
+}
+const chaptersOf = (title) => chapterEntries(title).map((e) => e.time);
+function setChapters(title, entries) {
+  title.chapters = entries.map((e) => {
+    const time = e.time === 0 ? "00:00:00" : fmtTime(e.time);
+    if (!e.name && e.poster == null) return time;
+    const o = { time };
+    if (e.name) o.name = e.name;
+    if (e.poster != null) o.poster = fmtTime(e.poster);
+    return o;
+  });
+}
 function generatedMenus(p = P()) {
   const out = [];
   for (const ti of p?.titles || []) {
@@ -191,6 +213,7 @@ function actionOptions({ forButton = true, allowStop = true, includeChapters = f
   const p = P(), opts = [];
   for (const id of allMenuIds()) opts.push([`menu:${id}`, t("menu_item", { m: id })]);
   if (allowPlayAll && (p.titles || []).length) opts.push(["playall", t("playall")]);
+  if (allowPlayAll) for (const pl of p.playlists || []) opts.push([`playlist:${pl.id}`, t("playlist_item", { p: pl.name || pl.id })]);
   for (const ti of p.titles || []) {
     opts.push([`title:${ti.id}`, t("title_item", { t: ti.name || ti.id })]);
     if (includeChapters) chaptersOf(ti).forEach((_, i) =>
@@ -227,7 +250,15 @@ function renameRefs(p, kind, oldId, newId) {
     ti.end_action = fix(ti.end_action);
     if (ti.auto_chapter_menu && typeof ti.auto_chapter_menu === "object") ti.auto_chapter_menu.back = fix(ti.auto_chapter_menu.back);
   }
-  for (const m of p.menus || []) for (const b of m.buttons || []) b.action = fix(b.action);
+  for (const m of p.menus || []) {
+    for (const b of m.buttons || []) b.action = fix(b.action);
+    if (m.end_action) m.end_action = fix(m.end_action);
+  }
+  p.disc.title_key = fix(p.disc.title_key);
+  for (const pl of p.playlists || []) {
+    pl.end_action = fix(pl.end_action);
+    if (kind === "title") pl.items = pl.items.map((it) => (it === oldId || it.startsWith(oldId + ":") ? newId + it.slice(oldId.length) : it));
+  }
 }
 const mediaOf = (kind) => S.media.filter((m) => m.kind === kind).map((m) => m.path);
 // ▲/▼ for the order of titles or menus (project order matters: play all, first menu)
@@ -328,12 +359,14 @@ function renderSidebar() {
     <div class="nav-group">${item("disc", "", t("disc"))}</div>
     <div class="nav-group"><div class="nav-head">${t("titles")}</div>${titles || `<div class="hint" style="padding:4px 18px">${esc(t("no_titles"))}</div>`}</div>
     <div class="nav-group"><div class="nav-head">${t("menus")}<button class="small" id="add-menu">${t("add")}</button></div>${menus}${gen}</div>
+    <div class="nav-group"><div class="nav-head">${t("playlists")}<button class="small" id="add-playlist">${t("add")}</button></div>${(P().playlists || []).map((pl) => item("playlist", pl.id, pl.name || pl.id)).join("")}</div>
     <div class="nav-group"><div class="nav-head">${t("media")}</div>${media}${ups}
       <div class="dropzone" id="dropzone">${esc(t("add_files"))}</div></div>
     <div class="nav-group">${item("build", "", "▸ " + t("build"))}</div>`;
   sb.querySelectorAll(".nav-item").forEach((el) => (el.onclick = () => select(el.dataset.view, el.dataset.id)));
   sb.querySelectorAll(".media-item[data-media]").forEach((el) => (el.onclick = () => { S.selectedMedia = el.dataset.media; S.element = null; renderSidebar(); renderInspector(); }));
   $("#add-menu").onclick = addMenu;
+  $("#add-playlist").onclick = addPlaylist;
   $("#dropzone").onclick = pickFiles;
 }
 function select(view, id) {
@@ -347,6 +380,7 @@ function renderMain() {
   const v = S.sel.view;
   if (v === "title") return renderTitle(m);
   if (v === "menu") return renderMenu(m);
+  if (v === "playlist") return renderPlaylist(m);
   if (v === "build") return renderBuild(m);
   return renderDisc(m);
 }
@@ -357,6 +391,7 @@ function renderInspector() {
   const v = S.sel.view;
   if (v === "title") return renderTitleInspector(el);
   if (v === "menu") return renderMenuInspector(el);
+  if (v === "playlist") { el.innerHTML = `<h2>${t("playlist")}</h2><div class="hint">${esc(t("playlist_hint"))}</div>`; return; }
   el.innerHTML = `<h3>${t("tools")}</h3>
     <div class="hint">ffmpeg: ${S.tools.ffmpeg ? t("ok") : t("missing")}<br>drawtext: ${S.tools.drawtext ? t("ok") : t("missing")}<br>
     dvdauthor: ${S.tools.dvdauthor ? t("ok") : t("missing")}<br>ISO: ${esc(S.tools.iso || t("missing"))}</div>
@@ -460,7 +495,9 @@ function renderTitle(m) {
       <button id="add-ch" class="primary">◆ ${t("add_chapter")}</button>
     </div>
     <h3>${t("chapters")} (${chapters.length})</h3>
-    <ul class="chapter-list">${chapters.map((c, i) => `<li><span class="n">${i + 1}</span><span class="t" data-seek="${c}">${fmtTime(c)}</span>
+    <ul class="chapter-list">${chapterEntries(ti).map((c, i) => `<li><span class="n">${i + 1}</span><span class="t" data-seek="${c.time}">${fmtTime(c.time)}</span>
+      <input class="ch-name" data-ch-name="${i}" value="${esc(c.name)}" placeholder="${esc(t("chapter_at", { n: i + 1 }))}" title="${esc(t("chapter_name"))}">
+      <button class="small ${c.poster != null ? "on" : ""}" data-poster="${i}" title="${esc(t("poster_hint"))}">🖼 ${c.poster != null ? fmtTime(c.poster) : t("poster")}</button>
       ${i ? `<button class="small danger" data-del="${i}">✕</button>` : ""}</li>`).join("")}</ul>
   </div>`;
   const img = $("#frame");
@@ -532,14 +569,23 @@ function renderTitle(m) {
     if (chapters.some((c) => Math.abs(c - time) < 0.5)) return;
     commit((p) => {
       const x = p.titles.find((y) => y.id === ti.id);
-      const list = chaptersOf(x); list.push(time); list.sort((a, b) => a - b);
-      x.chapters = list.map((c) => (c === 0 ? "00:00:00" : fmtTime(c)));
+      const list = chapterEntries(x); list.push({ time, name: "", poster: null }); list.sort((a, b) => a.time - b.time);
+      setChapters(x, list);
     });
   };
   m.querySelectorAll("[data-del]").forEach((b) => (b.onclick = () => commit((p) => {
     const x = p.titles.find((y) => y.id === ti.id);
-    const list = chaptersOf(x); list.splice(Number(b.dataset.del), 1);
-    x.chapters = list.map((c) => (c === 0 ? "00:00:00" : fmtTime(c)));
+    const list = chapterEntries(x); list.splice(Number(b.dataset.del), 1);
+    setChapters(x, list);
+  })));
+  // chapter names (chapter menu labels) and poster frames (their thumbnails)
+  m.querySelectorAll("[data-ch-name]").forEach((inp) => (inp.onchange = () => commit((p) => {
+    const x = p.titles.find((y) => y.id === ti.id), list = chapterEntries(x);
+    list[Number(inp.dataset.chName)].name = inp.value.trim(); setChapters(x, list);
+  })));
+  m.querySelectorAll("[data-poster]").forEach((b) => (b.onclick = () => commit((p) => {
+    const x = p.titles.find((y) => y.id === ti.id), list = chapterEntries(x), e = list[Number(b.dataset.poster)];
+    e.poster = e.poster != null && b.classList.contains("on") ? null : Number(scrub.value); setChapters(x, list);
   })));
   show(ph);
 }
@@ -656,6 +702,78 @@ function addMenu() {
   });
   select("menu", id);
 }
+// ---------------------------------------------------------------- playlists
+const curPlaylist = () => (P().playlists || []).find((x) => x.id === S.sel.id);
+function addPlaylist() {
+  const id = uniqueId("playlist", (P().playlists || []).map((x) => x.id));
+  const first = (P().titles || [])[0];
+  if (!first) return;
+  commit((p) => { (p.playlists = p.playlists || []).push({ id, name: id, items: [first.id] }); });
+  select("playlist", id);
+}
+function parseItem(s) {
+  const m = /^(.+?)(?::(\d+)(?:-(\d+))?)?$/.exec(s);
+  return { tid: m[1], a: m[2] ? Number(m[2]) : 1, b: m[2] ? Number(m[3] || m[2]) : 0 };   // b 0 = to the end
+}
+function itemString(tid, a, b, n) {
+  if (a <= 1 && (b === 0 || b >= n)) return tid;
+  if (b === 0 || b >= n) return `${tid}:${a}-${n}`;
+  return a === b ? `${tid}:${a}` : `${tid}:${a}-${b}`;
+}
+function renderPlaylist(m) {
+  const pl = curPlaylist();
+  if (!pl) return select("disc");
+  const titles = P().titles || [];
+  const ends = actionOptions({ forButton: false, includeChapters: false, allowPlayAll: false });
+  m.innerHTML = `<div class="card" style="max-width:760px"><h2>${esc(pl.name || pl.id)}</h2>
+    <label class="field"><span>${t("name")}</span><input data-k="name" value="${esc(pl.name || "")}"></label>
+    <h3>${t("items")}</h3>
+    ${pl.items.map((s, i) => {
+      const it = parseItem(s), ti = titles.find((x) => x.id === it.tid), n = ti ? chaptersOf(ti).length : 1;
+      const chs = Array.from({ length: n }, (_, k) => [String(k + 1), String(k + 1)]);
+      return `<div class="row" style="margin:6px 0" data-item="${i}" data-nobind>
+        <span class="n shrink" style="width:22px">${i + 1}</span>
+        ${selectHtml("tid", titles.map((x) => [x.id, x.name || x.id]), it.tid)}
+        <label class="shrink">${t("from_chapter")} ${selectHtml("a", chs, String(it.a), 'class="shrink"')}</label>
+        <label class="shrink">${t("to_chapter")} ${selectHtml("b", [["0", t("to_end")], ...chs], String(it.b && it.b < n ? it.b : 0), 'class="shrink"')}</label>
+        <button class="small shrink" data-item-move="-1" ${i ? "" : "disabled"}>▲</button>
+        <button class="small shrink" data-item-move="1" ${i + 1 < pl.items.length ? "" : "disabled"}>▼</button>
+        <button class="small danger shrink" data-item-del ${pl.items.length > 1 ? "" : "disabled"}>✕</button></div>`;
+    }).join("")}
+    <button class="small" id="add-item">${t("add_item")}</button>
+    <label class="field" style="margin-top:12px"><span>${t("playlist_end")}</span>${selectHtml("end_action", ends, pl.end_action || "stop")}</label>
+    <h3></h3><button class="danger" id="del-playlist">${t("delete")}</button></div>`;
+  const find = (p) => p.playlists.find((x) => x.id === pl.id);
+  bindFields(m, find, { onAfter: (p, key, val) => { if (key === "end_action" && val === "stop") delete find(p).end_action; } });
+  m.querySelectorAll("[data-item]").forEach((row) => {
+    const i = Number(row.dataset.item);
+    const save = () => commit((p) => {
+      const tid = row.querySelector("[data-k=tid]").value, ti = p.titles.find((x) => x.id === tid);
+      const n = ti ? chaptersOf(ti).length : 1;
+      let a = Number(row.querySelector("[data-k=a]").value), b = Number(row.querySelector("[data-k=b]").value);
+      if (tid !== parseItem(pl.items[i]).tid) { a = 1; b = 0; }
+      if (a > n) a = 1;
+      if (b && b < a) b = a;
+      find(p).items[i] = itemString(tid, a, b > n ? 0 : b, n);
+    });
+    row.querySelectorAll("select").forEach((sel) => (sel.onchange = save));
+    row.querySelectorAll("[data-item-move]").forEach((b) => (b.onclick = () => commit((p) => {
+      const l = find(p).items, j = i + Number(b.dataset.itemMove); [l[i], l[j]] = [l[j], l[i]];
+    })));
+    row.querySelector("[data-item-del]").onclick = () => commit((p) => { find(p).items.splice(i, 1); });
+  });
+  $("#add-item").onclick = () => commit((p) => { find(p).items.push(titles[0].id); });
+  $("#del-playlist").onclick = () => {
+    if (!confirm(t("confirm_delete", { x: pl.name || pl.id }))) return;
+    commit((p) => {
+      p.playlists = p.playlists.filter((x) => x.id !== pl.id);
+      if (!p.playlists.length) delete p.playlists;
+      for (const mm of p.menus || []) for (const b of mm.buttons || []) if (b.action === `playlist:${pl.id}`) b.action = "stop";
+    });
+    select("disc");
+  };
+}
+
 function renderMenu(m) {
   const menu = curMenu();
   const gen = generatedMenus().find((g) => g.id === S.sel.id);

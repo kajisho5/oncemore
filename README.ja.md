@@ -213,7 +213,7 @@ oncemore doctor                                # 外部ツールの有無・バ�
 | `id` | `[A-Za-z0-9_-]{1,40}` | 必須 |
 | `name` | 文字列 | id |
 | `source` | ffmpeg が読める動画 | 必須 |
-| `chapters` | 時刻のリスト。0 が無ければ自動追加 | `[0]` |
+| `chapters` | 時刻のリスト、または `{time, name, poster}`（`name` はチャプターメニューのボタン名、`poster` はサムネイルにする時刻）。0 が無ければ自動追加 | `[0]` |
 | `audio.codec` | `ac3` \| `lpcm` | `ac3` |
 | `audio.bitrate` | AC-3 のみ、64k〜448k | `192k`（5.1ch は `448k`） |
 | `audio.channels` | `2`（ステレオ。素材はダウンミックス）\| `6`（5.1ch、AC-3 のみ） | `2` |
@@ -245,7 +245,7 @@ oncemore doctor                                # 外部ツールの有無・バ�
 | `loop_point` | 2 回目以降の再生開始位置（時間）。それより前はイントロとして 1 回だけ再生 | `0` |
 | `end_action` | 最後の再生のあと：`menu:` \| `title:` \| `chapter:` \| `playall` \| `stop` | `stop` |
 | `default_button` | メニューを開いたときに選ばれているボタンの id | 先頭 |
-| `remember_button` | 戻ってきたとき前に使ったボタンを選ぶ（メニュー 1〜8） | `true` |
+| `remember_button` | 戻ってきたとき前に使ったボタンを選ぶ（メニュー 1〜7） | `true` |
 | `font_size`、`text_color` | テキスト・ボタンの既定値 | `32`、`#FFFFFF` |
 | `highlight_color`、`select_color` | ボタンの色 | `#FFD400`、`#FF5A00` |
 | `texts[]` | `{text, x, y, size?, color?}` 装飾テキスト | `[]` |
@@ -263,6 +263,20 @@ oncemore doctor                                # 外部ツールの有無・バ�
 **画像ボタン**：`image`（画像。透過 PNG がおすすめ）を指定するとラベルの代わりに画像を `x`/`y` を左上として
 表示します（このとき `label` は省略可）。`width` は 720 幅の座標での幅（既定は画像の元の幅。高さは縦横比に従う）、
 `highlight` は `frame`（既定。周りに枠）か `shape`（画像の不透明部分をハイライト色で表示）。
+
+### プレイリスト
+
+```jsonc
+"playlists": [{
+  "id": "best", "name": "名場面集",
+  "items": ["t1:2", "t2:2-3", "t1"],   // チャプター 1 つ、チャプター範囲、タイトル全体
+  "end_action": "menu:main"            // menu:<id> | title:<id> | stop（既定）
+}]
+```
+
+`"action": "playlist:best"` のボタン（または `first_play` / `title_key`）で、項目を順に再生します。
+形式の違うタイトルをまたいでも構いません。各項目は最後のチャプターの終わりで止まり、次へ進みます。
+タイトル・チャプター・全タイトル連続再生のボタンを押すとプレイリスト再生は解除されます。
 
 ### 複数音声と字幕
 

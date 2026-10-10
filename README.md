@@ -223,7 +223,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `id` | `[A-Za-z0-9_-]{1,40}` | required |
 | `name` | string | the id |
 | `source` | any video ffmpeg reads | required |
-| `chapters` | list of times; `0` is added if missing | `[0]` |
+| `chapters` | list of times, or `{time, name, poster}` objects (`name` labels the chapter-menu button, `poster` is the time of its thumbnail); `0` is added if missing | `[0]` |
 | `audio.codec` | `ac3` \| `lpcm` | `ac3` |
 | `audio.bitrate` | AC-3 only, 64k–448k | `192k` (`448k` for 5.1) |
 | `audio.channels` | `2` (stereo, sources are down-mixed) \| `6` (5.1, AC-3 only) | `2` |
@@ -256,7 +256,7 @@ with PREV/NEXT buttons when there are more.
 | `loop_point` | repeats start here (time); the part before plays once as an intro | `0` |
 | `end_action` | after the last loop: `menu:` \| `title:` \| `chapter:` \| `playall` \| `stop` | `stop` |
 | `default_button` | button id highlighted when the menu opens | the first |
-| `remember_button` | coming back highlights the button used last (menus 1–8) | `true` |
+| `remember_button` | coming back highlights the button used last (menus 1–7) | `true` |
 | `font_size`, `text_color` | defaults for texts/buttons | `32`, `#FFFFFF` |
 | `highlight_color`, `select_color` | button colours | `#FFD400`, `#FF5A00` |
 | `texts[]` | `{text, x, y, size?, color?}` decorative text | `[]` |
@@ -277,6 +277,20 @@ label (then optional), drawn with its top-left at `x`/`y`; `width` on the
 720-wide grid (default: the picture's own width; the height follows its
 aspect), and `highlight`: `frame` (default, a frame around it) or `shape` (its
 opaque pixels in the highlight colour).
+
+### Playlists
+
+```jsonc
+"playlists": [{
+  "id": "best", "name": "Best scenes",
+  "items": ["t1:2", "t2:2-3", "t1"],   // a chapter, a chapter range, a whole title
+  "end_action": "menu:main"            // menu:<id> | title:<id> | stop (default)
+}]
+```
+
+A button with `"action": "playlist:best"` (or `first_play` / `title_key`) plays the
+items in order, also across titles with different formats; an item stops at the
+end of its last chapter. Title, chapter and play-all buttons leave playlist mode.
 
 ### Audio tracks and subtitles
 

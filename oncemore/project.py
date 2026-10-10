@@ -159,7 +159,7 @@ def normalize_label(label):
 def parse_action(s):
     """'menu:x' -> ('menu', 'x', None); 'chapter:t:2' -> ('chapter', 't', 2); 'stop';
     'audio:2' -> ('audio', None, 2); 'subtitle:off' -> ('subtitle', None, 0);
-    'playall' -> ('playall', None, None)."""
+    'playall' -> ('playall', None, None); 'playlist:p' -> ('playlist', 'p', None)."""
     if s in ("stop", "playall"):
         return (s, None, None)
     kind, _, rest = s.partition(":")
@@ -240,6 +240,8 @@ class Title:
     titleset: int = 1        # DVD titleset (VTS) holding this title
     global_number: int = 0   # title number as players show it (VMGM order)
     remote_menu: str = None  # menu id the Menu key opens during this title
+    chapter_names: list = field(default_factory=list)    # per chapter, or None
+    chapter_posters: list = field(default_factory=list)  # thumbnail time per chapter, or None
 
     @property
     def track_bps(self):
@@ -259,6 +261,21 @@ class Text:
     y: int
     size: int
     color: str
+
+
+@dataclass
+class PlaylistItem:
+    title_id: str
+    first: int = 1        # first chapter (1-based)
+    last: int = None      # last chapter, inclusive (None = to the end of the title)
+
+
+@dataclass
+class Playlist:
+    id: str
+    name: str
+    items: list
+    end_action: str = "stop"
 
 
 @dataclass
@@ -317,9 +334,17 @@ class Project:
     titles: list
     menus: list
     warnings: list = field(default_factory=list)
+    playlists: list = field(default_factory=list)
 
     def title(self, tid):
         return next((t for t in self.titles if t.id == tid), None)
+
+    def playlist(self, pid):
+        return next((p for p in self.playlists if p.id == pid), None)
+
+    @property
+    def uses_playlists(self):
+        return bool(self.playlists)
 
     def titleset_titles(self, n):
         return sorted((t for t in self.titles if t.titleset == n), key=lambda t: t.number)
@@ -521,7 +546,9 @@ class _Builder:
                 t.global_number = offset + n
             offset += len(members)
 
-        project = Project(self.path, self.base, disc, titles, menus, self.warnings)
+        playlists = [self.playlist(i, pl) for i, pl in enumerate(d.get("playlists", []))]
+        self.unique([pl.id for pl in playlists], "playlists")
+        project = Project(self.path, self.base, disc, titles, menus, self.warnings, playlists)
         self.check_refs(project, user_menu_ids)
         return project
 
@@ -534,17 +561,23 @@ class _Builder:
 
     def title(self, i, t):
         where = f"titles[{i}]"
-        chapters = []
+        chapters, names, posters = [], [], []
         for j, c in enumerate(t.get("chapters", [])):
+            spec = c if isinstance(c, dict) else {"time": c}
             try:
-                chapters.append(parse_time(c))
+                chapters.append(parse_time(spec["time"]))
+                posters.append(parse_time(spec["poster"]) if "poster" in spec else None)
             except ValueError as e:
                 self.err(f"{where}.chapters[{j}]", str(e))
+                continue
+            names.append(spec.get("name") or None)
         if not chapters or chapters[0] != 0.0:
             if chapters and min(chapters) > 0:
                 chapters.insert(0, 0.0)
+                names.insert(0, None)
+                posters.insert(0, None)
             elif not chapters:
-                chapters = [0.0]
+                chapters, names, posters = [0.0], [None], [None]
         if any(b <= a for a, b in zip(chapters, chapters[1:])):
             self.err(f"{where}.chapters", "chapter times must be strictly increasing")
         audio = t.get("audio", {})
@@ -578,7 +611,7 @@ class _Builder:
             id=t["id"], name=t.get("name", t["id"]), source=source,
             chapters=chapters, audio_codec=codec, audio_bitrate=bitrate, audio_channels=channels,
             end_action=t.get("end_action", "stop"), audio_tracks=tracks, subtitles=subs,
-            remote_menu=t.get("remote_menu"),
+            remote_menu=t.get("remote_menu"), chapter_names=names, chapter_posters=posters,
             aspect=t.get("aspect"),
         )
         if title.audio_bps > 8_800_000:
@@ -639,6 +672,24 @@ class _Builder:
             texts=texts, buttons=buttons,
         )
 
+    ITEM_RE = re.compile(r"^([A-Za-z0-9_-]{1,40})(?::([1-9][0-9]*)(?:-([1-9][0-9]*))?)?$")
+
+    def playlist(self, i, pl):
+        where = f"playlists[{i}]"
+        items = []
+        for j, spec in enumerate(pl["items"]):
+            m = self.ITEM_RE.match(spec)
+            if not m:
+                self.err(f"{where}.items[{j}]", f"{spec!r} is not <title>, <title>:<n> or "
+                                                 "<title>:<first>-<last>")
+                continue
+            tid, a, b = m.groups()
+            if a is None:
+                items.append(PlaylistItem(tid))
+            else:
+                items.append(PlaylistItem(tid, int(a), int(b) if b else int(a)))
+        return Playlist(pl["id"], pl.get("name", pl["id"]), items, pl.get("end_action", "stop"))
+
     def chapter_menus(self, i, title, spec, disc, default_menu):
         """Expand auto_chapter_menu into one or more pages of thumbnails."""
         where = f"titles[{i}].auto_chapter_menu"
@@ -669,10 +720,15 @@ class _Builder:
                 # black frames at cuts); clamped to the media length later
                 start = title.chapters[ci]
                 nxt = title.chapters[ci + 1] if ci + 1 < n else start + 2.0
+                poster = title.chapter_posters[ci] if ci < len(title.chapter_posters) else None
+                name = title.chapter_names[ci] if ci < len(title.chapter_names) else None
                 buttons.append(Button(
-                    id=f"ch{ci + 1}", label=fmt.format(n=ci + 1), x=x, y=y + thumb_h + 10,
-                    action=f"chapter:{title.id}:{ci + 1}", size=22, color=color,
-                    thumb=Thumb(title.id, start + min(1.0, (nxt - start) / 2),
+                    id=f"ch{ci + 1}", label=name or fmt.format(n=ci + 1), x=x,
+                    y=y + thumb_h + 10, action=f"chapter:{title.id}:{ci + 1}", size=22,
+                    color=color,
+                    thumb=Thumb(title.id,
+                                poster if poster is not None
+                                else start + min(1.0, (nxt - start) / 2),
                                 x, y, thumb_w, thumb_h)))
             nav_x = 54
             if back:
@@ -709,6 +765,8 @@ class _Builder:
             elif kind == "subtitle" and num > len(project.subtitle_langs):
                 self.err(where, f"no subtitle stream {num} (titles have "
                                 f"{len(project.subtitle_langs)})")
+            elif kind == "playlist" and project.playlist(target) is None:
+                self.err(where, f"no playlist with id {target!r}")
             elif kind in ("title", "chapter"):
                 t = project.title(target)
                 if t is None:
@@ -735,6 +793,23 @@ class _Builder:
                 check(f"{where}.buttons[{j}].action", b.action)
             if m.loop is not None:
                 check(f"{where}.end_action", m.end_action)
+        for i, pl in enumerate(project.playlists):
+            check(f"playlists[{i}].end_action", pl.end_action)
+            if not pl.items:
+                self.err(f"playlists[{i}].items", "a playlist needs at least one item")
+            for j, it in enumerate(pl.items):
+                t = project.title(it.title_id)
+                if t is None:
+                    self.err(f"playlists[{i}].items[{j}]", f"no title with id {it.title_id!r}")
+                    continue
+                n = len(t.chapters)
+                last = it.last or n
+                if not it.first <= last <= n:
+                    self.err(f"playlists[{i}].items[{j}]",
+                             f"title {t.id!r} has chapters 1-{n}; {it.first}-{last} is not a range "
+                             "of them")
+                elif it.last == n:
+                    it.last = None          # to the end: the title's own end
         for kind, attr in (("audio", "audio_tracks"), ("subtitle", "subtitles")):
             seen = {}
             for i, t in enumerate(project.titles):

@@ -129,7 +129,9 @@ h3 { font-size: 12px; margin: 18px 0 8px; color: var(--muted); text-transform: u
 .chapter-list { list-style: none; margin: 8px 0 0; padding: 0; }
 .chapter-list li { display: flex; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--line); }
 .chapter-list li .n { width: 28px; color: var(--muted); }
-.chapter-list li .t { flex: 1; font-family: ui-monospace, Menlo, monospace; cursor: pointer; }
+.chapter-list li .t { width: 110px; font-family: ui-monospace, Menlo, monospace; cursor: pointer; }
+.chapter-list li .ch-name { flex: 1; min-width: 80px; }
+.chapter-list li button.on { color: var(--accent, #ffd400); }
 
 /* menu editor */
 .stage-wrap { display: flex; justify-content: center; }
