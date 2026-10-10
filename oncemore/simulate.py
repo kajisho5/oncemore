@@ -311,8 +311,12 @@ class Simulator:
         self.note(s, f"button {g['id']} -> {g['action']}")
         if author.button_reg(m) and parse_action(g["action"])[0] not in ("audio", "subtitle"):
             s["remember"][m.id] = s["button"]
-        self.menu_command(s, g["action"])
         b = next((x for x in m.buttons if x.id == g["id"]), None)
+        if b is not None and b.audio:
+            s["audio"] = b.audio
+        if b is not None and b.subtitle is not None:
+            s["subtitle"] = b.subtitle
+        self.menu_command(s, g["action"])
         if b is not None and b.override and parse_action(g["action"])[0] in ("title", "chapter"):
             s["override"] = b.override
 

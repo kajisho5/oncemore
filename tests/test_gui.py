@@ -1443,6 +1443,16 @@ class TestGuiBrowser(unittest.TestCase):
             page.locator("#inspector [data-cm=back_label]").dispatch_event("change")
             self.wait_saved(page)
             self.assertEqual(self.project()["titles"][0]["auto_chapter_menu"]["back_label"], "RETURN")
+            # a second audio track: buttons can switch to it along with their link
+            page.click("#add-track")
+            self.wait_saved(page)
+            page.click(".nav-item[data-view=menu][data-id=main]")
+            page.locator(".stage .el.button[data-i='0']").click()
+            page.select_option("#inspector select[data-k=audio]", "2")
+            self.wait_saved(page)
+            self.assertEqual(self.project()["menus"][0]["buttons"][0]["audio"], 2)
+            self.assertEqual(page.locator("#inspector select[data-k=subtitle]").count(), 0)  # none
+            page.click(".nav-item[data-view=title][data-id=t1]")
             # the subtitle look
             page.click(".nav-item[data-view=disc]")
             page.fill("#inspector input[data-k='subtitle_style.size']", "40")

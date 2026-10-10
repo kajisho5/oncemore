@@ -34,6 +34,7 @@ const I18N = {
     highlight_image: "Highlight picture", highlight_image_hint: "Optional: a picture whose opaque pixels light up when the button is selected.",
     new_menu: "New menu", blank_menu: "Blank", template_hint: "Start from a layout; everything stays editable.",
     motion_bg: "Motion background", animated_thumbs: "Thumbnails play the chapter",
+    set_audio: "Set audio", set_subtitle: "Set subtitles", no_change: "No change",
     override: "Then (override)", override_none: "The title's own end action",
     override_hint: "Where to go when the title this button plays ends, instead of its own end action (only when started from this button).",
     thumb_section: "Thumbnail", thumb_on: "Show a picture of the linked title / chapter",
@@ -213,6 +214,7 @@ const I18N = {
     highlight_image: "ハイライト画像", highlight_image_hint: "任意：不透明な部分が選択時に光る画像。",
     new_menu: "新しいメニュー", blank_menu: "白紙", template_hint: "レイアウトから始められます。あとから全部編集できます。",
     motion_bg: "動く背景", animated_thumbs: "サムネイルでチャプターを再生",
+    set_audio: "音声を切替", set_subtitle: "字幕を切替", no_change: "変更しない",
     override: "終了後（上書き）", override_none: "タイトル自身の終了時アクション",
     override_hint: "このボタンで再生したタイトルが終わったときの行き先。タイトル自身の終了時アクションの代わりに使われます（このボタンから再生したときだけ）。",
     thumb_section: "サムネイル", thumb_on: "リンク先のタイトル／チャプターの絵を表示",
@@ -541,6 +543,18 @@ function actionOptions({ forButton = true, allowStop = true, includeChapters = f
   }
   if (allowStop) opts.push(["stop", t("stop")]);
   return opts;
+}
+// a button's audio / subtitle switches made along with its action
+function streamsHtml(b) {
+  const p = P();
+  const na = Math.max(1, ...(p.titles || []).map((x) => (x.audio_tracks || []).length));
+  const ns = Math.max(0, ...(p.titles || []).map((x) => (x.subtitles || []).length));
+  if (/^(audio|subtitle):/.test(b.action || "") || (na < 2 && !ns)) return "";
+  const range = (n) => Array.from({ length: n }, (_, i) => [String(i + 1), String(i + 1)]);
+  return `<div class="grid2">
+    ${na > 1 ? `<label class="field"><span>${t("set_audio")}</span>${selectHtml("audio", [["__none__", t("no_change")], ...range(na)], b.audio ? String(b.audio) : "__none__")}</label>` : ""}
+    ${ns ? `<label class="field"><span>${t("set_subtitle")}</span>${selectHtml("subtitle", [["__none__", t("no_change")], ["0", t("subtitle_off")], ...range(ns)], b.subtitle != null ? String(b.subtitle) : "__none__")}</label>` : ""}
+  </div>`;
 }
 function selectHtml(name, opts, value, attrs = "") {
   const has = opts.some(([v]) => v === value);
@@ -2215,6 +2229,7 @@ function renderMenuInspector(el) {
       ${sel.kind === "button" ? `<label class="field"><span>${t("text")}</span><input data-k="label" value="${esc(it.label)}"></label>
         <label class="field"><span>${t("action")} ${whipHtml("action")}</span>${selectHtml("action", actionOptions(), it.action)}</label>
         ${/^(title|chapter):/.test(it.action || "") ? `<label class="field"><span>${t("override")}</span>${selectHtml("override", [["__none__", t("override_none")], ...actionOptions({ forButton: false, includeChapters: false, allowPlayAll: false })], it.override || "__none__")}<div class="hint">${esc(t("override_hint"))}</div></label>` : ""}
+        ${streamsHtml(it)}
         <label class="field"><span></span><label><input type="checkbox" data-k="auto_activate" ${it.auto_activate ? "checked" : ""}> ${t("auto_activate")}</label></label>
         <label class="field" data-nobind><span>${t("image")}</span>${selectHtml("image", [["__none__", t("none")], ...mediaOf("image").map((x) => [x, x])], it.image || "__none__")}
           <div class="hint">${esc(t("image_hint"))}</div></label>`
@@ -2246,13 +2261,14 @@ function renderMenuInspector(el) {
         `<label class="field"><span>${d}</span>${selectHtml("nav." + d, btnIds, (it.nav || {})[d] || "__none__")}</label>`).join("")}</div>` : ""}
       <button class="danger" id="del-el">${t("delete")}</button>`;
     bindFields(el, (p) => (sel.kind === "button" ? find(p).buttons : find(p).texts)[sel.i], {
-      numeric: ["x", "y", "size", "width"],
+      numeric: ["x", "y", "size", "width", "audio", "subtitle"],
       onAfter: (p, key) => {
         const o = (sel.kind === "button" ? find(p).buttons : find(p).texts)[sel.i];
         if (o.nav && !Object.keys(o.nav).length) delete o.nav;
         if (key === "highlight" && o.highlight === "frame") delete o.highlight;
         if (key === "auto_activate" && !o.auto_activate) delete o.auto_activate;
         if (key === "action" && !/^(title|chapter):/.test(o.action)) { delete o.thumbnail; delete o.override; }   // need a title / chapter
+        if (key === "action" && /^(audio|subtitle):/.test(o.action)) { delete o.audio; delete o.subtitle; }      // already a switch
       },
     });
     const thSet = (fn) => commit((p) => { const o = find(p).buttons[sel.i]; fn(o); });

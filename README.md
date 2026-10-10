@@ -407,7 +407,9 @@ or Title key interrupted, where it was left; when there is nothing to resume
 `override` on a `title:` / `chapter:` button (`menu:<id>` \| `title:<id>` \| `stop`)
 replaces the end action of the title it plays, for that play only: titles
 can chain into each other for "play all" while each song button still
-returns to the menu.
+returns to the menu. `audio` (1-based) and `subtitle` (1-based, `0` = off)
+on a button switch streams along with its action, e.g. a "play with
+commentary" button: `{"action": "title:film", "audio": 2, "subtitle": 0}`.
 **Image buttons**: `image` (a picture, transparent PNG works best) replaces the
 label (then optional), drawn with its top-left at `x`/`y`; `width` on the
 720-wide grid (default: the picture's own width; the height follows its

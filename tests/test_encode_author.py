@@ -5,6 +5,7 @@ from oncemore import author, encode
 from oncemore.errors import ProjectError
 from oncemore.project import CAPACITY, build_project
 from oncemore.scaffold import sample_project
+from oncemore.simulate import Simulator
 
 
 class TestBitrate(unittest.TestCase):
@@ -345,6 +346,26 @@ class TestAuthorXml(unittest.TestCase):
         self.assertIn('<button name="s1">subtitle = 64;</button>', x)
         self.assertIn('<button name="so">subtitle = 0;</button>', x)
         self.assertIn("<fpc>subtitle = 65; g1 = 1; jump titleset 1 menu entry root;</fpc>", x)
+        # switches made along with a link (play with the commentary, subtitles off)
+        d["menus"][0]["buttons"].append({"id": "pc", "label": "PC", "x": 400, "y": 400,
+                                         "action": "title:t1", "audio": 2, "subtitle": 0})
+        p = build_project(d, "/v/project.oncemore.json", check_files=False)
+        x = author.build_xml(p, {"main": "m", "chapters": "c"}, {"t1": "a", "t2": "b"}, "/o")
+        self.assertIn('<button name="pc">audio = 1; subtitle = 0; g5 = button; g2 = 0; '
+                      'jump title 1;</button>', x)
+        sim = Simulator(p)
+        s = sim.start()
+        for k in ("select:pc", "enter"):
+            sim.press(s, k)
+        self.assertEqual((s["audio"], s["subtitle"], s["title"]), (2, 0, "t1"))
+        d["menus"][0]["buttons"][-1]["action"] = "audio:2"
+        with self.assertRaises(ProjectError) as cm:
+            build_project(d, "/v/project.oncemore.json", check_files=False)
+        self.assertIn("already a stream button", json.dumps(cm.exception.issues))
+        d["menus"][0]["buttons"][-1].update(audio=3, action="title:t1")
+        with self.assertRaises(ProjectError) as cm:
+            build_project(d, "/v/project.oncemore.json", check_files=False)
+        self.assertIn("no audio stream 3", json.dumps(cm.exception.issues))
 
     def test_multiple_titlesets(self):
         d = sample_project()

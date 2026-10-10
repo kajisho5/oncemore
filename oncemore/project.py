@@ -377,6 +377,8 @@ class Button:
     width: int = None          # its width on the 720-wide grid (None = natural)
     highlight: str = "frame"   # image buttons: "frame" | "shape"
     override: str = None       # end action of the title this button plays, instead of its own
+    audio: int = None          # audio stream (1-based) to switch to with the action
+    subtitle: int = None       # subtitle stream (1-based, 0 = off) to switch to with the action
 
 
 @dataclass
@@ -786,7 +788,8 @@ class _Builder:
                                                     b.get("highlight_image")),
                           **self.style(f"{where}.buttons[{j}]", b),
                           width=b.get("width"), highlight=b.get("highlight", "frame"),
-                          override=b.get("override"))
+                          override=b.get("override"), audio=b.get("audio"),
+                          subtitle=b.get("subtitle"))
                    for j, b in enumerate(m["buttons"])]
         for j, (b, spec) in enumerate(zip(buttons, m["buttons"])):
             if "thumbnail" in spec:
@@ -1018,6 +1021,15 @@ class _Builder:
                 else f"menu {m.id!r}"
             for j, b in enumerate(m.buttons):
                 check(f"{where}.buttons[{j}].action", b.action, allow_resume=True)
+                for key in ("audio", "subtitle"):
+                    n = getattr(b, key)
+                    if n is None:
+                        continue
+                    if parse_action(b.action)[0] in ("audio", "subtitle"):
+                        self.err(f"{where}.buttons[{j}].{key}",
+                                 "already a stream button: use the action alone")
+                    elif n:
+                        check(f"{where}.buttons[{j}].{key}", f"{key}:{n}")
                 if b.override:
                     if parse_action(b.action)[0] not in ("title", "chapter"):
                         self.err(f"{where}.buttons[{j}].override",

@@ -231,9 +231,19 @@ def _menu_domain_command(project, action):
     if kind == "audio":
         return f"audio = {num - 1};"
     if kind == "subtitle":
-        # SPRM2: stream number in bits 0-5, bit 6 = display on
-        return "subtitle = 0;" if num == 0 else f"subtitle = {64 + num - 1};"
+        return _subtitle_set(num)
     return "exit;"
+
+
+def _subtitle_set(num):
+    # SPRM2: stream number in bits 0-5, bit 6 = display on
+    return "subtitle = 0;" if num == 0 else f"subtitle = {64 + num - 1};"
+
+
+def stream_prefix(button):
+    """Audio / subtitle switches a button makes along with its action."""
+    out = f"audio = {button.audio - 1}; " if button.audio else ""
+    return out + (_subtitle_set(button.subtitle) + " " if button.subtitle is not None else "")
 
 
 def default_subtitle(project):
@@ -447,7 +457,7 @@ def build_xml(project, menu_files, title_files, dest):
                 x.append(f"        <pre>{pre}</pre>")
             for b in m.buttons:
                 x.append(f"        <button name={quoteattr(b.id)}>"
-                         f"{button_command(project, b.action, m, b.override)}</button>")
+                         f"{stream_prefix(b)}{button_command(project, b.action, m, b.override)}</button>")
             x.append(f"        {menu_vob(m, menu_files[m.id])}")
             x.append(f"        <post>{menu_post(project, m)}</post>")
             x.append("      </pgc>")
