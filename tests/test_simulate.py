@@ -37,7 +37,8 @@ def project(data):
 
 def rich_project():
     """Two titlesets, a playlist across them, play all, remote keys, a
-    remembered menu, an auto button, an intro that times out, stream buttons."""
+    remembered menu, an auto button, an intro that times out, stream buttons,
+    a resume button."""
     d = sample_project()
     t1, t2 = d["titles"]
     t1["remote_menu"] = "chapters"
@@ -54,7 +55,8 @@ def rich_project():
         {"id": "off", "label": "SUBTITLES OFF", "x": 100, "y": 210, "action": "subtitle:off"},
         {"id": "go", "label": "GO", "x": 100, "y": 270, "action": "title:t2",
          "auto_activate": True},
-        {"id": "back", "label": "BACK", "x": 100, "y": 330, "action": "menu:main"}]})
+        {"id": "back", "label": "BACK", "x": 100, "y": 330, "action": "menu:main"},
+        {"id": "res", "label": "RESUME", "x": 420, "y": 150, "action": "resume"}]})
     d["menus"].append({"id": "intro", "background_video": "media/sample_a.mp4",
                        "duration": 4, "loop": 1, "end_action": "menu:main",
                        "buttons": [{"id": "skip", "label": "SKIP", "x": 80, "y": 380,
@@ -84,7 +86,7 @@ class TestSimulator(unittest.TestCase):
         s = self.sim.start()
         self.sim.press(s, "select:setup")          # button 6 of main
         self.sim.press(s, "enter")
-        self.assertEqual(s["button"], 1)          # setup has 4 buttons: back to 1
+        self.assertEqual(s["button"], 1)          # setup has 5 buttons: back to 1
         self.sim.press(s, "select:back")
         self.sim.press(s, "enter")
         self.assertEqual(self.sim.view(s), ("menu", "main", 6))     # main remembers SETUP
@@ -102,7 +104,7 @@ class TestSimulator(unittest.TestCase):
             self.sim.press(s, "play")
             seen.append(self.sim.view(s))
         self.assertEqual(seen, [("title", 1, 2), ("title", 2, 2), ("title", 2, 3),
-                                ("title", 1, 1), ("menu", "setup", 1)])
+                                ("title", 1, 1), ("menu", "setup", 5)])   # SPRM 8 kept
 
     def test_play_all_and_end_actions(self):
         s = self.keys("select:all", "enter")
@@ -131,6 +133,29 @@ class TestSimulator(unittest.TestCase):
         self.assertEqual(self.sim.view(s), ("title", 1, 3))
         self.sim.press(s, "next")                  # past the last chapter: the title ends
         self.assertEqual(s["menu"], "main")
+
+    def test_resume(self):
+        s = self.keys("select:setup", "enter", "select:res", "enter")
+        self.assertEqual(self.sim.view(s), ("title", 1, 1))     # nothing to resume yet
+        self.sim.press(s, "next")
+        self.sim.press(s, "menu")                               # t1 -> chapters menu
+        self.sim.press(s, "title")
+        self.sim.press(s, "timeout")
+        self.sim.press(s, "select:setup")
+        self.sim.press(s, "enter")
+        self.sim.press(s, "select:res")
+        self.sim.press(s, "enter")
+        self.assertEqual(self.sim.view(s), ("title", 1, 2))     # back where it was
+        self.assertEqual(s["log"], ["button res -> resume", "resume title t1 chapter 2"])
+        self.sim.press(s, "menu")
+        self.assertEqual(s["menu"], "main")         # the resumed title's Menu key: root
+        s = self.keys("select:b", "enter", "end", "end")        # t2, then t1 ends at main
+        self.assertEqual(s["menu"], "main")
+        self.sim.press(s, "select:setup")
+        self.sim.press(s, "enter")
+        self.sim.press(s, "select:res")
+        self.sim.press(s, "enter")
+        self.assertEqual(self.sim.view(s), ("title", 1, 1))     # it ended: from the start
 
 
 class TestGraph(unittest.TestCase):
@@ -278,6 +303,32 @@ class TestSimulatorMatchesDisc(unittest.TestCase):
             keys += ["menu", "title"] if rng.random() < 0.15 else []
             return keys
         return ["play", "play", "play", "next", "prev", "menu", "title", "end"]
+
+    def test_resume(self):
+        """RESUME before any title, after the Menu key, and after a title ended."""
+        sim = Simulator(self.project, self.layouts)
+        s = sim.start()
+        with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
+            self.settle(d)
+
+            def press(*keys):
+                for key in keys:
+                    before = sim.view(s)
+                    sim.press(s, key)
+                    if key.startswith("select:"):
+                        ids = [g["id"] for g in self.layouts[before[1]]]
+                        d.select(ids.index(key[7:]) + 1)
+                    else:
+                        self.player_key(d, key, before)
+                    self.assertEqual(self.view(d), sim.view(s), f"{before} --{key}-->")
+                return sim.view(s)
+
+            resume = ("select:setup", "enter", "select:res", "enter")
+            self.assertEqual(press(*resume), ("title", 1, 1))       # nothing to resume
+            self.assertEqual(press("next", "menu", "title", "timeout"), ("menu", "main", 6))
+            self.assertEqual(press(*resume), ("title", 1, 2))       # where the Menu key left
+            self.assertEqual(press("end")[0], "menu")               # t1 ended
+            self.assertEqual(press(*resume), ("title", 1, 1))
 
     def test_random_sessions(self):
         for seed in range(12):

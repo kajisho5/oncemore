@@ -17,10 +17,15 @@ def node_id(kind, target=None):
     return f"{kind}:{target}" if target else kind
 
 
-def _target(action):
+def _target(action, project=None):
     """Node an action leads to, and an edge label for chapter jumps.
-    Audio / subtitle buttons stay on the menu (None)."""
+    Audio / subtitle buttons stay on the menu (None). A resume button goes
+    back to the title that was playing; drawn to the first title, which it
+    plays when there is nothing to resume."""
     kind, target, num = parse_action(action)
+    if kind == "resume":
+        titles = project.titles if project else []
+        return (node_id("title", titles[0].id), "resume") if titles else (None, None)
     if kind in ("audio", "subtitle"):
         return None, None
     if kind == "stop":
@@ -37,7 +42,7 @@ def build(project):
     nodes, edges = [], []
 
     def edge(src, action, kind, label=None):
-        dst, extra = _target(action)
+        dst, extra = _target(action, project)
         if dst is not None:
             edges.append({"from": src, "to": dst, "kind": kind,
                           "label": " · ".join(x for x in (label, extra) if x) or None})

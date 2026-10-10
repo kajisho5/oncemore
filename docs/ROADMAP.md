@@ -131,6 +131,10 @@ browser) and lands only with green CI.
 - [x] `scan: ivtc` for film already telecined to 29.97i: field matching and
   decimation back to 23.976 film frames, stored with soft 3:2 pulldown
 
+**P21 — Resume** (done)
+- [x] Resume buttons (`resume`): back to where the Menu / Title key left the
+  title, or the first title when there is nothing to resume
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 
@@ -180,8 +184,6 @@ Done:
 Still to do:
 
 * Menu transitions, animated buttons
-* Resume-aware returns (back to the chapter you left)
-* Per-cue subtitle position/colour, ASS input
 
 ## Phase 4 — web version
 
