@@ -176,6 +176,14 @@
               "description": "Distance of the last line from the bottom."
             }
           }
+        },
+        "rom_files": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "string"
+          },
+          "description": "Files or folders copied to the root of the disc next to VIDEO_TS (DVD-ROM content for computers)."
         }
       }
     },
@@ -325,6 +333,11 @@
             },
             "lang": {
               "$ref": "#/$defs/lang"
+            },
+            "passthrough": {
+              "type": "boolean",
+              "default": false,
+              "description": "Copy AC-3 audio (48 kHz, from the sources) onto the disc unchanged instead of re-encoding it."
             }
           }
         },
@@ -385,7 +398,7 @@
             "properties": {
               "file": {
                 "type": "string",
-                "description": "SubRip (.srt) file."
+                "description": "Subtitle file: SubRip (.srt), WebVTT (.vtt) or ASS / SSA (.ass, .ssa)."
               },
               "lang": {
                 "$ref": "#/$defs/lang"
@@ -393,6 +406,18 @@
               "default": {
                 "type": "boolean",
                 "description": "Show this track when the title starts."
+              },
+              "position": {
+                "enum": [
+                  "bottom",
+                  "top"
+                ],
+                "default": "bottom",
+                "description": "Where the lines go (cues can override with {\\an8} / line:0 / ASS alignment)."
+              },
+              "color": {
+                "$ref": "#/$defs/color",
+                "description": "Text colour of this track (default: disc.subtitle_style.color); cues can override it."
               }
             }
           }
@@ -403,6 +428,10 @@
             "16:9"
           ],
           "description": "Display aspect of this title (default: disc.aspect). Titles with a different aspect or audio codec go into their own DVD titleset automatically."
+        },
+        "video_bitrate": {
+          "$ref": "#/$defs/bitrate",
+          "description": "This title's own average video bitrate (1-8 Mbit/s); the other titles share what is left on the disc."
         }
       }
     },

@@ -57,6 +57,48 @@ class TestSrt(unittest.TestCase):
             subtitles.load_srt(f.name)
 
 
+class TestFormatsAndStyles(unittest.TestCase):
+    def test_srt_tags_set_position_and_colour(self):
+        cues = subtitles.parse_srt(SRT)
+        self.assertEqual(cues[1].position, "top")                     # {\an8}
+        c = subtitles.parse_srt('1\n00:00:01,000 --> 00:00:02,000\n<font color="#ffff00">Y</font>\n')
+        self.assertEqual((c[0].color, c[0].lines), ("#FFFF00", ["Y"]))
+
+    def test_vtt(self):
+        cues = subtitles.parse_vtt("WEBVTT - demo\n\nNOTE a comment\n\nSTYLE\n::cue { color: red }\n\n"
+                                   "intro\n00:01.000 --> 00:02.500 line:0 align:center\n<b>Top</b>\n\n"
+                                   "01:00:03.000 --> 01:00:04.000\nAn hour in\n")
+        self.assertEqual([(c.start, c.end, c.lines, c.position) for c in cues],
+                         [(1.0, 2.5, ["Top"], "top"), (3603.0, 3604.0, ["An hour in"], None)])
+        with self.assertRaises(ValueError):
+            subtitles.parse_vtt("1\n00:00:01,000 --> 00:00:02,000\nnot vtt\n")
+
+    def test_ass(self):
+        ass = ("[Script Info]\nScriptType: v4.00+\n\n[V4+ Styles]\n"
+               "Format: Name, Fontname, Fontsize, PrimaryColour, Bold, Alignment\n"
+               "Style: Default,Arial,20,&H00FFFFFF,0,2\nStyle: Sign,Arial,20,&H0000FFFF,0,8\n\n"
+               "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+               "Dialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,Line, with comma\\Nsecond\n"
+               "Dialogue: 0,0:00:03.00,0:00:04.50,Sign,,0,0,0,,{\\c&H0000FF&}Red sign\n"
+               "Comment: 0,0:00:05.00,0:00:06.00,Default,,0,0,0,,ignored\n")
+        cues = subtitles.parse_ass(ass)
+        self.assertEqual(cues[0].lines, ["Line, with comma", "second"])
+        self.assertEqual((cues[1].position, cues[1].color), ("top", "#FF0000"))   # style + override
+        self.assertEqual((cues[0].color, cues[0].style_color), (None, "#FFFFFF"))
+        self.assertEqual(len(cues), 2)
+
+    def test_srt_round_trip(self):
+        cues = subtitles.parse_srt('1\n00:00:01,000 --> 00:00:02,000\n{\\an8}<font color="#00FF00">G</font>\n')
+        again = subtitles.parse_srt(subtitles.to_srt(cues))
+        self.assertEqual(again, cues)
+
+    def test_palette_budget(self):
+        style = {"color": "#FFFFFF"}
+        cues = [subtitles.Cue(0, 1, ["a"], color=f"#0000{i:02X}") for i in range(10)]
+        self.assertEqual(subtitles.palette_size([(None, cues[:3])], style), 2 + 2 * 4)
+        self.assertGreater(subtitles.palette_size([(None, cues)], style), 16)
+
+
 class TestQuantise(unittest.TestCase):
     def test_four_levels_and_crop(self):
         W, H = 20, 10

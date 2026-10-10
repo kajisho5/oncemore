@@ -34,6 +34,11 @@ const I18N = {
     highlight_image: "Highlight picture", highlight_image_hint: "Optional: a picture whose opaque pixels light up when the button is selected.",
     new_menu: "New menu", blank_menu: "Blank", template_hint: "Start from a layout; everything stays editable.",
     motion_bg: "Motion background", animated_thumbs: "Thumbnails play the chapter",
+    auto_shared: "Automatic (share the disc)", passthrough: "Copy AC-3 unchanged",
+    passthrough_hint: "For AC-3 (48 kHz) sources: no re-encoding. Channels must match the source.",
+    rom_files: "DVD-ROM files", rom_hint: "Files or folders (one per line, relative to the project) put next to VIDEO_TS for computers.",
+    no_cache: "Encode everything again (ignore the cache)",
+    sub_bottom: "Bottom", sub_top: "Top", sub_color: "Own colour",
     image: "Image", width: "Width", highlight_style: "Highlight", hl_frame: "Frame around it", hl_shape: "Its shape",
     image_hint: "An image button shows the picture instead of the text (PNG with transparency works best).",
     chapter_name: "Name on the chapter menu", poster: "Poster", poster_hint: "Use the frame at the playhead as this chapter's thumbnail (click again to reset)",
@@ -103,6 +108,11 @@ const I18N = {
     highlight_image: "ハイライト画像", highlight_image_hint: "任意：不透明な部分が選択時に光る画像。",
     new_menu: "新しいメニュー", blank_menu: "白紙", template_hint: "レイアウトから始められます。あとから全部編集できます。",
     motion_bg: "動く背景", animated_thumbs: "サムネイルでチャプターを再生",
+    auto_shared: "自動（ディスク全体で配分）", passthrough: "AC-3 をそのままコピー",
+    passthrough_hint: "AC-3（48kHz）素材向け：再エンコードしません。チャンネル数は素材と同じにしてください。",
+    rom_files: "DVD-ROM ファイル", rom_hint: "パソコン向けに VIDEO_TS と並べて入れるファイル／フォルダ（1 行に 1 つ、プロジェクトからの相対パス）。",
+    no_cache: "すべてエンコードし直す（キャッシュを使わない）",
+    sub_bottom: "下", sub_top: "上", sub_color: "色を指定",
     image: "画像", width: "幅", highlight_style: "ハイライト", hl_frame: "周りに枠", hl_shape: "画像の形",
     image_hint: "画像ボタンは文字の代わりに画像を表示します（透過 PNG がおすすめ）。",
     chapter_name: "チャプターメニューに出す名前", poster: "サムネイル", poster_hint: "再生位置のフレームをこのチャプターのサムネイルにする（もう一度押すと解除）",
@@ -477,8 +487,13 @@ function renderDisc(m) {
     </div>
     <label class="field"><span>${t("first_play")}</span>${selectHtml("first_play", [["__none__", t("auto")], ...fp], d.first_play || "__none__")}</label>
     <label class="field"><span>${t("title_key")}</span>${selectHtml("title_key", [["__none__", t("first_menu")], ...fp], d.title_key || "__none__")}</label>
+    <label class="field" data-nobind><span>${t("rom_files")}</span><textarea id="rom-files" rows="3" placeholder="extras/">${esc((d.rom_files || []).join("\n"))}</textarea><div class="hint">${esc(t("rom_hint"))}</div></label>
   </div>`;
   bindFields(m, (p) => p.disc);
+  $("#rom-files").onchange = (e) => commit((p) => {
+    const list = e.target.value.split("\n").map((x) => x.trim()).filter(Boolean);
+    if (list.length) p.disc.rom_files = list; else delete p.disc.rom_files;
+  });
 }
 
 // ---------------------------------------------------------------- titles
@@ -634,6 +649,8 @@ function renderTitleInspector(el) {
       <label class="field"><span>${t("codec")}</span>${selectHtml("audio.codec", [["ac3", "AC-3"], ["lpcm", "LPCM"]], audio.codec || "ac3")}</label>
       <label class="field"><span>${t("bitrate")}</span>${selectHtml("audio.bitrate", [["128k", "128k"], ["192k", "192k"], ["224k", "224k"], ["256k", "256k"], ["384k", "384k"], ["448k", "448k"]], audio.bitrate || (audio.channels === 6 ? "448k" : "192k"), audio.codec === "lpcm" ? "disabled" : "")}</label>
       <label class="field"><span>${t("channels")}</span>${selectHtml("audio.channels", [["2", t("stereo")], ["6", t("surround")]], String(audio.channels || 2), audio.codec === "lpcm" ? "disabled" : "")}</label>
+      <label class="field"><span>${t("video_bitrate")}</span>${selectHtml("video_bitrate", [["__none__", t("auto_shared")], ...["3M", "4M", "5M", "6M", "7M", "8M"].map((b) => [b, b.replace("M", " Mbit/s")])], ti.video_bitrate || "__none__")}</label>
+      <label class="field"><span></span><label title="${esc(t("passthrough_hint"))}"><input type="checkbox" data-k="audio.passthrough" ${audio.passthrough ? "checked" : ""} ${audio.codec === "lpcm" ? "disabled" : ""}> ${t("passthrough")}</label></label>
     </div>
     ${tracks.length ? "" : `<label class="field"><span>${t("language")}</span>${selectHtml("audio.lang", langs, audio.lang || "")}</label>`}
     <h3>${t("audio_tracks")}</h3>
@@ -649,7 +666,11 @@ function renderTitleInspector(el) {
         ${selectHtml("file", mediaOf("subtitle").map((f) => [f, f.replace(/^media\//, "")]), s.file)}
         ${selectHtml("lang", langs, s.lang || "", 'class="shrink" style="width:90px"')}
         <label class="shrink" title="${t("default_on")}"><input type="checkbox" data-k="default" ${s.default ? "checked" : ""}> ${t("default_on")}</label>
-        <button class="small danger shrink" data-del-sub="${i}">✕</button></div>`).join("")}
+        <button class="small danger shrink" data-del-sub="${i}">✕</button></div>
+        <div class="row" style="margin:0 0 8px 0" data-sub="${i}" data-nobind>
+        ${selectHtml("position", [["bottom", t("sub_bottom")], ["top", t("sub_top")]], s.position || "bottom", 'class="shrink"')}
+        <label class="shrink"><input type="checkbox" data-k="has_color" ${s.color ? "checked" : ""}> ${t("sub_color")}</label>
+        <input type="color" class="shrink" data-k="color" value="${esc(s.color || "#ffffff")}" ${s.color ? "" : "disabled"}></div>`).join("")}
     <button class="small" id="add-sub" ${mediaOf("subtitle").length ? "" : "disabled"}>${t("add_sub")}</button>
     <h3>${t("chapter_menu")}</h3>
     <label><input type="checkbox" id="cm-on" ${cm ? "checked" : ""}> ${t("chapter_menu_on")}</label>
@@ -664,6 +685,7 @@ function renderTitleInspector(el) {
     onAfter: (p, key, val) => {   // LPCM is stereo only; 2 is the default anyway
       const a = find(p).audio;
       if (a && (key === "audio.codec" && val === "lpcm" || key === "audio.channels" && val === 2)) delete a.channels;
+      if (a && (key === "audio.codec" && val === "lpcm" || key === "audio.passthrough" && !val)) delete a.passthrough;
     },
   });
   el.querySelectorAll("[data-track]").forEach((row) => {
@@ -682,6 +704,9 @@ function renderTitleInspector(el) {
       commit((p) => {
         const list = find(p).subtitles, k = inp.dataset.k;
         if (k === "default") { list.forEach((s, j) => { if (j !== i) delete s.default; }); if (inp.checked) list[i].default = true; else delete list[i].default; }
+        else if (k === "has_color") { if (inp.checked) list[i].color = "#FFFF00"; else delete list[i].color; }
+        else if (k === "color") list[i].color = inp.value.toUpperCase();
+        else if (k === "position" && inp.value === "bottom") delete list[i].position;
         else if (inp.value) list[i][k] = inp.value; else delete list[i][k];
       });
     }));
@@ -1372,6 +1397,7 @@ function renderBuild(m) {
     <label style="display:block;margin:6px 0"><input type="radio" name="kind" value="iso" ${(S.buildKind || "iso") === "iso" ? "checked" : ""}> ${t("build_iso")}</label>
     <label style="display:block;margin:6px 0"><input type="radio" name="kind" value="folder" ${S.buildKind === "folder" ? "checked" : ""}> ${t("build_folder")}</label>
     <label style="display:block;margin:10px 0"><input type="checkbox" id="fast" ${S.buildFast ? "checked" : ""}> ${t("fast")}</label>
+    <label style="display:block;margin:10px 0"><input type="checkbox" id="nocache" ${S.buildNoCache ? "checked" : ""}> ${t("no_cache")}</label>
     <button class="primary" id="start" ${job && !job.done ? "disabled" : ""}>${job && !job.done ? t("building") : t("start_build")}</button>
   </div>
   ${steps.length ? `<div class="card" style="max-width:720px"><ul class="steps">${steps.map((s, i) => {
@@ -1392,6 +1418,7 @@ function renderBuild(m) {
   ${logs.length ? `<div class="card" style="max-width:720px"><div class="log">${esc(logs.join("\n"))}</div></div>` : ""}`;
   m.querySelectorAll("input[name=kind]").forEach((r) => (r.onchange = () => (S.buildKind = r.value)));
   $("#fast").onchange = (e) => (S.buildFast = e.target.checked);
+  $("#nocache").onchange = (e) => (S.buildNoCache = e.target.checked);
   $("#start").onclick = startBuild;
   const rv = $("#reveal");
   if (rv) rv.onclick = () => api("/api/reveal", { method: "POST", body: { path: relPath(result.iso || result.video_ts) } }).catch((e) => alert(e.message));
@@ -1400,7 +1427,7 @@ const relPath = (abs) => abs.startsWith(S.dir) ? abs.slice(S.dir.length + 1) : a
 async function startBuild() {
   clearTimeout(S.saveTimer); await save();
   try {
-    const r = await api("/api/build", { method: "POST", body: { kind: S.buildKind || "iso", fast: !!S.buildFast } });
+    const r = await api("/api/build", { method: "POST", body: { kind: S.buildKind || "iso", fast: !!S.buildFast, no_cache: !!S.buildNoCache } });
     S.job = { id: r.job, done: false }; S.jobEvents = []; S.jobNext = 0;
     pollJob();
   } catch (e) { alert(e.message); }

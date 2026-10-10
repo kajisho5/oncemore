@@ -50,6 +50,10 @@ def probe(path):
     fmt = info.get("format", {})
     out = {"path": path, "has_video": v is not None, "has_audio": a is not None,
            "audio_streams": sum(1 for s in streams if s.get("codec_type") == "audio"),
+           "audio": [{"codec": s.get("codec_name"), "rate": int(s.get("sample_rate", 0) or 0),
+                      "channels": int(s.get("channels", 0) or 0),
+                      "bit_rate": int(s.get("bit_rate", 0) or 0)}
+                     for s in streams if s.get("codec_type") == "audio"],
            "duration": _float(fmt.get("duration")) or (_float(v.get("duration")) if v else None),
            "format": fmt.get("format_name")}
     if v:
@@ -59,6 +63,7 @@ def probe(path):
             "fps": _ratio(v.get("avg_frame_rate")) or _ratio(v.get("r_frame_rate")),
             "codec": v.get("codec_name"),
             "interlaced": v.get("field_order") in ("tt", "bb", "tb", "bt"),
+            "field_order": v.get("field_order"),
         })
     if a:
         out.update({"audio_codec": a.get("codec_name"),
@@ -139,40 +144,49 @@ def fit_filter(info, disc, pad_color="black", fps=True):
 def plan_bitrate(items, capacity, menu_seconds=0.0, fixed=None):
     """Choose the average video bitrate.
 
-    items: list of (duration_seconds, audio_bps) for every title.
-    Returns a dict with "video_bps", "estimated_bytes", "capacity" and
-    "warnings". Raises ProjectError if the content cannot fit.
+    items: list of (duration_seconds, audio_bps) or (duration_seconds,
+    audio_bps, title_bps) for every title; title_bps fixes that title's video
+    bitrate and the others share what is left. Returns a dict with
+    "video_bps" (the shared rate), "per_title" (the rate of each item),
+    "estimated_bytes", "capacity" and "warnings". Raises ProjectError if the
+    content cannot fit.
     """
-    total = sum(d for d, _ in items)
+    items = [tuple(it) + (None,) * (3 - len(it)) for it in items]
+    total = sum(d for d, _, _ in items)
     if total <= 0:
         raise ProjectError("titles have zero total duration")
-    max_audio = max(a for _, a in items)
+    max_audio = max(a for _, a, _ in items)
     cap = min(MAX_VIDEO_BPS, MAX_TOTAL_BPS - max_audio)
     menu_bytes = menu_seconds * (MENU_VIDEO_BPS + MENU_AUDIO_BPS) / 8 * (1 + MUX_OVERHEAD)
     usable = capacity * (1 - DISC_SAFETY) - IFO_RESERVE - menu_bytes
-    audio_bits = sum(d * a for d, a in items)
-    fit = (usable * 8 / (1 + MUX_OVERHEAD) - audio_bits) / total
+    audio_bits = sum(d * a for d, a, _ in items)
+    own_bits = sum(d * min(f, cap) for d, _, f in items if f)
+    shared = sum(d for d, _, f in items if not f)
+    fit = ((usable * 8 / (1 + MUX_OVERHEAD) - audio_bits - own_bits) / shared) if shared \
+        else float("inf")
     warnings = []
     if fixed:
         video = min(int(fixed), cap)
         if video < fixed:
             warnings.append(f"video bitrate limited to {video // 1000}k by the DVD rate limit")
     else:
-        video = int(min(cap, fit))
-    est = (sum(d * (video + a) for d, a in items) / 8) * (1 + MUX_OVERHEAD) + menu_bytes + IFO_RESERVE
+        video = int(min(cap, fit)) if shared else cap
+    per_title = [min(int(f), cap) if f else video for _, _, f in items]
+    est = (sum(d * (v + a) for (d, a, _), v in zip(items, per_title)) / 8) * (1 + MUX_OVERHEAD) \
+        + menu_bytes + IFO_RESERVE
     if not fixed and fit < MIN_VIDEO_BPS:
         raise ProjectError(
             f"content does not fit: {total / 60:.1f} min would need a video bitrate of "
             f"{max(fit, 0) / 1e6:.2f} Mbit/s (minimum {MIN_VIDEO_BPS / 1e6:.1f}). "
             "Use DVD9, shorter titles or AC-3 instead of LPCM.")
-    if fixed and est > capacity:
+    if (fixed or not shared) and est > capacity:
         raise ProjectError(f"estimated size {est / 2**30:.2f} GiB exceeds the "
                            f"{capacity / 2**30:.2f} GiB disc with the fixed video bitrate")
     if video < LOW_QUALITY_BPS:
         warnings.append(f"average video bitrate is only {video / 1e6:.2f} Mbit/s; "
                         "expect visible compression artefacts")
-    return {"video_bps": video, "estimated_bytes": int(est), "capacity": capacity,
-            "total_seconds": total, "warnings": warnings}
+    return {"video_bps": video, "per_title": per_title, "estimated_bytes": int(est),
+            "capacity": capacity, "total_seconds": total, "warnings": warnings}
 
 
 def peak_bitrate(audio_bps):
@@ -303,9 +317,19 @@ def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
     probes.setdefault(title.source, info)
     extra, graph, labels = audio_graph(title, probes)
     inputs = ["-i", title.source] + extra
-    amap = ["-filter_complex", graph]
-    for lab in labels:
-        amap += ["-map", lab]
+    if title.audio_passthrough:
+        # AC-3 copied as it is: map the streams directly, no filter graph
+        sources = [title.source] + [extra[i + 1] for i in range(0, len(extra), 2)]
+        amap = []
+        for tr in title.audio_tracks:
+            amap += ["-map", f"{sources.index(tr.source)}:a:{tr.stream}"]
+        acodec = ["-c:a", "copy"]
+    else:
+        amap = ["-filter_complex", graph]
+        for lab in labels:
+            amap += ["-map", lab]
+        acodec = audio_args(title.audio_codec, title.audio_bitrate, framing=False,
+                            channels=title.audio_channels)
     keys, _ = chapter_points(title.chapters, disc.fps)
     keyframes = ",".join(f"{t:.6f}" for t in keys)
     video = ["-map", "0:v:0", "-vf", fit_filter(info, disc), "-target", target,
@@ -329,9 +353,7 @@ def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
                    duration, os.path.join(logdir, f"title-{title.id}-pass1.log"), prog(0),
                    cwd=work, what=f"ffmpeg (title {title.id}, pass 1)")
         video += ["-pass", "2", "-passlogfile", passlog]
-    run_ffmpeg(inputs + video + amap + audio_args(title.audio_codec, title.audio_bitrate,
-                                                  framing=False, channels=title.audio_channels)
-               + ["-t", f"{duration:.3f}", out_path],
+    run_ffmpeg(inputs + video + amap + acodec + ["-t", f"{duration:.3f}", out_path],
                duration, os.path.join(logdir, f"title-{title.id}.log"), prog(passes - 1),
                cwd=work, what=f"ffmpeg (title {title.id})")
     return out_path

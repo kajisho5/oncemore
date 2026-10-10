@@ -363,3 +363,38 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   menus, playlists and streams), sized for NTSC or PAL; labels are shortened
   to fit their slot so the layout never produces overlapping buttons (tested
   for every template with 2 and 8 titles on both standards).
+
+## 29. Encode cache, per-title bitrate, AC-3 copy, DVD-ROM files
+
+* Cache: encoded titles (after the LPCM header fix, before subtitles) and
+  menus are stored under `<project>/.oncemore-cache/encode` and hard-linked
+  into the build. The key covers everything that changes the bytes —
+  sources' path, size and mtime, the title or menu definition, disc format,
+  bitrate, 1-/2-pass, the ffmpeg and spumux versions, and a hash of
+  oncemore's encoding modules, so a new oncemore never reuses stale output.
+  Adding a title changes the shared bitrate and therefore re-encodes; that is
+  the price of a correct key.
+* Per-title bitrate: titles with `video_bitrate` take their share first; the
+  others share what is left, still capped by the DVD rate limits.
+* AC-3 copy: only 48 kHz AC-3 with the title's channel count is accepted
+  (checked per stream); the streams are mapped directly with `-c:a copy`,
+  so there is no padding — DVD allows audio shorter than the video.
+* DVD-ROM content is copied next to VIDEO_TS and included when the ISO is
+  staged; VIDEO_TS / AUDIO_TS cannot be overwritten that way.
+
+## 30. Subtitle formats, placement and colour
+
+* WebVTT and ASS / SSA are read into the same cues as SRT (WebVTT timing
+  without hours, `line:` settings; ASS styles' alignment and primary colour,
+  `\N` line breaks, override tags). Cue text loses its tags; placement and
+  colour survive as cue attributes.
+* Precedence: the cue's own tag, then the track's `color` / `position` in the
+  project, then the subtitle file's style, then `disc.subtitle_style`.
+* Cues are always rendered white on black, so the brightness-based 4-level
+  quantiser keeps working for dark colours too; the real colour goes into
+  each cue's PNG palette (fill, outline, and their mix for anti-aliasing).
+  spumux merges the palettes, and a title's 16-entry subpicture palette
+  limits it to about 7 text colours, which validation checks.
+* Free positioning is left out on purpose: lines stay centred at the top or
+  the bottom, which covers signs and speaker separation without a layout
+  editor for every cue.

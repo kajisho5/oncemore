@@ -89,7 +89,8 @@ def cmd_validate(args, rep):
 
 def cmd_build(args, rep):
     project = load_project(args.project)
-    res = build.build(project, args.output, rep, fast=args.fast, keep_work=args.keep_work)
+    res = build.build(project, args.output, rep, fast=args.fast, keep_work=args.keep_work,
+                      cache=not args.no_cache)
     rep.result(res, f"VIDEO_TS written to {res['video_ts']} ({_gib(res['bytes'])})")
     return 0
 
@@ -97,7 +98,8 @@ def cmd_build(args, rep):
 def cmd_iso(args, rep):
     project = load_project(args.project)
     res = build.build_iso(project, args.output, rep, fast=args.fast, keep_work=args.keep_work,
-                          iso_tool=args.iso_tool, build_dir=args.build_dir)
+                          iso_tool=args.iso_tool, build_dir=args.build_dir,
+                          cache=not args.no_cache)
     rep.result(res, f"ISO written to {res['iso']} ({_gib(res['iso_bytes'])}, {res['iso_tool']})")
     return 0
 
@@ -164,6 +166,9 @@ def make_parser():
         sp.add_argument("--fast", action="store_true", help="1-pass encoding (default: 2-pass)")
         sp.add_argument("--keep-work", action="store_true",
                         help="keep intermediate files (.work/) after success")
+        sp.add_argument("--no-cache", action="store_true",
+                        help="encode everything again (default: reuse unchanged titles and "
+                             "menus from <project>/.oncemore-cache)")
 
     s = sub.add_parser("build", parents=[common], help="author VIDEO_TS into a directory")
     s.add_argument("project", help=proj_help)

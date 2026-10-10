@@ -217,6 +217,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `title_key` | what the remote's Title / Top Menu key opens: `menu:<id>` \| `title:<id>` \| `playall` | first menu |
 | `font` | path or `null` | auto: Hiragino (macOS) → Noto Sans CJK → DejaVu Sans |
 | `video_bitrate` | `"auto"` or bitrate (`"6M"`, `5500000`), 1–8 Mbit/s | `auto` |
+| `rom_files` | files / folders put next to VIDEO_TS (DVD-ROM content for computers) | none |
 | `subtitle_style` | `{size, color, outline, outline_width, margin}` for all subtitles | 30 px (PAL 36), white, black outline 3 px, 36 px (PAL 43) from the bottom |
 
 **titles[]** (1–99)
@@ -229,6 +230,8 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `chapters` | list of times, or `{time, name, poster}` objects (`name` labels the chapter-menu button, `poster` is the time of its thumbnail); `0` is added if missing | `[0]` |
 | `audio.codec` | `ac3` \| `lpcm` | `ac3` |
 | `audio.bitrate` | AC-3 only, 64k–448k | `192k` (`448k` for 5.1) |
+| `audio.passthrough` | copy 48 kHz AC-3 from the sources unchanged (channels must match) | `false` |
+| `video_bitrate` | this title's own video bitrate; the other titles share the rest | shared |
 | `audio.channels` | `2` (stereo, sources are down-mixed) \| `6` (5.1, AC-3 only) | `2` |
 | `end_action` | `menu:<id>` \| `title:<id>` \| `stop` | first-play menu, else `stop` |
 | `remote_menu` | menu the remote's Menu key opens during this title | first menu |
@@ -325,10 +328,14 @@ end of its last chapter. Title, chapter and play-all buttons leave playlist mode
   is reported by `validate`.
 * Stream *n* has one language for the whole disc (DVD stores stream attributes
   per titleset), so `lang` must agree between titles.
-* Subtitles are SubRip (`.srt`, UTF-8 or Shift_JIS). Each cue is drawn with the
-  menu font (white with an outline, see `disc.subtitle_style`), reduced to a
-  4-colour DVD subpicture and muxed with spumux. `<i>`/`{\an8}` style tags are
-  removed; overlapping cues are shortened.
+* Subtitles are SubRip (`.srt`), WebVTT (`.vtt`) or ASS / SSA (`.ass`, `.ssa`),
+  UTF-8 or Shift_JIS. Each cue is drawn with the menu font (white with an
+  outline, see `disc.subtitle_style`), reduced to a 4-colour DVD subpicture and
+  muxed with spumux; overlapping cues are shortened.
+* Placement and colour: a track's `"position": "top"` and `"color": "#FFFF00"`,
+  overridden per cue by `{\an8}` (SRT / ASS), `line:0` (WebVTT), an ASS style's
+  alignment, `{\c&HBBGGRR&}` or `<font color="#RRGGBB">`. A title can use 16
+  subpicture colours in all, about 7 different text colours.
 * `"default": true` turns that subtitle stream on when the disc starts
   (players keep the viewer's later choice). Without it subtitles start off.
 
@@ -390,12 +397,22 @@ By hand:
 * **Burning** — on macOS, Finder/`hdiutil burn demo.iso`; on Linux,
   `growisofs -dvd-compat -Z /dev/dvd=demo.iso`. Not part of oncemore.
 
+## Rebuilding is fast
+
+Encoded titles and menus are kept in `<project>/.oncemore-cache/encode`, keyed
+by their sources (path, size, modification time), settings, bitrate, the ffmpeg
+version and oncemore's own encoding code. A rebuild after a menu tweak only
+renders that menu. Use `--no-cache` (or *Encode everything again* in the app)
+to ignore it, and delete the folder to reclaim the space.
+
 ## Known limitations
 
-* Motion menus loop one video; there are no animated buttons or transitions.
-* Audio is stereo or 5.1 AC-3, always re-encoded (no AC-3 pass-through).
-  Subtitles: SRT only, one style per disc, bottom-centred; no positioning or
-  colours per cue.
+* Motion menus loop one video (with an optional intro); only chapter thumbnails
+  animate, and there are no transitions between menus.
+* Audio is stereo or 5.1 (AC-3), re-encoded unless `audio.passthrough` copies
+  48 kHz AC-3 sources.
+  Subtitles: one font and size per disc, lines centred at the top or bottom
+  (no free positioning); at most 16 subpicture colours per title.
 * Audio/subtitle stream *n* has one language for the whole disc. Menus have
   one aspect ratio (`disc.aspect`); titles may differ.
 * Frame-rate conversion is plain frame dropping/duplication (no telecine/IVTC);
