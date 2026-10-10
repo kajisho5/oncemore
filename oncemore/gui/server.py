@@ -41,7 +41,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 
-from .. import __version__, build, encode, scaffold, tools
+from .. import __version__, build, encode, scaffold, templates, tools
 from ..errors import OncemoreError, ProjectError
 from ..project import PROJECT_FILENAME, build_project, read_json
 from ..report import Reporter
@@ -485,6 +485,16 @@ class Handler(BaseHTTPRequestHandler):
         data = self.app.frame(full, float(q.get("t", 0)), width)
         self._send(HTTPStatus.OK, data, "image/jpeg", {"Cache-Control": "private, max-age=600"})
 
+    def api_get_templates(self, q):
+        self.json({"templates": [{"id": k, **v} for k, v in templates.TEMPLATES.items()]})
+
+    def api_post_template(self, q):
+        """A new menu from a template, for the project the page is editing."""
+        body = self.body_json()
+        project = body.get("project") or self.app.load()
+        menu = templates.make_menu(body["template"], project, body["id"], back=body.get("back"))
+        self.json({"menu": menu})
+
     def api_post_proxy(self, q):
         full = self.app.resolve(q.get("path"))
         if media_kind(full) != "video":
@@ -538,8 +548,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def api_get_file(self, q):
         full = self.app.resolve(q.get("path"))
-        if media_kind(full) not in ("image", "subtitle"):
-            raise PermissionError("only images and subtitles are served")
+        if media_kind(full) not in ("image", "subtitle", "font"):
+            raise PermissionError("only images, subtitles and fonts are served")
         with open(full, "rb") as f:
             self._send(HTTPStatus.OK, f.read(),
                        mimetypes.guess_type(full)[0] or "application/octet-stream")

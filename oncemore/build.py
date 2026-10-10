@@ -6,7 +6,8 @@ import shutil
 
 from . import author, encode, iso, lpcmfix, subtitles, tools
 from .errors import OncemoreError, ProjectError
-from .menu import MenuBuilder, display_width, find_font, link_font, menu_seconds, menu_text
+from .menu import (MenuBuilder, check_element_fonts, display_width, find_font, link_font,
+                   menu_seconds, menu_text)
 
 
 def inspect(project, reporter=None):
@@ -82,6 +83,7 @@ def inspect(project, reporter=None):
                                         for cs in cues.values())
     if project.menus or cues:
         font = find_font(project.disc.font, text)
+    check_element_fonts(project)
     plan = encode.plan_bitrate([(infos[t.id]["duration"], t.audio_bps) for t in project.titles],
                                project.disc.capacity, menu_total, project.disc.video_bitrate)
     plan["font"] = font

@@ -102,7 +102,10 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   it (a small preview copy is made the first time). Tick *Generate a
   chapter menu* for a thumbnail menu. Set what happens when it ends, audio
   tracks and subtitles (`.srt`) in the right-hand panel.
-* **Menus**: *+ Add*, then drag buttons and text where you want them. Choose
+* **Menus**: *+ Add* starts blank or from a template (classic, banner, minimal,
+  setup), then drag buttons, text and rectangles where you want them —
+  Shift-click selects several, with align / distribute buttons, snapping guides,
+  arrow-key nudging and ⌘D to duplicate. Choose
   each button's target (a menu, a title, a chapter, an audio or subtitle
   stream). A button can be a picture instead of text (*Image*, highlighted by a
   frame or by its shape). Use an image or a video as the background. **Exact preview**
@@ -239,8 +242,10 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 `_2`, `_3`…), `title` (heading), `back` (action of the BACK button, default:
 the first-play menu), `label_format` (default `"Chapter {n}"`), `back_label`,
 `prev_label`, `next_label`, `background`, `background_color`, `text_color`,
-`highlight_color`, `select_color`, `audio`, `duration`. Six chapters per page,
-with PREV/NEXT buttons when there are more.
+`highlight_color`, `select_color`, `audio`, `duration`, `background_video` (a
+motion chapter menu) and `animated_thumbnails` (with a motion background, the
+thumbnails play their chapter). Six chapters per page, with PREV/NEXT buttons
+when there are more.
 
 **menus[]** (≤ 99)
 
@@ -259,7 +264,13 @@ with PREV/NEXT buttons when there are more.
 | `remember_button` | coming back highlights the button used last (menus 1–7) | `true` |
 | `font_size`, `text_color` | defaults for texts/buttons | `32`, `#FFFFFF` |
 | `highlight_color`, `select_color` | button colours | `#FFD400`, `#FF5A00` |
-| `texts[]` | `{text, x, y, size?, color?}` decorative text | `[]` |
+| `texts[]` | `{text, x, y, size?, color?}` decorative text, plus the text style keys below | `[]` |
+| `shapes[]` | `{x, y, w, h, color}` filled rectangles (bars, panels; `#RRGGBBAA` for translucent) drawn under texts and buttons | `[]` |
+
+Text style (texts and text buttons): `font` (a font file for this element; it
+must contain all its characters), `outline` + `outline_width`, `shadow` +
+`shadow_offset`. A button's `highlight_image` is a picture whose opaque pixels
+light up when it is selected, instead of the automatic highlight.
 | `buttons[]` | 1–36 buttons | required |
 
 **buttons[]**: `id`, `label`, `x`, `y` (top-left of the label), `action`,

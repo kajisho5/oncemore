@@ -132,6 +132,23 @@ def find_font(explicit=None, text=""):
              "supported by drawtext.")
 
 
+def check_element_fonts(project):
+    """Texts and buttons with their own font: that font must exist and cover
+    their characters (drawtext has no fallback)."""
+    for m in project.menus:
+        for el in list(m.texts) + [b for b in m.buttons if not b.image]:
+            if not el.font:
+                continue
+            text = el.text if hasattr(el, "text") else el.label
+            if not os.path.isfile(el.font):
+                raise OncemoreError(f"menu {m.id!r}: font not found: {el.font}")
+            lack = _missing(el.font, text)
+            if lack:
+                raise OncemoreError(f"menu {m.id!r}: font {os.path.basename(el.font)} has no "
+                                    f"glyphs for: {_quote_chars(lack)}",
+                                    hint="Pick a font that covers these characters.")
+
+
 def drawtext_probe():
     """Render one frame with drawtext for real. Some builds list the filter
     in `-filters` but cannot draw (no font backend, or a crash)."""
@@ -196,7 +213,8 @@ def menu_text(project):
     """All text drawn on the project's menus."""
     parts = []
     for m in project.menus:
-        parts += [t.text for t in m.texts] + [b.label for b in m.buttons if not b.image]
+        parts += [t.text for t in m.texts if not t.font] + \
+            [b.label for b in m.buttons if not b.image and not b.font]
     return "".join(parts)
 
 
@@ -246,6 +264,7 @@ class MenuBuilder:
         self.dw = display_width(self.disc)
         self.sx = self.dw / self.disc.width  # storage -> display x factor
         self._font_link = None
+        self._font_links = {}      # own fonts of elements: path -> linked name
         self._probe_cache = {}
 
     # -- font ------------------------------------------------------------------
@@ -272,10 +291,33 @@ class MenuBuilder:
             f.write(text)
         return name
 
-    def _drawtext(self, textfile, x, y, size, color):
+    def font_for(self, el=None):
+        """Linked font name for a text/button (its own font, or the disc's)."""
+        path = getattr(el, "font", None)
+        if not path:
+            return self.font()
+        if path not in self._font_links:
+            ext = os.path.splitext(path)[1].lower() or ".ttf"
+            link = os.path.join(self.work, f"font{len(self._font_links) + 1}{ext}")
+            if os.path.lexists(link):
+                os.remove(link)
+            try:
+                os.symlink(path, link)
+            except OSError:
+                shutil.copyfile(path, link)
+            self._font_links[path] = os.path.basename(link)
+        return self._font_links[path]
+
+    def _drawtext(self, textfile, x, y, size, color, el=None, style=True):
         # x/y are storage pixels; the canvas is display pixels
-        return (f"drawtext=fontfile={self.font()}:textfile={textfile}:expansion=none:"
-                f"fontsize={size}:fontcolor={_hex(color)}:x={round(x * self.sx)}:y={y}")
+        f = (f"drawtext=fontfile={self.font_for(el)}:textfile={textfile}:expansion=none:"
+             f"fontsize={size}:fontcolor={_hex(color)}:x={round(x * self.sx)}:y={y}")
+        if style and getattr(el, "outline", None):
+            f += f":borderw={el.outline_width}:bordercolor={_hex(el.outline)}"
+        if style and getattr(el, "shadow", None):
+            f += (f":shadowx={el.shadow_offset}:shadowy={el.shadow_offset}"
+                  f":shadowcolor={_hex(el.shadow)}")
+        return f
 
     def _squeeze(self):
         return f"scale={self.disc.width}:{self.disc.height}:flags=lanczos,setsar=1"
@@ -285,12 +327,12 @@ class MenuBuilder:
         """Render one label alone; return its glyph Mask (storage pixels)."""
         tf = self._textfile(f"{menu_id}.{button.id}.label.txt", button.label)
         W, H = self.disc.width, self.disc.height
-        vf = (self._drawtext(tf, button.x, button.y, button.size, "#FFFFFF") + ","
-              + self._squeeze() + ",format=gray")
+        vf = (self._drawtext(tf, button.x, button.y, button.size, "#FFFFFF", button,
+                             style=False) + "," + self._squeeze() + ",format=gray")
         cmd = [self.ffmpeg, "-hide_banner", "-nostdin", "-v", "error", "-f", "lavfi", "-i",
                f"color=c=black:s={self.dw}x{H}:r=1:d=1", "-vf", vf, "-frames:v", "1",
                "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1"]
-        p = subprocess.run(cmd, cwd=self.work, capture_output=True)
+        p = subprocess.run(cmd, cwd=self.work, capture_output=True, timeout=300)
         if p.returncode != 0 or len(p.stdout) < W * H:
             raise ToolFailedError("ffmpeg could not render menu text",
                                   details={"output": tools.tail(p.stderr.decode("utf-8", "replace"))})
@@ -300,13 +342,15 @@ class MenuBuilder:
                                "or entirely off-screen")
         return mask
 
-    def image_box(self, menu_id, button):
-        """(display width, height, storage width) of an image button."""
-        info = self._probe(button.image)
+    def image_box(self, menu_id, button, path=None):
+        """(display width, height, storage width) of an image button's picture
+        (or of `path`, e.g. its highlight picture, placed the same way)."""
+        path = path or button.image
+        info = self._probe(path)
         nw, nh = info.get("width"), info.get("height")
         if not (nw and nh):
             raise ProjectError(f"menu {menu_id!r}: button {button.id!r}: cannot read "
-                               f"{os.path.basename(button.image)} as a picture")
+                               f"{os.path.basename(path)} as a picture")
         sw = button.width or max(8, round(nw / self.sx))
         dwid = max(2, round(sw * self.sx))
         h = max(2, round(dwid * nh / nw))
@@ -317,18 +361,20 @@ class MenuBuilder:
                                "or move it")
         return dwid, h, sw
 
-    def image_mask(self, menu_id, button):
-        """Opaque pixels of an image button, in storage pixels."""
-        dwid, h, _ = self.image_box(menu_id, button)
+    def image_mask(self, menu_id, button, path=None):
+        """Opaque pixels of an image button (or of `path` placed like it), in
+        storage pixels."""
+        path = path or button.image
+        dwid, h, _ = self.image_box(menu_id, button, path)
         W, H = self.disc.width, self.disc.height
         graph = (f"[1:v]scale={dwid}:{h},format=rgba,alphaextract[a];"
                  f"[0:v][a]overlay={round(button.x * self.sx)}:{button.y},"
                  + self._squeeze() + ",format=gray")
         cmd = [self.ffmpeg, "-hide_banner", "-nostdin", "-v", "error", "-f", "lavfi", "-i",
-               f"color=c=black:s={self.dw}x{H}:r=1:d=1", "-i", button.image,
+               f"color=c=black:s={self.dw}x{H}:r=1:d=1", "-i", path,
                "-filter_complex", graph, "-frames:v", "1",
                "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1"]
-        p = subprocess.run(cmd, cwd=self.work, capture_output=True)
+        p = subprocess.run(cmd, cwd=self.work, capture_output=True, timeout=300)
         if p.returncode != 0 or len(p.stdout) < W * H:
             raise ToolFailedError("ffmpeg could not read a button image",
                                   details={"output": tools.tail(p.stderr.decode("utf-8", "replace"))})
@@ -343,6 +389,21 @@ class MenuBuilder:
         W, H = self.disc.width, self.disc.height
         geoms = []
         for b in menu.buttons:
+            if b.highlight_image:
+                hl = self.image_mask(menu.id, b, b.highlight_image)
+                if b.image:
+                    _, h, sw = self.image_box(menu.id, b)
+                    body = (b.x, b.y, b.x + sw - 1, b.y + h - 1)
+                else:
+                    body = self.measure(menu.id, b).bbox()
+                hb = hl.bbox()
+                x0, y0 = max(0, min(body[0], hb[0]) - 2), max(0, min(body[1], hb[1]) - 2)
+                x1, y1 = min(W - 1, max(body[2], hb[2]) + 2), min(H - 2, max(body[3], hb[3]) + 2)
+                y0 -= y0 % 2
+                y1 += y1 % 2
+                geoms.append(ButtonGeom(b.id, (x0, y0, x1, y1), [hl], b.action,
+                                        auto=b.auto_activate))
+                continue
             if b.image:
                 _, h, sw = self.image_box(menu.id, b)
                 if b.highlight == "shape":
@@ -422,6 +483,21 @@ class MenuBuilder:
             title = self.project.title(t.title_id)
             info = self._probe(title.source)
             size = (int(round(t.w * self.sx / 2)) * 2, t.h)
+            if t.animated and menu.background_video:
+                # a moving thumbnail: the chapter itself, fitted like the title
+                w, h = size
+                start = max(0.0, min(t.time, (info.get("duration") or t.time + 1) - 1.0))
+                num, den = self.disc.fps
+                dur = self.menu_duration(menu)
+                # every input finite: the clip is read for the menu's length only
+                # and held on its last frame if the chapter is shorter
+                vf = (encode.fit_filter(info, self.project.disc_for(title), fps=False)
+                      + f",scale=iw*sar:ih,setsar=1,scale={w}:{h}:force_original_aspect_ratio="
+                        f"decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={num}/{den},"
+                        f"tpad=stop_mode=clone:stop_duration={dur:.3f}")
+                out.append((title.source, round(t.x * self.sx), t.y, vf,
+                            ["-ss", f"{start:.3f}", "-t", f"{dur:.3f}"]))
+                continue
             path = os.path.join(self.work, f"{menu.id}.{b.id}.thumb.png")
             encode.extract_thumbnail(title.source, info, self.project.disc_for(title), t.time,
                                      size, path,
@@ -443,7 +519,8 @@ class MenuBuilder:
             num, den = self.disc.fps
             inputs += ["-i", menu.background_video]
             # tpad: hold the last frame if `duration` is longer than the video
-            bg = (f"[0:v]fps={num}/{den},tpad=stop=-1:stop_mode=clone,"
+            bg = (f"[0:v]fps={num}/{den},"
+                  f"tpad=stop_mode=clone:stop_duration={self.menu_duration(menu):.3f},"
                   f"scale={self.dw}:{H}:force_original_aspect_ratio=decrease,"
                   f"pad={self.dw}:{H}:(ow-iw)/2:(oh-ih)/2:color={_hex(menu.background_color)},"
                   f"setsar=1,format=rgb24")
@@ -457,28 +534,36 @@ class MenuBuilder:
             bg = "[0:v]format=rgb24"
         chains = [bg + "[bg0]"]
         cur = "bg0"
+        if menu.shapes:
+            boxes = ",".join(
+                f"drawbox=x={round(s.x * self.sx)}:y={s.y}:w={max(1, round(s.w * self.sx))}:"
+                f"h={s.h}:color={_hex(s.color)}:t=fill" for s in menu.shapes)
+            chains.append(f"[{cur}]{boxes}[shp]")
+            cur = "shp"
         overlays = list(self.thumbnails(menu))
         for b in menu.buttons:
             if b.image:
                 dwid, h, _ = self.image_box(menu.id, b)
                 overlays.append((b.image, round(b.x * self.sx), b.y, f"scale={dwid}:{h},format=rgba"))
-        for i, (path, x, y, *pre) in enumerate(overlays, 1):
-            inputs += ["-i", path]
+        for i, (path, x, y, *rest) in enumerate(overlays, 1):
+            pre = rest[0] if rest else None
+            opts = rest[1] if len(rest) > 1 else []
+            inputs += list(opts) + ["-i", path]
             src = f"[{i}:v]"
             if pre:
-                chains.append(f"{src}{pre[0]}[im{i}]")
+                chains.append(f"{src}{pre}[im{i}]")
                 src = f"[im{i}]"
             chains.append(f"[{cur}]{src}overlay={x}:{y}[bg{i}]")
             cur = f"bg{i}"
         draws = []
         for i, t in enumerate(menu.texts):
             tf = self._textfile(f"{menu.id}.text{i}.txt", t.text)
-            draws.append(self._drawtext(tf, t.x, t.y, t.size, t.color))
+            draws.append(self._drawtext(tf, t.x, t.y, t.size, t.color, t))
         for b in menu.buttons:
             if b.image:
                 continue
             tf = self._textfile(f"{menu.id}.{b.id}.label.txt", b.label)
-            draws.append(self._drawtext(tf, b.x, b.y, b.size, b.color))
+            draws.append(self._drawtext(tf, b.x, b.y, b.size, b.color, b))
         chains.append(f"[{cur}]" + ",".join(draws + [self._squeeze()]) + "[out]")
         return inputs, ";".join(chains)
 
@@ -490,7 +575,7 @@ class MenuBuilder:
                   ["-filter_complex", graph, "-map", "[out]", "-frames:v", "1",
                    "-update", "1", out],
                   cwd=self.work, log=os.path.join(self.logs, f"menu-{menu.id}-base.log"),
-                  what=f"ffmpeg (menu {menu.id} background)")
+                  what=f"ffmpeg (menu {menu.id} background)", timeout=600)
         return out
 
     def prepare(self, menu):

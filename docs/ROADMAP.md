@@ -25,13 +25,13 @@ browser) and lands only with green CI.
   action, reachable from buttons (`playlist:<id>`)
 - [x] Chapter names and poster frames, used by chapter menus
 
-**P3 — Menu design**
-- [ ] Text styles: font per element, outline / shadow; decorative rectangles
-- [ ] Editor: multi-select, align / distribute, snapping guides, arrow-key
+**P3 — Menu design** (done)
+- [x] Text styles: font per element, outline / shadow; decorative rectangles
+- [x] Editor: multi-select, align / distribute, snapping guides, arrow-key
   nudge, duplicate / copy-paste
-- [ ] Custom highlight layers (a picture whose pixels are the highlight)
-- [ ] Menu templates (main, scene selection, setup) to start from
-- [ ] Animated (video) thumbnail buttons in motion menus
+- [x] Custom highlight layers (a picture whose pixels are the highlight)
+- [x] Menu templates (main, scene selection, setup) to start from
+- [x] Animated (video) thumbnail buttons in motion menus
 
 **P4 — Content and encoding**
 - [ ] Slideshows: pictures with durations, cross-fades, pan & zoom, music
