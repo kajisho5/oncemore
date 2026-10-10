@@ -22,11 +22,12 @@ Done (as a local web app, `oncemore gui`):
   colours, remote navigation; exact server-side preview with hit areas
 * Check (size estimate, issues) and Build (ISO / folder) with live progress
 * Autosave, undo/redo, English/Japanese UI
+* Oncemore.app: a native macOS window around the same UI with bundled Python,
+  built for Apple silicon and Intel by the release workflow (notarised once a
+  Developer ID is configured)
 
 Next:
 
-* A native macOS wrapper (.app with a WKWebView around the same UI, signed and
-  notarised) so it starts like any Mac app, without a terminal
 * Playback preview of titles (proxy encode) and of menu navigation
 * Multi-select, alignment guides and snapping in the menu editor
 * Drag-reordering titles and menus; button graphics (images instead of text)
