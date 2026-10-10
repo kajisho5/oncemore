@@ -186,6 +186,7 @@ class Disc:
     video_bitrate: int = None  # None = auto
     subtitle_style: dict = None
     title_key: str = None      # target of the remote's Title key (None = first menu)
+    rom_files: list = field(default_factory=list)   # DVD-ROM content next to VIDEO_TS
 
     @property
     def width(self):
@@ -221,6 +222,8 @@ class SubtitleTrack:
     file: str
     lang: str = None
     default: bool = False
+    position: str = "bottom"
+    color: str = None
 
 
 @dataclass
@@ -240,6 +243,8 @@ class Title:
     titleset: int = 1        # DVD titleset (VTS) holding this title
     global_number: int = 0   # title number as players show it (VMGM order)
     remote_menu: str = None  # menu id the Menu key opens during this title
+    video_bitrate: int = None   # this title's own video bitrate (None = shared)
+    audio_passthrough: bool = False   # copy AC-3 from the sources
     chapter_names: list = field(default_factory=list)    # per chapter, or None
     chapter_posters: list = field(default_factory=list)  # thumbnail time per chapter, or None
 
@@ -479,11 +484,12 @@ class _Builder:
     def err(self, where, msg):
         self.issues.append({"path": where, "message": msg})
 
-    def file(self, where, rel):
+    def file(self, where, rel, kind="file"):
         if rel is None:
             return None
         p = os.path.normpath(os.path.join(self.base, os.path.expanduser(rel)))
-        if self.check_files and not os.path.isfile(p):
+        exists = os.path.exists(p) if kind == "any" else os.path.isfile(p)
+        if self.check_files and not exists:
             self.err(where, f"file not found: {rel}")
         return p
 
@@ -501,9 +507,14 @@ class _Builder:
             target=dd.get("target", "DVD5"),
             first_play=dd.get("first_play"),
             title_key=dd.get("title_key"),
+            rom_files=[self.file(f"disc.rom_files[{j}]", r, kind="any")
+                       for j, r in enumerate(dd.get("rom_files", []))],
             font=self.file("disc.font", dd["font"]) if dd.get("font") else None,
             video_bitrate=None if vb == "auto" else parse_bitrate(vb),
         )
+        for j, r in enumerate(disc.rom_files):
+            if os.path.basename(r.rstrip(os.sep)).upper() in ("VIDEO_TS", "AUDIO_TS"):
+                self.err(f"disc.rom_files[{j}]", "VIDEO_TS / AUDIO_TS are made by oncemore")
         k = STANDARDS[disc.standard][1] / 480
         style = {"size": round(30 * k), "color": "#FFFFFF", "outline": "#000000",
                  "outline_width": 3, "margin": round(36 * k)}
@@ -625,7 +636,8 @@ class _Builder:
         else:
             tracks = [AudioTrack(source=source, stream=0, lang=audio.get("lang"))]
         subs = [SubtitleTrack(file=self.file(f"{where}.subtitles[{j}].file", sub["file"]),
-                              lang=sub.get("lang"), default=bool(sub.get("default")))
+                              lang=sub.get("lang"), default=bool(sub.get("default")),
+                              position=sub.get("position", "bottom"), color=sub.get("color"))
                 for j, sub in enumerate(t.get("subtitles", []))]
         if sum(1 for sub in subs if sub.default) > 1:
             self.err(f"{where}.subtitles", "only one subtitle track can be the default")
@@ -634,8 +646,14 @@ class _Builder:
             chapters=chapters, audio_codec=codec, audio_bitrate=bitrate, audio_channels=channels,
             end_action=t.get("end_action", "stop"), audio_tracks=tracks, subtitles=subs,
             remote_menu=t.get("remote_menu"), chapter_names=names, chapter_posters=posters,
+            video_bitrate=parse_bitrate(t["video_bitrate"]) if "video_bitrate" in t else None,
+            audio_passthrough=bool(audio.get("passthrough")),
             aspect=t.get("aspect"),
         )
+        if title.video_bitrate is not None and not 1_000_000 <= title.video_bitrate <= 8_000_000:
+            self.err(f"{where}.video_bitrate", "must be between 1M and 8M")
+        if title.audio_passthrough and codec != "ac3":
+            self.err(f"{where}.audio.passthrough", "only AC-3 audio can be copied unchanged")
         if title.audio_bps > 8_800_000:
             self.err(f"{where}.audio_tracks",
                      f"{len(tracks)} {codec} tracks need {title.audio_bps / 1e6:.2f} Mbit/s; "

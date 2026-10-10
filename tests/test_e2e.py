@@ -853,5 +853,164 @@ class TestTemplates(unittest.TestCase):
                     self.assertGreaterEqual(len(geoms), 2, (standard, tpl))
 
 
+@unittest.skipUnless(TOOLS_OK, SKIP_REASON)
+class TestCacheRomPassthrough(unittest.TestCase):
+    """A title with its own bitrate, AC-3 copied unchanged, DVD-ROM files on
+    the disc, and a rebuild that reuses everything that did not change."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-e2e-cache-")
+        rc, _, err = run_cli("init", "c", cwd=cls.tmp)
+        assert rc == 0, err
+        proj = cls.proj = os.path.join(cls.tmp, "c")
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi",
+                        "-i", "testsrc2=s=640x360:r=30000/1001:d=6", "-f", "lavfi",
+                        "-i", "sine=f=500:d=6", "-c:v", "mpeg4", "-c:a", "ac3", "-b:a", "320k",
+                        "-ar", "48000", "-ac", "2", "-shortest",
+                        os.path.join(proj, "media", "ac3.mkv")], check=True)
+        os.makedirs(os.path.join(proj, "extras"))
+        with open(os.path.join(proj, "extras", "README.txt"), "w") as f:
+            f.write("Bonus material for computers.\n")
+        cls.path = os.path.join(proj, "project.oncemore.json")
+        with open(cls.path) as f:
+            data = json.load(f)
+        data["disc"]["rom_files"] = ["extras"]
+        data["titles"][1]["video_bitrate"] = "3M"
+        data["titles"].append({"id": "t3", "name": "AC-3 source", "source": "media/ac3.mkv",
+                               "audio": {"codec": "ac3", "passthrough": True},
+                               "end_action": "menu:main"})
+        with open(cls.path, "w") as f:
+            json.dump(data, f)
+        cls.data = data
+        cls.iso = os.path.join(cls.tmp, "c.iso")
+        rc, out, err = run_cli("--json", "iso", cls.path, "-o", cls.iso, "--fast", "--keep-work",
+                               cwd=cls.tmp)
+        assert rc == 0, err + out
+        cls.first = json_lines(out)
+        cls.build_dir = cls.first[-1]["build_dir"]
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def test_title_bitrate_and_rom_files(self):
+        res = self.first[-1]
+        rates = {t["id"]: t["video_bps"] for t in res["titles"]}
+        self.assertEqual(rates["t2"], 3_000_000)
+        self.assertGreater(rates["t1"], 3_000_000)
+        self.assertIn("/extras/readme.txt", [f.lower() for f in iso_list(self.iso)])
+
+    def test_ac3_copied(self):
+        t3 = os.path.join(self.build_dir, ".work", "titles", "t3.mpg")
+        a = [s for s in ffprobe_streams(t3) if s["codec_type"] == "audio"]
+        # the source's 320k AC-3, not a re-encode at the default 192k
+        self.assertEqual([(s["codec_name"], int(s["bit_rate"])) for s in a], [("ac3", 320_000)])
+
+    def test_rebuild_uses_the_cache(self):
+        again = os.path.join(self.tmp, "again.iso")
+        rc, out, err = run_cli("--json", "iso", self.path, "-o", again, "--fast", cwd=self.tmp)
+        self.assertEqual(rc, 0, err + out)
+        steps = [e["message"] for e in json_lines(out) if e["event"] == "step"]
+        self.assertEqual(sum("(cached)" in m for m in steps), 3 + 2, steps)   # 3 titles, 2 menus
+        self.assertEqual(os.path.getsize(again), os.path.getsize(self.iso))
+        # change one label: only that menu is rendered again
+        data = json.loads(json.dumps(self.data))
+        data["menus"][0]["buttons"][1]["label"] = "SCENES"
+        path = os.path.join(self.proj, "changed.oncemore.json")
+        with open(path, "w") as f:
+            json.dump(data, f)
+        rc, out, err = run_cli("--json", "iso", path, "-o", again, "--fast", cwd=self.tmp)
+        self.assertEqual(rc, 0, err + out)
+        steps = [e["message"] for e in json_lines(out) if e["event"] == "step"]
+        self.assertTrue(any(m == "Rendering menu 'main'" for m in steps), steps)
+        self.assertEqual(sum("(cached)" in m for m in steps), 3 + 1, steps)
+
+    def test_passthrough_needs_matching_ac3(self):
+        data = json.loads(json.dumps(self.data))
+        data["titles"][0]["audio"] = {"codec": "ac3", "passthrough": True}   # an AAC source
+        path = os.path.join(self.proj, "bad.oncemore.json")
+        with open(path, "w") as f:
+            json.dump(data, f)
+        rc, out, err = run_cli("--json", "validate", path, cwd=self.tmp)
+        self.assertNotEqual(rc, 0)
+        self.assertIn("only 48 kHz AC-3 can be copied", out)
+
+
+@unittest.skipUnless(TOOLS_OK, SKIP_REASON)
+class TestSubtitleFormats(unittest.TestCase):
+    """A WebVTT track whose first cue is placed at the top, and an ASS track
+    with a red sign, rendered onto a disc."""
+
+    VTT = ("WEBVTT\n\n00:01.000 --> 00:03.000 line:0\nAt the top\n\n"
+           "00:04.000 --> 00:06.000\nAt the bottom\n")
+    ASS = ("[Script Info]\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, Alignment\n"
+           "Style: Default,Arial,20,&H00FFFFFF,2\n\n[Events]\n"
+           "Format: Layer, Start, End, Style, Text\n"
+           "Dialogue: 0,0:00:01.00,0:00:03.00,Default,{\\c&H0000FF&}A red sign\n"
+           "Dialogue: 0,0:00:04.00,0:00:06.00,Default,White again\n")
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-e2e-subfmt-")
+        rc, _, err = run_cli("init", "s", cwd=cls.tmp)
+        assert rc == 0, err
+        proj = os.path.join(cls.tmp, "s")
+        for name, text in (("en.vtt", cls.VTT), ("signs.ass", cls.ASS)):
+            with open(os.path.join(proj, "media", name), "w", encoding="utf-8") as f:
+                f.write(text)
+        path = os.path.join(proj, "project.oncemore.json")
+        with open(path) as f:
+            data = json.load(f)
+        data["titles"][1]["subtitles"] = [{"file": "media/en.vtt", "lang": "en"},
+                                          {"file": "media/signs.ass", "lang": "ja",
+                                           "position": "top", "color": "#FFFF00"}]
+        with open(path, "w") as f:
+            json.dump(data, f)
+        cls.iso = os.path.join(cls.tmp, "s.iso")
+        rc, out, err = run_cli("--json", "iso", path, "-o", cls.iso, "--fast", "--keep-work",
+                               cwd=cls.tmp)
+        assert rc == 0, err + out
+        cls.subs = os.path.join(json_lines(out)[-1]["build_dir"], ".work", "subs", "t2")
+        cls.H = 480
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def spus(self, stream):
+        import re as _re
+        xml = [f for f in os.listdir(self.subs) if f.startswith(f"sub{stream}_")
+               and f.endswith(".spumux.xml")][0]
+        with open(os.path.join(self.subs, xml)) as f:
+            return [(m[0], int(m[1])) for m in
+                    _re.findall(r'image="([^"]+)" xoffset="\d+" yoffset="(\d+)"', f.read())]
+
+    def test_positions(self):
+        (top, y0), (bottom, y1) = self.spus(0)
+        self.assertLess(y0, self.H / 3)          # line:0 -> top
+        self.assertGreater(y1, self.H / 2)
+        (_, a), (_, b) = self.spus(1)            # the whole ASS track is placed at the top
+        self.assertLess(max(a, b), self.H / 3)
+
+    def test_colours(self):
+        from oncemore import png4
+        (red, _), (white, _) = self.spus(1)
+        def palette(name):
+            with open(os.path.join(self.subs, name), "rb") as f:
+                return png4.read_indexed_png(f.read())[1]
+        pal_red, pal_track = palette(red), palette(white)
+        self.assertEqual(tuple(pal_red[1][:3]), (255, 0, 0))      # the cue's own colour
+        self.assertEqual(tuple(pal_track[1][:3]), (255, 255, 0))  # the track colour
+
+    @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
+    def test_streams_on_disc(self):
+        with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
+            d.wait_menu()
+            d.activate(3)
+            self.assertEqual(d.wait_title(), (2, 1))
+            self.assertEqual([d.subtitle_lang(0), d.subtitle_lang(1)], ["en", "ja"])
+
+
 if __name__ == "__main__":
     unittest.main()

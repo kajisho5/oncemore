@@ -26,24 +26,39 @@ XORRISO_WARNING = (
 DISC_ENTRIES = ("VIDEO_TS", "AUDIO_TS")
 
 
+def _disc_entries(dvd_dir):
+    """What goes on the disc: VIDEO_TS, AUDIO_TS and DVD-ROM content, not
+    hidden work folders."""
+    return sorted(set(DISC_ENTRIES) | {n for n in os.listdir(dvd_dir) if not n.startswith(".")})
+
+
+def _link_tree(src, dst):
+    if os.path.isdir(src):
+        os.makedirs(dst, exist_ok=True)
+        for name in sorted(os.listdir(src)):
+            _link_tree(os.path.join(src, name), os.path.join(dst, name))
+        return
+    try:
+        os.link(src, dst)
+    except OSError:
+        shutil.copy2(src, dst)
+
+
 def _staging(dvd_dir):
-    """Return a directory that contains only VIDEO_TS/AUDIO_TS (hard links)."""
-    extra = [n for n in os.listdir(dvd_dir) if n not in DISC_ENTRIES]
+    """Return a directory that contains only the disc entries (hard links)."""
+    entries = _disc_entries(dvd_dir)
+    extra = [n for n in os.listdir(dvd_dir) if n not in entries]
     if not extra:
         return dvd_dir, None
     stage = dvd_dir.rstrip(os.sep) + ".iso-staging"
     shutil.rmtree(stage, ignore_errors=True)
-    for sub in DISC_ENTRIES:
+    os.makedirs(stage)
+    for sub in entries:
         src = os.path.join(dvd_dir, sub)
-        dst = os.path.join(stage, sub)
-        os.makedirs(dst)
-        if not os.path.isdir(src):
-            continue
-        for name in sorted(os.listdir(src)):
-            try:
-                os.link(os.path.join(src, name), os.path.join(dst, name))
-            except OSError:
-                shutil.copy2(os.path.join(src, name), os.path.join(dst, name))
+        if os.path.exists(src):
+            _link_tree(src, os.path.join(stage, sub))
+        elif sub in DISC_ENTRIES:
+            os.makedirs(os.path.join(stage, sub))
     return stage, stage
 
 

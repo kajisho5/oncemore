@@ -310,6 +310,19 @@ class TestAuthorXml(unittest.TestCase):
         import xml.dom.minidom
         xml.dom.minidom.parseString(x)
 
+    def test_plan_with_title_bitrates(self):
+        cap = CAPACITY["DVD5"]
+        auto = encode.plan_bitrate([(3600, 192_000), (3600, 192_000)], cap)
+        mixed = encode.plan_bitrate([(3600, 192_000, 3_000_000), (3600, 192_000)], cap)
+        self.assertEqual(mixed["per_title"][0], 3_000_000)
+        # the other title gets what the fixed one leaves: more than an even split
+        self.assertGreater(mixed["per_title"][1], auto["video_bps"])
+        self.assertLess(mixed["estimated_bytes"], cap)
+        both = encode.plan_bitrate([(60, 192_000, 4_000_000), (60, 192_000, 6_000_000)], cap)
+        self.assertEqual(both["per_title"], [4_000_000, 6_000_000])
+        with self.assertRaises(ProjectError):            # fixed rates that cannot fit
+            encode.plan_bitrate([(4 * 3600, 192_000, 8_000_000)], cap)
+
     def test_audio_graph(self):
         d = sample_project()
         d["titles"][0]["audio_tracks"] = [{}, {"source": "c.wav", "stream": 1}, {"stream": 3}]

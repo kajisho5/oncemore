@@ -272,6 +272,23 @@ class TestGuiBrowser(unittest.TestCase):
             page.select_option("#inspector select[data-k=remote_menu]", "chapters")
             self.wait_saved(page)
             self.assertEqual(self.project()["titles"][0]["remote_menu"], "chapters")
+            # its own video bitrate, and AC-3 copied unchanged
+            page.select_option("#inspector select[data-k=video_bitrate]", "4M")
+            page.check("#inspector [data-k='audio.passthrough']")
+            self.wait_saved(page)
+            t = self.project()["titles"][0]
+            self.assertEqual((t["video_bitrate"], t["audio"]["passthrough"]), ("4M", True))
+            # DVD-ROM content on the disc page
+            page.click(".nav-item[data-view=disc]")
+            page.fill("#rom-files", "extras/\nREADME.txt")
+            page.locator("#rom-files").dispatch_event("change")
+            self.wait_saved(page)
+            self.assertEqual(self.project()["disc"]["rom_files"], ["extras/", "README.txt"])
+            page.fill("#rom-files", "")                          # (they do not exist)
+            page.locator("#rom-files").dispatch_event("change")
+            self.wait_saved(page)
+            self.assertNotIn("rom_files", self.project()["disc"])
+            page.click(".nav-item[data-view=title][data-id=t1]")
             # one user menu: nothing to move
             page.click(".nav-item[data-view=menu][data-id=main]")
             page.locator("#inspector [data-move]").first.wait_for()

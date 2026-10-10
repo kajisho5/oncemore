@@ -35,12 +35,13 @@ browser) and lands only with green CI.
 
 **P4 — Content and encoding**
 - [ ] Slideshows: pictures with durations, cross-fades, pan & zoom, music
-- [ ] Subtitle editing in the app; WebVTT / ASS input; per-cue position and colour
-- [ ] Encode cache (unchanged titles and menus are not re-encoded) and
+- [x] WebVTT / ASS input; top / bottom placement and colour per track and per cue
+- [ ] Subtitle editing in the app
+- [x] Encode cache (unchanged titles and menus are not re-encoded) and
   per-title quality (bitrate) settings
 - [ ] Interlaced output for interlaced sources; soft 3:2 pulldown for 23.976p film
-- [ ] AC-3 pass-through
-- [ ] DVD-ROM content (extra files next to VIDEO_TS on the disc)
+- [x] AC-3 pass-through
+- [x] DVD-ROM content (extra files next to VIDEO_TS on the disc)
 
 **P5 — Seeing and checking the whole disc**
 - [ ] Flowchart of the navigation (menus, titles, playlists and their links)
@@ -100,7 +101,6 @@ Done:
 
 Still to do:
 
-* AC-3 pass-through without re-encoding
 * Menu transitions, animated buttons
 * Resume-aware returns (back to the chapter you left)
 * Per-cue subtitle position/colour, ASS input

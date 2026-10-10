@@ -51,7 +51,7 @@ MEDIA_EXT = {
               ".ts", ".webm", ".wmv", ".dv", ".vob", ".mxf"},
     "audio": {".wav", ".aif", ".aiff", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".ac3", ".opus"},
     "image": {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp"},
-    "subtitle": {".srt"},
+    "subtitle": {".srt", ".vtt", ".ass", ".ssa"},
     "font": {".ttf", ".otf", ".ttc"},
 }
 SKIP_DIRS = {"output", ".work", "__pycache__", "node_modules"}
@@ -260,7 +260,7 @@ class App:
             st.update(state="error", error=f"internal error: {e}")
 
     # -- jobs --------------------------------------------------------------------
-    def start_build(self, kind, fast):
+    def start_build(self, kind, fast, cache=True):
         with self.jobs_lock:
             if any(not j.done for j in self.jobs.values()):
                 raise OncemoreError("a build is already running")
@@ -274,10 +274,10 @@ class App:
                 outdir = os.path.join(self.dir, "output")
                 if kind == "iso":
                     res = build.build_iso(project, os.path.join(outdir, f"{project.disc.label}.iso"),
-                                          rep, fast=fast)
+                                          rep, fast=fast, cache=cache)
                 else:
                     res = build.build(project, os.path.join(outdir, project.disc.label), rep,
-                                      fast=fast)
+                                      fast=fast, cache=cache)
                 rep.result(res)
                 job.ok = True
             except ProjectError as e:
@@ -581,7 +581,7 @@ class Handler(BaseHTTPRequestHandler):
         kind = body.get("kind", "iso")
         if kind not in ("iso", "folder"):
             raise ValueError("kind must be iso or folder")
-        job = self.app.start_build(kind, bool(body.get("fast")))
+        job = self.app.start_build(kind, bool(body.get("fast")), cache=not body.get("no_cache"))
         self.json({"job": job.id})
 
     def api_job(self, job_id, q):
