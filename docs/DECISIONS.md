@@ -869,3 +869,29 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   at time 0 because ffmpeg starts every input at 0.
 * The default track is switched on by a Set Stream command in front of
   Play PlayList; titles with subtitles but no default switch them off.
+
+## 56. Blu-ray menus
+
+* A menu is drawn by the same builder as for DVD, given a copy of the
+  project whose disc is the 1920 x 1080 frame and whose menus are scaled
+  to it (4:3 menus pillarboxed). One drawing code means the two discs'
+  menus look alike, and everything a DVD menu can hold works on Blu-ray.
+* The buttons are an Interactive Graphics stream in the menu's clip: one
+  always-on composition, a button per menu button (in its own overlap
+  group: buttons never overlap), whose selected and activated objects are
+  the DVD highlight shapes in the highlight and select colours (and a
+  normal object in the normal colour, when the menu has one). Keeping the
+  DVD shapes keeps the look; Blu-ray just shows them in full colour.
+* ffmpeg has no IG muxer, but it copies segment streams as PGS: the menu's
+  .sup goes in at PID 0x1400 as such, and oncemore then marks it 0x91 in
+  every PMT of the clip (fixing the section CRC); playlists and clip
+  information list it as IG anyway.
+* Menus are titles after the content titles. A menu object writes its
+  title number to GPR 1 and plays its playlist; a still menu's clip is one
+  second, held by the play item's still mode; a menu with motion or music
+  plays again from its loop point (a mark) for ever. "lastmenu" is Jump
+  Title to GPR 1. Buttons that start a chapter jump to a movie object made
+  for that chapter (playlists cannot change from button commands).
+* libbluray runs menus only when a player draws them: the tests register
+  an overlay callback, read which button graphics are drawn in which
+  colour, and press keys with bd_user_input / bd_menu_call.

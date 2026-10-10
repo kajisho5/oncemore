@@ -9,7 +9,7 @@ import os
 import shutil
 import tempfile
 
-from . import author, bluray, clips, encode, iso, lpcmfix, pgs, slideshow, subtitles, tools, udf250
+from . import author, bdmenu, bluray, clips, encode, iso, lpcmfix, pgs, slideshow, subtitles, tools, udf250
 from . import menu as menu_module
 from .errors import OncemoreError, ProjectError
 from .menu import (MenuBuilder, check_element_fonts, display_width, find_font, link_font,
@@ -470,18 +470,16 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None, ca
 def build_bluray(project, out_dir, reporter, fast=False, keep_work=False, work=None, cache=True):
     """Write a Blu-ray BDMV folder (and CERTIFICATE) into out_dir: every title
     in HD with its chapters, the project's playlists and "play all", first
-    play and the titles' end actions, subtitles as PGS streams. Menus are
-    DVD-only for now (DECISIONS §53)."""
-    tools.require(["ffmpeg", "ffprobe"], need_drawtext=any(t.subtitles for t in project.titles))
+    play and the titles' end actions, subtitles as PGS streams, menus as
+    interactive titles (DECISIONS §53, §56)."""
+    tools.require(["ffmpeg", "ffprobe"], need_drawtext=bool(project.menus) or
+                  any(t.subtitles for t in project.titles))
     out_dir = os.path.abspath(out_dir)
     work = work or os.path.join(out_dir, ".work")
     os.makedirs(os.path.join(work, "logs"), exist_ok=True)
     reporter.step("probe", "Checking sources")
     infos, plan = inspect(project, reporter, bd=True)
-    warnings = project.warnings + plan["warnings"]
-    if project.menus:
-        warnings.append("menus are not on Blu-ray discs yet: the disc plays its titles "
-                        "(first play, then each title's end action)")
+    warnings = project.warnings + plan["warnings"] + bdmenu.unsupported(project)
     plan["warnings"] = warnings
     for w in warnings:
         reporter.warn(w)
@@ -508,12 +506,22 @@ def build_bluray(project, out_dir, reporter, fast=False, keep_work=False, work=N
                                 on_progress=lambda f, tid=t.id: reporter.progress("encode", f, tid))
             _cache_put(cache, key, out)
         clips[t.id] = out
+    menus = {}
+    if project.menus:
+        nav = bluray.Nav(project)
+        hd = bdmenu.hd_project(project, lambda path: plan["_probes"].get(path)
+                               or encode.probe(path))
+        for m in hd.menus:
+            reporter.step("menu", f"Rendering menu '{m.id}' in HD", item=m.id)
+            menus[m.id] = bdmenu.encode_menu(
+                hd, m, work, plan["font"], nav.button, plan["max_bps"], fast=fast,
+                on_progress=lambda f, mid=m.id: reporter.progress("menu", f, mid))
     reporter.step("author", "Writing BDMV")
     for sub in ("BDMV", "CERTIFICATE"):
         p = os.path.join(out_dir, sub)
         if os.path.isdir(p):
             shutil.rmtree(p)
-    disc = bluray.write_bdmv(project, clips, out_dir)
+    disc = bluray.write_bdmv(project, clips, out_dir, menus)
     rom = copy_rom_files(project, out_dir)
     size = sum(os.path.getsize(os.path.join(r, f))
                for r, _, fs in os.walk(os.path.join(out_dir, "BDMV")) for f in fs)

@@ -20,6 +20,12 @@ BD_EVENT_CHAPTER = 8
 BD_EVENT_END_OF_TITLE = 10
 BD_EVENT_PG_TEXTST_STREAM = 13
 BD_EVENT_PG_TEXTST = 17
+BD_EVENT_STILL = 25
+BD_EVENT_STILL_TIME = 26
+
+# remote keys (bd_vk_key_e)
+KEYS = {"up": 12, "down": 13, "left": 14, "right": 15, "enter": 16}
+OVERLAY_IG, OVERLAY_DRAW, OVERLAY_CLEAR, OVERLAY_WIPE = 1, 3, 2, 4
 BD_EVENT_IDLE = 28
 
 _CANDIDATES = ("libbluray.so.2", "libbluray.so", "libbluray.2.dylib", "libbluray.dylib",
@@ -91,6 +97,23 @@ class Event(ctypes.Structure):
     _fields_ = [("event", u32), ("param", u32)]
 
 
+class PaletteEntry(ctypes.Structure):
+    _fields_ = [("Y", u8), ("Cr", u8), ("Cb", u8), ("T", u8)]
+
+
+class RleElem(ctypes.Structure):
+    _fields_ = [("len", u16), ("color", u16)]
+
+
+class Overlay(ctypes.Structure):
+    _fields_ = [("pts", ctypes.c_int64), ("plane", u8), ("cmd", u8),
+                ("palette_update_flag", u8), ("x", u16), ("y", u16), ("w", u16), ("h", u16),
+                ("palette", ctypes.POINTER(PaletteEntry)), ("img", ctypes.POINTER(RleElem))]
+
+
+OVERLAY_PROC = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.POINTER(Overlay))
+
+
 def load_library():
     names = [n for n in (ctypes.util.find_library("bluray"),) if n] + list(_CANDIDATES)
     for n in names:
@@ -113,6 +136,11 @@ def load_library():
         lib.bd_play.restype, lib.bd_play.argtypes = ctypes.c_int, [P]
         lib.bd_read_ext.restype = ctypes.c_int
         lib.bd_read_ext.argtypes = [P, ctypes.c_char_p, ctypes.c_int, ctypes.POINTER(Event)]
+        lib.bd_user_input.restype = ctypes.c_int
+        lib.bd_user_input.argtypes = [P, ctypes.c_int64, u32]
+        lib.bd_register_overlay_proc.argtypes = [P, P, OVERLAY_PROC]
+        lib.bd_menu_call.restype = ctypes.c_int
+        lib.bd_menu_call.argtypes = [P, ctypes.c_int64]
         # (its notes about the end of the disc would fill the test output)
         lib.bd_set_debug_mask.argtypes = [u32]
         lib.bd_set_debug_mask(0)
@@ -168,18 +196,50 @@ class Disc:
         self.lib.bd_free_title_info(p)
         return out
 
-    def play(self, max_bytes=200 * 2**20):
+    def _overlay(self, _handle, ov):
+        """IG overlay events: the button graphics the player draws, as
+        ("draw", x, y, w, h, (Y, Cr, Cb, T) most used opaque colour)."""
+        if not ov:
+            return
+        o = ov.contents
+        if o.plane != OVERLAY_IG or o.cmd != OVERLAY_DRAW or not o.img:
+            return
+        counts, done, total, i = {}, 0, o.w * o.h, 0
+        while done < total:
+            e = o.img[i]
+            i += 1
+            if e.len == 0:
+                continue
+            c = o.palette[e.color]
+            if c.T:
+                key = (c.Y, c.Cr, c.Cb, c.T)
+                counts[key] = counts.get(key, 0) + e.len
+            done += e.len
+        colour = max(counts, key=counts.get) if counts else None
+        self.draws.append(("draw", o.x, o.y, o.w, o.h, colour))
+
+    def play(self, max_bytes=200 * 2**20, keys=()):
         """Run the disc from first play the way a player does, reading the
-        streams; returns the navigation events in order as (name, value)."""
+        streams and pressing `keys` ("up", "down", "enter" ...) one by one
+        whenever the disc waits (a menu); "topmenu" is pressed while a title
+        plays (once some of it was read); returns the navigation events in
+        order as (name, value), with ("key", name) where a key was pressed
+        and ("menu", button graphics drawn) after each key."""
         names = {BD_EVENT_TITLE: "title", BD_EVENT_PLAYLIST: "playlist",
                  BD_EVENT_CHAPTER: "chapter", BD_EVENT_END_OF_TITLE: "end",
                  BD_EVENT_ERROR: "error", BD_EVENT_PG_TEXTST_STREAM: "subtitle_stream",
                  BD_EVENT_PG_TEXTST: "subtitles_shown"}
+        self.draws = []
+        if keys:
+            # (libbluray runs menus only for a player that draws them)
+            self._proc = OVERLAY_PROC(self._overlay)
+            self.lib.bd_register_overlay_proc(self.bd, None, self._proc)
         if not self.lib.bd_play(self.bd):
             raise RuntimeError("bd_play failed")
+        keys = list(keys)
         buf = ctypes.create_string_buffer(6144 * 16)
         ev = Event()
-        out, read, idle = [], 0, 0
+        out, read, idle, waiting, since = [], 0, 0, 0, 0
         for _ in range(100000):     # (a bound, should the disc never end)
             if read >= max_bytes:
                 break
@@ -188,17 +248,39 @@ class Disc:
                 out.append(("error", n))
                 break
             read += n
+            since += n
+            if keys and keys[0] == "topmenu" and since > 300_000:
+                out.append(("key", keys.pop(0)))
+                self.lib.bd_menu_call(self.bd, -1)
+                since = 0
+                continue
             item = (names.get(ev.event), ev.param)
             # (the end of the last title is reported on every read after it)
             if item[0] and not (item[0] == "end" and out and out[-1] == item):
                 out.append(item)
             if ev.event == BD_EVENT_ERROR:
                 break
-            # after the end of a title, a while without data or new events
-            # means nothing follows it
-            stopped = n == 0 and out and out[-1][0] == "end" and \
-                ev.event in (0, BD_EVENT_END_OF_TITLE, BD_EVENT_IDLE)
+            # a menu holding its picture: press the next key
+            still = n == 0 and ev.event in (0, BD_EVENT_STILL, BD_EVENT_STILL_TIME,
+                                            BD_EVENT_IDLE)
+            waiting = waiting + 1 if still else 0
+            if waiting > 30 and keys:
+                if self.draws:
+                    out.append(("menu", list(self.draws)))
+                    self.draws = []
+                if keys[0] != "topmenu":
+                    key = keys.pop(0)
+                    out.append(("key", key))
+                    self.lib.bd_user_input(self.bd, -1, KEYS[key])
+                waiting, since = 0, 0
+                continue
+            # after the end of a title (or a menu with no more keys), a
+            # while without data or new events means nothing follows
+            stopped = n == 0 and out and (out[-1][0] == "end" or (not keys and waiting > 0)) \
+                and ev.event in (0, BD_EVENT_END_OF_TITLE, BD_EVENT_IDLE, BD_EVENT_STILL_TIME)
             idle = idle + 1 if stopped else 0
-            if idle > 20:
+            if idle > 40:
                 break
+        if self.draws:
+            out.append(("menu", list(self.draws)))
         return out

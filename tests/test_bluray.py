@@ -41,12 +41,20 @@ def project(**extra):
 
 
 def commands(obj):
-    """(kind, operand) of every command of a movie object."""
+    """Readable form of a movie object's (or a button's) commands."""
+    names = {(0x22, 0x80): "play_pl", (0x21, 0x81): "jump_title", (0x21, 0x01): "jump_title_reg",
+             (0x21, 0x80): "jump_object", (0x42, 0xC2): "play_pl_mark", (0x20, 0x81): "goto",
+             (0x50, 0x40): "move", (0x51, 0xC0): "set_stream", (0x01, 0x04): "resume"}
     out = []
     for c in obj:
-        b0, b1 = c[0], c[1]
-        dst = struct.unpack(">I", c[4:8])[0]
-        out.append({(0x22, 0x80): "play_pl", (0x21, 0x81): "jump_title"}[(b0, b1)] + f" {dst}")
+        dst, src = struct.unpack(">II", c[4:12])
+        name = names[(c[0], c[1])]
+        if name in ("play_pl_mark", "move"):
+            out.append(f"{name} {dst} {src}")
+        elif name == "set_stream":
+            out.append(f"{name} {dst:#x}")
+        else:
+            out.append(f"{name} {dst}")
     return out
 
 
@@ -70,15 +78,38 @@ class TestNavigationFiles(unittest.TestCase):
         ])
         self.assertEqual((first, top), (4, 5))
 
-    def test_menus_fall_back_to_the_first_title(self):
-        p = project(menus=[{"id": "m", "buttons": [{"id": "b", "label": "Play",
-                                                    "x": 100, "y": 100,
-                                                    "action": "title:two"}]}])
-        objects, first, top = bluray.navigation(p)
-        # titles end at the menu on a DVD; without menus they stop
-        self.assertEqual(commands(objects[0]), ["play_pl 1"])
-        self.assertEqual(commands(objects[first]), ["jump_title 1"])
-        self.assertEqual(commands(objects[top]), ["jump_title 1"])
+    def test_menus_are_interactive_titles(self):
+        p = project(menus=[{"id": "m", "buttons": [
+            {"id": "b", "label": "Play", "x": 100, "y": 100, "action": "title:two"},
+            {"id": "c", "label": "Ch 3", "x": 100, "y": 160, "action": "chapter:one:3",
+             "audio": 2, "subtitle": 0},
+            {"id": "l", "label": "Back", "x": 100, "y": 220, "action": "resume"}]}],
+            titles=[{"id": "one", "source": "a.mp4", "chapters": [0, 2, 4],
+                     "audio_tracks": [{"lang": "en"}, {"lang": "ja"}],
+                     "subtitles": [{"file": "one.srt"}]},
+                    {"id": "two", "source": "b.mp4", "end_action": "lastmenu"}])
+        nav = bluray.Nav(p)
+        self.assertEqual(nav.numbers, {"title:one": 1, "title:two": 2, "menu:m": 3})
+        objects = nav.objects({"m": (True, 0)})
+        self.assertEqual([commands(o) for o in objects[:3]], [
+            ["set_stream 0x0", "play_pl 1", "jump_title 3"],   # subtitles off; then the menu
+            ["play_pl 2", "jump_title_reg 1"],      # back to the menu shown last
+            ["move 1 3", "play_pl 3"],              # the menu notes itself, then shows
+        ])
+        self.assertEqual(commands(objects[nav.first_play]), ["jump_title 3"])
+        self.assertEqual(commands(objects[nav.top_menu]), ["jump_title 3"])
+        # chapter 3 of title one: its own object, played from mark 2
+        obj = nav.chapter_objects[("one", 3)]
+        self.assertEqual(commands(objects[obj]), ["set_stream 0x0", "play_pl_mark 1 2",
+                                                  "jump_title 3"])
+        b, c, l = p.menu("m").buttons
+        self.assertEqual(commands(nav.button(b)), ["jump_title 2"])
+        self.assertEqual(commands(nav.button(c)), [f"set_stream {0x80020000:#x}",
+                                                   f"jump_object {obj}"])
+        self.assertEqual(commands(nav.button(l)), ["resume 0"])
+        # a motion menu plays again from its loop point (mark 1)
+        self.assertEqual(commands(nav.objects({"m": (False, 1)})[2]),
+                         ["move 1 3", "play_pl 3", "play_pl_mark 3 1", "goto 2"])
 
     def test_movie_object_file(self):
         data = bluray.movie_objects([[bluray.play_pl(1)], [bluray.jump_title(1)]])
@@ -312,6 +343,120 @@ class TestBlurayBuild(unittest.TestCase):
             events = [e for e in disc.play() if e[0] in ("title", "playlist") and e[1] != 0xFFFF]
         self.assertEqual(events[:2], [("title", 1), ("playlist", 1)])
         self.assertIn(("title", 2), events)
+
+
+@unittest.skipUnless(ffmpeg_has_x264() and LIBBLURAY, "needs ffmpeg with libx264 and libbluray")
+class TestBlurayMenus(unittest.TestCase):
+    """Menus on a Blu-ray, pressed through libbluray's menu engine."""
+
+    @classmethod
+    def setUpClass(cls):
+        from oncemore.tools import has_drawtext
+        if not has_drawtext():
+            raise unittest.SkipTest("ffmpeg without drawtext")
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-bdmenu-")
+        d = cls.tmp
+        for name, seconds in (("a.mp4", 3), ("b.mp4", 2)):
+            subprocess.run(["ffmpeg", "-hide_banner", "-v", "error", "-y",
+                            "-f", "lavfi", "-i", f"testsrc2=size=640x360:rate=30000/1001:duration={seconds}",
+                            "-f", "lavfi", "-i", f"sine=frequency=440:sample_rate=48000:duration={seconds}",
+                            "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", "-shortest",
+                            os.path.join(d, name)], check=True)
+        project = {
+            "version": 1,
+            "disc": {"label": "BD_MENUS", "standard": "NTSC", "aspect": "16:9",
+                     "first_play": "menu:main"},
+            "titles": [{"id": "one", "source": "a.mp4", "chapters": [0, 1.5]},
+                       {"id": "two", "source": "b.mp4", "end_action": "lastmenu"}],
+            "menus": [
+                {"id": "main", "background_color": "#203040",
+                 "texts": [{"text": "Test disc", "x": 100, "y": 60, "size": 40}],
+                 "buttons": [
+                     {"id": "play", "label": "PLAY", "x": 100, "y": 150, "action": "title:one"},
+                     {"id": "ch", "label": "CHAPTER 2", "x": 100, "y": 220,
+                      "action": "chapter:one:2"},
+                     {"id": "two", "label": "SECOND", "x": 100, "y": 290, "action": "title:two"},
+                     {"id": "more", "label": "MORE", "x": 400, "y": 290, "action": "menu:more"}]},
+                {"id": "more", "select_color": "#00FF00", "buttons": [
+                    {"id": "back", "label": "BACK", "x": 100, "y": 200, "action": "menu:main"},
+                    {"id": "two", "label": "SECOND", "x": 100, "y": 260, "action": "title:two"}]}],
+        }
+        with open(os.path.join(d, "project.oncemore.json"), "w") as f:
+            json.dump(project, f)
+        cls.out = os.path.join(d, "out")
+        cls.rc, cls.stdout, cls.stderr = run_cli("build", d, "-o", cls.out, "--format", "bluray",
+                                                 "--fast")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def setUp(self):
+        self.assertEqual(self.rc, 0, self.stderr + self.stdout)
+
+    def press(self, *keys):
+        with bluray_sim.Disc(LIBBLURAY, self.out) as disc:
+            disc.info()
+            return [e for e in disc.play(keys=keys)
+                    if e[0] in ("title", "playlist", "key", "menu", "end") and e[1] != 0xFFFF]
+
+    def test_menu_titles_and_streams(self):
+        with bluray_sim.Disc(LIBBLURAY, self.out) as disc:
+            info = disc.info()
+            self.assertEqual(info["hdmv_titles"], 4)            # two titles, two menus
+            main = disc.playlist(3)
+        self.assertEqual(main["video"], [(0x1B, 4, 4)])
+        with open(os.path.join(self.out, "BDMV", "STREAM", "00003.m2ts"), "rb") as f:
+            data = f.read()
+        # the buttons' stream, and the PMT that names it Interactive Graphics (0x91)
+        pids = {(data[i + 5] & 0x1F) << 8 | data[i + 6] for i in range(0, len(data), 192)}
+        self.assertIn(bluray.IG_PID, pids)
+        self.assertIn(bytes([0x91, 0xF4, 0x00]), data)
+
+    def test_highlight_and_activate(self):
+        events = self.press("down", "enter")
+        self.assertEqual(events[:2], [("title", 3), ("playlist", 3)])
+        first = events[2]
+        self.assertEqual(first[0], "menu")
+        _, x, y, w, h, colour = first[1][0]
+        # PLAY at (100, 150) on the 720 x 480 menu: (267, 338) on the HD frame
+        self.assertTrue(250 < x < 280 and 320 < y < 345, (x, y))
+        y_, cb, cr = pgs.ycbcr((0xFF, 0xD4, 0x00))               # the highlight colour
+        self.assertEqual(colour, (y_, cr, cb, 255))
+        moved = events[4][1][0]
+        self.assertGreater(moved[2], y + 100)                     # down: CHAPTER 2
+        # enter: title one from its second chapter, then its end action: the menu
+        rest = events[events.index(("key", "enter")) + 1:]
+        rest = [e for e in rest if e[0] != "menu"]
+        self.assertEqual(rest[:3], [("playlist", 1), ("end", 0), ("title", 3)])
+
+    def test_menu_to_menu_and_last_menu(self):
+        events = self.press("down", "down", "right", "enter", "down", "enter")
+        titles = [e for e in events if e[0] in ("title", "key")]
+        # MORE opens the second menu; its SECOND plays title two, whose end
+        # action returns to the menu shown last: the second menu again
+        self.assertEqual(titles, [("title", 3), ("key", "down"), ("key", "down"),
+                                  ("key", "right"), ("key", "enter"), ("title", 4),
+                                  ("key", "down"), ("key", "enter"), ("title", 2),
+                                  ("title", 4)])
+
+    def test_top_menu_key(self):
+        events = self.press("enter", "topmenu")
+        keyed = [e for e in events if e[0] in ("title", "key", "end")]
+        # PLAY starts title one; the Top Menu key during it (the top menu
+        # title, 0, which goes to the main menu) opens the menu before the
+        # title ends
+        self.assertEqual(keyed[:6], [("title", 3), ("key", "enter"), ("title", 1),
+                                     ("key", "topmenu"), ("title", 0), ("title", 3)])
+
+    def test_disc_image(self):
+        iso = os.path.join(self.tmp, "menus.iso")
+        rc, out, err = run_cli("iso", self.tmp, "-o", iso, "--format", "bluray", "--fast")
+        self.assertEqual(rc, 0, err + out)
+        with bluray_sim.Disc(LIBBLURAY, iso) as disc:
+            disc.info()
+            events = disc.play(keys=("enter",))
+        self.assertIn(("title", 1), events)
 
 
 if __name__ == "__main__":
