@@ -22,8 +22,9 @@ These are the reasons it exists; the tests and CI guard each of them
 
 * **A real authoring app on the Mac** — Oncemore.app for Apple silicon and
   Intel, built and smoke-tested on every change.
-* **A disc image, not a burner** — it writes a standard ISO (UDF + ISO 9660)
-  or a VIDEO_TS folder; burning, if you want a disc, is any tool's job.
+* **A disc image first** — it writes a standard ISO (UDF + ISO 9660) or a
+  VIDEO_TS folder with nothing else installed; burning it to a DVD is an
+  optional last step (Build > Output: DVD disc, or `oncemore burn`).
 * **Runs in a browser** — the app is a web page served from your own machine,
   so it also works on Linux and needs no installer beyond Python.
 * **Open and yours** — GPL-3.0, no account, no network access, no telemetry,
@@ -47,6 +48,7 @@ programs:
 | `ffmpeg`, `ffprobe` (with the `drawtext` filter) | MPEG-2/AC-3 encoding, menu rendering, probing |
 | `dvdauthor`, `spumux` | DVD-Video structure (IFO/VOB), button highlights |
 | *(nothing)* — oncemore writes the UDF + ISO 9660 disc image itself; `hdiutil`, `genisoimage`, `mkisofs` can be chosen instead | the disc image |
+| *(optional)* `growisofs` (dvd+rw-tools; macOS uses its own `hdiutil`) | burning the disc to a DVD |
 
 ### macOS (Homebrew)
 
@@ -251,6 +253,7 @@ oncemore simulate <project> --keys down,enter,menu   # press remote keys, no enc
 oncemore import-psd <project> design.psd --menu main [--first-play]   # a menu from Photoshop
 oncemore gui [<dir>] [--port N] [--no-browser] # the authoring app
 oncemore transcode <project> [--title ID] [--fast] [--status]  # encode titles ahead of the build
+oncemore burn out.iso [--device DEV]           # write the image to a blank DVD (macOS: hdiutil, else growisofs)
 oncemore doctor                                # external tools, versions, ISO backend
 ```
 
@@ -593,8 +596,9 @@ By hand:
   choose *File → Open DVD Media…* and select the mounted `VIDEO_TS` folder
   (Apple documents opening VIDEO_TS folders for DVD Player 6.0 on macOS 26).
   Not yet verified by the authors with oncemore output — reports welcome.
-* **Burning** — on macOS, Finder/`hdiutil burn demo.iso`; on Linux,
-  `growisofs -dvd-compat -Z /dev/dvd=demo.iso`. Not part of oncemore.
+* **Burning** — `oncemore burn demo.iso` (or Build > Output: DVD disc) runs
+  `hdiutil burn` on macOS and `growisofs -dvd-compat` on Linux; any other
+  burning tool works on the ISO as well.
 
 ## Rebuilding is fast
 

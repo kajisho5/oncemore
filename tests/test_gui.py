@@ -1370,6 +1370,14 @@ class TestGuiBrowser(unittest.TestCase):
             page.locator("#library .lib-section").first.wait_for()
             page.evaluate("window.oncemoreCommand('win_build')")
             page.locator("#sidebar #start").wait_for()
+            page.check("#sidebar input[name=kind][value=disc]")         # Output: DVD disc
+            page.fill("#recorder", "/dev/sr9")
+            page.locator("#recorder").dispatch_event("change")
+            page.check("#sidebar input[name=kind][value=iso]")
+            self.assertEqual(page.locator("#recorder").count(), 0)
+            page.check("#sidebar input[name=kind][value=disc]")
+            self.assertEqual(page.input_value("#recorder"), "/dev/sr9")  # remembered
+            page.check("#sidebar input[name=kind][value=iso]")
             page.evaluate("window.oncemoreCommand('win_project')")
             # File > Revert to a saved version: the oldest is the project before these
             # edits (the missing file is back); Undo returns to the current one

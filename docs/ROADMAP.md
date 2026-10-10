@@ -158,6 +158,10 @@ browser) and lands only with green CI.
 - [x] `lastmenu` end action for titles, playlists and overrides: back to
   the menu the viewer came from
 
+**P27 — Burning** (done)
+- [x] Build > Output: DVD disc (the image, then written to a blank DVD in
+  the chosen recorder) and `oncemore burn`
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

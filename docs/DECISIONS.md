@@ -802,3 +802,16 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   whose only pre command is this bookkeeping says `button = 1024` itself, so
   adding the register changes no highlight; the simulator follows the same
   rule (libdvdnav showed the difference).
+
+## 52. Burning discs
+
+* The burn uses what each system documents for writing an image: macOS
+  `hdiutil burn` (with `-forceclose`, and its default verify after
+  writing), elsewhere growisofs `-dvd-compat -Z device=image.iso`, which
+  closes the disc too. A closed disc is what DVD players expect.
+* It always burns the image the build just wrote, so the disc and the
+  .iso are the same thing and the .iso stays for more copies.
+* Windows burns images itself (Explorer: Burn disc image), so oncemore
+  only points there.
+* Tests use fake burners that record their arguments; no test burns.
+
