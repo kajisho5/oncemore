@@ -259,8 +259,7 @@
     "title": {
       "type": "object",
       "required": [
-        "id",
-        "source"
+        "id"
       ],
       "additionalProperties": false,
       "properties": {
@@ -274,6 +273,10 @@
         "source": {
           "type": "string",
           "description": "Video file, relative to the project file."
+        },
+        "slideshow": {
+          "$ref": "#/$defs/slideshow",
+          "description": "Make this title from pictures instead of a video file."
         },
         "chapters": {
           "type": "array",
@@ -433,7 +436,19 @@
           "$ref": "#/$defs/bitrate",
           "description": "This title's own average video bitrate (1-8 Mbit/s); the other titles share what is left on the disc."
         }
-      }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "source"
+          ]
+        },
+        {
+          "required": [
+            "slideshow"
+          ]
+        }
+      ]
     },
     "text": {
       "type": "object",
@@ -800,6 +815,64 @@
         "color": {
           "$ref": "#/$defs/color",
           "description": "Fill colour, #RRGGBBAA for translucent. Default #00000080."
+        }
+      }
+    },
+    "slideshow": {
+      "type": "object",
+      "required": [
+        "slides"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "slides": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 99,
+          "items": {
+            "type": "object",
+            "required": [
+              "image"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "image": {
+                "type": "string"
+              },
+              "duration": {
+                "type": "number",
+                "minimum": 0.5,
+                "maximum": 600,
+                "default": 5
+              }
+            }
+          }
+        },
+        "transition": {
+          "enum": [
+            "crossfade",
+            "none"
+          ],
+          "default": "crossfade"
+        },
+        "transition_duration": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 5,
+          "default": 1
+        },
+        "pan_zoom": {
+          "type": "boolean",
+          "default": false,
+          "description": "A slow zoom in / out on every picture."
+        },
+        "audio": {
+          "type": "string",
+          "description": "Music, cut to the slideshow's length and faded out."
+        },
+        "background_color": {
+          "$ref": "#/$defs/color",
+          "description": "Around pictures of another shape. Default black."
         }
       }
     }

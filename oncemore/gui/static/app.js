@@ -39,6 +39,15 @@ const I18N = {
     rom_files: "DVD-ROM files", rom_hint: "Files or folders (one per line, relative to the project) put next to VIDEO_TS for computers.",
     no_cache: "Encode everything again (ignore the cache)",
     sub_bottom: "Bottom", sub_top: "Top", sub_color: "Own colour",
+    add_slideshow: "+ Slideshow", slideshow: "Slideshow", slideshow_hint: "A title made from pictures",
+    slideshow_need_images: "Add some pictures to Media first (drop them onto the window).",
+    slideshow_preview_hint: "Render & play shows the slideshow as it will be on the disc.",
+    render_play: "Render & play", rendering: "Rendering…", add_picture: "+ Add a picture…", seconds: "Seconds on screen",
+    transition: "Transition", crossfade: "Cross-fade", cut: "Cut", transition_duration: "Cross-fade (s)",
+    pan_zoom: "Slow zoom in / out (pan & zoom)", slideshow_chapters: "Every picture starts a chapter.",
+    subtitle_editor: "Subtitle cues", no_sub_tracks: "No subtitle track yet.", new_srt: "+ New subtitle file",
+    sub_readonly: "WebVTT / ASS files are shown read-only.", convert_srt: "Convert to .srt to edit",
+    sub_track_pos: "Track", add_cue: "+ Cue at the playhead", new_cue_text: "New subtitle",
     image: "Image", width: "Width", highlight_style: "Highlight", hl_frame: "Frame around it", hl_shape: "Its shape",
     image_hint: "An image button shows the picture instead of the text (PNG with transparency works best).",
     chapter_name: "Name on the chapter menu", poster: "Poster", poster_hint: "Use the frame at the playhead as this chapter's thumbnail (click again to reset)",
@@ -113,6 +122,15 @@ const I18N = {
     rom_files: "DVD-ROM ファイル", rom_hint: "パソコン向けに VIDEO_TS と並べて入れるファイル／フォルダ（1 行に 1 つ、プロジェクトからの相対パス）。",
     no_cache: "すべてエンコードし直す（キャッシュを使わない）",
     sub_bottom: "下", sub_top: "上", sub_color: "色を指定",
+    add_slideshow: "＋スライドショー", slideshow: "スライドショー", slideshow_hint: "写真から作るタイトル",
+    slideshow_need_images: "先に写真を素材に追加してください（ウィンドウにドロップ）。",
+    slideshow_preview_hint: "「書き出して再生」でディスクと同じ見え方を確認できます。",
+    render_play: "書き出して再生", rendering: "書き出し中…", add_picture: "＋写真を追加…", seconds: "表示秒数",
+    transition: "切り替え", crossfade: "クロスフェード", cut: "カット", transition_duration: "クロスフェード（秒）",
+    pan_zoom: "ゆっくりズーム（パン＆ズーム）", slideshow_chapters: "写真ごとにチャプターになります。",
+    subtitle_editor: "字幕の編集", no_sub_tracks: "字幕トラックはまだありません。", new_srt: "＋新しい字幕ファイル",
+    sub_readonly: "WebVTT / ASS は表示のみです。", convert_srt: ".srt に変換して編集",
+    sub_track_pos: "トラック設定", add_cue: "＋再生位置に字幕を追加", new_cue_text: "新しい字幕",
     image: "画像", width: "幅", highlight_style: "ハイライト", hl_frame: "周りに枠", hl_shape: "画像の形",
     image_hint: "画像ボタンは文字の代わりに画像を表示します（透過 PNG がおすすめ）。",
     chapter_name: "チャプターメニューに出す名前", poster: "サムネイル", poster_hint: "再生位置のフレームをこのチャプターのサムネイルにする（もう一度押すと解除）",
@@ -343,6 +361,11 @@ async function save() {
   renderTopbar(); renderStatus();
 }
 
+async function refreshMedia() {
+  try { S.media = (await api("/api/state")).media; } catch (e) { console.error(e); }
+  renderSidebar();
+}
+
 // ---------------------------------------------------------------- rendering
 function renderAll() {
   document.documentElement.lang = LANG;
@@ -391,7 +414,7 @@ function renderSidebar() {
   const ups = Object.entries(S.uploads).map(([n, pct]) => `<div class="media-item"><span class="name">${esc(n)}</span><span class="muted">${pct}%</span></div>`).join("");
   sb.innerHTML = `
     <div class="nav-group">${item("disc", "", t("disc"))}</div>
-    <div class="nav-group"><div class="nav-head">${t("titles")}</div>${titles || `<div class="hint" style="padding:4px 18px">${esc(t("no_titles"))}</div>`}</div>
+    <div class="nav-group"><div class="nav-head">${t("titles")}<button class="small" id="add-slideshow" title="${esc(t("slideshow_hint"))}">${t("add_slideshow")}</button></div>${titles || `<div class="hint" style="padding:4px 18px">${esc(t("no_titles"))}</div>`}</div>
     <div class="nav-group"><div class="nav-head">${t("menus")}<button class="small" id="add-menu">${t("add")}</button></div>${menus}${gen}</div>
     <div class="nav-group"><div class="nav-head">${t("playlists")}<button class="small" id="add-playlist">${t("add")}</button></div>${(P().playlists || []).map((pl) => item("playlist", pl.id, pl.name || pl.id)).join("")}</div>
     <div class="nav-group"><div class="nav-head">${t("media")}</div>${media}${ups}
@@ -401,6 +424,7 @@ function renderSidebar() {
   sb.querySelectorAll(".media-item[data-media]").forEach((el) => (el.onclick = () => { S.selectedMedia = el.dataset.media; S.element = null; renderSidebar(); renderInspector(); }));
   $("#add-menu").onclick = addMenu;
   $("#add-playlist").onclick = addPlaylist;
+  $("#add-slideshow").onclick = addSlideshow;
   $("#dropzone").onclick = pickFiles;
 }
 function select(view, id) {
@@ -510,6 +534,7 @@ const curTitle = () => (P().titles || []).find((x) => x.id === S.sel.id);
 function renderTitle(m) {
   const ti = curTitle();
   if (!ti) return select("disc");
+  if (ti.slideshow) return renderSlideshow(m, ti);
   const info = S.probes[ti.source];
   if (!info) { m.innerHTML = `<div class="muted">…</div>`; probe(ti.source).then(() => S.sel.view === "title" && renderMain()); return; }
   const fps = (() => { const [a, b] = String(info.fps || "30").split(/[/:]/).map(Number); return b ? a / b : a || 30; })();
@@ -538,6 +563,7 @@ function renderTitle(m) {
       <input class="ch-name" data-ch-name="${i}" value="${esc(c.name)}" placeholder="${esc(t("chapter_at", { n: i + 1 }))}" title="${esc(t("chapter_name"))}">
       <button class="small ${c.poster != null ? "on" : ""}" data-poster="${i}" title="${esc(t("poster_hint"))}">🖼 ${c.poster != null ? fmtTime(c.poster) : t("poster")}</button>
       ${i ? `<button class="small danger" data-del="${i}">✕</button>` : ""}</li>`).join("")}</ul>
+    <div id="sub-editor"></div>
   </div>`;
   const img = $("#frame");
   let pending = null, last = -1;
@@ -627,6 +653,129 @@ function renderTitle(m) {
     e.poster = e.poster != null && b.classList.contains("on") ? null : Number(scrub.value); setChapters(x, list);
   })));
   show(ph);
+  renderSubEditor(ti, () => Number(scrub.value), seek);
+}
+
+// ---------------------------------------------------------------- subtitle editor
+async function renderSubEditor(ti, playhead, seek) {
+  const box = $("#sub-editor");
+  if (!box) return;
+  const tracks = ti.subtitles || [];
+  S.subTrack = Math.min(S.subTrack || 0, Math.max(0, tracks.length - 1));
+  const head = `<h3>${t("subtitle_editor")}</h3>
+    <div class="row">${tracks.length ? selectHtml("subtrack", tracks.map((x, i) => [String(i), `${i + 1}: ${x.file.replace(/^media\//, "")}${x.lang ? " (" + x.lang + ")" : ""}`]), String(S.subTrack), 'id="sub-track"') : `<span class="hint">${esc(t("no_sub_tracks"))}</span>`}
+      <button class="small shrink" id="sub-new">${t("new_srt")}</button></div>`;
+  if (!tracks.length) { box.innerHTML = head; bindNew(); return; }
+  const path = tracks[S.subTrack].file;
+  let data;
+  try { data = await api("/api/subtitles?" + new URLSearchParams({ path })); }
+  catch (e) { box.innerHTML = head + `<div class="hint">${esc(e.message)}</div>`; bindNew(); return; }
+  const cues = data.cues;
+  box.innerHTML = head + (data.editable ? "" : `<div class="hint">${esc(t("sub_readonly"))} <button class="small" id="sub-convert">${t("convert_srt")}</button></div>`) +
+    `<table class="cues"><tbody>${cues.map((c, i) => `<tr data-cue="${i}">
+      <td><input class="mono" data-f="start" value="${fmtTime(c.start)}" ${data.editable ? "" : "disabled"}></td>
+      <td><input class="mono" data-f="end" value="${fmtTime(c.end)}" ${data.editable ? "" : "disabled"}></td>
+      <td style="width:100%"><textarea data-f="text" rows="${Math.max(1, c.text.split("\n").length)}" ${data.editable ? "" : "disabled"}>${esc(c.text)}</textarea></td>
+      <td>${selectHtml("pos", [["", t("sub_track_pos")], ["top", t("sub_top")], ["bottom", t("sub_bottom")]], c.position || "", `data-f="position" ${data.editable ? "" : "disabled"}`)}</td>
+      <td><button class="small" data-go="${i}" title="${esc(t("playhead"))}">▶</button>${data.editable ? `<button class="small danger" data-delcue="${i}">✕</button>` : ""}</td></tr>`).join("")}</tbody></table>
+    ${data.editable ? `<button class="small" id="sub-add">${t("add_cue")}</button>` : ""}`;
+  const save = async (list) => {
+    await api("/api/subtitles?" + new URLSearchParams({ path }), { method: "PUT", body: { cues: list } });
+    renderSubEditor(ti, playhead, seek);
+  };
+  box.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => seek(cues[Number(b.dataset.go)].start)));
+  if (data.editable) {
+    box.querySelectorAll("tr[data-cue]").forEach((row) => row.querySelectorAll("[data-f]").forEach((inp) => (inp.onchange = () => {
+      const c = cues[Number(row.dataset.cue)], f = inp.dataset.f;
+      if (f === "start" || f === "end") c[f] = parseTime(inp.value); else c[f] = inp.value || null;
+      save(cues);
+    })));
+    box.querySelectorAll("[data-delcue]").forEach((b) => (b.onclick = () => { cues.splice(Number(b.dataset.delcue), 1); save(cues); }));
+    $("#sub-add").onclick = () => { const st = playhead(); cues.push({ start: st, end: st + 2, text: t("new_cue_text") }); save(cues); };
+  } else {
+    $("#sub-convert").onclick = async () => {
+      const name = path.replace(/\.[^.]+$/, "") + ".srt";
+      await api("/api/subtitles?" + new URLSearchParams({ path: name }), { method: "PUT", body: { cues } });
+      await refreshMedia();
+      commit((p) => { p.titles.find((x) => x.id === ti.id).subtitles[S.subTrack].file = name; });
+    };
+  }
+  $("#sub-track").onchange = (e) => { S.subTrack = Number(e.target.value); renderSubEditor(ti, playhead, seek); };
+  bindNew();
+  function bindNew() {
+    $("#sub-new").onclick = async () => {
+      const used = new Set(S.media.map((x) => x.path));
+      let n = 1, name;
+      do { name = `media/${ti.id}-${n++}.srt`; } while (used.has(name));
+      await api("/api/subtitles?" + new URLSearchParams({ path: name }), { method: "PUT", body: { cues: [] } });
+      await refreshMedia();
+      commit((p) => { const x = p.titles.find((y) => y.id === ti.id); (x.subtitles = x.subtitles || []).push({ file: name }); });
+      S.subTrack = (ti.subtitles || []).length;
+    };
+  }
+}
+
+// ---------------------------------------------------------------- slideshows
+function addSlideshow() {
+  const images = mediaOf("image");
+  if (!images.length) { openModal(`<h2>${t("add_slideshow")}</h2><p>${esc(t("slideshow_need_images"))}</p>`); return; }
+  const id = uniqueId("slides", (P().titles || []).map((x) => x.id));
+  commit((p) => { (p.titles = p.titles || []).push({ id, name: t("slideshow"), slideshow: { slides: images.map((image) => ({ image })) } }); });
+  select("title", id);
+}
+function renderSlideshow(m, ti) {
+  const sh = ti.slideshow, slides = sh.slides || [];
+  const total = slides.reduce((a, s) => a + (s.duration || 5), 0);
+  m.innerHTML = `<div class="card">
+    <div class="row"><h2 class="shrink">${esc(ti.name || ti.id)}</h2><span class="muted">${esc(t("slideshow"))} · ${slides.length} · ${total.toFixed(1)}s</span></div>
+    <div class="viewer" id="ss-viewer" style="aspect-ratio:${(ti.aspect || P().disc.aspect).replace(":", " / ")}">
+      <video id="player" playsinline controls hidden></video><span class="proxy-msg" id="proxy-msg" hidden></span>
+      <span class="hint" id="ss-hint">${esc(t("slideshow_preview_hint"))}</span></div>
+    <div class="transport"><button id="ss-play" class="primary">▶ ${t("render_play")}</button></div>
+    <div class="slides">${slides.map((s, i) => `<div class="slide" data-slide="${i}">
+        <img src="${imgUrl("file", { path: s.image })}" alt="">
+        <div class="row"><input type="number" min="0.5" max="600" step="0.5" data-f="duration" value="${s.duration || 5}" title="${esc(t("seconds"))}"> s</div>
+        <div class="row"><button class="small" data-mv="-1" ${i ? "" : "disabled"}>◀</button><button class="small" data-mv="1" ${i + 1 < slides.length ? "" : "disabled"}>▶</button><button class="small danger" data-rm ${slides.length > 1 ? "" : "disabled"}>✕</button></div></div>`).join("")}
+      <div class="slide add">${selectHtml("addimg", [["", t("add_picture")], ...mediaOf("image").map((x) => [x, x.replace(/^media\//, "")])], "", 'id="ss-add"')}</div></div>
+    <div class="grid2" style="margin-top:12px">
+      <label class="field"><span>${t("transition")}</span>${selectHtml("transition", [["crossfade", t("crossfade")], ["none", t("cut")]], sh.transition || "crossfade", 'id="ss-tr"')}</label>
+      <label class="field"><span>${t("transition_duration")}</span><input type="number" id="ss-td" min="0.1" max="5" step="0.1" value="${sh.transition_duration || 1}"></label>
+      <label class="field"><span>${t("music")}</span>${selectHtml("audio", [["", t("none")], ...mediaOf("audio").map((x) => [x, x])], sh.audio || "", 'id="ss-audio"')}</label>
+      <label class="field"><span></span><label><input type="checkbox" id="ss-pz" ${sh.pan_zoom ? "checked" : ""}> ${t("pan_zoom")}</label></label>
+    </div>
+    <div class="hint">${esc(t("slideshow_chapters"))}</div></div>`;
+  const edit = (fn) => commit((p) => { fn(p.titles.find((x) => x.id === ti.id).slideshow); });
+  m.querySelectorAll("[data-slide]").forEach((card) => {
+    const i = Number(card.dataset.slide);
+    card.querySelector("[data-f=duration]").onchange = (e) => edit((x) => { const v = Number(e.target.value); if (v && v !== 5) x.slides[i].duration = v; else delete x.slides[i].duration; });
+    card.querySelectorAll("[data-mv]").forEach((b) => (b.onclick = () => edit((x) => { const j = i + Number(b.dataset.mv); [x.slides[i], x.slides[j]] = [x.slides[j], x.slides[i]]; })));
+    card.querySelector("[data-rm]").onclick = () => edit((x) => { x.slides.splice(i, 1); });
+  });
+  $("#ss-add").onchange = (e) => { if (e.target.value) edit((x) => { x.slides.push({ image: e.target.value }); }); };
+  $("#ss-tr").onchange = (e) => edit((x) => { if (e.target.value === "crossfade") delete x.transition; else x.transition = e.target.value; });
+  $("#ss-td").onchange = (e) => edit((x) => { const v = Number(e.target.value); if (v && v !== 1) x.transition_duration = v; else delete x.transition_duration; });
+  $("#ss-audio").onchange = (e) => edit((x) => { if (e.target.value) x.audio = e.target.value; else delete x.audio; });
+  $("#ss-pz").onchange = (e) => edit((x) => { if (e.target.checked) x.pan_zoom = true; else delete x.pan_zoom; });
+  $("#ss-play").onclick = async () => {
+    const btn = $("#ss-play"), msg = $("#proxy-msg"), video = $("#player");
+    btn.disabled = true; msg.hidden = false; msg.textContent = t("rendering");
+    try {
+      await save();
+      const r = await api("/api/slideshow", { method: "POST", body: { title: ti.id, project: S.project } });
+      const format = video.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"') ? "mp4" : "webm";
+      for (;;) {
+        const st = await api("/api/proxy?" + new URLSearchParams({ path: r.path, format }), { method: "POST" });
+        if (st.state === "ready") break;
+        if (st.state === "error") throw new Error(st.error || t("play_err"));
+        msg.textContent = t("preparing", { p: Math.round(st.fraction * 100) });
+        await new Promise((res) => setTimeout(res, 500));
+      }
+      msg.hidden = true; $("#ss-hint").hidden = true;
+      video.src = imgUrl("proxy", { path: r.path, format }); video.hidden = false;
+      video.play().catch(() => {});
+    } catch (e) { msg.textContent = e.message; }
+    finally { btn.disabled = false; }
+  };
 }
 
 function renderTitleInspector(el) {
@@ -640,7 +789,8 @@ function renderTitleInspector(el) {
   el.innerHTML = `<h2>${t("title_props")}</h2>
     <label class="field"><span>${t("name")}</span><input data-k="name" value="${esc(ti.name || "")}"></label>
     <label class="field"><span>${t("id")}</span><input id="ti-id" value="${esc(ti.id)}"><div class="hint">${esc(t("rename_hint"))}</div></label>
-    <label class="field"><span>${t("source")}</span>${selectHtml("source", mediaOf("video").map((v) => [v, v]), ti.source)}</label>
+    ${ti.slideshow ? `<label class="field"><span>${t("source")}</span><div class="hint">${esc(t("slideshow"))}</div></label>`
+      : `<label class="field"><span>${t("source")}</span>${selectHtml("source", mediaOf("video").map((v) => [v, v]), ti.source)}</label>`}
     <label class="field"><span>${t("aspect")}</span>${selectHtml("aspect", [["__none__", `${t("auto")} (${P().disc.aspect})`], ["16:9", "16:9"], ["4:3", "4:3"]], ti.aspect || "__none__")}</label>
     <label class="field"><span>${t("end_action")}</span>${selectHtml("end_action", [["__none__", t("auto")], ...ends], ti.end_action || "__none__")}</label>
     <label class="field"><span>${t("menu_key")}</span>${selectHtml("remote_menu", [["__none__", t("first_menu")], ...allMenuIds().map((id) => [id, t("menu_item", { m: id })])], ti.remote_menu || "__none__")}</label>
@@ -662,15 +812,16 @@ function renderTitleInspector(el) {
         <button class="small danger shrink" data-del-track="${i}">✕</button></div>`).join("")}
     <button class="small" id="add-track">${t("add_track")}</button>
     <h3>${t("subtitles")}</h3>
-    ${subs.map((s, i) => `<div class="row" style="margin:6px 0" data-sub="${i}" data-nobind>
+    ${subs.map((s, i) => `<div class="row" style="margin:6px 0 4px" data-sub="${i}" data-nobind>
         ${selectHtml("file", mediaOf("subtitle").map((f) => [f, f.replace(/^media\//, "")]), s.file)}
-        ${selectHtml("lang", langs, s.lang || "", 'class="shrink" style="width:90px"')}
-        <label class="shrink" title="${t("default_on")}"><input type="checkbox" data-k="default" ${s.default ? "checked" : ""}> ${t("default_on")}</label>
         <button class="small danger shrink" data-del-sub="${i}">✕</button></div>
-        <div class="row" style="margin:0 0 8px 0" data-sub="${i}" data-nobind>
-        ${selectHtml("position", [["bottom", t("sub_bottom")], ["top", t("sub_top")]], s.position || "bottom", 'class="shrink"')}
+        <div class="row" style="margin:0 0 4px" data-sub="${i}" data-nobind>
+        ${selectHtml("lang", langs, s.lang || "", 'class="shrink" style="width:90px"')}
+        <label title="${t("default_on")}"><input type="checkbox" data-k="default" ${s.default ? "checked" : ""}> ${t("default_on")}</label></div>
+        <div class="row" style="margin:0 0 10px" data-sub="${i}" data-nobind>
+        ${selectHtml("position", [["bottom", t("sub_bottom")], ["top", t("sub_top")]], s.position || "bottom", 'class="shrink" style="width:90px"')}
         <label class="shrink"><input type="checkbox" data-k="has_color" ${s.color ? "checked" : ""}> ${t("sub_color")}</label>
-        <input type="color" class="shrink" data-k="color" value="${esc(s.color || "#ffffff")}" ${s.color ? "" : "disabled"}></div>`).join("")}
+        <input type="color" class="shrink" style="width:44px" data-k="color" value="${esc(s.color || "#ffffff")}" ${s.color ? "" : "disabled"}></div>`).join("")}
     <button class="small" id="add-sub" ${mediaOf("subtitle").length ? "" : "disabled"}>${t("add_sub")}</button>
     <h3>${t("chapter_menu")}</h3>
     <label><input type="checkbox" id="cm-on" ${cm ? "checked" : ""}> ${t("chapter_menu_on")}</label>

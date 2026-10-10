@@ -11,6 +11,7 @@ import threading
 import time
 import unittest
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from oncemore import tools
@@ -209,6 +210,61 @@ class TestGuiApi(unittest.TestCase):
         _, state = self.s.call("/api/state")
         self.assertFalse(any(".oncemore-cache" in m["path"] for m in state["media"]))
 
+    def test_subtitle_editor_api(self):
+        self.s.call("/api/new", "POST", {"sample": True})
+        cues = [{"start": 4, "end": 6, "text": "Second", "position": "top"},
+                {"start": 1, "end": 3.5, "text": "First line\nand another"},
+                {"start": 7, "end": 7, "text": "zero length is dropped"},
+                {"start": 8, "end": 9, "text": "   "}]
+        status, r = self.s.call("/api/subtitles?path=media/new.srt", "PUT", {"cues": cues})
+        self.assertEqual(status, 200, r)
+        self.assertEqual(r["cues"], 2)
+        self.assertIn("media/new.srt", [m["path"] for m in r["media"]])
+        status, r = self.s.call("/api/subtitles?path=media/new.srt")
+        self.assertEqual(status, 200, r)
+        self.assertTrue(r["editable"])
+        self.assertEqual([(c["start"], c["end"], c["text"], c["position"]) for c in r["cues"]],
+                         [(1.0, 3.5, "First line\nand another", None), (4.0, 6.0, "Second", "top")])
+        # other formats are read (and can be saved as .srt), never overwritten
+        with open(os.path.join(self.dir, "media", "x.vtt"), "w", encoding="utf-8") as f:
+            f.write("WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nHello\n")
+        status, r = self.s.call("/api/subtitles?path=media/x.vtt")
+        self.assertEqual((status, r["editable"], r["cues"][0]["text"]), (200, False, "Hello"))
+        self.assertEqual(self.s.call("/api/subtitles?path=media/x.vtt", "PUT", {"cues": []})[0], 400)
+        self.assertEqual(self.s.call("/api/subtitles?path=media/menu_bg.png")[0], 403)
+        self.assertEqual(self.s.call("/api/subtitles?path=../x.srt", "PUT", {"cues": []})[0], 403)
+        self.assertEqual(self.s.call("/api/subtitles?path=media/none.srt")[0], 404)
+
+    @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/dvdauthor/ISO tool")
+    def test_slideshow_render(self):
+        _, st = self.s.call("/api/new", "POST", {"sample": True})
+        project = st["project"]
+        project["titles"].append({"id": "pics", "slideshow": {
+            "slides": [{"image": "media/menu_bg.png", "duration": 2},
+                       {"image": "media/menu_bg.png", "duration": 1.5}]}})
+        status, r = self.s.call("/api/slideshow", "POST", {"title": "pics", "project": project})
+        self.assertEqual(status, 200, r)
+        self.assertEqual((r["duration"], r["starts"]), (3.5, [0.0, 2.0]))
+        self.assertTrue(r["path"].startswith(".oncemore-cache/slideshow/"), r["path"])
+        full = os.path.join(self.dir, r["path"])
+        self.assertTrue(os.path.isfile(full))
+        streams = json.loads(subprocess.run(
+            [tools.find("ffprobe"), "-v", "error", "-show_streams", "-show_format", "-of", "json",
+             full], capture_output=True, text=True).stdout)
+        self.assertEqual(streams["streams"][0]["codec_name"], "ffv1")
+        self.assertAlmostEqual(float(streams["format"]["duration"]), 3.5, delta=0.1)
+        # it plays in the page like any title
+        for _ in range(240):
+            status, p = self.s.call("/api/proxy?" + urllib.parse.urlencode({"path": r["path"]}),
+                                    "POST")
+            if p.get("state") != "running":
+                break
+            time.sleep(0.25)
+        self.assertEqual(p["state"], "ready", p)
+        self.assertEqual(self.s.call("/api/slideshow", "POST", {"title": "t1", "project": project})[0],
+                         400)
+
+
 def _chromium():
     exe = None
     for cand in ("/opt/pw-browsers/chromium", os.environ.get("ONCEMORE_TEST_CHROMIUM", "")):
@@ -366,6 +422,72 @@ class TestGuiBrowser(unittest.TestCase):
             page.select_option("#inspector select[data-k=action]", f"playlist:{pl['id']}")
             self.wait_saved(page)
             self.assertEqual(self.project()["menus"][0]["buttons"][0]["action"], f"playlist:{pl['id']}")
+            browser.close()
+        self.assertEqual(errors, [])
+
+    def test_slideshow_and_subtitle_editor(self):
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click("#np-sample")
+            page.locator(".nav-item[data-view=title][data-id=t1]").wait_for(timeout=120000)
+            # a slideshow from the pictures in Media
+            page.click("#add-slideshow")
+            page.locator("[data-slide='0']").wait_for()
+            self.wait_saved(page)
+            ti = self.project()["titles"][-1]
+            self.assertEqual(ti["slideshow"]["slides"], [{"image": "media/menu_bg.png"}])
+            page.select_option("#ss-add", "media/menu_bg.png")
+            page.locator("[data-slide='1']").wait_for()
+            page.fill("[data-slide='0'] [data-f=duration]", "3")
+            page.press("[data-slide='0'] [data-f=duration]", "Enter")
+            page.check("#ss-pz")
+            page.select_option("#ss-tr", "none")
+            self.wait_saved(page)
+            sh = self.project()["titles"][-1]["slideshow"]
+            self.assertEqual(sh, {"slides": [{"image": "media/menu_bg.png", "duration": 3},
+                                             {"image": "media/menu_bg.png"}],
+                                  "pan_zoom": True, "transition": "none"})
+            self.assertTrue(self.s.app.check(self.project())["valid"])
+            page.click("#ss-play")
+            page.locator("#player:not([hidden])").wait_for(timeout=180000)
+            # subtitles: a new track, two cues typed in, one removed
+            page.click(".nav-item[data-view=title][data-id=t1]")
+            page.click("#sub-new")
+            page.locator("#sub-add").wait_for()
+            self.wait_saved(page)
+            self.assertEqual(self.project()["titles"][0]["subtitles"], [{"file": "media/t1-1.srt"}])
+            page.fill("#tc-input", "00:00:02.000")
+            page.press("#tc-input", "Enter")
+            page.click("#sub-add")
+            page.locator("tr[data-cue='0']").wait_for()
+            page.fill("tr[data-cue='0'] [data-f=text]", "Hello there")
+            page.locator("tr[data-cue='0'] [data-f=text]").blur()
+            page.locator("tr[data-cue='0'] textarea", has_text="Hello there").wait_for()
+            page.fill("#tc-input", "00:00:05.000")
+            page.press("#tc-input", "Enter")
+            page.click("#sub-add")
+            page.locator("tr[data-cue='1']").wait_for()
+            page.select_option("tr[data-cue='1'] [data-f=position]", "top")
+            page.locator("tr[data-cue='1'] [data-f=position]").wait_for()
+            srt = os.path.join(self.dir, "media", "t1-1.srt")
+            for _ in range(40):
+                with open(srt, encoding="utf-8") as f:
+                    text = f.read()
+                if "{\\an8}" in text:
+                    break
+                time.sleep(0.25)
+            # (the playhead snaps to frames, 2.002 s at 29.97 fps)
+            self.assertRegex(text, r"00:00:02,0\d\d --> 00:00:04,0\d\d\nHello there")
+            self.assertRegex(text, r"00:00:05,0\d\d --> 00:00:07,0\d\d")
+            self.assertIn("{\\an8}", text)            # top, kept in the SubRip file
+            page.click("[data-delcue='0']")
+            page.locator("tr[data-cue='1']").wait_for(state="detached")
+            with open(srt, encoding="utf-8") as f:
+                self.assertNotIn("Hello there", f.read())
             browser.close()
         self.assertEqual(errors, [])
 

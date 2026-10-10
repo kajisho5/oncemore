@@ -101,7 +101,14 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   press **◆ Add chapter here** wherever a chapter should start; **▶ Play** plays
   it (a small preview copy is made the first time). Tick *Generate a
   chapter menu* for a thumbnail menu. Set what happens when it ends, audio
-  tracks and subtitles (`.srt`) in the right-hand panel.
+  tracks and subtitles (`.srt`, `.vtt`, `.ass`) in the right-hand panel. Below the
+  timeline, **Subtitles** edits the cues (start / end, text, top or bottom):
+  *+ Add cue at playhead* times a new one from where you are; files in other
+  formats can be saved as a new `.srt` to edit.
+* **+ Slideshow** turns the pictures in *Media* into a title: set each picture's
+  duration and order, cross-fade or cut, slow zoom (pan & zoom) and music;
+  **Render & play** shows it as it will be on the disc. Every picture starts a
+  chapter.
 * **Menus**: *+ Add* starts blank or from a template (classic, banner, minimal,
   setup), then drag buttons, text and rectangles where you want them —
   Shift-click selects several, with align / distribute buttons, snapping guides,
@@ -226,7 +233,8 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 |---|---|---|
 | `id` | `[A-Za-z0-9_-]{1,40}` | required |
 | `name` | string | the id |
-| `source` | any video ffmpeg reads | required |
+| `source` | any video ffmpeg reads | required (or `slideshow`) |
+| `slideshow` | a title made from pictures (below) | none |
 | `chapters` | list of times, or `{time, name, poster}` objects (`name` labels the chapter-menu button, `poster` is the time of its thumbnail); `0` is added if missing | `[0]` |
 | `audio.codec` | `ac3` \| `lpcm` | `ac3` |
 | `audio.bitrate` | AC-3 only, 64k–448k | `192k` (`448k` for 5.1) |
@@ -305,6 +313,30 @@ opaque pixels in the highlight colour).
 A button with `"action": "playlist:best"` (or `first_play` / `title_key`) plays the
 items in order, also across titles with different formats; an item stops at the
 end of its last chapter. Title, chapter and play-all buttons leave playlist mode.
+
+### Slideshows
+
+```jsonc
+"titles": [{
+  "id": "holiday", "name": "Holiday",
+  "slideshow": {
+    "slides": [{ "image": "media/beach.jpg", "duration": 6 },   // seconds, default 5
+               { "image": "media/hills.png" }],
+    "transition": "crossfade",        // or "none" (cuts)
+    "transition_duration": 1,         // seconds, shorter than every slide
+    "pan_zoom": true,                 // a slow zoom in / out on every picture
+    "audio": "media/music.m4a",       // trimmed to the show and faded out
+    "background_color": "#000000"     // around pictures of another shape
+  },
+  "end_action": "menu:main"
+}]
+```
+
+The pictures are fitted on the disc's square-pixel canvas (854 × 480 for NTSC
+16:9) and rendered once into a lossless video in `.oncemore-cache/slideshow`;
+that video is then encoded like any other title (and re-rendered only when a
+picture, a duration or a setting changes). Slide *k* starts at the sum of the
+earlier durations and is a chapter unless `chapters` is given.
 
 ### Audio tracks and subtitles
 

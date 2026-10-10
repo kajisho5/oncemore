@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from importlib import resources
 
 from . import schemalite
+from . import slideshow
 from .errors import ProjectError
 
 PROJECT_FILENAME = "project.oncemore.json"
@@ -243,6 +244,7 @@ class Title:
     titleset: int = 1        # DVD titleset (VTS) holding this title
     global_number: int = 0   # title number as players show it (VMGM order)
     remote_menu: str = None  # menu id the Menu key opens during this title
+    slideshow: object = None  # slideshow.Slideshow when made from pictures
     video_bitrate: int = None   # this title's own video bitrate (None = shared)
     audio_passthrough: bool = False   # copy AC-3 from the sources
     chapter_names: list = field(default_factory=list)    # per chapter, or None
@@ -524,6 +526,7 @@ class _Builder:
             self.err("disc.video_bitrate", "must be between 1M and 8M")
 
         titles = []
+        self._disc = disc
         for i, t in enumerate(d["titles"]):
             titles.append(self.title(i, t))
         self.unique([t.id for t in titles], "titles")
@@ -626,7 +629,17 @@ class _Builder:
                                  "(384k or 448k recommended)")
         if codec == "lpcm" and "bitrate" in audio:
             self.warnings.append(f"{where}.audio.bitrate is ignored for lpcm (fixed 1536k)")
-        source = self.file(f"{where}.source", t["source"])
+        show = None
+        if "slideshow" in t:
+            show = self.slideshow(where, t["slideshow"])
+            # the picture show is rendered into the cache; that file is the source
+            tdisc = dataclasses.replace(self._disc, aspect=t.get("aspect") or self._disc.aspect)
+            source = slideshow.output_path(self.base, show, tdisc)
+            if "chapters" not in t:
+                chapters = show.starts()
+                names, posters = [None] * len(chapters), [None] * len(chapters)
+        else:
+            source = self.file(f"{where}.source", t["source"])
         if "audio_tracks" in t:
             tracks = [AudioTrack(
                 source=self.file(f"{where}.audio_tracks[{j}].source", a["source"])
@@ -646,6 +659,7 @@ class _Builder:
             chapters=chapters, audio_codec=codec, audio_bitrate=bitrate, audio_channels=channels,
             end_action=t.get("end_action", "stop"), audio_tracks=tracks, subtitles=subs,
             remote_menu=t.get("remote_menu"), chapter_names=names, chapter_posters=posters,
+            slideshow=show,
             video_bitrate=parse_bitrate(t["video_bitrate"]) if "video_bitrate" in t else None,
             audio_passthrough=bool(audio.get("passthrough")),
             aspect=t.get("aspect"),
@@ -717,6 +731,21 @@ class _Builder:
             select_color=m.get("select_color", DEFAULT_SELECT),
             texts=texts, buttons=buttons,
         )
+
+    def slideshow(self, where, spec):
+        slides = [slideshow.Slide(self.file(f"{where}.slideshow.slides[{j}].image", s["image"]),
+                                  float(s.get("duration", 5)))
+                  for j, s in enumerate(spec["slides"])]
+        show = slideshow.Slideshow(
+            slides=slides, transition=spec.get("transition", "crossfade"),
+            transition_duration=float(spec.get("transition_duration", 1.0)),
+            pan_zoom=bool(spec.get("pan_zoom")),
+            audio=self.file(f"{where}.slideshow.audio", spec.get("audio")),
+            background_color=spec.get("background_color", "#000000"))
+        if show.fade and any(s.duration <= show.fade for s in slides):
+            self.err(f"{where}.slideshow.transition_duration",
+                     "every slide must be longer than the cross-fade")
+        return show
 
     def style(self, where, spec):
         """Per-element text style fields."""
