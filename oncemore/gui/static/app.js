@@ -162,6 +162,12 @@ const I18N = {
     colour_set: "Colour set", cs_normal: "Normal", opacity: "Opacity",
     cs_normal_hint: "Show the buttons' highlight shapes in this colour while they are not selected",
     cs_hint: "The colours of the buttons' highlight shapes: Normal (while not selected; optional), Highlight (selected) and Activated (pressed). A DVD player has 16 levels of opacity.",
+    layer_hide: "Hide (not on the disc)", layer_show: "Show",
+    cmd_save_template: "Save menu as template…", cmd_chapter_index: "Create chapter index…", lib_my_templates: "My templates",
+    utpl_use: "New menu from this template", utpl_none: "Menu > Save menu as template keeps a menu here, with its pictures, for every project.",
+    utpl_hint: "The menu and copies of the files it uses (backgrounds, pictures, fonts, music) are kept in your template library, so any project can start a menu from it.",
+    utpl_saved: "Saved “{n}” to the Library (My templates).",
+    chapter_index_hint: "Makes the title's chapter menu (six chapters a page, with the chapters' names and poster frames) and opens it.",
     skin: "Skin", skin_modern: "Modern", skin_classic: "Classic", skin_hint: "Classic: the look of the classic disc authoring apps (mid-grey panels, light fields, amber timecode). The layout is the same.",
   },
   ja: {
@@ -323,6 +329,12 @@ const I18N = {
     colour_set: "カラーセット", cs_normal: "通常時の色", opacity: "不透明度",
     cs_normal_hint: "選択されていないボタンのハイライト形状をこの色で表示します",
     cs_hint: "ボタンのハイライト形状の色：通常時（選択されていないとき・任意）、選択中、決定時。DVD プレーヤーの不透明度は 16 段階です。",
+    layer_hide: "非表示にする（ディスクに入れない）", layer_show: "表示する",
+    cmd_save_template: "メニューをテンプレートとして保存…", cmd_chapter_index: "チャプターインデックスを作成…", lib_my_templates: "マイテンプレート",
+    utpl_use: "このテンプレートから新しいメニュー", utpl_none: "メニュー > メニューをテンプレートとして保存 で、画像ごとメニューをここに保存し、どのプロジェクトでも使えます。",
+    utpl_hint: "メニューと、使っているファイル（背景・画像・フォント・BGM）のコピーをテンプレートライブラリに保存します。どのプロジェクトからでもこのメニューを元に作れます。",
+    utpl_saved: "「{n}」をライブラリ（マイテンプレート）に保存しました。",
+    chapter_index_hint: "タイトルのチャプターメニュー（1 ページ 6 チャプター、チャプター名とポスターフレーム付き）を作って開きます。",
     skin: "スキン", skin_modern: "モダン", skin_classic: "クラシック", skin_hint: "クラシック：昔ながらのディスクオーサリングアプリの見た目（中間グレーのパネル、明るい入力欄、琥珀色のタイムコード）。配置は同じです。",
   },
 };
@@ -693,6 +705,8 @@ const ICONS = {
   prevch: svg('<path d="M3 2v12M3 3h4" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="M13 5v6L8 8z" fill="currentColor"/>'),
   nextch: svg('<path d="M13 2v12M13 3H9" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="M3 5v6l5-3z" fill="currentColor"/>'),
   addch: svg('<path d="M4 2v12M4 3h5l-1.5 2L9 7H4" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M11 9v5M8.5 11.5h5" stroke="currentColor" stroke-width="1.5"/>'),
+  eye: svg('<path d="M1 8s2.6-4.5 7-4.5S15 8 15 8s-2.6 4.5-7 4.5S1 8 1 8z" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" fill="currentColor"/>'),
+  eyeOff: svg('<path d="M1 8s2.6-4.5 7-4.5S15 8 15 8s-2.6 4.5-7 4.5S1 8 1 8z" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".45"/><path d="M2.5 13.5l11-11" stroke="currentColor" stroke-width="1.4"/>'),
   mtnS: svg('<path d="M3 12l3-4 2 2 2-3 3 5z" fill="currentColor"/>'),
   mtnL: svg('<path d="M0.5 14l4.5-7 3 3.5 3-5 4.5 8.5z" fill="currentColor"/>'),
   panel: svg('<path d="M3 5l2.5 3L8 5z" fill="currentColor"/><path d="M9.5 4.5h4M9.5 7.5h4M9.5 10.5h4" stroke="currentColor" stroke-width="1.3"/>', 'width="18" height="14"'),
@@ -1320,7 +1334,7 @@ async function renderFlow(m) {
     }
     return "";
   };
-  const buttonsOf = (n) => n.kind !== "menu" ? [] : ((P().menus || []).find((x) => "menu:" + x.id === n.id)?.buttons || []).map((b) => b.label || b.id);
+  const buttonsOf = (n) => n.kind !== "menu" ? [] : ((P().menus || []).find((x) => "menu:" + x.id === n.id)?.buttons || []).filter((b) => !b.hidden).map((b) => b.label || b.id);
   const card = (n) => {
     if (n.kind === "first_play") {
       return `<circle cx="${W / 2}" cy="${H / 2 - 2}" r="30" class="disc-ico"/><circle cx="${W / 2}" cy="${H / 2 - 2}" r="8" class="disc-hole"/>
@@ -1739,7 +1753,7 @@ function renderMenu(m) {
     ...(menu.shapes || []).map((x, i) => ({ kind: "shape", i, x: x.x, y: x.y, w: x.w, h: x.h, color: x.color || "#00000080" })),
     ...(menu.texts || []).map((x, i) => ({ kind: "text", i, x: x.x, y: x.y, size: x.size || defSize, color: x.color || defColor, label: x.text, ...styleOf(x) })),
     ...(menu.buttons || []).map((b, i) => ({ kind: "button", i, x: b.x, y: b.y, size: b.size || defSize, color: b.color || defColor, label: b.label || "", image: b.image, width: b.width, hl: !b.label && !b.image ? b.highlight_image : null, ...styleOf(b) })),
-  ];
+  ].filter((e) => !(e.kind === "button" ? menu.buttons : e.kind === "text" ? menu.texts : menu.shapes)[e.i].hidden);   // (switched off in Layers)
   // selection: S.sels (all selected), S.element (the one the inspector shows)
   if (!S.element) S.sels = [];
   else if (!(S.sels || []).some((x) => x.kind === S.element.kind && x.i === S.element.i)) S.sels = [S.element];
@@ -2493,6 +2507,7 @@ const TEXT_STYLES = [
 async function renderLibrary() {
   const el = $("#library");
   if (!S.templates) { try { S.templates = (await api("/api/templates")).templates; } catch (e) { S.templates = []; } }
+  if (!S.userTemplates) { try { S.userTemplates = (await api("/api/user_templates")).templates; } catch (e) { S.userTemplates = []; } }
   if ((S.rightTab || "layers") !== "library") return;
   const menu = S.sel.view === "menu" ? curMenu() : null;
   const sels = menu ? (S.sels || []).filter((x) => x.kind !== "shape") : [];
@@ -2500,6 +2515,9 @@ async function renderLibrary() {
     <div class="lib-section"><h4>${t("lib_templates")}</h4><div class="lib-grid">
       ${S.templates.map((x) => `<button class="lib-item" data-tpl="${esc(x.id)}" title="${esc(x[LANG] || x.en)}"><b>${esc((x[LANG] || x.en).split(/ [—-] /)[0])}</b><span class="hint">${esc((x[LANG] || x.en).split(/ [—-] /)[1] || "")}</span></button>`).join("")}
     </div></div>
+    <div class="lib-section"><h4>${t("lib_my_templates")}</h4>${S.userTemplates.length ? `<div class="lib-grid">
+      ${S.userTemplates.map((x) => `<div class="lib-item utpl"><button class="lib-use" data-utpl="${esc(x.id)}" title="${esc(t("utpl_use"))}"><b>${esc(x.name)}</b><span class="hint">${esc(t("n_buttons", { n: x.buttons }))}</span></button><button class="small danger" data-utpl-del="${esc(x.id)}" title="${esc(t("delete"))}">✕</button></div>`).join("")}</div>`
+      : `<div class="hint">${esc(t("utpl_none"))}</div>`}</div>
     <div class="lib-section"><h4>${t("lib_backgrounds")}</h4>${mediaOf("image").length ? `<div class="lib-grid">
       ${mediaOf("image").map((x) => `<button class="lib-item" data-bg="${esc(x)}" title="${esc(menu ? t("use_as_bg") : t("new_menu_with_bg"))}"><img src="${imgUrl("file", { path: x })}" alt=""><span>${esc(x.replace(/^media\//, ""))}</span></button>`).join("")}</div>`
       : `<div class="hint">${esc(t("add_files"))}</div>`}</div>
@@ -2514,6 +2532,13 @@ async function renderLibrary() {
     select("menu", id);
   }));
   el.querySelectorAll("[data-bg]").forEach((b) => (b.onclick = () => mediaAction(menu ? "bg" : "newmenu", b.dataset.bg)));
+  el.querySelectorAll("[data-utpl]").forEach((b) => (b.onclick = () => applyUserTemplate(b.dataset.utpl)));
+  el.querySelectorAll("[data-utpl-del]").forEach((b) => (b.onclick = async () => {
+    const x = S.userTemplates.find((y) => y.id === b.dataset.utplDel);
+    if (!x || !confirm(t("confirm_delete", { x: x.name }))) return;
+    try { S.userTemplates = (await api("/api/delete_template", { method: "POST", body: { template: x.id } })).templates; } catch (err) { alert(err.message); }
+    renderLibrary();
+  }));
   el.querySelectorAll("[data-psd]").forEach((b) => (b.onclick = () => mediaAction("psd", b.dataset.psd)));
   el.querySelectorAll("[data-style]").forEach((b) => (b.onclick = () => {
     const st = TEXT_STYLES.find((x) => x[0] === b.dataset.style)[1];
@@ -2543,7 +2568,9 @@ function renderLayers() {
   const menu = S.sel.view === "menu" ? curMenu() : null;
   if (!menu) { body.innerHTML = `<div class="hint" style="padding:8px">${esc(t("layers_hint"))}</div>`; return; }
   const sel = (k, i) => (S.sels || []).some((x) => x.kind === k && x.i === i) || (S.element && S.element.kind === k && S.element.i === i);
-  const row = (k, i, ico, name, to, n) => `<div class="layer-row ${sel(k, i) ? "selected" : ""}" data-lk="${k}" data-li="${i}">
+  const listOfKind = (k) => (k === "button" ? menu.buttons : k === "text" ? menu.texts : menu.shapes) || [];
+  const row = (k, i, ico, name, to, n) => `<div class="layer-row ${sel(k, i) ? "selected" : ""} ${listOfKind(k)[i].hidden ? "off" : ""}" data-lk="${k}" data-li="${i}">
+      <button class="eye" data-leye title="${esc(t(listOfKind(k)[i].hidden ? "layer_show" : "layer_hide"))}">${listOfKind(k)[i].hidden ? ICONS.eyeOff : ICONS.eye}</button>
       <span class="ico">${ico}</span><span class="nm">${esc(name)}</span>${to ? `<span class="to">${esc(to)}</span>` : ""}
       <span class="ops"><button class="small" data-lmove="-1" ${i ? "" : "disabled"} title="▲">▲</button><button class="small" data-lmove="1" ${i + 1 < n ? "" : "disabled"} title="▼">▼</button><button class="small danger" data-ldel title="${esc(t("delete"))}">✕</button></span></div>`;
   const bs = menu.buttons || [], ts = menu.texts || [], ss = menu.shapes || [];
@@ -2567,6 +2594,11 @@ function renderLayers() {
       commit((p) => { const l = list(p.menus.find((x) => x.id === menu.id), k); [l[i], l[j]] = [l[j], l[i]]; });
       S.element = { kind: k, i: j }; S.sels = [S.element]; S.preview = null; renderMain(); renderInspector();
     }));
+    r.querySelector("[data-leye]").onclick = (ev) => {
+      ev.stopPropagation();
+      commit((p) => { const it = list(p.menus.find((x) => x.id === menu.id), k)[i]; if (it.hidden) delete it.hidden; else it.hidden = true; });
+      S.element = null; S.sels = []; S.preview = null; renderMain(); renderInspector();
+    };
     r.querySelector("[data-ldel]").onclick = () => {
       commit((p) => { list(p.menus.find((x) => x.id === menu.id), k).splice(i, 1); });
       S.element = null; S.sels = []; S.preview = null; renderMain(); renderInspector();
@@ -3084,6 +3116,8 @@ const COMMANDS = {
   ws_flow: { key: "alt+shift+2", run: WS("flow"), when: hasProject },
   ws_sim: { key: "alt+shift+3", run: WS("sim"), when: hasProject },
   ws_build: { key: "alt+shift+4", run: WS("build"), when: hasProject },
+  save_template: { run: saveTemplateBox, when: () => S.sel.view === "menu" && !!curMenu() },
+  chapter_index: { run: chapterIndexBox, when: () => hasProject() && (P().titles || []).length > 0 },
   chapters_interval: { run: chaptersAtIntervals, when: () => S.sel.view === "title" && !!curTitle() && !curTitle().slideshow && titleLength(curTitle()) > 0 },
   replace_asset: { run: () => replaceAssetBox(), when: hasProject },
   project_settings: { run: () => { S.leftTab = S.leftTab === "build" ? "project" : S.leftTab; S.activeFrame = "props"; select("disc"); }, when: hasProject },
@@ -3108,13 +3142,57 @@ const MENUBAR = [
   ["m_file", ["import_files", "import_psd", "replace_asset", "-", "project_settings", "-", "transcode_title", "transcode_all", "-", "preview", "check", "build", "-", "reveal"]],
   ["m_edit", ["undo", "redo", "-", "duplicate", "delete", "-", "edit_psd", "-", "preferences"]],
   ["m_object", ["align_left", "align_hcenter", "align_right", "align_top", "align_vcenter", "align_bottom", "-", "distribute_h", "distribute_v", "-", "bring_front", "send_back", "-", "convert"]],
-  ["m_menu", ["new_menu", "-", "set_link", "-", "tool_select", "tool_text", "tool_zoom"]],
+  ["m_menu", ["new_menu", "chapter_index", "-", "save_template", "-", "set_link", "-", "tool_select", "tool_text", "tool_zoom"]],
   ["m_timeline", ["new_timeline", "new_slideshow", "new_playlist", "-", "add_chapter", "chapters_interval", "prev_chapter", "next_chapter", "play"]],
   ["m_view", ["zoom_in", "zoom_out", "-", "safe_area", "routing"]],
   ["m_window", ["ws_author", "ws_flow", "ws_sim", "ws_build", "-", "win_project", "win_menus", "win_timelines", "win_build", "win_monitor", "win_flowchart",
     "win_properties", "win_layers", "win_library", "-", "theme", "language"]],
   ["m_help", ["shortcuts", "about"]],
 ];
+// Menu > Save menu as template: the menu and copies of its files go to the
+// template library (for every project); the Library lists them
+function saveTemplateBox() {
+  const menu = curMenu();
+  if (!menu) return;
+  openModal(`<h2>${t("cmd_save_template")}</h2>
+    <label class="field"><span>${t("name")}</span><input id="tpl-name" value="${esc(menu.id)}"></label>
+    <div class="hint">${esc(t("utpl_hint"))}</div>
+    <div class="dlg-buttons"><span class="spacer"></span><button id="tpl-ok" class="primary">OK</button></div>`);
+  $("#tpl-name").select();
+  $("#tpl-ok").onclick = async () => {
+    try {
+      const r = await api("/api/save_template", { method: "POST", body: { menu, name: $("#tpl-name").value } });
+      S.userTemplates = r.templates;
+      openModal(`<h2>${t("cmd_save_template")}</h2><p>${esc(t("utpl_saved", { n: $("#tpl-name")?.value || menu.id }))}</p>`);
+      S.rightTab = "library"; renderLayers();
+    } catch (err) { alert(err.message); }
+  };
+}
+async function applyUserTemplate(tid) {
+  const x = S.userTemplates.find((y) => y.id === tid), ids = allMenuIds(), id = ids.includes(tid) ? uniqueId(`${tid}_`, ids) : tid;
+  try {
+    const r = await api("/api/apply_template", { method: "POST", body: { template: tid, id, project: S.project } });
+    S.media = r.media;
+    commit((p) => { (p.menus = p.menus || []).push(r.menu); });
+    select("menu", id);
+  } catch (err) { alert(`${x ? x.name : tid}: ${err.message}`); }
+}
+// Menu > Create chapter index: a chapter menu for a title (the generated
+// chapter menus, one page per six chapters), opened in the Menu Viewer
+function chapterIndexBox() {
+  const ts = (P().titles || []);
+  openModal(`<h2>${t("cmd_chapter_index")}</h2>
+    <label class="field"><span>${t("title")}</span><select id="ci-title">${ts.map((x) => `<option value="${esc(x.id)}" ${S.lastTitle === x.id ? "selected" : ""}>${esc(x.name || x.id)}${x.auto_chapter_menu ? " ✓" : ""}</option>`).join("")}</select></label>
+    <div class="hint">${esc(t("chapter_index_hint"))}</div>
+    <div class="dlg-buttons"><span class="spacer"></span><button id="cix-ok" class="primary">OK</button></div>`);
+  $("#cix-ok").onclick = () => {
+    const tid = $("#ci-title").value;
+    closeModal();
+    if (!(P().titles || []).find((x) => x.id === tid)?.auto_chapter_menu) commit((p) => { p.titles.find((x) => x.id === tid).auto_chapter_menu = true; });
+    const g = generatedMenus().find((m) => m.title === tid);
+    if (g) select("menu", g.id);
+  };
+}
 // Window > (panel): bring a panel to the front of its frame
 function showLeft(tab) { S.leftTab = tab; S.activeFrame = "left"; renderLeft(); renderWorkspaces(); markFrame(); }
 function showRight(tab) { S.rightTab = tab; S.activeFrame = "layers"; renderLayers(); markFrame(); }

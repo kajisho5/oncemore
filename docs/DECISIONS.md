@@ -706,3 +706,16 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   the normal colour; the simulator gets the plain menu plus one picture per
   selected button, so it shows exactly that too.
 
+## 45. Hidden layers and the template library
+
+* `hidden` elements are removed when the project is read, before anything
+  else sees the menu: layout, routing, graph, simulator and build all work on
+  what is on the disc without each knowing about visibility. Routes to a
+  hidden button are dropped and a hidden default button falls back to the
+  first; hiding every button is an error.
+* A saved template must outlive its project, so it is a folder with copies
+  of the files it uses, in the user's data folder (not the project). Applying
+  it copies them into the project's media/ folder (reusing an identical file
+  of the same name, renaming otherwise) and turns links to things the
+  project lacks into "stop", so the new menu is valid at once.
+

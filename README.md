@@ -136,6 +136,13 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   frame or by its shape). Use an image or a video as the background. **Exact preview**
   renders the menu exactly as the disc will show it, with button hit areas.
 * ▲/▼ in the right-hand panel change the order of titles and menus.
+* **Layers**: the eye switches an element off — it stays in the project but is
+  not on the disc (a button's routes to it go too).
+* **Save menu as template** (Menu menu): the menu and copies of its pictures,
+  fonts and music go to your template library (`ONCEMORE_TEMPLATES`, or
+  `~/Library/Application Support/oncemore/templates` on a Mac); **My templates**
+  in the Library starts a menu from one in any project (links the project does
+  not have become *stop*). **Create chapter index** makes a title's chapter menu.
 * **Colour set** (menu Properties): Normal (buttons while not selected,
   optional), Highlight and Activated colours, each with an opacity; previews
   and the simulator show them as the player will.
@@ -369,6 +376,7 @@ when there are more.
 | `remember_button` | coming back highlights the button used last (menus 1–7) | `true` |
 | `font_size`, `text_color` | defaults for texts/buttons | `32`, `#FFFFFF` |
 | `highlight_color`, `select_color` | button colours when selected / activated; `#RRGGBBAA` for translucent (a DVD has 16 levels of opacity) | `#FFD400`, `#FF5A00` |
+| `hidden` (buttons, texts, shapes) | switched off in the Layers panel: kept in the project, not on the disc | `false` |
 | `normal_color` | colour of the buttons' highlight shapes while not selected (the colour set's Normal state); none when absent | — |
 | `texts[]` | `{text, x, y, size?, color?}` decorative text, plus the text style keys below | `[]` |
 | `shapes[]` | `{x, y, w, h, color}` filled rectangles (bars, panels; `#RRGGBBAA` for translucent) drawn under texts and buttons | `[]` |

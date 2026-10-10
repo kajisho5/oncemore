@@ -749,6 +749,21 @@ class _Builder:
         where = f"menus[{i}]"
         size = m.get("font_size", DEFAULT_FONT_SIZE)
         tcolor = m.get("text_color", DEFAULT_TEXT)
+        # elements switched off in the Layers panel (`hidden`) are not on the disc
+        hidden = {b["id"] for b in m["buttons"] if b.get("hidden")}
+        m = dict(m, buttons=[b for b in m["buttons"] if not b.get("hidden")],
+                 texts=[t for t in m.get("texts", []) if not t.get("hidden")],
+                 shapes=[s for s in m.get("shapes", []) if not s.get("hidden")])
+        if hidden:
+            for b in m["buttons"]:
+                if any(v in hidden for v in b.get("nav", {}).values()):
+                    b = b.copy()
+                    b["nav"] = {k: v for k, v in b["nav"].items() if v not in hidden}
+                    m["buttons"] = [b if x["id"] == b["id"] else x for x in m["buttons"]]
+            if m.get("default_button") in hidden:
+                m = dict(m, default_button=None)
+            if not m["buttons"]:
+                self.err(f"{where}.buttons", "every button is hidden: a menu needs at least one")
         buttons = [Button(id=b["id"], label=b.get("label", ""), x=b["x"], y=b["y"],
                           action=b["action"], size=b.get("size", size),
                           color=b.get("color", tcolor), nav=dict(b.get("nav", {})),

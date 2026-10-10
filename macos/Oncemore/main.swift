@@ -393,6 +393,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
         ])
         _ = add("Menu", [
             cmd("New Menu…", "new_menu"),
+            cmd("Create Chapter Index…", "chapter_index"),
+            .separator(),
+            cmd("Save Menu as Template…", "save_template"),
             .separator(),
             cmd("Set Link…", "set_link", "l"),
             .separator(),
