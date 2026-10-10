@@ -324,6 +324,19 @@ class TestGuiBrowser(unittest.TestCase):
         with open(os.path.join(self.dir, "project.oncemore.json"), encoding="utf-8") as f:
             return json.load(f)
 
+    def poll(self, fn, timeout=30):
+        """Wait until fn() is truthy (reading the saved project file)."""
+        end = time.time() + timeout
+        while True:
+            try:
+                v = fn()
+            except (StopIteration, KeyError, IndexError, ValueError):
+                v = None
+            if v or time.time() > end:
+                self.assertTrue(v, "condition not met in time")
+                return v
+            time.sleep(0.2)
+
     def wait_saved(self, page):
         # (the page's CSP forbids eval, so no wait_for_function)
         page.locator("#save-state", has_text=re.compile("^(Saved|保存済み)$")).wait_for()
@@ -563,6 +576,48 @@ class TestGuiBrowser(unittest.TestCase):
             n = page.locator("#sim-screen .hit").count()
             page.locator("#sim-screen .hit").nth(n - 1).click()      # BACK
             page.locator("#sim-status", has_text="Menu main").wait_for()
+            browser.close()
+        self.assertEqual(errors, [])
+
+    def test_photoshop_import(self):
+        from .test_psdmenu import design
+        self.s.call("/api/new", "POST", {"sample": True})
+        status, r = self.s.call("/api/upload?name=design.psd", "POST", raw=design(),
+                                headers={"Content-Type": "application/octet-stream"})
+        self.assertEqual(status, 200, r)
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.locator(".media-item[data-media='media/design.psd']").wait_for(timeout=60000)
+            page.click("#add-menu")
+            page.locator("#psd-go").wait_for()
+            page.click("#psd-go")
+            page.locator("#modal", has_text="3 button(s) imported").wait_for(timeout=120000)
+            self.assertIn("no action could be guessed", page.locator("#modal").inner_text())
+            page.click(".modal-close")
+            menu = self.poll(lambda: next((m for m in self.project()["menus"]
+                                           if m["id"] == "design1"), None))
+            self.assertEqual([b["id"] for b in menu["buttons"]], ["play", "chapter_2", "extras"])
+            self.assertEqual(page.locator(".stage .el.button img.area").count(), 3)
+            # retarget EXTRAS, then import again: the target stays
+            page.locator(".stage .el.button").nth(2).click()
+            page.select_option("#inspector select[data-k=action]", "title:t2")
+            self.poll(lambda: next(m for m in self.project()["menus"]
+                                   if m["id"] == "design1")["buttons"][2]["action"] == "title:t2")
+            page.locator(".stage").click(position={"x": 5, "y": 5})
+            page.click("#psd-again")
+            page.locator("#modal", has_text="3 button(s) imported").wait_for(timeout=120000)
+            page.click(".modal-close")
+            self.wait_saved(page)
+            time.sleep(1)
+            self.wait_saved(page)
+            menu = next(m for m in self.project()["menus"] if m["id"] == "design1")
+            self.assertEqual(menu["buttons"][2]["action"], "title:t2")
+            self.assertEqual(menu["psd"], "media/design.psd")
+            self.assertTrue(self.s.app.check(self.project())["valid"])
             browser.close()
         self.assertEqual(errors, [])
 

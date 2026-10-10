@@ -1,6 +1,7 @@
 """Command-line interface."""
 
 import argparse
+import json
 import os
 import shutil
 import sys
@@ -135,6 +136,46 @@ def cmd_simulate(args, rep):
     return 0
 
 
+def cmd_import_psd(args, rep):
+    """Add (or update) a menu from a layered Photoshop file."""
+    from . import psdmenu
+    from .project import build_project, read_json
+    path = args.project
+    if os.path.isdir(path):
+        path = os.path.join(path, PROJECT_FILENAME)
+    if not os.path.isfile(path):
+        raise OncemoreError(f"{args.project}: project file not found")
+    base = os.path.dirname(os.path.abspath(path))
+    psd_path = args.psd if os.path.isfile(args.psd) else os.path.join(base, args.psd)
+    if not os.path.isfile(psd_path):
+        raise OncemoreError(f"{args.psd}: file not found")
+    data = read_json(path)
+    menu, notes = psdmenu.import_psd(psd_path, data, args.menu,
+                                     os.path.join(base, "media", "psd"), base)
+    menus = data.setdefault("menus", [])
+    i = next((k for k, m in enumerate(menus) if m.get("id") == args.menu), None)
+    if i is None:
+        menus.append(menu)
+    else:
+        menus[i] = menu
+    if args.first_play:
+        data["disc"]["first_play"] = f"menu:{args.menu}"
+    build_project(data, path)                  # refuse to save a broken project
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    os.replace(tmp, path)
+    for n in notes:
+        (rep.warn if n["level"] == "warning" else rep.info)(n["message"])
+    rep.result({"menu": args.menu, "buttons": [b["id"] for b in menu["buttons"]],
+                "notes": notes},
+               f"Menu '{args.menu}' {'updated' if i is not None else 'added'} with "
+               f"{len(menu['buttons'])} button(s): "
+               + ", ".join(f"{b['id']} -> {b['action']}" for b in menu["buttons"]))
+    return 0
+
+
 def cmd_build(args, rep):
     project = load_project(args.project)
     res = build.build(project, args.output, rep, fast=args.fast, keep_work=args.keep_work,
@@ -209,6 +250,15 @@ def make_parser():
     s.add_argument("project", help=proj_help)
     s.add_argument("--no-media", action="store_true", help="only check the JSON (no file checks, no ffprobe)")
     s.set_defaults(func=cmd_validate)
+
+    s = sub.add_parser("import-psd", parents=[common],
+                       help="make a menu from a layered Photoshop file")
+    s.add_argument("project", help=proj_help)
+    s.add_argument("psd", help="the .psd / .psb file")
+    s.add_argument("--menu", required=True, help="id of the menu to add or update")
+    s.add_argument("--first-play", action="store_true",
+                   help="also make it the menu the disc starts with")
+    s.set_defaults(func=cmd_import_psd)
 
     s = sub.add_parser("simulate", parents=[common],
                        help="press remote-control keys on the project (no encoding)")

@@ -482,3 +482,36 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   plus one highlight overlay per button, rendered once per menu definition
   and cached, so moving around is instant.
 
+## 34. Layered Photoshop menus
+
+* The reader (`oncemore/psd.py`) is our own, stdlib only, like the rest of
+  the core: PSD and PSB, RGB and grayscale, 8 and 16 bits (16 reduced to 8),
+  raw / PackBits / ZIP / ZIP-with-prediction channels, layer masks, groups
+  from section dividers, Unicode names. It was cross-checked against
+  psd-tools in both directions (files from our test writer read by psd-tools,
+  files written by psd-tools read by us; pixels exact) and fuzzed with
+  truncated and corrupted files, which only ever raise `PsdError`. CMYK, Lab,
+  indexed and 32-bit files are refused with a message to save as RGB.
+* The import follows the long-standing DVD layer-name prefixes — `(+)` button
+  groups, `(=1)`–`(=3)` highlight layers, `(%)` thumbnail placeholders — so
+  existing designs and templates work unchanged. It produces plain project
+  JSON (a background picture, buttons with a `highlight_image` and an
+  optional `thumbnail`), so imported menus are edited, simulated and built
+  like any other; nothing depends on keeping the .psd.
+* Background: the file's flattened image is used whenever it shows exactly
+  the artwork (highlight and placeholder layers hidden), because only it has
+  Photoshop's layer effects, adjustment layers and blend modes applied. When
+  those layers are visible the background is rebuilt with ffmpeg overlays
+  (normal blending, opacity including parent groups), and the note says what
+  is lost.
+* Geometry: the document is stretched to the menu frame, so a design made at
+  720 × 480 / 576 (non-square DVD pixels, the usual DVD template size) and one
+  made at the square-pixel size both land where they were drawn. The
+  highlight pictures are written at square-pixel size so the existing image
+  placement (width on the 720 grid, height from the aspect) reproduces them.
+* Re-import keeps each button's action, navigation and auto-activate by
+  button id (the slug of the group name) and the menu's own settings, so a
+  designer can iterate in Photoshop without re-linking the buttons.
+* Text layers are imported as their rendered pixels (the text itself is not
+  editable here); vector shapes and smart objects likewise.
+

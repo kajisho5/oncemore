@@ -160,6 +160,7 @@ oncemore build <project> -o out/               # writes out/VIDEO_TS (and out/AU
 oncemore iso <project> -o out.iso [--iso-tool auto|hdiutil|genisoimage|mkisofs|xorriso]
 oncemore preview-menu <project> --menu main -o main.png [--button id] [--state highlight|select|normal] [--outline]
 oncemore simulate <project> --keys down,enter,menu   # press remote keys, no encoding
+oncemore import-psd <project> design.psd --menu main [--first-play]   # a menu from Photoshop
 oncemore gui [<dir>] [--port N] [--no-browser] # the authoring app
 oncemore doctor                                # external tools, versions, ISO backend
 ```
@@ -313,6 +314,33 @@ label (then optional), drawn with its top-left at `x`/`y`; `width` on the
 720-wide grid (default: the picture's own width; the height follows its
 aspect), and `highlight`: `frame` (default, a frame around it) or `shape` (its
 opaque pixels in the highlight colour).
+
+### Menus from Photoshop
+
+Design a menu as a layered `.psd` / `.psb` (RGB, 8 or 16 bits) and bring it in
+with **Menus → + Add → Import from Photoshop** (or `oncemore import-psd`). The
+layer names use the prefixes long common for DVD menus:
+
+| Layer name | Meaning |
+|---|---|
+| `(+) Play Movie` | a **group** that is a button; the name becomes its id and suggests its target |
+| `(=1) …` inside a button | its highlight (also `(=2)`, `(=3)`; merged, a DVD highlight here has one colour) |
+| `(%) …` inside a button | where the title / chapter thumbnail goes |
+| anything else visible | artwork, flattened into the background |
+
+* The background is the file's own flattened image when the `(=n)` and `(%)`
+  layers are hidden (exact, layer effects included; save with *Maximize
+  Compatibility*). Otherwise it is rebuilt from the layers with normal blending.
+* Buttons without a `(=1)` layer light up in the shape of their artwork.
+* Names such as *Play*, *Play all*, *Scene 3*, a title's name, a menu id,
+  *Audio 2* or *Subtitles off* are linked automatically; check the rest.
+* A 720 × 480 (576) design is read as DVD pixels, an 854 × 480 or 1024 × 576
+  one as square pixels: both land where they were drawn.
+* **Import again** after editing the file updates the pictures and keeps every
+  button's target and the menu's settings.
+
+Imported buttons are ordinary buttons with only a `highlight_image` (and a
+`thumbnail` rectangle, which any title / chapter button can have).
 
 ### Playlists
 

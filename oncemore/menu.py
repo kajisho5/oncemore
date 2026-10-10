@@ -391,12 +391,21 @@ class MenuBuilder:
         for b in menu.buttons:
             if b.highlight_image:
                 hl = self.image_mask(menu.id, b, b.highlight_image)
+                hb = hl.bbox()
+                if hb is None:
+                    raise ProjectError(f"menu {menu.id!r}: highlight picture of button "
+                                       f"{b.id!r} is fully transparent")
                 if b.image:
                     _, h, sw = self.image_box(menu.id, b)
                     body = (b.x, b.y, b.x + sw - 1, b.y + h - 1)
-                else:
+                elif b.label:
                     body = self.measure(menu.id, b).bbox()
-                hb = hl.bbox()
+                else:
+                    body = hb        # an area of the background (e.g. from Photoshop)
+                if b.thumb:
+                    t = b.thumb
+                    body = (min(body[0], t.x), min(body[1], t.y),
+                            max(body[2], t.x + t.w), max(body[3], t.y + t.h))
                 x0, y0 = max(0, min(body[0], hb[0]) - 2), max(0, min(body[1], hb[1]) - 2)
                 x1, y1 = min(W - 1, max(body[2], hb[2]) + 2), min(H - 2, max(body[3], hb[3]) + 2)
                 y0 -= y0 % 2
@@ -560,7 +569,7 @@ class MenuBuilder:
             tf = self._textfile(f"{menu.id}.text{i}.txt", t.text)
             draws.append(self._drawtext(tf, t.x, t.y, t.size, t.color, t))
         for b in menu.buttons:
-            if b.image:
+            if b.image or not b.label:
                 continue
             tf = self._textfile(f"{menu.id}.{b.id}.label.txt", b.label)
             draws.append(self._drawtext(tf, b.x, b.y, b.size, b.color, b))

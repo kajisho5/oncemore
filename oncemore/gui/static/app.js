@@ -84,6 +84,12 @@ const I18N = {
     nothing_selected: "Select a button or text on the menu, or edit the menu settings below.",
     rename_hint: "Changing an ID also updates everything that points to it.",
     flowchart: "Flowchart", simulator: "Simulator", menu: "Menu", title: "Title",
+    import_psd: "Import from Photoshop", import: "Import", importing: "Reading the layers…",
+    import_psd_hint: "A layered .psd / .psb: groups named \"(+) Name\" become buttons, their \"(=1)\" layers the highlight and a \"(%)\" layer the thumbnail; everything else visible is the background. Drop the file onto the window to add it.",
+    no_psd: "No Photoshop files in Media yet: drop a .psd onto the window.",
+    imported_n: "{n} button(s) imported.", psd_actions_hint: "Check each button's target in the right-hand panel; names like \"Play\", \"Scene 2\" or a title's name are linked automatically.",
+    reimport: "Import again", reimport_hint: "After editing the file in Photoshop: updates the pictures and keeps the buttons' targets.",
+    make_menu_from_psd: "Make a menu from this design",
     flow_hint: "Everything a viewer can do on the disc: buttons, end actions, time-outs, playlists and the remote's Menu / Title keys. Click a box to edit it. Red boxes cannot be reached or cannot be left.",
     sim_hint: "Play the disc with a remote before building: arrows, OK, Menu, Title, next / previous chapter. Nothing is encoded; the pictures are the exact menu previews. Keyboard: arrow keys, Enter, M, T, N, P.",
     fp: "First play", title_key_node: "Title key", stop_node: "Stop", play_all: "Play all",
@@ -178,6 +184,12 @@ const I18N = {
     nothing_selected: "メニュー上のボタンやテキストを選択するか、下のメニュー設定を編集してください。",
     rename_hint: "ID を変えると、それを参照している箇所もまとめて更新されます。",
     flowchart: "フローチャート", simulator: "シミュレータ", menu: "メニュー", title: "タイトル",
+    import_psd: "Photoshop から読み込み", import: "読み込む", importing: "レイヤーを読み込んでいます…",
+    import_psd_hint: "レイヤー付きの .psd / .psb：「(+) 名前」のグループがボタン、その中の「(=1)」レイヤーがハイライト、「(%)」レイヤーがサムネイルの位置になり、それ以外の表示中のレイヤーが背景になります。ファイルはウィンドウにドロップして追加します。",
+    no_psd: "素材に Photoshop ファイルがありません。.psd をウィンドウにドロップしてください。",
+    imported_n: "{n} 個のボタンを読み込みました。", psd_actions_hint: "各ボタンのリンク先を右パネルで確認してください。「Play」「Scene 2」やタイトル名などの名前は自動でリンクします。",
+    reimport: "読み込み直す", reimport_hint: "Photoshop で編集した後に：画像を更新し、ボタンのリンク先はそのまま残します。",
+    make_menu_from_psd: "このデザインからメニューを作る",
     flow_hint: "ディスクで視聴者ができることの全体図です（ボタン、再生後の動作、タイムアウト、プレイリスト、リモコンのメニュー／タイトルキー）。箱をクリックすると編集できます。赤い箱はたどり着けないか、抜け出せない場所です。",
     sim_hint: "書き出す前にリモコンでディスクを操作できます（矢印・決定・メニュー・タイトル・前後のチャプター）。エンコードはせず、メニューは実レンダリングの画像です。キーボード：矢印、Enter、M、T、N、P。",
     fp: "ディスク挿入時", title_key_node: "タイトルキー", stop_node: "停止", play_all: "全タイトル連続再生",
@@ -1057,7 +1069,15 @@ async function addMenu() {
   try { list = (await api("/api/templates")).templates; } catch (e) { list = []; }
   openModal(`<h2>${t("new_menu")}</h2><div class="hint">${esc(t("template_hint"))}</div>
     <div class="template-list"><button class="template" data-template="">${esc(t("blank_menu"))}</button>
-    ${list.map((x) => `<button class="template" data-template="${esc(x.id)}">${esc(x[LANG] || x.en)}</button>`).join("")}</div>`);
+    ${list.map((x) => `<button class="template" data-template="${esc(x.id)}">${esc(x[LANG] || x.en)}</button>`).join("")}</div>
+    <h3>${t("import_psd")}</h3><div class="hint">${esc(t("import_psd_hint"))}</div>
+    ${mediaOf("design").length ? `<div class="row" style="margin-top:8px">${selectHtml("psd", mediaOf("design").map((x) => [x, x.replace(/^media\//, "")]), mediaOf("design")[0], 'id="psd-file"')}
+      <button class="primary shrink" id="psd-go">${t("import")}</button></div>` : `<div class="hint">${esc(t("no_psd"))}</div>`}`);
+  if ($("#psd-go")) $("#psd-go").onclick = () => {
+    const path = $("#psd-file").value;
+    const id = uniqueId(path.replace(/^.*\//, "").replace(/\.[^.]+$/, "").replace(/[^A-Za-z0-9_-]+/g, "_").toLowerCase() || "menu", allMenuIds());
+    closeModal(); importPsd(path, id);
+  };
   document.querySelectorAll("[data-template]").forEach((b) => (b.onclick = async () => {
     closeModal();
     const id = uniqueId(b.dataset.template || "menu", allMenuIds());
@@ -1067,6 +1087,23 @@ async function addMenu() {
     commit((p) => { (p.menus = p.menus || []).push(r.menu); });
     select("menu", id);
   }));
+}
+async function importPsd(path, id) {
+  openModal(`<h2>${t("import_psd")}</h2><p class="hint">${esc(t("importing"))}</p>`);
+  let r;
+  try { r = await api("/api/import_psd", { method: "POST", body: { path, menu: id, project: S.project } }); }
+  catch (e) { openModal(`<h2>${t("import_psd")}</h2><p>${esc(e.message)}</p>`); return; }
+  S.media = r.media;
+  commit((p) => {
+    p.menus = p.menus || [];
+    const i = p.menus.findIndex((x) => x.id === id);
+    if (i >= 0) p.menus[i] = r.menu; else p.menus.push(r.menu);
+  });
+  S.preview = null;
+  select("menu", id);
+  openModal(`<h2>${t("import_psd")}</h2><p>${esc(t("imported_n", { n: r.menu.buttons.length }))}</p>
+    ${r.notes.length ? `<ul class="issues">${r.notes.map((x) => `<li class="${x.level}">${esc(x.message)}</li>`).join("")}</ul>` : ""}
+    <p class="hint">${esc(t("psd_actions_hint"))}</p>`);
 }
 function addBlankMenu(id) {
   const first = (P().titles || [])[0];
@@ -1173,7 +1210,7 @@ function renderMenu(m) {
   const els = [
     ...(menu.shapes || []).map((x, i) => ({ kind: "shape", i, x: x.x, y: x.y, w: x.w, h: x.h, color: x.color || "#00000080" })),
     ...(menu.texts || []).map((x, i) => ({ kind: "text", i, x: x.x, y: x.y, size: x.size || defSize, color: x.color || defColor, label: x.text, ...styleOf(x) })),
-    ...(menu.buttons || []).map((b, i) => ({ kind: "button", i, x: b.x, y: b.y, size: b.size || defSize, color: b.color || defColor, label: b.label || "", image: b.image, width: b.width, ...styleOf(b) })),
+    ...(menu.buttons || []).map((b, i) => ({ kind: "button", i, x: b.x, y: b.y, size: b.size || defSize, color: b.color || defColor, label: b.label || "", image: b.image, width: b.width, hl: !b.label && !b.image ? b.highlight_image : null, ...styleOf(b) })),
   ];
   // selection: S.sels (all selected), S.element (the one the inspector shows)
   if (!S.element) S.sels = [];
@@ -1206,7 +1243,9 @@ function renderMenu(m) {
       ${bg}
       ${S.showSafe ? `<div class="safe" style="left:${w * 0.05}px;top:${h * 0.05}px;width:${w * 0.9}px;height:${h * 0.9}px"></div>` : ""}
       ${els.map((e) => `<div class="el ${e.kind} ${isSel(e) ? "selected" : ""} ${e.kind === "button" && e.i === firstBtn ? "highlight" : ""}"
-          data-kind="${e.kind}" data-i="${e.i}" style="${css(e)}">${e.kind === "shape" ? "" : e.image
+          data-kind="${e.kind}" data-i="${e.i}" style="${css(e)}">${e.kind === "shape" ? "" : e.hl
+            ? `<img class="area" src="${imgUrl("file", { path: e.hl })}" alt="" draggable="false" style="display:block;width:${(e.width || 160) * sx * scale}px;${e.i === firstBtn ? `filter:drop-shadow(0 0 0 ${esc(menu.highlight_color || "#FFD400")});opacity:.9` : "opacity:.35"}">`
+            : e.image
             ? `<img src="${imgUrl("file", { path: e.image })}" alt="${esc(e.label)}" draggable="false" style="display:block;width:${(e.width || 160) * sx * scale}px${e.i === firstBtn ? `;outline:2px solid ${esc(menu.highlight_color || "#FFD400")}` : ""}">`
             : esc(e.label)}</div>`).join("")}
       <div class="guide gx" hidden></div><div class="guide gy" hidden></div>
@@ -1551,6 +1590,7 @@ function renderMenuInspector(el) {
       <label class="field"><span>${t("loop_point")}</span><input type="number" data-k="loop_point" min="0" step="0.1" value="${menu.loop_point ?? ""}" placeholder="0"></label>
     </div>
     ${menu.loop && menu.loop !== "forever" ? `<label class="field"><span>${t("menu_end")}</span>${selectHtml("end_action", actionOptions({ forButton: false, includeChapters: true, allowPlayAll: true }), menu.end_action || "stop")}</label>` : ""}
+    ${menu.psd ? `<label class="field"><span>Photoshop</span><div class="row"><span class="mono shrink" style="overflow:hidden;text-overflow:ellipsis">${esc(menu.psd)}</span><button class="small shrink" id="psd-again">${t("reimport")}</button></div><div class="hint">${esc(t("reimport_hint"))}</div></label>` : ""}
     <label class="field"><span>${t("default_button")}</span>${selectHtml("default_button", [["__none__", t("auto")], ...(menu.buttons || []).map((b) => [b.id, `${b.id} (${b.label || b.image || ""})`])], menu.default_button || "__none__")}</label>
     <label class="field"><span></span><label><input type="checkbox" id="remember-btn" ${menu.remember_button === false ? "" : "checked"}> ${t("remember_button")}</label></label>
     ${orderHtml(t("order_menu"))}
@@ -1563,6 +1603,7 @@ function renderMenuInspector(el) {
       if (key === "loop_point" && !val) delete mm.loop_point;
     },
   });
+  if ($("#psd-again")) $("#psd-again").onclick = () => importPsd(menu.psd, menu.id);
   $("#remember-btn").onchange = (e) => commit((p) => { const mm = find(p); if (e.target.checked) delete mm.remember_button; else mm.remember_button = false; });
   bindOrder(el, "menus", menu.id);
   $("#menu-id").onchange = (e) => {
@@ -1601,6 +1642,7 @@ async function renderMediaInspector(el) {
     actions.push(`<button data-act="newmenu">${t("new_menu_with_bg")}</button>`);
   }
   if (item.kind === "audio" && menu) actions.push(`<button data-act="music">${t("use_as_music")}</button>`);
+  if (item.kind === "design") actions.push(`<button class="primary" data-act="psd">${t("make_menu_from_psd")}</button><div class="hint">${esc(t("import_psd_hint"))}</div>`);
   if (item.kind === "subtitle" && (P().titles || []).length)
     actions.push(`<div class="hint">${t("add_sub_to")}</div>${(P().titles).map((x) => `<button data-act="sub" data-title="${esc(x.id)}">${esc(x.name || x.id)}</button>`).join(" ")}`);
   el.innerHTML = `<h2 style="word-break:break-all">${esc(path)}</h2>${preview}<p class="hint">${esc(item.kind)} · ${fmtBytes(item.bytes)} ${info}</p>
@@ -1609,6 +1651,7 @@ async function renderMediaInspector(el) {
 }
 function mediaAction(act, path, titleId) {
   const name = path.split("/").pop().replace(/\.[^.]+$/, "");
+  if (act === "psd") return importPsd(path, uniqueId(name.replace(/[^A-Za-z0-9_-]+/g, "_").toLowerCase() || "menu", allMenuIds()));
   if (act === "title") {
     const id = uniqueId("t", (P().titles || []).map((x) => x.id));
     commit((p) => { (p.titles = p.titles || []).push({ id, name, source: path, chapters: ["00:00:00"] }); });

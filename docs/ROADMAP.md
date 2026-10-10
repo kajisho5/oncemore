@@ -49,8 +49,8 @@ browser) and lands only with green CI.
 - [x] Disc simulator in the app: a remote control that drives menus,
   highlights, titles and end actions before anything is encoded
 
-**P6 — Bringing existing designs**
-- [ ] Layered PSD menus using the common layer-name convention (button layer
+**P6 — Bringing existing designs** (done)
+- [x] Layered PSD menus using the common layer-name convention (button layer
   groups, highlight layers, thumbnail placeholders)
 
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
