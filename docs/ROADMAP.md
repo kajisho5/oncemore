@@ -34,9 +34,9 @@ browser) and lands only with green CI.
 - [x] Animated (video) thumbnail buttons in motion menus
 
 **P4 — Content and encoding**
-- [ ] Slideshows: pictures with durations, cross-fades, pan & zoom, music
+- [x] Slideshows: pictures with durations, cross-fades, pan & zoom, music
 - [x] WebVTT / ASS input; top / bottom placement and colour per track and per cue
-- [ ] Subtitle editing in the app
+- [x] Subtitle editing in the app
 - [x] Encode cache (unchanged titles and menus are not re-encoded) and
   per-title quality (bitrate) settings
 - [ ] Interlaced output for interlaced sources; soft 3:2 pulldown for 23.976p film

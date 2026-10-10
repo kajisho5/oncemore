@@ -398,3 +398,29 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
 * Free positioning is left out on purpose: lines stay centred at the top or
   the bottom, which covers signs and speaker separation without a layout
   editor for every cue.
+
+## 31. Slideshows and the subtitle editor
+
+* A slideshow is rendered to a lossless intermediate (FFV1 + PCM in Matroska)
+  instead of being fed to the MPEG-2 encoder directly: the encode, cache,
+  bitrate plan, chapters and subtitles then treat it exactly like a video
+  title, and the expensive filter graph runs only when the show changes (its
+  file name is a hash of the pictures' path, size and mtime, the settings,
+  the disc format and the slideshow code).
+* One ffmpeg graph: each picture is fitted on the square-pixel canvas with the
+  background colour, held for its duration plus the fade, and joined by
+  `xfade` (offset = sum of the earlier durations) or `concat`. So the total
+  length is the sum of the durations and slide *k* begins at a frame the
+  chapter list can name exactly. Pan & zoom uses `zoompan` on a canvas twice
+  the size, alternating zoom in and out, to avoid whole-pixel wobble.
+* Inputs are always bounded (`-t` per still picture, `d=` for zoompan,
+  `atrim` + `apad` on music, `-t` on the output): with endless inputs
+  (`tpad=stop=-1`, an unbounded loop) Homebrew's ffmpeg 9 on macOS could
+  stall forever. Every ffmpeg run also has a watchdog that stops it after
+  five minutes without progress.
+* The subtitle editor writes SubRip only. WebVTT and ASS files are read and
+  shown but never overwritten (their styling would be lost); *Save as .srt*
+  converts, keeping placement and colour as `{\an8}` and `<font color>`.
+  Writes are limited to subtitle extensions inside the project and are atomic
+  (temp file + rename).
+

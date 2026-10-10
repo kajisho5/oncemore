@@ -938,6 +938,81 @@ class TestCacheRomPassthrough(unittest.TestCase):
 
 
 @unittest.skipUnless(TOOLS_OK, SKIP_REASON)
+class TestSlideshow(unittest.TestCase):
+    """A title made from three pictures with cross-fades, pan & zoom and
+    music: one chapter per picture, and the rendered show is reused."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-e2e-slides-")
+        rc, _, err = run_cli("init", "s", cwd=cls.tmp)
+        assert rc == 0, err
+        proj = os.path.join(cls.tmp, "s")
+        for i, (src, size) in enumerate((("testsrc2", "800x600"), ("smptebars", "1280x720"),
+                                         ("rgbtestsrc", "600x900"))):
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
+                            f"{src}=s={size}:d=1", "-frames:v", "1",
+                            os.path.join(proj, "media", f"pic{i}.png")], check=True)
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "sine=f=330:d=4",
+                        os.path.join(proj, "media", "music.wav")], check=True)
+        cls.path = os.path.join(proj, "project.oncemore.json")
+        with open(cls.path) as f:
+            data = json.load(f)
+        data["titles"].append({"id": "pics", "name": "Pictures", "end_action": "menu:main",
+                               "slideshow": {"slides": [{"image": "media/pic0.png", "duration": 3},
+                                                        {"image": "media/pic1.png", "duration": 2.5},
+                                                        {"image": "media/pic2.png", "duration": 2}],
+                                             "pan_zoom": True, "audio": "media/music.wav"}})
+        data["menus"][0]["buttons"].append({"id": "pics", "label": "PICTURES", "x": 100,
+                                            "y": 380, "action": "title:pics"})
+        with open(cls.path, "w") as f:
+            json.dump(data, f)
+        cls.iso = os.path.join(cls.tmp, "s.iso")
+        rc, out, err = run_cli("--json", "iso", cls.path, "-o", cls.iso, "--fast", "--keep-work",
+                               cwd=cls.tmp)
+        assert rc == 0, err + out
+        cls.events = json_lines(out)
+        cls.build_dir = cls.events[-1]["build_dir"]
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def test_title_streams(self):
+        res = self.events[-1]
+        pics = next(t for t in res["titles"] if t["id"] == "pics")
+        self.assertAlmostEqual(pics["duration"], 7.5, delta=0.1)
+        self.assertEqual(pics["chapters"], [0.0, 3.0, 5.5])
+        mpg = os.path.join(self.build_dir, ".work", "titles", "pics.mpg")
+        v = [s for s in ffprobe_streams(mpg) if s["codec_type"] == "video"]
+        a = [s for s in ffprobe_streams(mpg) if s["codec_type"] == "audio"]
+        self.assertEqual((v[0]["width"], v[0]["height"]), (720, 480))
+        self.assertEqual(len(a), 1)            # the music, padded to the end
+        steps = [e["message"] for e in self.events if e["event"] == "step"]
+        self.assertTrue(any(m.startswith("Rendering slideshow 'pics' (3 pictures, 7.5s)")
+                            for m in steps), steps)
+
+    def test_rendered_once(self):
+        again = os.path.join(self.tmp, "again.iso")
+        rc, out, err = run_cli("--json", "iso", self.path, "-o", again, "--fast", cwd=self.tmp)
+        self.assertEqual(rc, 0, err + out)
+        steps = [e["message"] for e in json_lines(out) if e["event"] == "step"]
+        self.assertFalse(any("slideshow" in m.lower() for m in steps), steps)
+
+    @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
+    def test_chapters_on_disc(self):
+        with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
+            d.wait_menu()
+            n = d.button_count()
+            d.activate(n)
+            title, part = d.wait_title()
+            self.assertEqual(part, 1)
+            self.assertEqual(d.num_parts(title), 3)
+            seen, _ = d.trace_until_menu()
+            self.assertEqual([p for t, p in seen if t == title], [1, 2, 3])
+
+
+@unittest.skipUnless(TOOLS_OK, SKIP_REASON)
 class TestSubtitleFormats(unittest.TestCase):
     """A WebVTT track whose first cue is placed at the top, and an ASS track
     with a red sign, rendered onto a disc."""

@@ -41,7 +41,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 
-from .. import __version__, build, encode, scaffold, templates, tools
+from .. import __version__, build, encode, scaffold, slideshow, subtitles, templates, tools
 from ..errors import OncemoreError, ProjectError
 from ..project import PROJECT_FILENAME, build_project, read_json
 from ..report import Reporter
@@ -484,6 +484,56 @@ class Handler(BaseHTTPRequestHandler):
         width = max(64, min(int(q.get("w", 480)), 1920))
         data = self.app.frame(full, float(q.get("t", 0)), width)
         self._send(HTTPStatus.OK, data, "image/jpeg", {"Cache-Control": "private, max-age=600"})
+
+    # -- subtitle editor -----------------------------------------------------------
+    def _subtitle_path(self, q, must_exist=True):
+        full = self.app.resolve(q.get("path"))
+        if media_kind(full) != "subtitle":
+            raise PermissionError("not a subtitle file")
+        if must_exist and not os.path.isfile(full):
+            raise FileNotFoundError(full)
+        return full
+
+    def api_get_subtitles(self, q):
+        full = self._subtitle_path(q)
+        cues = subtitles.load_subtitles(full)
+        self.json({"editable": full.lower().endswith(".srt"),
+                   "cues": [{"start": c.start, "end": c.end, "text": "\n".join(c.lines),
+                             "position": c.position, "color": c.color} for c in cues]})
+
+    def api_put_subtitles(self, q):
+        """Save cues as SubRip (the editor only writes .srt files)."""
+        full = self._subtitle_path(q, must_exist=False)
+        if not full.lower().endswith(".srt"):
+            raise ValueError("only .srt files are written; save as a new .srt")
+        cues = []
+        for c in self.body_json().get("cues", []):
+            lines = [l for l in str(c.get("text", "")).split("\n") if l.strip()]
+            start, end = float(c["start"]), float(c["end"])
+            if lines and end > start >= 0:
+                cues.append(subtitles.Cue(start, end, lines, c.get("position") or None,
+                                          c.get("color") or None))
+        cues.sort(key=lambda c: c.start)
+        os.makedirs(os.path.dirname(full), exist_ok=True)
+        tmp = full + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(subtitles.to_srt(cues))
+        os.replace(tmp, full)
+        self.json({"saved": True, "cues": len(cues), "media": self.app.media()})
+
+    # -- slideshows --------------------------------------------------------------
+    def api_post_slideshow(self, q):
+        """Render (or reuse) a slideshow title so the page can play it."""
+        body = self.body_json()
+        project = build_project(body.get("project") or self.app.load(), self.app.path,
+                                check_files=True)
+        t = project.title(body["title"])
+        if t is None or not t.slideshow:
+            raise ValueError("not a slideshow title")
+        slideshow.ensure(t, project.disc_for(t),
+                         os.path.join(os.path.dirname(t.source), f"{t.id}.log"))
+        self.json({"path": self.app.rel(t.source), "duration": t.slideshow.duration,
+                   "starts": t.slideshow.starts()})
 
     def api_get_templates(self, q):
         self.json({"templates": [{"id": k, **v} for k, v in templates.TEMPLATES.items()]})

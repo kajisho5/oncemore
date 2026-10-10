@@ -7,7 +7,7 @@ import json
 import os
 import shutil
 
-from . import author, encode, iso, lpcmfix, subtitles, tools
+from . import author, encode, iso, lpcmfix, slideshow, subtitles, tools
 from . import menu as menu_module
 from .errors import OncemoreError, ProjectError
 from .menu import (MenuBuilder, check_element_fonts, display_width, find_font, link_font,
@@ -29,6 +29,9 @@ def inspect(project, reporter=None):
         return probes[path]
 
     for i, t in enumerate(project.titles):
+        if t.slideshow:
+            slideshow.ensure(t, project.disc_for(t),
+                             os.path.join(os.path.dirname(t.source), f"{t.id}.log"), reporter)
         info = probe(t.source)
         infos[t.id] = info
         where = f"titles[{i}]"
