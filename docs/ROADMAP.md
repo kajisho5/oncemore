@@ -178,6 +178,10 @@ browser) and lands only with green CI.
   default track switched on by the title's movie object, a decoding gap
   between cues
 
+**P31 — Chapter markers from the file** (done)
+- [x] A source's own chapter markers (with names) become the chapters of a
+  new title; Timeline > Import chapter markers from the source
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

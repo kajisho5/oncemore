@@ -1325,6 +1325,57 @@ class TestGuiBrowser(unittest.TestCase):
         self.assertEqual(errors, [])
         self.assertTrue(os.path.isfile(os.path.join(self.dir, "output", "DEMO_DISC.iso")))
 
+    def test_source_chapters(self):
+        """A file's own chapter markers become the chapters of a title made
+        from it, and Timeline > Import chapter markers reads them again."""
+        self.s.call("/api/new", "POST", {"sample": True})
+        meta = os.path.join(self.dir, "chapters.txt")
+        with open(meta, "w") as f:
+            f.write(";FFMETADATA1\n" + "".join(
+                f"[CHAPTER]\nTIMEBASE=1/1000\nSTART={a}\nEND={b}\ntitle={n}\n"
+                for a, b, n in ((0, 8000, "Opening"), (8000, 15500, "Middle"),
+                                (15500, 24000, "Ende"))))
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i",
+                        os.path.join(self.dir, "media", "sample_a.mp4"), "-i", meta,
+                        "-map_metadata", "1", "-map_chapters", "1", "-c", "copy",
+                        os.path.join(self.dir, "media", "marked.mp4")], check=True)
+        status, info = self.s.call("/api/probe?path=media/marked.mp4")
+        self.assertEqual(info["chapters"], [{"time": 0.0, "name": "Opening"},
+                                            {"time": 8.0, "name": "Middle"},
+                                            {"time": 15.5, "name": "Ende"}])
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1440, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click(".nav-item[data-view=title][data-id=t1]", timeout=120000)
+            page.evaluate("mediaAction('title', 'media/marked.mp4')")
+            ti = self.poll(lambda: next((t for t in self.project()["titles"]
+                                         if t["source"] == "media/marked.mp4"
+                                         and len(t["chapters"]) == 3), None))
+            self.assertEqual(ti["chapters"], [{"time": "00:00:00", "name": "Opening"},
+                                              {"time": "00:00:08.000", "name": "Middle"},
+                                              {"time": "00:00:15.500", "name": "Ende"}])
+            # sample_a has no markers: the command says so and changes nothing
+            page.click(".nav-item[data-view=title][data-id=t1]")
+            page.locator("#tc-input").wait_for(timeout=60000)
+            messages = []
+            page.on("dialog", lambda d: (messages.append(d.message), d.accept()))
+            page.evaluate("window.oncemoreCommand('chapters_from_source')")
+            page.wait_for_timeout(500)
+            self.assertEqual(messages, ["The source has no chapter markers."])
+            # point t1 at the marked file and import its markers
+            page.evaluate("commit((p) => { p.titles[0].source = 'media/marked.mp4'; })")
+            page.evaluate("window.oncemoreCommand('chapters_from_source')")
+            self.poll(lambda: "Ende" in json.dumps(self.project()["titles"][0]["chapters"]))
+            self.assertEqual(self.project()["titles"][0]["chapters"],
+                             [{"time": "00:00:00", "name": "Opening"},
+                              {"time": "00:00:08.000", "name": "Middle"},
+                              {"time": "00:00:15.500", "name": "Ende"}])
+            browser.close()
+        self.assertEqual(errors, [])
+
     def test_conveniences(self):
         """Chapters at intervals, Replace asset (also for a missing file),
         Project settings, Window > panel, the Photoshop change notice."""

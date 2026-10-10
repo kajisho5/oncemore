@@ -36,7 +36,7 @@ def probe(path):
     """Return a dict describing the first video/audio stream of `path`."""
     tools.require(["ffprobe"])
     cmd = [tools.find("ffprobe"), "-v", "error", "-print_format", "json",
-           "-show_format", "-show_streams", path]
+           "-show_format", "-show_streams", "-show_chapters", path]
     try:
         p = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
     except subprocess.TimeoutExpired:
@@ -56,7 +56,9 @@ def probe(path):
                       "bit_rate": int(s.get("bit_rate", 0) or 0)}
                      for s in streams if s.get("codec_type") == "audio"],
            "duration": _float(fmt.get("duration")) or (_float(v.get("duration")) if v else None),
-           "format": fmt.get("format_name")}
+           "format": fmt.get("format_name"),
+           # chapter markers in the file (MP4, MOV, MKV ...): start and title
+           "chapters": _chapters(info)}
     if v:
         sar = _ratio(v.get("sample_aspect_ratio")) or Fraction(1)
         out.update({
@@ -71,6 +73,18 @@ def probe(path):
                     "audio_rate": int(a.get("sample_rate", 0) or 0),
                     "audio_channels": int(a.get("channels", 0) or 0)})
     return out
+
+
+def _chapters(info):
+    out = []
+    for c in info.get("chapters", []):
+        try:
+            t = float(c.get("start_time"))
+        except (TypeError, ValueError):
+            continue
+        if t >= 0:
+            out.append({"time": round(t, 6), "name": (c.get("tags") or {}).get("title", "")})
+    return sorted(out, key=lambda c: c["time"])
 
 
 def _float(s):

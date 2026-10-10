@@ -170,7 +170,8 @@ const I18N = {
     cmd_edit_psd: "Edit menu in Photoshop", cmd_win_project: "Project", cmd_win_menus: "Menus", cmd_win_timelines: "Timelines", cmd_win_build: "Build",
     cmd_win_monitor: "Monitor", cmd_win_flowchart: "Flowchart", cmd_win_properties: "Properties", cmd_win_layers: "Layers", cmd_win_library: "Library",
     ci_every: "A chapter every", ci_minutes: "minutes", ci_seconds: "seconds", ci_replace: "Remove the chapters there are now (the first stays)",
-    ci_preview: "{n} chapters on {d}.", ra_what: "Replace", ra_with: "With", ra_uses: "Used {n} time(s) in the project.", ra_missing: "missing",
+    ci_preview: "{n} chapters on {d}.", cmd_chapters_from_source: "Import chapter markers from the source",
+    no_source_chapters: "The source has no chapter markers.", ra_what: "Replace", ra_with: "With", ra_uses: "Used {n} time(s) in the project.", ra_missing: "missing",
     ra_hint: "Every use in the project then points to the new file: titles, clips, audio and subtitle tracks, menu backgrounds, buttons, slideshows, music.",
     ra_none: "The project uses no files yet.", psd_changed: "The Photoshop file of this menu has changed.", open_failed: "This system has no program to open the file with.",
     colour_set: "Colour set", cs_normal: "Normal", opacity: "Opacity",
@@ -354,6 +355,7 @@ const I18N = {
     cmd_chapters_interval: "一定間隔でチャプターポイントを追加…", cmd_replace_asset: "アセットを置き換え…", cmd_project_settings: "プロジェクト設定…",
     cmd_edit_psd: "Photoshop でメニューを編集", cmd_win_project: "プロジェクト", cmd_win_menus: "メニュー", cmd_win_timelines: "タイムライン", cmd_win_build: "ビルド",
     cmd_win_monitor: "モニター", cmd_win_flowchart: "フローチャート", cmd_win_properties: "プロパティ", cmd_win_layers: "レイヤー", cmd_win_library: "ライブラリ",
+    cmd_chapters_from_source: "ソースのチャプターマーカーを読み込む", no_source_chapters: "ソースにチャプターマーカーがありません。",
     ci_every: "チャプターの間隔", ci_minutes: "分", ci_seconds: "秒", ci_replace: "今あるチャプターを消す（最初のチャプターは残します）",
     ci_preview: "{d} の中にチャプターが {n} 個になります。", ra_what: "置き換えるファイル", ra_with: "新しいファイル", ra_uses: "プロジェクト内で {n} か所で使われています。", ra_missing: "見つかりません",
     ra_hint: "プロジェクト内のすべての使用箇所（タイトル、クリップ、音声・字幕トラック、メニューの背景、ボタン、スライドショー、BGM）が新しいファイルを指すようになります。",
@@ -923,6 +925,17 @@ function select(view, id) {
   renderAll();
 }
 
+// redraw the Monitor once something it waited for has loaded, but never
+// under the user's typing: with a field there focused, it waits for the blur
+// (an edit committed meanwhile redraws it anyway)
+function renderMainLater() {
+  const a = document.activeElement, m = $("#main");
+  if (a && m && m.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) {
+    a.addEventListener("blur", () => setTimeout(() => { if (a.isConnected) renderMainLater(); }, 0), { once: true });
+    return;
+  }
+  renderMain();
+}
 function renderMain() {
   const m = $("#main");
   if (S.sel.view !== "title") S.titleSeek = null;      // (the Monitor is not showing a timeline)
@@ -1098,14 +1111,14 @@ function renderTitle(m) {
     if (!join) {
       m.innerHTML = `<div class="card"><h2>${esc(ti.name || ti.id)}</h2><div class="muted" id="clip-wait">${esc(t("joining"))}</div><div id="clip-box">${clipEditorHtml(ti, null)}</div></div>`;
       bindClipEditor(m, ti);
-      clipJoin(ti).then(() => S.sel.view === "title" && S.sel.id === ti.id && renderMain(),
+      clipJoin(ti).then(() => S.sel.view === "title" && S.sel.id === ti.id && renderMainLater(),
         (e) => { const w = $("#clip-wait"); if (w) { w.className = "hint"; w.textContent = e.message; } });
       return;
     }
     src = join.path;
   }
   const info = S.probes[src];
-  if (!info) { m.innerHTML = `<div class="muted">…</div>`; probe(src).then(() => S.sel.view === "title" && renderMain()); return; }
+  if (!info) { m.innerHTML = `<div class="muted">…</div>`; probe(src).then(() => S.sel.view === "title" && renderMainLater()); return; }
   const fps = (() => { const [a, b] = String(info.fps || "30").split(/[/:]/).map(Number); return b ? a / b : a || 30; })();
   const dur = join ? join.duration : info.duration || 0;
   const ph = Math.min(S.playhead[ti.id] || 0, dur);
@@ -2412,6 +2425,11 @@ function mediaAction(act, path, titleId) {
   if (act === "title") {
     const id = uniqueId("t", (P().titles || []).map((x) => x.id));
     commit((p) => { (p.titles = p.titles || []).push({ id, name, source: path, chapters: ["00:00:00"] }); });
+    // chapter markers the file brings with it become the title's chapters
+    probe(path).then(() => {
+      const ti = (P().titles || []).find((x) => x.id === id), list = sourceChapters(ti);
+      if (ti && list.length > 1 && (ti.chapters || []).length === 1) commit((p) => setChapters(p.titles.find((x) => x.id === id), list));
+    });
     S.selectedMedia = null; return select("title", id);
   }
   if (act === "newmenu") {
@@ -3246,6 +3264,7 @@ const COMMANDS = {
   revert_backup: { run: backupsBox, when: hasProject },
   save_template: { run: saveTemplateBox, when: () => S.sel.view === "menu" && !!curMenu() },
   chapter_index: { run: chapterIndexBox, when: () => hasProject() && (P().titles || []).length > 0 },
+  chapters_from_source: { run: chaptersFromSource, when: () => S.sel.view === "title" && !!curTitle() && !curTitle().slideshow },
   chapters_interval: { run: chaptersAtIntervals, when: () => S.sel.view === "title" && !!curTitle() && !curTitle().slideshow && titleLength(curTitle()) > 0 },
   replace_asset: { run: () => replaceAssetBox(), when: hasProject },
   project_settings: { run: () => { S.leftTab = S.leftTab === "build" ? "project" : S.leftTab; S.activeFrame = "props"; select("disc"); }, when: hasProject },
@@ -3271,7 +3290,7 @@ const MENUBAR = [
   ["m_edit", ["undo", "redo", "-", "duplicate", "delete", "-", "edit_psd", "-", "preferences"]],
   ["m_object", ["align_left", "align_hcenter", "align_right", "align_top", "align_vcenter", "align_bottom", "-", "distribute_h", "distribute_v", "-", "bring_front", "send_back", "-", "convert"]],
   ["m_menu", ["new_menu", "chapter_index", "-", "save_template", "-", "set_link", "-", "tool_select", "tool_text", "tool_zoom"]],
-  ["m_timeline", ["new_timeline", "new_slideshow", "new_playlist", "-", "add_chapter", "chapters_interval", "prev_chapter", "next_chapter", "play"]],
+  ["m_timeline", ["new_timeline", "new_slideshow", "new_playlist", "-", "add_chapter", "chapters_interval", "chapters_from_source", "prev_chapter", "next_chapter", "play"]],
   ["m_view", ["zoom_in", "zoom_out", "-", "safe_area", "routing"]],
   ["m_window", ["ws_author", "ws_flow", "ws_sim", "ws_build", "-", "win_project", "win_menus", "win_timelines", "win_build", "win_monitor", "win_flowchart",
     "win_properties", "win_layers", "win_library", "-", "theme", "language"]],
@@ -3354,6 +3373,33 @@ function titleLength(ti) {
   if (!ti) return 0;
   if (ti.clips) { const j = clipJoinNow(ti); return j ? j.duration : 0; }
   return S.probes[ti.source]?.duration || 0;
+}
+// the chapter markers in a title's source file(s), on the title's timeline
+// (for clips: the markers inside each clip, moved to where the clip plays)
+function sourceChapters(ti) {
+  if (!ti || ti.slideshow) return [];
+  const marks = (path) => (S.probes[path]?.chapters || []);
+  let out = [];
+  if (ti.clips) {
+    const join = clipJoinNow(ti);
+    if (!join) return [];
+    ti.clips.forEach((c, i) => {
+      const j = join.clips[i], a = c.in != null ? parseTime(c.in) : 0, b = a + j.duration;
+      for (const m of marks(c.source)) if (m.time >= a - 1e-6 && m.time < b - 0.5) out.push({ time: j.start + m.time - a, name: m.name || "" });
+    });
+  } else out = marks(ti.source).map((m) => ({ time: m.time, name: m.name || "" }));
+  out = out.filter((m, i) => !out.slice(0, i).some((o) => Math.abs(o.time - m.time) < 0.5))
+    .map((m) => ({ time: Math.round(m.time * 1000) / 1000, name: m.name, poster: null }));
+  if (!out.some((m) => m.time < 0.001)) out.unshift({ time: 0, name: "", poster: null });
+  return out.sort((a, b) => a.time - b.time);
+}
+// Timeline > Import chapter markers from the source
+async function chaptersFromSource() {
+  const ti = curTitle();
+  await Promise.all((ti.clips ? ti.clips.map((c) => c.source) : [ti.source]).map(probe));
+  const list = sourceChapters(ti);
+  if (list.length < 2) return alert(t("no_source_chapters"));
+  commit((p) => setChapters(p.titles.find((x) => x.id === ti.id), list));
 }
 // Timeline > Add chapter points at intervals
 function chaptersAtIntervals() {
