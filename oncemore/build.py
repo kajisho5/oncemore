@@ -404,15 +404,21 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None, ca
         for m in project.menus:
             key = menu_cache_key(project, m, plan["font"])
             out = os.path.join(mb.work, f"{m.id}.mpg")
-            if _cache_get(cache, key, out):
+            intro = os.path.join(mb.work, f"{m.id}.intro.mpg")
+            if _cache_get(cache, key, out) and \
+                    (not m.buttons_at_loop or _cache_get(cache, key + "-intro", intro)):
                 reporter.step("menu", f"Menu '{m.id}' unchanged (cached)", item=m.id)
-                menu_files[m.id] = out
+                menu_files[m.id] = (intro, out) if m.buttons_at_loop else out
                 continue
             reporter.step("menu", f"Rendering menu '{m.id}'", item=m.id)
             assets = mb.prepare(m)
             mb.encode(m, assets, lambda f, mid=m.id: reporter.progress("menu", f, mid))
             _cache_put(cache, key, assets.mpg)
-            menu_files[m.id] = assets.mpg
+            if assets.intro_mpg:
+                _cache_put(cache, key + "-intro", assets.intro_mpg)
+                menu_files[m.id] = (assets.intro_mpg, assets.mpg)
+            else:
+                menu_files[m.id] = assets.mpg
 
     title_files = {}
     os.makedirs(os.path.join(work, "titles"), exist_ok=True)

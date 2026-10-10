@@ -383,6 +383,8 @@ def menu_pre(project, menu):
 def first_button_on_entry(project, menu):
     """Whether entering `menu` always highlights button 1: dvdauthor sets it
     in a menu without pre commands of its own."""
+    if menu.buttons_at_loop:
+        return not _button_pre(menu)       # the buttons' own PGC
     own = [c for c in _menu_pre(project, menu)
            if not c.startswith(f"{last_menu_reg(project)} = ")]
     return not own
@@ -401,18 +403,23 @@ def _menu_pre(project, menu):
         cmds.append(f"{last_menu_reg(project)} = {menu.number};")
     if menu.loop is not None:
         cmds.append(f"{LOOP_REG} = 0;")
+    return cmds + _button_pre(menu)
+
+
+def _button_pre(menu):
+    """The commands choosing the button highlighted as the menu starts."""
     ids = [b.id for b in menu.buttons]
     default = (ids.index(menu.default_button) + 1) if menu.default_button else 1
     reg = button_reg(menu)
     if reg:
-        cmds.append(f"if ({reg} != 0) {{ button = {reg}; }} else {{ button = {default * 1024}; }}")
-    elif menu.default_button:
-        cmds.append(f"button = {default * 1024};")
-    return cmds
+        return [f"if ({reg} != 0) {{ button = {reg}; }} else {{ button = {default * 1024}; }}"]
+    if menu.default_button:
+        return [f"button = {default * 1024};"]
+    return []
 
 
 def menu_post(project, menu):
-    cell = 2 if menu.loop_point else 1
+    cell = 2 if menu.loop_point and not menu.buttons_at_loop else 1
     if menu.loop is None:
         return f"jump cell {cell};"
     return (f"{LOOP_REG} += 1; if ({LOOP_REG} lt {menu.loop}) {{ jump cell {cell}; }} "
@@ -420,7 +427,7 @@ def menu_post(project, menu):
 
 
 def menu_vob(menu, path):
-    if not menu.loop_point:
+    if not menu.loop_point or menu.buttons_at_loop:
         return f"<vob file={quoteattr(path)}/>"
     lp = format_time(menu.loop_point)
     return (f'<vob file={quoteattr(path)}><cell start="0" end="{lp}" chapter="1"/>'
@@ -493,10 +500,21 @@ def build_xml(project, menu_files, title_files, dest):
             pre = menu_pre(project, m)
             if pre:
                 x.append(f"        <pre>{pre}</pre>")
+            if m.buttons_at_loop:
+                # the intro, without buttons, then the program chain that has them
+                intro, loop = menu_files[m.id]
+                x.append(f"        <vob file={quoteattr(intro)}/>")
+                x.append(f"        <post>jump menu {m.loop_pgc};</post>")
+                x.append("      </pgc>")
+                x.append("      <pgc>")
+                again = _button_pre(m)
+                if again:
+                    # (a menu PGC without <pre> would get button 1 from dvdauthor)
+                    x.append(f"        <pre>{' '.join(again)}</pre>")
             for b in m.buttons:
                 x.append(f"        <button name={quoteattr(b.id)}>"
                          f"{stream_prefix(b)}{button_command(project, b.action, m, b.override)}</button>")
-            x.append(f"        {menu_vob(m, menu_files[m.id])}")
+            x.append(f"        {menu_vob(m, loop if m.buttons_at_loop else menu_files[m.id])}")
             x.append(f"        <post>{menu_post(project, m)}</post>")
             x.append("      </pgc>")
         x.append("    </menus>")

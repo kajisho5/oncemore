@@ -379,7 +379,10 @@ class TestBlurayMenus(unittest.TestCase):
                      {"id": "more", "label": "MORE", "x": 400, "y": 290, "action": "menu:more"}]},
                 {"id": "more", "select_color": "#00FF00", "buttons": [
                     {"id": "back", "label": "BACK", "x": 100, "y": 200, "action": "menu:main"},
-                    {"id": "two", "label": "SECOND", "x": 100, "y": 260, "action": "title:two"}]}],
+                    {"id": "two", "label": "SECOND", "x": 100, "y": 260, "action": "title:two"}]},
+                # buttons only after the fade
+                {"id": "faded", "fade_in": 1, "buttons_at_loop": True, "duration": 3, "buttons": [
+                    {"id": "back", "label": "BACK", "x": 100, "y": 200, "action": "menu:main"}]}],
         }
         with open(os.path.join(d, "project.oncemore.json"), "w") as f:
             json.dump(project, f)
@@ -403,7 +406,7 @@ class TestBlurayMenus(unittest.TestCase):
     def test_menu_titles_and_streams(self):
         with bluray_sim.Disc(LIBBLURAY, self.out) as disc:
             info = disc.info()
-            self.assertEqual(info["hdmv_titles"], 4)            # two titles, two menus
+            self.assertEqual(info["hdmv_titles"], 5)            # two titles, three menus
             main = disc.playlist(3)
         self.assertEqual(main["video"], [(0x1B, 4, 4)])
         with open(os.path.join(self.out, "BDMV", "STREAM", "00003.m2ts"), "rb") as f:
@@ -412,6 +415,22 @@ class TestBlurayMenus(unittest.TestCase):
         pids = {(data[i + 5] & 0x1F) << 8 | data[i + 6] for i in range(0, len(data), 192)}
         self.assertIn(bluray.IG_PID, pids)
         self.assertIn(bytes([0x91, 0xF4, 0x00]), data)
+
+    def test_buttons_wait_for_the_loop_point(self):
+        with open(os.path.join(self.out, "BDMV", "STREAM", "00005.m2ts"), "rb") as f:
+            data = f.read()
+        first = {}
+        for off in range(0, len(data), 192):
+            p = off + 4
+            if not data[p + 1] & 0x40:
+                continue
+            pid = (data[p + 1] & 0x1F) << 8 | data[p + 2]
+            q = p + 4 + (1 + data[p + 4] if data[p + 3] & 0x20 else 0)
+            if data[q:q + 3] == b"\0\0\1" and data[q + 7] & 0x80:
+                first.setdefault(pid, bluray._pts(data, q + 9))
+        # the buttons' composition comes at the loop point, 1 s in
+        self.assertAlmostEqual((first[bluray.IG_PID] - first[bluray.VIDEO_PID]) / 90000, 1.0,
+                               delta=0.05)
 
     def test_highlight_and_activate(self):
         events = self.press("down", "enter")

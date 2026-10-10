@@ -791,6 +791,7 @@ class TestMenuDesign(unittest.TestCase):
                           {"file": "media/logo.png", "x": 0, "y": 0, "w": 80, "h": 40,
                            "hidden": True}]
         main["fade_in"] = 1
+        main["buttons_at_loop"] = True        # no buttons during the fade
         main["texts"][0].update({"outline": "#000000", "outline_width": 3, "shadow": "#00000080"})
         main["buttons"][0]["font"] = find_font(text="PLAY ALL")      # an element's own font
         main["buttons"][1].update({"highlight_image": "media/ring.png", "x": 160})
@@ -872,15 +873,27 @@ class TestMenuDesign(unittest.TestCase):
         self.assertLess(means[1] + 3, means[2], means)
 
     @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
+    @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
+    def test_buttons_wait_for_the_loop_point(self):
+        with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
+            counts = []
+            d.run_until(lambda e: e == dvdnav_sim.EV_NAV_PACKET and d.domain() == "vtsm"
+                        and (counts.append(d.button_count()) or counts[-1] > 0),
+                        max_events=500_000)
+        # the first second (the fade, about two VOBUs a second) has no buttons
+        self.assertGreaterEqual(counts.count(0), 2, counts)
+        self.assertEqual(counts[-1], 3)
+
     def test_disc_navigates(self):
         with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
-            self.assertEqual(d.wait_menu(), 1)
-            self.assertEqual(d.button_count(), 3)
-            # the fade is cell 1, played once; the menu repeats cell 2
-            d.run_until(lambda e: [c for dom, pgc, c in d.cells if pgc == 1][-3:] == [1, 2, 2],
-                        max_events=3_000_000)
-            d.activate(2)
+            # the buttons wait for the end of the fade: the fade is PGC 1, played
+            # once, the buttons' PGC 2 then repeats
             self.assertEqual(d.wait_menu(), 2)
+            self.assertEqual(d.button_count(), 3)
+            d.run_until(lambda e: [(pgc, c) for dom, pgc, c in d.cells if dom == "vtsm"][-3:]
+                        == [(1, 1), (2, 1), (2, 1)], max_events=3_000_000)
+            d.activate(2)
+            self.assertEqual(d.wait_menu(), 3)                 # the chapter menu
             self.assertEqual(d.button_count(), 4)
 
 

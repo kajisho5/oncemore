@@ -779,6 +779,10 @@
           "$ref": "#/$defs/time",
           "description": "Where each repeat starts (motion menus / music): the part before it plays once, as an intro. Default 0."
         },
+        "buttons_at_loop": {
+          "type": "boolean",
+          "description": "The buttons appear (and work) only from loop_point on, so the intro before it plays out. Default false."
+        },
         "fade_in": {
           "$ref": "#/$defs/time",
           "description": "Seconds the menu fades in from black (picture and sound) when it starts, at most 10. It plays once: repeats start at the end of the fade, or at loop_point if that is later. Default 0 (none)."

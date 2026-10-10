@@ -416,6 +416,8 @@ class Menu:
     images: list = field(default_factory=list)    # Picture, over the shapes
     normal_color: str = None   # the buttons' shapes while not selected (None: not shown)
     fade_in: float = 0.0       # seconds of fade from black when the menu starts (played once)
+    buttons_at_loop: bool = False  # buttons only from the loop point on (the intro plays out)
+    loop_pgc: int = 0          # menu PGC with the buttons (number + 1 when the intro is apart)
 
 
 @dataclass
@@ -644,8 +646,13 @@ class _Builder:
         if disc.first_play.startswith("menu:"):
             fid = disc.first_play[5:]
             menus.sort(key=lambda m: 0 if m.id == fid else 1)
-        for n, m in enumerate(menus, 1):
+        # (a menu whose buttons wait for its loop point is two PGCs: the intro,
+        # then the buttons)
+        n = 1
+        for m in menus:
             m.number = n
+            m.loop_pgc = n + 1 if m.buttons_at_loop else n
+            n = m.loop_pgc + 1
         # DVD keeps one video/audio format per titleset: group titles by
         # (aspect, audio codec, channels); the first title's group is
         # titleset 1, which also holds the menus.
@@ -851,6 +858,8 @@ class _Builder:
         loop_point = max(loop_point, fade_in)
         if "end_action" in m and loop is None:
             self.warnings.append(f"{where}.end_action is only used with a loop count")
+        if m.get("buttons_at_loop") and not loop_point:
+            self.err(f"{where}.buttons_at_loop", "needs a loop point (or a fade-in) to wait for")
         if m.get("default_button") and m["default_button"] not in ids:
             self.err(f"{where}.default_button", f"no button {m['default_button']!r} in this menu")
         return Menu(
@@ -858,6 +867,7 @@ class _Builder:
             loop=loop, loop_point=loop_point, fade_in=fade_in, end_action=m.get("end_action", "stop"),
             default_button=m.get("default_button"),
             remember_button=m.get("remember_button", True),
+            buttons_at_loop=bool(m.get("buttons_at_loop")) and loop_point > 0,
             shapes=[Shape(s["x"], s["y"], s["w"], s["h"], s.get("color", "#00000080"))
                     for s in m.get("shapes", [])],
             images=[Picture(self.file(f"{where}.images[{j}].file", p["file"]), p["x"], p["y"],

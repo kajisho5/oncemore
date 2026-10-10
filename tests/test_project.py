@@ -120,6 +120,15 @@ class TestProject(unittest.TestCase):
             build(d)
         self.assertIn("a fade-in is at most 10 s", json.dumps(cm.exception.issues))
 
+    def test_buttons_at_loop_needs_a_loop_point(self):
+        d = copy.deepcopy(self.data)
+        d["menus"][0]["buttons_at_loop"] = True
+        with self.assertRaises(ProjectError) as cm:
+            build(d)
+        self.assertIn("buttons_at_loop", json.dumps(cm.exception.issues))
+        d["menus"][0]["loop_point"] = 2
+        self.assertTrue(build(d).menus[0].buttons_at_loop)
+
     def test_hidden_elements_are_left_out(self):
         d = copy.deepcopy(self.data)
         m = d["menus"][0]
