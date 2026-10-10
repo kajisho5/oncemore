@@ -248,6 +248,7 @@ oncemore init <dir> [--standard NTSC|PAL] [--aspect 16:9|4:3] [--force]
 oncemore validate <project> [--no-media]       # schema + references + media + size estimate
 oncemore build <project> -o out/               # writes out/VIDEO_TS (and out/AUDIO_TS)
 oncemore build <project> -o out/ --format bluray  # writes out/BDMV (Blu-ray, HD)
+oncemore iso <project> -o bd.iso --format bluray   # a Blu-ray image (UDF 2.50, built-in writer)
 oncemore iso <project> -o out.iso [--iso-tool auto|builtin|hdiutil|genisoimage|mkisofs|xorriso]
 oncemore preview-menu <project> --menu main -o main.png [--button id] [--state highlight|select|normal] [--outline]
 oncemore simulate <project> --keys down,enter,menu   # press remote keys, no encoding
@@ -552,8 +553,12 @@ from the button positions (with wrap-around within a row/column).
 ### Blu-ray
 
 The same project builds as a Blu-ray: `oncemore build <project> -o out/
---format bluray`, or Format: Blu-ray in the app's Build panel. oncemore
-writes the whole BDMV folder itself:
+--format bluray` for the BDMV folder, `oncemore iso <project> -o bd.iso
+--format bluray` for a disc image, or Format: Blu-ray in the app's Build
+panel (image, folder, or the image burned to a blank BD). oncemore writes the
+whole BDMV folder itself, and the image with its own UDF 2.50 writer (the
+file system of Blu-ray discs: the directory tree is stored twice, in a
+metadata file and its mirror):
 
 * every title in HD (1920×1080, H.264 with x264's Blu-ray settings; film at
   23.976p, NTSC video as 29.97 and PAL as 25 frames per second in a 1080i
@@ -568,7 +573,8 @@ writes the whole BDMV folder itself:
 Menus and subtitles are not on Blu-ray discs yet (the build says so). The
 tests read every Blu-ray back with libbluray, the library VLC, mpv and Kodi
 play Blu-ray with: titles, lengths, chapters, streams, and first play
-through the title end actions.
+through the title end actions; images are also read file by file with
+libudfread.
 
 ## How it works
 
@@ -663,9 +669,9 @@ to ignore it, and delete the folder to reclaim the space.
   DVDs and genisoimage keep the UDF volume descriptor, and hdiutil puts it
   elsewhere. The UDF and ISO 9660 volume names themselves are correct
   (checked by the tests); playback is unaffected.
-* Blu-ray: a BDMV folder only, no menus or subtitles yet; a disc image
-  (UDF 2.50) is the next step. 4:3 titles are pillarboxed in the 16:9 HD
-  frame.
+* Blu-ray: no menus or subtitles yet. 4:3 titles are pillarboxed in the
+  16:9 HD frame. Burning a BD uses the same tools as a DVD; growisofs
+  documents BD media, `hdiutil burn` with a BD writer has not been tried.
 * No copy protection (by design, permanently).
 
 ## License

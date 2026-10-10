@@ -340,9 +340,17 @@ class App:
     def start_build(self, kind, fast, cache=True, device=None, fmt="dvd"):
         def work(project, rep):
             outdir = os.path.join(self.dir, "output")
-            if fmt == "bluray":
+            if fmt == "bluray" and kind == "folder":
                 return build.build_bluray(project, os.path.join(outdir, f"{project.disc.label}_BD"),
                                           rep, fast=fast, cache=cache)
+            if fmt == "bluray":
+                res = build.build_bluray_iso(
+                    project, os.path.join(outdir, f"{project.disc.label}_BD.iso"), rep,
+                    fast=fast, cache=cache)
+                if kind == "disc":
+                    res.update(burn.burn(res["iso"], rep, device=device,
+                                         log=os.path.join(outdir, "burn.log")))
+                return res
             if kind in ("iso", "disc"):
                 res = build.build_iso(project, os.path.join(outdir, f"{project.disc.label}.iso"),
                                       rep, fast=fast, cache=cache)
@@ -911,8 +919,6 @@ class Handler(BaseHTTPRequestHandler):
         fmt = body.get("format", "dvd")
         if fmt not in ("dvd", "bluray"):
             raise ValueError("format must be dvd or bluray")
-        if fmt == "bluray" and kind != "folder":
-            raise ValueError("a Blu-ray is built as a BDMV folder")
         device = body.get("device") or None
         if device is not None and not isinstance(device, str):
             raise ValueError("device must be a string")

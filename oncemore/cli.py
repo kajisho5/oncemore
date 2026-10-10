@@ -195,6 +195,16 @@ def cmd_build(args, rep):
 
 def cmd_iso(args, rep):
     project = load_project(args.project)
+    if args.format == "bluray":
+        if args.iso_tool not in ("auto", "builtin"):
+            raise OncemoreError("Blu-ray images are written by the built-in UDF 2.50 writer",
+                                hint="Leave out --iso-tool.")
+        res = build.build_bluray_iso(project, args.output, rep, fast=args.fast,
+                                     keep_work=args.keep_work, build_dir=args.build_dir,
+                                     cache=not args.no_cache)
+        rep.result(res, f"Blu-ray image written to {res['iso']} ({_gib(res['iso_bytes'])}, "
+                        "UDF 2.50)")
+        return 0
     res = build.build_iso(project, args.output, rep, fast=args.fast, keep_work=args.keep_work,
                           iso_tool=args.iso_tool, build_dir=args.build_dir,
                           cache=not args.no_cache)
@@ -324,6 +334,8 @@ def make_parser():
                    choices=["auto", "builtin", "hdiutil", "genisoimage", "mkisofs", "xorriso"],
                    help="auto = the built-in writer (UDF 1.02 + ISO 9660, nothing to install)")
     s.add_argument("--build-dir", help="where to author VIDEO_TS (default: next to the ISO)")
+    s.add_argument("--format", choices=["dvd", "bluray"], default="dvd",
+                   help="dvd (default) or bluray: a Blu-ray image (UDF 2.50, built-in writer)")
     build_opts(s)
     s.set_defaults(func=cmd_iso)
 

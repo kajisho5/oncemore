@@ -207,6 +207,7 @@ oncemore init <dir> [--standard NTSC|PAL] [--aspect 16:9|4:3] [--force]
 oncemore validate <project> [--no-media]       # スキーマ＋参照＋素材＋容量見積もり
 oncemore build <project> -o out/               # out/VIDEO_TS（と out/AUDIO_TS）を生成
 oncemore build <project> -o out/ --format bluray  # out/BDMV（Blu-ray、HD）を生成
+oncemore iso <project> -o bd.iso --format bluray   # Blu-ray のディスクイメージ（UDF 2.50、内蔵ライター）
 oncemore iso <project> -o out.iso [--iso-tool auto|builtin|hdiutil|genisoimage|mkisofs|xorriso]
 oncemore preview-menu <project> --menu main -o main.png [--button id] [--state highlight|select|normal] [--outline]
 oncemore simulate <project> --keys down,enter,menu   # リモコン操作を再現（エンコードなし）
@@ -488,9 +489,12 @@ oncemore doctor                                # 外部ツールの有無・バ�
 
 ### Blu-ray
 
-同じプロジェクトを Blu-ray としてもビルドできます：`oncemore build <project>
--o out/ --format bluray`、またはアプリのビルドパネルで「フォーマット：Blu-ray」。
-BDMV フォルダは oncemore が丸ごと書き出します。
+同じプロジェクトを Blu-ray としてもビルドできます：BDMV フォルダは `oncemore build
+<project> -o out/ --format bluray`、ディスクイメージは `oncemore iso <project> -o
+bd.iso --format bluray`、またはアプリのビルドパネルで「フォーマット：Blu-ray」
+（イメージ・フォルダ・イメージを空の BD に書き込み）。BDMV フォルダは oncemore が
+丸ごと書き出し、イメージも内蔵の UDF 2.50 ライター（Blu-ray のファイルシステム。
+ディレクトリ構造をメタデータファイルとそのミラーに二重に記録）で作ります。
 
 * すべてのタイトルを HD（1920×1080、x264 の Blu-ray 設定の H.264。フィルムは
   23.976p、NTSC の映像は 29.97、PAL は 25 コマ/秒を 1080i のストリームで）、
@@ -504,7 +508,8 @@ BDMV フォルダは oncemore が丸ごと書き出します。
 メニューと字幕はまだ Blu-ray に入りません（ビルド時に表示します）。テストでは
 すべての Blu-ray を libbluray（VLC・mpv・Kodi が Blu-ray 再生に使うライブラリ）で
 読み戻し、タイトル・長さ・チャプター・ストリームと、ファーストプレイから
-終了アクションでの遷移まで確かめています。
+終了アクションでの遷移まで確かめています。イメージは libudfread でファイルごとにも
+読み戻しています。
 
 ## 仕組み
 
@@ -585,8 +590,9 @@ DVD ナビゲーションライブラリ）でメニューのボタンを実際�
   libdvdnav はディスク名をセクタ 32 から直接読みますが（実 DVD と genisoimage はここに UDF の記述子を置く）、
   hdiutil は別の位置に置くためです。UDF / ISO 9660 のボリューム名自体は正しく入っており（テストで確認）、
   再生には影響しません。
-* Blu-ray は BDMV フォルダのみで、メニューと字幕はまだありません。ディスクイメージ
-  （UDF 2.50）は次の段階です。4:3 のタイトルは 16:9 の HD 画面に左右黒帯で入ります。
+* Blu-ray にはまだメニューと字幕がありません。4:3 のタイトルは 16:9 の HD 画面に
+  左右黒帯で入ります。BD への書き込みは DVD と同じツールを使います。growisofs は
+  BD メディア対応を明記していますが、BD ドライブでの `hdiutil burn` は未確認です。
 * コピーガードなし（設計方針として今後も入れません）。
 
 ## ライセンス

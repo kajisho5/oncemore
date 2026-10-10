@@ -8,7 +8,7 @@ import os
 import shutil
 import tempfile
 
-from . import author, bluray, clips, encode, iso, lpcmfix, slideshow, subtitles, tools
+from . import author, bluray, clips, encode, iso, lpcmfix, slideshow, subtitles, tools, udf250
 from . import menu as menu_module
 from .errors import OncemoreError, ProjectError
 from .menu import (MenuBuilder, check_element_fonts, display_width, find_font, link_font,
@@ -528,6 +528,36 @@ def build_bluray(project, out_dir, reporter, fast=False, keep_work=False, work=N
         result["work_dir"] = work
     else:
         shutil.rmtree(work, ignore_errors=True)
+    return result
+
+
+def build_bluray_iso(project, out_iso, reporter, fast=False, keep_work=False, build_dir=None,
+                     cache=True):
+    """A Blu-ray disc image: the BDMV folder (build_bluray) written as UDF 2.50
+    by the built-in writer."""
+    out_iso = os.path.abspath(out_iso)
+    if build_dir is None:
+        stem = os.path.splitext(os.path.basename(out_iso))[0]
+        build_dir = os.path.join(os.path.dirname(out_iso), f".{stem}.oncemore-build")
+    build_dir = os.path.abspath(build_dir)
+    disc_dir = os.path.join(build_dir, "disc")
+    work = os.path.join(build_dir, ".work")
+    result = build_bluray(project, disc_dir, reporter, fast=fast, keep_work=True, work=work,
+                          cache=cache)
+    reporter.step("iso", f"Writing {os.path.basename(out_iso)}")
+    info = udf250.write_image(disc_dir, out_iso, project.disc.label,
+                              on_progress=lambda f: reporter.progress("iso", f))
+    result.update({"iso": info["path"], "iso_bytes": info["bytes"], "iso_tool": "builtin",
+                   "iso_udf": info["udf_revision"]})
+    result.pop("work_dir", None)
+    capacity = bluray.CAPACITY[project.disc.bluray_target]
+    if info["bytes"] > capacity:
+        raise OncemoreError(f"the image is {info['bytes'] / 2**30:.2f} GiB, larger than "
+                            f"{project.disc.bluray_target}", hint="Use BD50 or shorter titles.")
+    if keep_work:
+        result["build_dir"] = build_dir
+    else:
+        shutil.rmtree(build_dir, ignore_errors=True)
     return result
 
 

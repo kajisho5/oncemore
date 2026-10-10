@@ -838,3 +838,18 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   object per playlist plays it and jumps to the next title when the end
   action names one. Without menus, any other end action stops; first play
   and the Top Menu key fall back to the first title when they name a menu.
+
+## 54. Blu-ray images
+
+* Blu-ray discs carry UDF 2.50 only (no ISO 9660), with the file system's
+  own structures in a metadata partition. None of the image tools oncemore
+  uses for DVD writes that portably (genisoimage and mkisofs stop at UDF
+  1.02, xorriso has no UDF), so oncemore writes it, as it does UDF 1.02.
+* Layout: the metadata file at partition block 32 and its mirror at the end
+  of the partition, both in 32-block units with their Extended File
+  Entries at partition blocks 0 and 1; the file set, directories and file
+  entries inside it, the file data in between, one file after another. File
+  entries reach the data with long_ad descriptors naming the physical
+  partition.
+* Tests check the structures and read every file back with libudfread, the
+  reader libbluray opens images with, and play the image with libbluray.
