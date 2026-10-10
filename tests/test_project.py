@@ -291,6 +291,19 @@ class TestProject(unittest.TestCase):
         self.assertEqual(p.disc.first_play, "playall")
         self.assertTrue(any("low for 5.1" in w for w in p.warnings))
 
+    def test_image_buttons(self):
+        d = copy.deepcopy(self.data)
+        d["menus"][0]["buttons"].append({"id": "ib", "image": "media/play.png", "x": 400,
+                                         "y": 300, "width": 90, "highlight": "shape",
+                                         "action": "title:t2"})
+        b = build(d).menu("main").buttons[-1]
+        self.assertEqual((b.label, b.width, b.highlight), ("", 90, "shape"))
+        self.assertTrue(b.image.endswith(os.path.join("media", "play.png")))
+        del d["menus"][0]["buttons"][-1]["image"]
+        self.assertIn("missing required property 'label'", self.errors(d))
+        d["menus"][0]["buttons"][-1].update({"image": "x.png", "highlight": "glow"})
+        self.assertIn("must be one of 'frame', 'shape'", self.errors(d))
+
     def test_subtitle_style_defaults(self):
         self.assertEqual(build(self.data).disc.subtitle_style["size"], 30)
         d = copy.deepcopy(self.data)

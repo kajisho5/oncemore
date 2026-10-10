@@ -531,5 +531,72 @@ class TestSurround(unittest.TestCase):
         self.assertIn("only use the front speakers", out)
 
 
+
+@unittest.skipUnless(TOOLS_OK, SKIP_REASON)
+class TestImageButtons(unittest.TestCase):
+    """Two picture buttons (one highlighted by its shape, one by a frame)
+    next to the sample's text buttons."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-e2e-img-")
+        rc, _, err = run_cli("init", "img", cwd=cls.tmp)
+        assert rc == 0, err
+        proj = os.path.join(cls.tmp, "img")
+        # a "play" triangle on a transparent background
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi",
+                        "-i", "color=c=black@0:s=120x90,format=rgba", "-vf",
+                        "geq=r=255:g=200:b=40:a='if(lt(abs(Y-45),(110-X)/2.4)*gt(X,10),255,0)'",
+                        "-frames:v", "1", os.path.join(proj, "media", "play.png")], check=True)
+        path = os.path.join(proj, "project.oncemore.json")
+        with open(path) as f:
+            data = json.load(f)
+        data["menus"][0]["buttons"] += [
+            {"id": "ip", "image": "media/play.png", "x": 470, "y": 200, "width": 100,
+             "highlight": "shape", "action": "title:t2"},
+            {"id": "if", "image": "media/play.png", "x": 470, "y": 330, "width": 80,
+             "action": "menu:chapters"}]
+        with open(path, "w") as f:
+            json.dump(data, f)
+        cls.path = path
+        cls.iso = os.path.join(cls.tmp, "img.iso")
+        rc, out, err = run_cli("--json", "iso", path, "-o", cls.iso, "--fast", cwd=cls.tmp)
+        assert rc == 0, err + out
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def test_highlight_shapes(self):
+        from oncemore import menu as menu_mod, png4
+        from oncemore.project import load_project
+        project = load_project(self.path)
+        mb = menu_mod.MenuBuilder(project, os.path.join(self.tmp, "work"))
+        geoms = {g.id: g for g in mb.layout(project.menu("main"))}
+        # shape: the triangle's opaque pixels, inside the 100 px wide picture
+        x0, y0, x1, y1 = geoms["ip"].rect
+        self.assertTrue(468 <= x0 and x1 <= 574, geoms["ip"].rect)
+        mask = geoms["ip"].shape[0]
+        self.assertIsInstance(mask, png4.Mask)
+        mx0, my0, mx1, my1 = mask.bbox()
+        self.assertLess(mx1 - mx0, 100)                  # transparent margins left out
+        # frame: a rectangle around the 80 px picture
+        kind, (fx0, fy0, fx1, fy1) = geoms["if"].shape[0]
+        self.assertEqual((kind, fx0, fy0), ("frame", 466, 326))
+        self.assertEqual(fx1 - fx0, 80 + 7)
+
+    @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
+    def test_press_picture_buttons(self):
+        with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
+            self.assertEqual(d.wait_menu(), 1)
+            self.assertEqual(d.button_count(), 5)
+            self.assertEqual(d.move("right"), 4)         # PLAY ALL -> the shape button
+            d.activate(4)
+            self.assertEqual(d.wait_title(), (2, 1))
+            self.assertEqual(d.play_to_end_of_title(), ("menu", 1))
+            d.activate(5)                                # the framed one
+            self.assertEqual(d.wait_menu(), 2)
+
+
 if __name__ == "__main__":
     unittest.main()

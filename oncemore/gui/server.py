@@ -22,6 +22,7 @@ API (all JSON unless noted):
 """
 
 import base64
+import hashlib
 import json
 import mimetypes
 import os
@@ -106,6 +107,9 @@ class App:
         self.jobs_lock = threading.Lock()
         self.probe_cache = {}
         self.frame_cache = {}
+        self.proxies = {}          # proxy file -> {"state", "fraction", "error"}
+        self.proxy_lock = threading.Lock()
+        self._encoders = None
         self._drawtext = None
 
     # -- paths -----------------------------------------------------------------
@@ -181,6 +185,79 @@ class App:
             self.frame_cache.clear()
         self.frame_cache[key] = p.stdout
         return p.stdout
+
+    # -- playback proxies ----------------------------------------------------------
+    # Titles can be any format ffmpeg reads; the page plays a small copy cached
+    # in .oncemore-cache/proxy: H.264/AAC MP4 (Safari/WKWebView, Chrome), or
+    # VP8/Opus WebM for browsers without H.264 (Firefox, Chromium builds).
+    PROXY_HEIGHT = 360
+    PROXY_FORMATS = {"mp4": "video/mp4", "webm": "video/webm"}
+
+    def encoders(self):
+        if self._encoders is None:
+            p = subprocess.run([tools.find("ffmpeg"), "-hide_banner", "-encoders"],
+                               capture_output=True, text=True)
+            self._encoders = {line.split()[1] for line in p.stdout.splitlines()
+                              if len(line.split()) > 1 and line[:2] in (" V", " A")}
+        return self._encoders
+
+    def proxy_codecs(self, fmt):
+        have = self.encoders()
+        if fmt == "mp4":
+            if "libx264" in have:
+                v = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "26"]
+            elif "h264_videotoolbox" in have:
+                v = ["-c:v", "h264_videotoolbox", "-b:v", "1500k"]
+            else:
+                raise OncemoreError("this ffmpeg has no H.264 encoder (libx264) for previews")
+            return v + ["-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "128k",
+                        "-movflags", "+faststart"]
+        if "libvpx" not in have:
+            raise OncemoreError("this ffmpeg has no VP8 encoder (libvpx) for previews")
+        a = ["-c:a", "libopus", "-b:a", "96k"] if "libopus" in have else \
+            ["-c:a", "libvorbis", "-q:a", "3"]
+        return ["-c:v", "libvpx", "-deadline", "realtime", "-cpu-used", "8",
+                "-b:v", "1200k", "-pix_fmt", "yuv420p"] + a
+
+    def proxy_path(self, full, fmt):
+        key = f"{full}\0{os.path.getmtime(full)}\0{os.path.getsize(full)}\0{self.PROXY_HEIGHT}"
+        name = hashlib.sha256(key.encode("utf-8", "surrogateescape")).hexdigest()[:24]
+        return os.path.join(self.dir, ".oncemore-cache", "proxy", f"{name}.{fmt}")
+
+    def proxy_status(self, full, fmt="mp4", start=False):
+        if fmt not in self.PROXY_FORMATS:
+            raise ValueError(f"unknown preview format {fmt!r}")
+        out = self.proxy_path(full, fmt)
+        with self.proxy_lock:
+            st = self.proxies.get(out)
+            if st is None and os.path.isfile(out):
+                st = self.proxies[out] = {"state": "ready", "fraction": 1.0}
+            if start and (st is None or st["state"] == "error"):
+                st = self.proxies[out] = {"state": "running", "fraction": 0.0}
+                threading.Thread(target=self._make_proxy, args=(full, fmt, out, st),
+                                 daemon=True).start()
+        return dict(st or {"state": "none", "fraction": 0.0}), out
+
+    def _make_proxy(self, full, fmt, out, st):
+        try:
+            codecs = self.proxy_codecs(fmt)
+            info = self.probe(full)
+            os.makedirs(os.path.dirname(out), exist_ok=True)
+            tmp = f"{out}.part"
+            args = ["-i", full, "-map", "0:v:0", "-map", "0:a:0?", "-sn", "-dn",
+                    "-vf", f"scale=trunc(iw*sar/2)*2:ih,setsar=1,"
+                           f"scale=-2:'min({self.PROXY_HEIGHT},ih)':flags=bicubic",
+                    "-ac", "2"] + codecs + ["-f", fmt, tmp]
+            encode.run_ffmpeg(args, info.get("duration"),
+                              os.path.join(os.path.dirname(out), "last.log"),
+                              lambda f: st.update(fraction=round(f, 3)),
+                              what="ffmpeg (preview)")
+            os.replace(tmp, out)
+            st.update(state="ready", fraction=1.0)
+        except OncemoreError as e:
+            st.update(state="error", error=e.message)
+        except Exception as e:  # keep the server alive
+            st.update(state="error", error=f"internal error: {e}")
 
     # -- jobs --------------------------------------------------------------------
     def start_build(self, kind, fast):
@@ -265,7 +342,7 @@ class Handler(BaseHTTPRequestHandler):
         token = self.headers.get("X-Oncemore-Token", "")
         # <img> cannot send headers: frames and images may carry ?token=
         if not token and query and self.command in ("GET", "HEAD") and \
-                self.path.startswith(("/api/frame", "/api/file")):
+                self.path.startswith(("/api/frame?", "/api/file?", "/api/proxy?")):
             token = query.get("token", "")
         return secrets.compare_digest(token, self.app.token)
 
@@ -407,6 +484,57 @@ class Handler(BaseHTTPRequestHandler):
         width = max(64, min(int(q.get("w", 480)), 1920))
         data = self.app.frame(full, float(q.get("t", 0)), width)
         self._send(HTTPStatus.OK, data, "image/jpeg", {"Cache-Control": "private, max-age=600"})
+
+    def api_post_proxy(self, q):
+        full = self.app.resolve(q.get("path"))
+        if media_kind(full) != "video":
+            raise PermissionError("only videos have previews")
+        self.json(self.app.proxy_status(full, q.get("format", "mp4"), start=True)[0])
+
+    def api_get_proxy(self, q):
+        """The finished preview, with byte ranges (WebKit requires them)."""
+        fmt = q.get("format", "mp4")
+        st, out = self.app.proxy_status(self.app.resolve(q.get("path")), fmt)
+        ctype = self.app.PROXY_FORMATS[fmt]
+        if st["state"] != "ready":
+            raise FileNotFoundError(out)
+        size = os.path.getsize(out)
+        start, end = 0, size - 1
+        m = re.fullmatch(r"bytes=(\d*)-(\d*)", (self.headers.get("Range") or "").strip())
+        partial = bool(m and (m.group(1) or m.group(2)))
+        if partial:
+            if m.group(1):
+                start = int(m.group(1))
+                end = min(int(m.group(2)), size - 1) if m.group(2) else size - 1
+            else:                                  # bytes=-N: the last N bytes
+                start = max(0, size - int(m.group(2)))
+            if start > end or start >= size:
+                return self._send(HTTPStatus.REQUESTED_RANGE_NOT_SATISFIABLE, b"",
+                                  ctype, {"Content-Range": f"bytes */{size}"})
+        length = end - start + 1
+        self.send_response(HTTPStatus.PARTIAL_CONTENT if partial else HTTPStatus.OK)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(length))
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        if partial:
+            self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+        self.end_headers()
+        if self.command == "HEAD":
+            return
+        with open(out, "rb") as f:
+            f.seek(start)
+            left = length
+            try:
+                while left > 0:
+                    chunk = f.read(min(left, 1 << 16))
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    left -= len(chunk)
+            except (BrokenPipeError, ConnectionResetError):
+                pass                               # the player dropped this range
 
     def api_get_file(self, q):
         full = self.app.resolve(q.get("path"))

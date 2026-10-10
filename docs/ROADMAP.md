@@ -25,12 +25,14 @@ Done (as a local web app, `oncemore gui`):
 * Oncemore.app: a native macOS window around the same UI with bundled Python,
   built for Apple silicon and Intel by the release workflow (notarised once a
   Developer ID is configured)
+* Title playback (cached H.264/WebM proxy), ▲/▼ ordering of titles and menus,
+  image buttons (frame or shape highlight)
 
 Next:
 
-* Playback preview of titles (proxy encode) and of menu navigation
+* Playback preview of menu navigation (titles play since the proxy preview)
 * Multi-select, alignment guides and snapping in the menu editor
-* Drag-reordering titles and menus; button graphics (images instead of text)
+* Drag-and-drop reordering in the sidebar (▲/▼ buttons exist)
 
 ## Phase 3 — richer discs
 

@@ -196,7 +196,7 @@ def menu_text(project):
     """All text drawn on the project's menus."""
     parts = []
     for m in project.menus:
-        parts += [t.text for t in m.texts] + [b.label for b in m.buttons]
+        parts += [t.text for t in m.texts] + [b.label for b in m.buttons if not b.image]
     return "".join(parts)
 
 
@@ -299,11 +299,65 @@ class MenuBuilder:
                                "or entirely off-screen")
         return mask
 
+    def image_box(self, menu_id, button):
+        """(display width, height, storage width) of an image button."""
+        info = self._probe(button.image)
+        nw, nh = info.get("width"), info.get("height")
+        if not (nw and nh):
+            raise ProjectError(f"menu {menu_id!r}: button {button.id!r}: cannot read "
+                               f"{os.path.basename(button.image)} as a picture")
+        sw = button.width or max(8, round(nw / self.sx))
+        dwid = max(2, round(sw * self.sx))
+        h = max(2, round(dwid * nh / nw))
+        if button.x + sw > self.disc.width or button.y + h > self.disc.height:
+            raise ProjectError(f"menu {menu_id!r}: image of button {button.id!r} "
+                               f"({sw}x{h} at {button.x},{button.y}) runs off the "
+                               f"{self.disc.width}x{self.disc.height} menu; make it smaller "
+                               "or move it")
+        return dwid, h, sw
+
+    def image_mask(self, menu_id, button):
+        """Opaque pixels of an image button, in storage pixels."""
+        dwid, h, _ = self.image_box(menu_id, button)
+        W, H = self.disc.width, self.disc.height
+        graph = (f"[1:v]scale={dwid}:{h},format=rgba,alphaextract[a];"
+                 f"[0:v][a]overlay={round(button.x * self.sx)}:{button.y},"
+                 + self._squeeze() + ",format=gray")
+        cmd = [self.ffmpeg, "-hide_banner", "-nostdin", "-v", "error", "-f", "lavfi", "-i",
+               f"color=c=black:s={self.dw}x{H}:r=1:d=1", "-i", button.image,
+               "-filter_complex", graph, "-frames:v", "1",
+               "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1"]
+        p = subprocess.run(cmd, cwd=self.work, capture_output=True)
+        if p.returncode != 0 or len(p.stdout) < W * H:
+            raise ToolFailedError("ffmpeg could not read a button image",
+                                  details={"output": tools.tail(p.stderr.decode("utf-8", "replace"))})
+        mask = png4.Mask.from_gray(p.stdout[:W * H], W, H, threshold=128)
+        if mask.bbox() is None:
+            raise ProjectError(f"menu {menu_id!r}: image of button {button.id!r} is fully "
+                               "transparent; use highlight \"frame\"")
+        return mask
+
     # -- geometry ----------------------------------------------------------------
     def layout(self, menu):
         W, H = self.disc.width, self.disc.height
         geoms = []
         for b in menu.buttons:
+            if b.image:
+                _, h, sw = self.image_box(menu.id, b)
+                if b.highlight == "shape":
+                    mask = self.image_mask(menu.id, b)
+                    shapes = [mask]
+                    x0, y0, x1, y1 = mask.bbox()
+                else:
+                    frame = (b.x - 4, b.y - 4, b.x + sw + 3, b.y + h + 3)
+                    shapes = [("frame", frame)]
+                    x0, y0, x1, y1 = frame
+                x0, y0 = max(0, x0 - 2), max(0, y0 - 2)
+                x1, y1 = min(W - 1, x1 + 2), min(H - 2, y1 + 2)
+                y0 -= y0 % 2
+                y1 += y1 % 2
+                geoms.append(ButtonGeom(b.id, (x0, y0, x1, y1), shapes, b.action))
+                continue
             mask = self.measure(menu.id, b)
             x0, y0, x1, y1 = mask.bbox()
             shapes = [mask]
@@ -400,15 +454,26 @@ class MenuBuilder:
             bg = "[0:v]format=rgb24"
         chains = [bg + "[bg0]"]
         cur = "bg0"
-        for i, (path, x, y) in enumerate(self.thumbnails(menu), 1):
+        overlays = list(self.thumbnails(menu))
+        for b in menu.buttons:
+            if b.image:
+                dwid, h, _ = self.image_box(menu.id, b)
+                overlays.append((b.image, round(b.x * self.sx), b.y, f"scale={dwid}:{h},format=rgba"))
+        for i, (path, x, y, *pre) in enumerate(overlays, 1):
             inputs += ["-i", path]
-            chains.append(f"[{cur}][{i}:v]overlay={x}:{y}[bg{i}]")
+            src = f"[{i}:v]"
+            if pre:
+                chains.append(f"{src}{pre[0]}[im{i}]")
+                src = f"[im{i}]"
+            chains.append(f"[{cur}]{src}overlay={x}:{y}[bg{i}]")
             cur = f"bg{i}"
         draws = []
         for i, t in enumerate(menu.texts):
             tf = self._textfile(f"{menu.id}.text{i}.txt", t.text)
             draws.append(self._drawtext(tf, t.x, t.y, t.size, t.color))
         for b in menu.buttons:
+            if b.image:
+                continue
             tf = self._textfile(f"{menu.id}.{b.id}.label.txt", b.label)
             draws.append(self._drawtext(tf, b.x, b.y, b.size, b.color))
         chains.append(f"[{cur}]" + ",".join(draws + [self._squeeze()]) + "[out]")

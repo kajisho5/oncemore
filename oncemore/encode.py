@@ -201,6 +201,7 @@ def run_ffmpeg(args, duration, log, on_progress=None, cwd=None, what="ffmpeg"):
                 except ValueError:
                     continue
                 on_progress(min(1.0, t / duration))
+        proc.stdout.close()
         rc = proc.wait()
     if rc != 0:
         with open(log, encoding="utf-8", errors="replace") as lf:

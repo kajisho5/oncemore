@@ -280,6 +280,9 @@ class Button:
     color: str
     nav: dict = field(default_factory=dict)
     thumb: Thumb = None
+    image: str = None          # image button: picture instead of the label
+    width: int = None          # its width on the 720-wide grid (None = natural)
+    highlight: str = "frame"   # image buttons: "frame" | "shape"
 
 
 @dataclass
@@ -572,10 +575,12 @@ class _Builder:
         where = f"menus[{i}]"
         size = m.get("font_size", DEFAULT_FONT_SIZE)
         tcolor = m.get("text_color", DEFAULT_TEXT)
-        buttons = [Button(id=b["id"], label=b["label"], x=b["x"], y=b["y"], action=b["action"],
-                          size=b.get("size", size), color=b.get("color", tcolor),
-                          nav=dict(b.get("nav", {})))
-                   for b in m["buttons"]]
+        buttons = [Button(id=b["id"], label=b.get("label", ""), x=b["x"], y=b["y"],
+                          action=b["action"], size=b.get("size", size),
+                          color=b.get("color", tcolor), nav=dict(b.get("nav", {})),
+                          image=self.file(f"{where}.buttons[{j}].image", b.get("image")),
+                          width=b.get("width"), highlight=b.get("highlight", "frame"))
+                   for j, b in enumerate(m["buttons"])]
         texts = [Text(text=t["text"], x=t["x"], y=t["y"], size=t.get("size", size),
                       color=t.get("color", tcolor)) for t in m.get("texts", [])]
         for j, b in enumerate(buttons):

@@ -268,3 +268,28 @@ AC-3 is re-encoded rather than passed through: pass-through would need the
 audio to start exactly with the video and match the title length, which the
 pad-and-cut audio graph guarantees for re-encoded audio only; at 448k the
 generation loss is small.
+server (same code as the build) and shows the true button hit areas. A native
+.app wrapper (WKWebView) is the next step.
+
+## 24. Image buttons: a frame by default
+
+A DVD highlight is a 2-bit subpicture laid over the video, so it can only
+recolour pixels, not swap in another picture. For a picture button oncemore
+offers two highlights: a 3-pixel frame around the picture (default, the same
+as chapter thumbnails, readable on any picture) or the picture's own shape
+(pixels with alpha ≥ 50 % painted in the highlight colour, for icon-like
+pictures; a semi-transparent highlight colour tints instead of covering).
+The picture is drawn by the same ffmpeg overlay chain as thumbnails, so motion
+menus work too, and it is checked to stay inside the frame. The editor picks
+a starting width that keeps the picture on screen.
+
+## 25. Playback preview through a cached proxy
+
+Browsers cannot play most camera or editing formats, and WebKit (the Mac app)
+only plays a video from a server that answers byte-range requests. The GUI
+server therefore encodes a 360-line H.264/AAC MP4 (or VP8/Opus WebM when the
+page reports no H.264, e.g. Chromium test builds or Firefox) once per source,
+caches it in `.oncemore-cache/proxy/` (keyed by path, size and mtime) and
+serves it with `Range` support. Playback is for watching only: when it stops
+the editor shows the exact frame from the source again, so chapter marks stay
+frame-accurate.
