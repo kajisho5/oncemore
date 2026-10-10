@@ -116,6 +116,11 @@
           "pattern": "^((menu|title):[A-Za-z0-9_-]{1,40}|playall)$",
           "description": "menu:<id> | title:<id> | playall. What starts when the disc is inserted. Default: first menu, or first title if there are no menus."
         },
+        "title_key": {
+          "type": "string",
+          "pattern": "^((menu|title):[A-Za-z0-9_-]{1,40}|playall)$",
+          "description": "What the remote's Title / Top Menu key opens: menu:<id> | title:<id> | playall. Default: the first menu."
+        },
         "font": {
           "type": [
             "string",
@@ -285,6 +290,10 @@
           "type": "string",
           "pattern": "^(menu:[A-Za-z0-9_-]{1,40}|title:[A-Za-z0-9_-]{1,40}|stop)$",
           "description": "menu:<id> | title:<id> | stop. Default: first menu, or stop."
+        },
+        "remote_menu": {
+          "$ref": "#/$defs/id",
+          "description": "Menu opened by the remote's Menu key during this title. Default: the first menu."
         },
         "auto_chapter_menu": {
           "description": "Generate a chapter-selection menu with thumbnails for this title.",
@@ -457,6 +466,11 @@
         "action": {
           "$ref": "#/$defs/action"
         },
+        "auto_activate": {
+          "type": "boolean",
+          "default": false,
+          "description": "Run the action as soon as the button is selected (no Enter needed)."
+        },
         "size": {
           "type": "integer",
           "minimum": 8,
@@ -517,6 +531,37 @@
           "minimum": 1,
           "maximum": 600,
           "description": "Loop length in seconds. Default 5, or the music length."
+        },
+        "loop": {
+          "description": "How many times the menu plays before its end_action: \"forever\" (default) or a count.",
+          "anyOf": [
+            {
+              "const": "forever"
+            },
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 255
+            }
+          ]
+        },
+        "loop_point": {
+          "$ref": "#/$defs/time",
+          "description": "Where each repeat starts (motion menus / music): the part before it plays once, as an intro. Default 0."
+        },
+        "end_action": {
+          "type": "string",
+          "pattern": "^(menu:[A-Za-z0-9_-]{1,40}|title:[A-Za-z0-9_-]{1,40}|chapter:[A-Za-z0-9_-]{1,40}:[1-9][0-9]*|playall|stop)$",
+          "description": "What happens after the last loop (only with a loop count). Default: stop."
+        },
+        "default_button": {
+          "$ref": "#/$defs/id",
+          "description": "Button highlighted when the menu opens. Default: the first."
+        },
+        "remember_button": {
+          "type": "boolean",
+          "default": true,
+          "description": "Coming back to this menu highlights the button used last (menus 1-8). Default true."
         },
         "font_size": {
           "type": "integer",

@@ -211,6 +211,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `aspect` | `4:3` \| `16:9` | required |
 | `target` | `DVD5` \| `DVD9` | `DVD5` |
 | `first_play` | `menu:<id>` \| `title:<id>` \| `playall` | first menu, else first title |
+| `title_key` | what the remote's Title / Top Menu key opens: `menu:<id>` \| `title:<id>` \| `playall` | first menu |
 | `font` | path or `null` | auto: Hiragino (macOS) → Noto Sans CJK → DejaVu Sans |
 | `video_bitrate` | `"auto"` or bitrate (`"6M"`, `5500000`), 1–8 Mbit/s | `auto` |
 | `subtitle_style` | `{size, color, outline, outline_width, margin}` for all subtitles | 30 px (PAL 36), white, black outline 3 px, 36 px (PAL 43) from the bottom |
@@ -227,6 +228,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `audio.bitrate` | AC-3 only, 64k–448k | `192k` (`448k` for 5.1) |
 | `audio.channels` | `2` (stereo, sources are down-mixed) \| `6` (5.1, AC-3 only) | `2` |
 | `end_action` | `menu:<id>` \| `title:<id>` \| `stop` | first-play menu, else `stop` |
+| `remote_menu` | menu the remote's Menu key opens during this title | first menu |
 | `aspect` | `4:3` \| `16:9` for this title | `disc.aspect` |
 | `audio.lang` | ISO 639-1 code of the (single) audio track | none |
 | `audio_tracks` | 1–8 `{source?, stream?, lang?}`: several audio streams (below) | one track from `source` |
@@ -250,12 +252,18 @@ with PREV/NEXT buttons when there are more.
 | `background_video` | video file for a **motion menu** (overrides `background`) | `null` |
 | `audio` | music file or `null` | the background video's sound, else silence |
 | `duration` | loop length, seconds | video / music length (≤ 600), else 5 |
+| `loop` | `"forever"` or how many times it plays before `end_action` | `forever` |
+| `loop_point` | repeats start here (time); the part before plays once as an intro | `0` |
+| `end_action` | after the last loop: `menu:` \| `title:` \| `chapter:` \| `playall` \| `stop` | `stop` |
+| `default_button` | button id highlighted when the menu opens | the first |
+| `remember_button` | coming back highlights the button used last (menus 1–8) | `true` |
 | `font_size`, `text_color` | defaults for texts/buttons | `32`, `#FFFFFF` |
 | `highlight_color`, `select_color` | button colours | `#FFD400`, `#FF5A00` |
 | `texts[]` | `{text, x, y, size?, color?}` decorative text | `[]` |
 | `buttons[]` | 1–36 buttons | required |
 
-**buttons[]**: `id`, `label`, `x`, `y` (top-left of the label), `action`
+**buttons[]**: `id`, `label`, `x`, `y` (top-left of the label), `action`,
+`auto_activate` (run as soon as the button is selected),
 (`menu:<id>` \| `title:<id>` \| `chapter:<title id>:<n>` \| `playall` \| `audio:<n>` \|
 `subtitle:<n>` \| `subtitle:off` \| `stop`), optional `size`, `color`, and `nav`
 (`{"up": id, "down": id, "left": id, "right": id}`) to override the automatic

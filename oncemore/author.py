@@ -18,7 +18,18 @@ Several titlesets (titles with another aspect ratio or audio codec):
   routes through VMGM "jumppads" (`jumppad="yes"`).
 * A title outside titleset 1 cannot call titleset 1's menus directly, so it
   stores the target menu in g1 and calls the VMGM title menu, which jumps to
-  the root menu of titleset 1, whose dispatcher reads g1.
+  the root menu of titleset 1, whose dispatcher reads g1. Their own (empty)
+  root menu does the same, so the remote's Menu key works there too.
+
+Registers: g1 target menu (consumed by the root menu, then 0), g2 play-all
+flag, g3 Menu-key target of the playing title (`remote_menu`), g4 loop
+counter of the current menu, g5-g12 last button used in menus 1-8.
+g13-g15 are dvdauthor's scratch registers (multi-statement buttons and
+expressions), so they stay untouched. A multi-statement button that does not
+jump falls through into the next button's code in dvdauthor's dispatcher, so
+only buttons that leave the menu get the "remember" prefix.
+The VMGM title menu is what the Title / Top Menu key opens: g1 == 0 there
+means the key was pressed (routes always set g1), so `disc.title_key` applies.
 
 "Play all" (only emitted when a button or first play uses it):
 * GPRM g2 is 1 while playing everything. The playall button / first play
@@ -36,6 +47,15 @@ from .project import chapter_points, format_time, parse_action
 
 NAV_REG = "g1"
 PLAYALL_REG = "g2"
+MENUKEY_REG = "g3"
+LOOP_REG = "g4"
+
+
+def button_reg(menu):
+    """Register remembering the last button of `menu`, or None."""
+    if menu.remember_button and menu.number <= 8:
+        return f"g{4 + menu.number}"
+    return None
 
 
 def _menu_number(project, mid):
@@ -50,8 +70,16 @@ def _title_ref(project, tid, from_titleset):
     return f"titleset {t.titleset} title {t.number}"
 
 
-def button_command(project, action):
-    """Command executed by a menu button (menu domain of titleset 1)."""
+def button_command(project, action, menu=None):
+    """Command executed by a menu button (menu domain of titleset 1). With
+    `menu`, the button first records itself as that menu's last button."""
+    reg = button_reg(menu) if menu is not None else None
+    cmd = _menu_domain_command(project, action)
+    leaves = parse_action(action)[0] not in ("audio", "subtitle")
+    return f"{reg} = button; {cmd}" if reg and leaves else cmd
+
+
+def _menu_domain_command(project, action):
     kind, target, num = parse_action(action)
     single = f"{PLAYALL_REG} = 0; " if project.uses_playall else ""
     if kind == "menu":
@@ -95,8 +123,7 @@ def end_command(project, action, title=None):
 def _end_command(project, action, ts):
     kind, target, _ = parse_action(action)
     if kind == "menu":
-        n = _menu_number(project, target)
-        reg = f"{NAV_REG} = {n if n != 1 else 0};"
+        reg = f"{NAV_REG} = {_menu_number(project, target)};"
         if ts == 1:
             return f"{reg} call menu entry root;"
         return f"{reg} call vmgm menu entry title;"
@@ -111,7 +138,7 @@ def first_play_command(project):
     pre = f"subtitle = {64 + sub}; " if sub is not None else ""
     if kind == "menu":
         n = _menu_number(project, target)
-        return f"{pre}{NAV_REG} = {n if n != 1 else 0}; jump titleset 1 menu entry root;"
+        return f"{pre}{NAV_REG} = {n}; jump titleset 1 menu entry root;"
     if kind == "playall":
         pre += f"{PLAYALL_REG} = 1; "
         target = project.titles[0].id
@@ -119,6 +146,70 @@ def first_play_command(project):
     if t.titleset == 1:
         return f"{pre}jump title {t.number};"
     return f"{pre}jump titleset {t.titleset} title {t.number};"
+
+
+def title_pre(project, title):
+    """<pre> of a title: remember which menu the Menu key should open."""
+    if not project.uses_remote_menu:
+        return None
+    n = _menu_number(project, title.remote_menu) if title.remote_menu else 1
+    return f"{MENUKEY_REG} = {n};"
+
+
+def vmgm_title_command(project):
+    """The VMGM title menu: Title key, and the route from other titlesets."""
+    cmds = []
+    if project.uses_remote_menu:
+        cmds.append(f"{MENUKEY_REG} = 0;")
+    tk = project.disc.title_key
+    if tk:
+        kind, target, _ = parse_action(tk)
+        if kind == "menu" and _menu_number(project, target) != 1:
+            cmds.append(f"if ({NAV_REG} == 0) {{ {NAV_REG} = {_menu_number(project, target)}; }}")
+        elif kind in ("title", "playall"):
+            t = project.titles[0] if kind == "playall" else project.title(target)
+            flag = (f"{PLAYALL_REG} = {1 if kind == 'playall' else 0}; "
+                    if project.uses_playall else "")
+            cmds.append(f"if ({NAV_REG} == 0) {{ {flag}jump title {t.global_number}; }}")
+    cmds.append("jump titleset 1 menu entry root;")
+    return " ".join(cmds)
+
+
+def menu_pre(project, menu):
+    cmds = []
+    if menu.number == 1:
+        if project.uses_remote_menu:
+            # Menu key from a title: g1 is 0, the title left its target in g3
+            cmds.append(f"if ({NAV_REG} == 0) {{ {NAV_REG} = {MENUKEY_REG}; }} {MENUKEY_REG} = 0;")
+        cmds += [f"if ({NAV_REG} == {o.number}) {{ {NAV_REG} = 0; jump menu {o.number}; }}"
+                 for o in project.menus if o.number != 1]
+        cmds.append(f"{NAV_REG} = 0;")
+    if menu.loop is not None:
+        cmds.append(f"{LOOP_REG} = 0;")
+    ids = [b.id for b in menu.buttons]
+    default = (ids.index(menu.default_button) + 1) if menu.default_button else 1
+    reg = button_reg(menu)
+    if reg:
+        cmds.append(f"if ({reg} != 0) {{ button = {reg}; }} else {{ button = {default * 1024}; }}")
+    elif menu.default_button:
+        cmds.append(f"button = {default * 1024};")
+    return " ".join(cmds)
+
+
+def menu_post(project, menu):
+    cell = 2 if menu.loop_point else 1
+    if menu.loop is None:
+        return f"jump cell {cell};"
+    return (f"{LOOP_REG} += 1; if ({LOOP_REG} lt {menu.loop}) {{ jump cell {cell}; }} "
+            + _menu_domain_command(project, menu.end_action))
+
+
+def menu_vob(menu, path):
+    if not menu.loop_point:
+        return f"<vob file={quoteattr(path)}/>"
+    lp = format_time(menu.loop_point)
+    return (f'<vob file={quoteattr(path)}><cell start="0" end="{lp}" chapter="1"/>'
+            f'<cell start="{lp}"/></vob>')
 
 
 def video_tag(disc):
@@ -159,9 +250,8 @@ def build_xml(project, menu_files, title_files, dest):
         # With one titleset the top-menu button resets g1 (always the root
         # menu). With several, titles of other titlesets come back through
         # here with their target menu in g1, so it must survive.
-        reset = "" if multi else f"{NAV_REG} = 0; "
         x += ["    <menus>", f"      {video_tag(disc)}",
-              f'      <pgc entry="title"><pre>{reset}jump titleset 1 menu entry root;</pre></pgc>',
+              f'      <pgc entry="title"><pre>{vmgm_title_command(project)}</pre></pgc>',
               "    </menus>"]
     x += ["  </vmgm>", "  <titleset>"]
     if project.menus:
@@ -169,27 +259,35 @@ def build_xml(project, menu_files, title_files, dest):
         for m in project.menus:
             attrs = ' entry="root"' if m.number == 1 else ""
             x.append(f"      <pgc{attrs}>")
-            if m.number == 1:
-                others = [o for o in project.menus if o.number != 1]
-                if others:
-                    disp = " ".join(f"if ({NAV_REG} == {o.number}) {{ {NAV_REG} = 0; jump menu {o.number}; }}"
-                                    for o in others)
-                    x.append(f"        <pre>{disp}</pre>")
+            pre = menu_pre(project, m)
+            if pre:
+                x.append(f"        <pre>{pre}</pre>")
             for b in m.buttons:
-                x.append(f"        <button name={quoteattr(b.id)}>{button_command(project, b.action)}</button>")
-            x.append(f"        <vob file={quoteattr(menu_files[m.id])}/>")
-            x.append("        <post>jump cell 1;</post>")
+                x.append(f"        <button name={quoteattr(b.id)}>"
+                         f"{button_command(project, b.action, m)}</button>")
+            x.append(f"        {menu_vob(m, menu_files[m.id])}")
+            x.append(f"        <post>{menu_post(project, m)}</post>")
             x.append("      </pgc>")
         x.append("    </menus>")
     for ts in range(1, project.titleset_count + 1):
         if ts > 1:
             x.append("  <titleset>")
         titles = project.titleset_titles(ts)
+        if ts > 1 and project.menus:
+            # the remote's Menu key: back to titleset 1 through the VMGM
+            target = f"{NAV_REG} = {MENUKEY_REG}; if ({NAV_REG} == 0) {{ {NAV_REG} = 1; }}" \
+                if project.uses_remote_menu else f"{NAV_REG} = 1;"
+            x += ["    <menus>", f"      {video_tag(project.disc_for(titles[0]))}",
+                  f'      <pgc entry="root"><pre>{target} jump vmgm menu entry title;</pre></pgc>',
+                  "    </menus>"]
         x += ["    <titles>", f"      {video_tag(project.disc_for(titles[0]))}"]
         x += [f"      {tag}" for tag in audio_tags(project, titles)
               + subpicture_tags(project, titles)]
         for t in titles:
             x.append("      <pgc>")
+            pre = title_pre(project, t)
+            if pre:
+                x.append(f"        <pre>{pre}</pre>")
             x.append(f"        <vob file={quoteattr(title_files[t.id])} "
                      f'chapters="{chapters_attr(t.chapters, disc.fps)}"/>')
             x.append(f"        <post>{end_command(project, t.end_action, t)}</post>")

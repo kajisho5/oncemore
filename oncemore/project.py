@@ -185,6 +185,7 @@ class Disc:
     font: str = None
     video_bitrate: int = None  # None = auto
     subtitle_style: dict = None
+    title_key: str = None      # target of the remote's Title key (None = first menu)
 
     @property
     def width(self):
@@ -238,6 +239,7 @@ class Title:
     aspect: str = None       # display aspect of this title (default: the disc's)
     titleset: int = 1        # DVD titleset (VTS) holding this title
     global_number: int = 0   # title number as players show it (VMGM order)
+    remote_menu: str = None  # menu id the Menu key opens during this title
 
     @property
     def track_bps(self):
@@ -281,6 +283,7 @@ class Button:
     nav: dict = field(default_factory=dict)
     thumb: Thumb = None
     image: str = None          # image button: picture instead of the label
+    auto_activate: bool = False
     width: int = None          # its width on the 720-wide grid (None = natural)
     highlight: str = "frame"   # image buttons: "frame" | "shape"
 
@@ -299,6 +302,11 @@ class Menu:
     generated: bool = False
     number: int = 0  # 1-based menu PGC number inside the titleset
     background_video: str = None
+    loop: int = None           # None = forever, else plays before end_action
+    loop_point: float = 0.0    # repeats start here (the part before is an intro)
+    end_action: str = "stop"   # after the last loop
+    default_button: str = None
+    remember_button: bool = True
 
 
 @dataclass
@@ -332,8 +340,14 @@ class Project:
         return self.menus[0] if self.menus else None
 
     @property
+    def uses_remote_menu(self):
+        return any(t.remote_menu for t in self.titles)
+
+    @property
     def uses_playall(self):
-        actions = [self.disc.first_play] + [b.action for m in self.menus for b in m.buttons]
+        actions = [self.disc.first_play, self.disc.title_key] + \
+            [b.action for m in self.menus for b in m.buttons] + \
+            [m.end_action for m in self.menus if m.loop is not None]
         return "playall" in actions
 
     def playall_next(self, title):
@@ -439,6 +453,7 @@ class _Builder:
             aspect=dd["aspect"],
             target=dd.get("target", "DVD5"),
             first_play=dd.get("first_play"),
+            title_key=dd.get("title_key"),
             font=self.file("disc.font", dd["font"]) if dd.get("font") else None,
             video_bitrate=None if vb == "auto" else parse_bitrate(vb),
         )
@@ -563,6 +578,7 @@ class _Builder:
             id=t["id"], name=t.get("name", t["id"]), source=source,
             chapters=chapters, audio_codec=codec, audio_bitrate=bitrate, audio_channels=channels,
             end_action=t.get("end_action", "stop"), audio_tracks=tracks, subtitles=subs,
+            remote_menu=t.get("remote_menu"),
             aspect=t.get("aspect"),
         )
         if title.audio_bps > 8_800_000:
@@ -579,6 +595,7 @@ class _Builder:
                           action=b["action"], size=b.get("size", size),
                           color=b.get("color", tcolor), nav=dict(b.get("nav", {})),
                           image=self.file(f"{where}.buttons[{j}].image", b.get("image")),
+                          auto_activate=bool(b.get("auto_activate")),
                           width=b.get("width"), highlight=b.get("highlight", "frame"))
                    for j, b in enumerate(m["buttons"])]
         texts = [Text(text=t["text"], x=t["x"], y=t["y"], size=t.get("size", size),
@@ -595,8 +612,23 @@ class _Builder:
             for k, v in b.nav.items():
                 if v not in ids:
                     self.err(f"{where}.buttons[{j}].nav.{k}", f"no button {v!r} in this menu")
+        loop = m.get("loop", "forever")
+        loop = None if loop == "forever" else int(loop)
+        loop_point = 0.0
+        if "loop_point" in m:
+            try:
+                loop_point = parse_time(m["loop_point"])
+            except ValueError as e:
+                self.err(f"{where}.loop_point", str(e))
+        if "end_action" in m and loop is None:
+            self.warnings.append(f"{where}.end_action is only used with a loop count")
+        if m.get("default_button") and m["default_button"] not in ids:
+            self.err(f"{where}.default_button", f"no button {m['default_button']!r} in this menu")
         return Menu(
             id=m["id"],
+            loop=loop, loop_point=loop_point, end_action=m.get("end_action", "stop"),
+            default_button=m.get("default_button"),
+            remember_button=m.get("remember_button", True),
             background_video=self.file(f"{where}.background_video", m.get("background_video")),
             background=self.file(f"{where}.background", m.get("background")),
             background_color=m.get("background_color", "#000000"),
@@ -688,13 +720,21 @@ class _Builder:
                         self.err(where, f"title {target!r} has only {len(t.chapters)} chapters")
 
         check("disc.first_play", project.disc.first_play)
+        if project.disc.title_key:
+            check("disc.title_key", project.disc.title_key)
+            if not project.menus and project.disc.title_key:
+                self.warnings.append("disc.title_key needs at least one menu; ignored")
         for i, t in enumerate(project.titles):
             check(f"titles[{i}].end_action", t.end_action)
+            if t.remote_menu and project.menu(t.remote_menu) is None:
+                self.err(f"titles[{i}].remote_menu", f"no menu with id {t.remote_menu!r}")
         for m in project.menus:
             where = f"menus[{user_menu_ids.index(m.id)}]" if m.id in user_menu_ids and not m.generated \
                 else f"menu {m.id!r}"
             for j, b in enumerate(m.buttons):
                 check(f"{where}.buttons[{j}].action", b.action)
+            if m.loop is not None:
+                check(f"{where}.end_action", m.end_action)
         for kind, attr in (("audio", "audio_tracks"), ("subtitle", "subtitles")):
             seen = {}
             for i, t in enumerate(project.titles):

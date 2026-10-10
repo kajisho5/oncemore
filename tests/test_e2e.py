@@ -598,5 +598,76 @@ class TestImageButtons(unittest.TestCase):
             self.assertEqual(d.wait_menu(), 2)
 
 
+@unittest.skipUnless(TOOLS_OK, SKIP_REASON)
+class TestMenuTimingAndRemote(unittest.TestCase):
+    """Default and remembered buttons, an auto-activate button, Menu / Title
+    keys (also from a second titleset), and an intro menu that plays twice
+    from a loop point and then times out to a title."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-e2e-remote-")
+        rc, _, err = run_cli("init", "remote", cwd=cls.tmp)
+        assert rc == 0, err
+        path = os.path.join(cls.tmp, "remote", "project.oncemore.json")
+        with open(path) as f:
+            data = json.load(f)
+        data["disc"]["title_key"] = "menu:intro"
+        t1, t2 = data["titles"]
+        t1["remote_menu"] = "chapters"
+        t2.update({"aspect": "4:3", "audio": {"codec": "lpcm"}})       # titleset 2
+        main = data["menus"][0]
+        main["default_button"] = "b"
+        main["buttons"].append({"id": "auto", "label": "AUTO", "x": 470, "y": 220,
+                                "action": "title:t2", "auto_activate": True})
+        data["menus"].append({"id": "intro", "background_video": "media/sample_a.mp4",
+                              "duration": 6, "loop": 2, "loop_point": 3,
+                              "end_action": "title:t2",
+                              "buttons": [{"id": "skip", "label": "SKIP", "x": 80, "y": 380,
+                                           "action": "menu:main"}]})
+        with open(path, "w") as f:
+            json.dump(data, f)
+        cls.iso = os.path.join(cls.tmp, "remote.iso")
+        rc, out, err = run_cli("--json", "iso", path, "-o", cls.iso, "--fast", cwd=cls.tmp)
+        assert rc == 0, err + out
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
+    def test_remote(self):
+        MAIN, INTRO, CHAPTERS = 1, 2, 3
+        with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
+            self.assertEqual(d.wait_menu(), MAIN)
+            self.assertEqual(d.highlight(), 3)                  # default_button "b"
+            d.activate(2)                                       # CHAPTERS
+            self.assertEqual(d.wait_menu(), CHAPTERS)
+            d.activate(4)                                       # BACK
+            self.assertEqual(d.wait_menu(), MAIN)
+            self.assertEqual(d.highlight(), 2)                  # remembers CHAPTERS
+            d.activate(2)
+            self.assertEqual(d.wait_menu(), CHAPTERS)
+            d.activate(2)                                       # chapter 2
+            self.assertEqual(d.wait_title(), (1, 2))
+            d.menu_key()                                        # remote_menu of t1
+            self.assertEqual(d.wait_menu(), CHAPTERS)
+            self.assertEqual(d.highlight(), 2)                  # the chapter just played
+            d.activate(4)
+            self.assertEqual(d.wait_menu(), MAIN)
+            d.select(1)
+            self.assertEqual(d.move("right"), 4)                # AUTO runs on selection
+            self.assertEqual(d.wait_title(), (2, 1))            # title 2 = titleset 2
+            d.menu_key()                                        # Menu key outside titleset 1
+            self.assertEqual(d.wait_menu(), MAIN)
+            d.title_key()                                       # Title key -> intro
+            self.assertEqual(d.wait_menu(), INTRO)
+            seen = len(d.cells)
+            # intro: cells 1, 2, then 2 again from the loop point, then title 2
+            self.assertEqual(d.wait_title(max_events=2_000_000), (2, 1))
+            intro = [c for dom, pgc, c in d.cells[seen - 1:] if dom == "vtsm" and pgc == INTRO]
+            self.assertEqual(intro, [1, 2, 2], d.cells[seen - 1:])
+
+
 if __name__ == "__main__":
     unittest.main()

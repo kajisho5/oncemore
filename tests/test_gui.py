@@ -268,10 +268,33 @@ class TestGuiBrowser(unittest.TestCase):
             first = page.locator(".nav-item[data-view=title]").first
             self.assertEqual(first.get_attribute("data-id"), "t2")
             self.assertTrue(page.locator("[data-move='-1']").is_disabled())  # now first
+            # Menu key target for this title
+            page.select_option("#inspector select[data-k=remote_menu]", "chapters")
+            self.wait_saved(page)
+            self.assertEqual(self.project()["titles"][0]["remote_menu"], "chapters")
             # one user menu: nothing to move
             page.click(".nav-item[data-view=menu][data-id=main]")
             page.locator("#inspector [data-move]").first.wait_for()
             self.assertEqual(page.locator("#inspector [data-move]:disabled").count(), 2)
+            # menu playback: twice, then play all; first button; no memory
+            page.select_option("#inspector select[data-k=loop]", "2")
+            page.locator("#inspector select[data-k=end_action]").wait_for()
+            page.select_option("#inspector select[data-k=end_action]", "playall")
+            page.select_option("#inspector select[data-k=default_button]", "ch")
+            page.uncheck("#remember-btn")
+            self.wait_saved(page)
+            m = self.project()["menus"][0]
+            self.assertEqual((m["loop"], m["end_action"], m["default_button"], m["remember_button"]),
+                             (2, "playall", "ch", False))
+            page.select_option("#inspector select[data-k=loop]", "forever")
+            self.wait_saved(page)
+            self.assertNotIn("loop", self.project()["menus"][0])
+            # disc: the Title key
+            page.click(".nav-item[data-view=disc]")
+            page.select_option("select[data-k=title_key]", "title:t1")
+            self.wait_saved(page)
+            self.assertEqual(self.project()["disc"]["title_key"], "title:t1")
+            page.click(".nav-item[data-view=menu][data-id=main]")
             # turn SAMPLE TITLE B into a picture button, then check the exact preview
             page.locator(".stage .el.button").nth(2).click()
             page.select_option("#inspector select[data-k=image]", "media/menu_bg.png")

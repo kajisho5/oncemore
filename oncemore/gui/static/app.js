@@ -15,6 +15,10 @@ const I18N = {
     auto: "Automatic", empty_project: "Create empty project", sample_project: "Create sample project",
     title_props: "Title", name: "Name", id: "ID", source: "Video file", audio: "Audio",
     codec: "Codec", bitrate: "Bitrate", language: "Language", end_action: "When it ends",
+    title_key: "Title / Top Menu key opens", menu_key: "Menu key opens", first_menu: "First menu",
+    playback: "Playback", loop: "Plays", loop_forever: "Repeat forever", loop_n: "{n} time(s), then…",
+    loop_point: "Repeat from (s)", menu_end: "After the last time", default_button: "Button highlighted first",
+    remember_button: "Come back to the button used last", auto_activate: "Run on selection (no Enter needed)",
     chapter_menu: "Chapter menu", chapter_menu_on: "Generate a chapter menu with thumbnails",
     subtitles: "Subtitles", audio_tracks: "Audio tracks", default_on: "on at start",
     add_chapter: "Add chapter here", chapters: "Chapters", delete: "Delete",
@@ -64,6 +68,10 @@ const I18N = {
     auto: "自動", empty_project: "空のプロジェクトを作成", sample_project: "サンプル付きで作成",
     title_props: "タイトル", name: "名前", id: "ID", source: "動画ファイル", audio: "音声",
     codec: "形式", bitrate: "ビットレート", language: "言語", end_action: "再生終了後",
+    title_key: "タイトル／トップメニューキーで開く", menu_key: "メニューキーで開く", first_menu: "最初のメニュー",
+    playback: "再生", loop: "再生回数", loop_forever: "ずっと繰り返す", loop_n: "{n} 回再生して…",
+    loop_point: "繰り返しの開始位置（秒）", menu_end: "最後の再生のあと", default_button: "最初に選ばれるボタン",
+    remember_button: "戻ってきたら前に使ったボタンを選ぶ", auto_activate: "選んだだけで実行（決定キー不要）",
     chapter_menu: "チャプターメニュー", chapter_menu_on: "サムネイル付きチャプターメニューを自動生成",
     subtitles: "字幕", audio_tracks: "音声トラック", default_on: "最初から表示",
     add_chapter: "ここにチャプター", chapters: "チャプター", delete: "削除",
@@ -409,6 +417,7 @@ function renderDisc(m) {
       <label class="field"><span>${t("video_bitrate")}</span>${selectHtml("video_bitrate", [["auto", t("auto")], ["4M", "4 Mbit/s"], ["5M", "5 Mbit/s"], ["6M", "6 Mbit/s"], ["7M", "7 Mbit/s"], ["8M", "8 Mbit/s"]], d.video_bitrate || "auto")}</label>
     </div>
     <label class="field"><span>${t("first_play")}</span>${selectHtml("first_play", [["__none__", t("auto")], ...fp], d.first_play || "__none__")}</label>
+    <label class="field"><span>${t("title_key")}</span>${selectHtml("title_key", [["__none__", t("first_menu")], ...fp], d.title_key || "__none__")}</label>
   </div>`;
   bindFields(m, (p) => p.disc);
 }
@@ -549,6 +558,7 @@ function renderTitleInspector(el) {
     <label class="field"><span>${t("source")}</span>${selectHtml("source", mediaOf("video").map((v) => [v, v]), ti.source)}</label>
     <label class="field"><span>${t("aspect")}</span>${selectHtml("aspect", [["__none__", `${t("auto")} (${P().disc.aspect})`], ["16:9", "16:9"], ["4:3", "4:3"]], ti.aspect || "__none__")}</label>
     <label class="field"><span>${t("end_action")}</span>${selectHtml("end_action", [["__none__", t("auto")], ...ends], ti.end_action || "__none__")}</label>
+    <label class="field"><span>${t("menu_key")}</span>${selectHtml("remote_menu", [["__none__", t("first_menu")], ...allMenuIds().map((id) => [id, t("menu_item", { m: id })])], ti.remote_menu || "__none__")}</label>
     <h3>${t("audio")}</h3>
     <div class="grid2">
       <label class="field"><span>${t("codec")}</span>${selectHtml("audio.codec", [["ac3", "AC-3"], ["lpcm", "LPCM"]], audio.codec || "ac3")}</label>
@@ -769,6 +779,7 @@ function renderMenuInspector(el) {
     el.innerHTML = `<h2>${sel.kind === "button" ? t("button") : t("text")}</h2>
       ${sel.kind === "button" ? `<label class="field"><span>${t("text")}</span><input data-k="label" value="${esc(it.label)}"></label>
         <label class="field"><span>${t("action")}</span>${selectHtml("action", actionOptions(), it.action)}</label>
+        <label class="field"><span></span><label><input type="checkbox" data-k="auto_activate" ${it.auto_activate ? "checked" : ""}> ${t("auto_activate")}</label></label>
         <label class="field" data-nobind><span>${t("image")}</span>${selectHtml("image", [["__none__", t("none")], ...mediaOf("image").map((x) => [x, x])], it.image || "__none__")}
           <div class="hint">${esc(t("image_hint"))}</div></label>`
         : `<label class="field"><span>${t("text")}</span><input data-k="text" value="${esc(it.text)}"></label>`}
@@ -789,6 +800,7 @@ function renderMenuInspector(el) {
         const o = (sel.kind === "button" ? find(p).buttons : find(p).texts)[sel.i];
         if (o.nav && !Object.keys(o.nav).length) delete o.nav;
         if (key === "highlight" && o.highlight === "frame") delete o.highlight;
+        if (key === "auto_activate" && !o.auto_activate) delete o.auto_activate;
       },
     });
     // picking an image: start at a width that keeps the whole picture on screen
@@ -828,9 +840,25 @@ function renderMenuInspector(el) {
       <label class="field"><span>${t("duration")}</span><input type="number" data-k="duration" min="1" max="600" value="${menu.duration || ""}" placeholder="${t("auto")}"></label>
     </div>
     <label class="field"><span>${t("music")}</span>${selectHtml("audio", [...none, ...mediaOf("audio").map((x) => [x, x])], menu.audio || "__none__")}</label>
+    <h3>${t("playback")}</h3>
+    <div class="grid2">
+      <label class="field"><span>${t("loop")}</span>${selectHtml("loop", [["forever", t("loop_forever")], ...[1, 2, 3, 5, 10].map((n) => [String(n), t("loop_n", { n })])], String(menu.loop || "forever"))}</label>
+      <label class="field"><span>${t("loop_point")}</span><input type="number" data-k="loop_point" min="0" step="0.1" value="${menu.loop_point ?? ""}" placeholder="0"></label>
+    </div>
+    ${menu.loop && menu.loop !== "forever" ? `<label class="field"><span>${t("menu_end")}</span>${selectHtml("end_action", actionOptions({ forButton: false, includeChapters: true, allowPlayAll: true }), menu.end_action || "stop")}</label>` : ""}
+    <label class="field"><span>${t("default_button")}</span>${selectHtml("default_button", [["__none__", t("auto")], ...(menu.buttons || []).map((b) => [b.id, `${b.id} (${b.label || b.image || ""})`])], menu.default_button || "__none__")}</label>
+    <label class="field"><span></span><label><input type="checkbox" id="remember-btn" ${menu.remember_button === false ? "" : "checked"}> ${t("remember_button")}</label></label>
     ${orderHtml(t("order_menu"))}
     <h3></h3><button class="danger" id="del-menu">${t("delete")}</button>`;
-  bindFields(el, find, { numeric: ["font_size", "duration"] });
+  bindFields(el, find, {
+    numeric: ["font_size", "duration", "loop_point"],
+    onAfter: (p, key, val) => {
+      const mm = find(p);
+      if (key === "loop") { if (val === "forever") { delete mm.loop; delete mm.end_action; } else mm.loop = Number(val); }
+      if (key === "loop_point" && !val) delete mm.loop_point;
+    },
+  });
+  $("#remember-btn").onchange = (e) => commit((p) => { const mm = find(p); if (e.target.checked) delete mm.remember_button; else mm.remember_button = false; });
   bindOrder(el, "menus", menu.id);
   $("#menu-id").onchange = (e) => {
     const nid = e.target.value.trim().replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 40);
