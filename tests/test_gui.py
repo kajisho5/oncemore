@@ -512,6 +512,43 @@ class TestGuiBrowser(unittest.TestCase):
             browser.close()
         self.assertEqual(errors, [])
 
+    def test_routing_and_drag_to_link(self):
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click("#np-sample")
+            page.click(".nav-item[data-view=menu][data-id=main]", timeout=120000)
+            # the remote's routing: three buttons in a column, up / down between them
+            page.check("#routing")
+            page.locator(".stage svg.routing path[data-route]").first.wait_for(timeout=60000)
+            n = page.locator(".stage svg.routing path[data-route]").count()
+            self.assertGreaterEqual(n, 4)
+            self.assertEqual(page.locator(".stage svg.routing path[data-route='play:down']").count(), 1)
+            self.assertEqual(page.locator(".stage svg.routing path.manual").count(), 0)
+            # a route set by hand is drawn solid
+            last_id = self.project()["menus"][0]["buttons"][-1]["id"]
+            page.click(".stage .el.button >> nth=0")
+            page.select_option("#inspector select[data-k='nav.up']", last_id)
+            self.wait_saved(page)
+            page.locator(".stage svg.routing path.manual[data-route='play:up']").wait_for(timeout=60000)
+            # drag a title onto the last button: it now plays that title
+            last = page.locator(".stage .el.button").last
+            page.locator(".nav-item[data-view=title][data-id=t1]").drag_to(last)
+            self.poll(lambda: self.project()["menus"][0]["buttons"][-1]["action"] == "title:t1")
+            # drag a menu onto an empty part of the menu: a new button for it
+            n_buttons = len(self.project()["menus"][0]["buttons"])
+            page.locator(".nav-item[data-view=menu][data-id=chapters]").drag_to(
+                page.locator("#stage"), target_position={"x": 600, "y": 60})
+            self.poll(lambda: len(self.project()["menus"][0]["buttons"]) == n_buttons + 1)
+            b = self.project()["menus"][0]["buttons"][-1]
+            self.assertEqual((b["action"], b["label"]), ("menu:chapters", "CHAPTERS"))
+            self.assertTrue(self.s.app.check(self.project())["valid"])
+            browser.close()
+        self.assertEqual(errors, [])
+
     def test_native_menus_in_the_mac_app(self):
         # Oncemore.app has a real menu bar: the page hides its own and its
         # menu items call window.oncemoreCommand

@@ -71,6 +71,10 @@ labels stay at 4.5:1 or more on their surface in both themes.
   a command (app.js `COMMANDS`) that the right-click menus, the keyboard
   shortcuts and Oncemore.app's native menu bar run too; inside the Mac app
   the page hides its own menu bar.
+* **Menu stage**: *Routing* overlays the remote-control routing (remote
+  blue; set by hand: accent, solid; automatic: dashed; wrapping routes arc
+  outside the buttons). Project items can be dragged onto a button (link) or
+  onto the menu (new linked button).
 * **Right-click menus** on titles, menus and playlists in the project panel,
   on files in Media and on elements of the menu stage.
 * **Workspaces** (top bar) switch the centre between authoring, the

@@ -76,6 +76,11 @@ browser) and lands only with green CI.
 - [x] Right-click menus for project items, media files and menu elements
 - [x] Keyboard shortcuts and a list of them (?)
 
+**P11 — Linking and routing on the menu** (done)
+- [x] Button routing drawn on the menu, as computed for the disc
+- [x] Drag titles, menus and playlists onto buttons to link them, or onto the
+  menu to add a linked button
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

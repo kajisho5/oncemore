@@ -600,3 +600,14 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   focused field when there is one, otherwise the project.
 * Delete from the keyboard only removes menu elements; titles, menus and
   playlists are deleted from a menu, with a confirmation.
+
+## 39. Routing view and drag-to-link
+
+* The routing drawn on the stage is not re-computed in the page: the server
+  lays the menu out with the same code as the build (MenuBuilder.layout +
+  navigation.compute) and returns each button's rectangle and up / down /
+  left / right targets (`POST /api/routing`, cached with the simulator's
+  layouts). What is drawn is what the disc will do.
+* Linking by dragging uses a private drag type, so it never mixes with
+  dropping files into the project; a drop on a button only changes its
+  action, a drop elsewhere adds a button labelled with the item's name.

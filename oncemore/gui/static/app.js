@@ -48,6 +48,8 @@ const I18N = {
     render_play: "Render & play", rendering: "Rendering…", add_picture: "+ Add a picture…", seconds: "Seconds on screen",
     transition: "Transition", crossfade: "Cross-fade", cut: "Cut", transition_duration: "Cross-fade (s)",
     pan_zoom: "Slow zoom in / out (pan & zoom)", slideshow_chapters: "Every picture starts a chapter.",
+    routing: "Routing", routing_hint: "Show where the remote's arrow keys go from each button (solid: set by you, dashed: automatic)",
+    link_hint: "Drag a title, menu or playlist from the project panel onto a button to link it, or onto the menu to add a button for it.",
     m_file: "File", m_edit: "Edit", m_disc: "Disc", m_view: "View", m_help: "Help",
     cmd_import_files: "Import files…", cmd_import_psd: "Import Photoshop design…", cmd_check: "Check project",
     cmd_build: "Build disc…", cmd_reveal: "Show project folder", cmd_undo: "Undo", cmd_redo: "Redo",
@@ -167,6 +169,8 @@ const I18N = {
     render_play: "書き出して再生", rendering: "書き出し中…", add_picture: "＋写真を追加…", seconds: "表示秒数",
     transition: "切り替え", crossfade: "クロスフェード", cut: "カット", transition_duration: "クロスフェード（秒）",
     pan_zoom: "ゆっくりズーム（パン＆ズーム）", slideshow_chapters: "写真ごとにチャプターになります。",
+    routing: "ルーティング", routing_hint: "各ボタンからリモコンの矢印キーで移る先を表示（実線：指定、破線：自動）",
+    link_hint: "プロジェクトパネルのタイトル・メニュー・プレイリストをボタンにドラッグするとリンク、メニューの空いた所にドラッグするとそのボタンを追加します。",
     m_file: "ファイル", m_edit: "編集", m_disc: "ディスク", m_view: "表示", m_help: "ヘルプ",
     cmd_import_files: "ファイルを読み込む…", cmd_import_psd: "Photoshop デザインを読み込む…", cmd_check: "プロジェクトをチェック",
     cmd_build: "ディスクを書き出す…", cmd_reveal: "プロジェクトのフォルダを表示", cmd_undo: "取り消す", cmd_redo: "やり直す",
@@ -562,6 +566,7 @@ function renderSidebar() {
       <div class="dropzone" id="dropzone">${esc(t("add_files"))}</div></div>
     <div class="nav-group">${item("build", "", "▸ " + t("build"))}</div>`;
   sb.querySelectorAll(".nav-item").forEach((el) => (el.onclick = () => select(el.dataset.view, el.dataset.id)));
+  bindLinkSources(sb);
   sb.querySelectorAll(".media-item[data-media]").forEach((el) => (el.onclick = () => { S.selectedMedia = el.dataset.media; S.element = null; renderSidebar(); renderInspector(); }));
   $("#add-menu").onclick = addMenu;
   $("#add-playlist").onclick = addPlaylist;
@@ -1347,6 +1352,7 @@ function renderMenu(m) {
       <button id="add-btn">${t("add_button")}</button><button id="add-text">${t("add_text")}</button><button id="add-shape">${t("add_shape")}</button>
       <label class="shrink" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="safe" ${S.showSafe ? "checked" : ""}> ${t("safe_area")}</label>
       <label class="shrink" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="snap" ${S.snap === false ? "" : "checked"}> ${t("snap")}</label>
+      <label class="shrink" style="display:flex;gap:4px;align-items:center" title="${esc(t("routing_hint"))}"><input type="checkbox" id="routing" ${S.showRouting ? "checked" : ""}> ${t("routing")}</label>
       <button id="exact" class="${S.preview ? "" : "primary"}">${S.preview ? t("hide_preview") : t("exact_preview")}</button>
     </div>
     ${S.sels.length > 1 ? `<div class="stage-tools align-tools">${t("align")}:
@@ -1364,7 +1370,8 @@ function renderMenu(m) {
             : esc(e.label)}</div>`).join("")}
       <div class="guide gx" hidden></div><div class="guide gy" hidden></div>
     </div></div>
-    <div class="hint" style="text-align:center;margin-top:8px">${w}×${h} · 720×${H} DVD px · ${esc(P().disc.aspect)} · ${esc(t("stage_keys"))}</div>`;
+    <div class="hint" style="text-align:center;margin-top:8px">${w}×${h} · 720×${H} DVD px · ${esc(P().disc.aspect)} · ${esc(t("stage_keys"))}</div>
+    <div class="hint" style="text-align:center">${esc(t("link_hint"))}</div>`;
   const stage = $("#stage");
   const nodeOf = (k) => stage.querySelector(`.el[data-kind="${k.kind}"][data-i="${k.i}"]`);
   // element boxes on the 720-wide grid (texts measured from the page)
@@ -1469,6 +1476,9 @@ function renderMenu(m) {
   })));
   $("#safe").onchange = (e) => { S.showSafe = e.target.checked; renderMain(); };
   $("#snap").onchange = (e) => { S.snap = e.target.checked; };
+  $("#routing").onchange = (e) => { S.showRouting = e.target.checked; renderMain(); };
+  if (S.showRouting) drawRouting(stage, menu, scale, sx);
+  bindLinkDrop(stage, menu, scale, sx);
   $("#add-btn").onclick = () => commit((p) => {
     const mm = p.menus.find((x) => x.id === menu.id);
     const id = uniqueId("button", mm.buttons.map((b) => b.id));
@@ -2170,6 +2180,112 @@ async function boot() {
   S.sel = first ? { view: "menu", id: first.id } : { view: "disc" };
   renderAll();
 }
+// ---------------------------------------------------------------- routing and linking
+// The remote's arrow keys between the buttons, as the disc will have them
+// (computed by the server from the real layout; set ones solid, automatic
+// ones dashed).
+async function drawRouting(stage, menu, scale, sx) {
+  S.routing = S.routing || {};
+  const k = JSON.stringify([menu, P().disc.standard, P().disc.aspect]);
+  if (!S.routing[k]) {
+    try { S.routing[k] = await api("/api/routing", { method: "POST", body: { project: S.project, menu: menu.id } }); }
+    catch (e) { return; }
+  }
+  const r = S.routing[k];
+  if (!document.body.contains(stage) || stage.querySelector(".routing")) return;
+  const byId = Object.fromEntries(r.buttons.map((b) => [b.id, b]));
+  const X = (x) => x * sx * scale, Y = (y) => y * scale;
+  const edge = (rect, d) => {
+    const [x0, y0, x1, y1] = rect, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    return { up: [cx, y0], down: [cx, y1], left: [x0, cy], right: [x1, cy] }[d];
+  };
+  const back = { up: "down", down: "up", left: "right", right: "left" };
+  // up / down (left / right) pairs run side by side instead of on top of each other
+  const nudge = { up: [-4, 0], down: [4, 0], left: [0, -4], right: [0, 4] };
+  const paths = [];
+  for (const b of r.buttons) {
+    for (const d of ["up", "down", "left", "right"]) {
+      const to = byId[b.nav[d]];
+      if (!to || to.id === b.id) continue;
+      const vertical = d === "up" || d === "down";
+      const [ax, ay] = edge(b.rect, d), [bx, by] = edge(to.rect, back[d]);
+      // wrapping round (down from the last button to the first): an arc
+      // outside the buttons instead of a line through them
+      const wraps = vertical ? (d === "down") !== (by > ay) : (d === "right") !== (bx > ax);
+      let path;
+      if (wraps) {
+        const side = vertical ? (d === "down" ? "right" : "left") : (d === "right" ? "down" : "up");
+        const [sx1, sy1] = edge(b.rect, side), [sx2, sy2] = edge(to.rect, side);
+        const out = { right: [36, 0], left: [-36, 0], down: [0, 30], up: [0, -30] }[side];
+        const x1 = X(sx1), y1 = Y(sy1), x2 = X(sx2), y2 = Y(sy2);
+        const far = vertical ? Math.max(x1, x2) * (side === "right") + Math.min(x1, x2) * (side === "left") : 0;
+        const c1 = vertical ? [far + out[0], y1] : [x1, (side === "down" ? Math.max(y1, y2) : Math.min(y1, y2)) + out[1]];
+        const c2 = vertical ? [far + out[0], y2] : [x2, c1[1]];
+        path = `M${x1.toFixed(1)},${y1.toFixed(1)} C${c1[0].toFixed(1)},${c1[1].toFixed(1)} ${c2[0].toFixed(1)},${c2[1].toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`;
+      } else {
+        const [nx, ny] = nudge[d];
+        const x1 = X(ax) + nx, y1 = Y(ay) + ny, x2 = X(bx) + nx, y2 = Y(by) + ny;
+        path = `M${x1.toFixed(1)},${y1.toFixed(1)} L${x2.toFixed(1)},${y2.toFixed(1)}`;
+      }
+      const manual = (r.manual[b.id] || []).includes(d);
+      paths.push(`<path class="${manual ? "manual" : ""} ${wraps ? "wrap" : ""}" data-route="${esc(b.id)}:${d}" d="${path}" marker-end="url(#route-arrow)"><title>${esc(b.id)} ${d} → ${esc(to.id)}</title></path>`);
+    }
+  }
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "routing");
+  svg.setAttribute("width", stage.clientWidth); svg.setAttribute("height", stage.clientHeight);
+  svg.innerHTML = `<defs><marker id="route-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>${paths.join("")}`;
+  stage.appendChild(svg);
+}
+// Drag a title, menu or playlist from the project panel onto a button to link
+// it, or onto an empty part of the menu to make a new button for it.
+const LINK_TYPE = "application/x-oncemore-link";
+function bindLinkSources(root) {
+  root.querySelectorAll(".nav-item[data-view]").forEach((el) => {
+    const kind = el.dataset.view;
+    if (!["title", "menu", "playlist"].includes(kind)) return;
+    el.draggable = true;
+    el.ondragstart = (e) => { e.dataTransfer.setData(LINK_TYPE, `${kind}:${el.dataset.id}`); e.dataTransfer.effectAllowed = "link"; };
+  });
+}
+function linkLabel(action) {
+  const [kind, id] = action.split(":");
+  if (kind === "title") { const x = P().titles.find((y) => y.id === id); return (x?.name || id).toUpperCase(); }
+  if (kind === "playlist") { const x = (P().playlists || []).find((y) => y.id === id); return (x?.name || id).toUpperCase(); }
+  return id.toUpperCase();
+}
+function bindLinkDrop(stage, menu, scale, sx) {
+  const isLink = (e) => [...(e.dataTransfer?.types || [])].includes(LINK_TYPE);
+  const clear = () => stage.querySelectorAll(".drop-target").forEach((x) => x.classList.remove("drop-target"));
+  stage.addEventListener("dragover", (e) => {
+    if (!isLink(e)) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = "link";
+    clear();
+    e.target.closest?.(".el.button")?.classList.add("drop-target");
+    stage.classList.add("drop-on");
+  });
+  stage.addEventListener("dragleave", (e) => { if (!stage.contains(e.relatedTarget)) { clear(); stage.classList.remove("drop-on"); } });
+  stage.addEventListener("drop", (e) => {
+    if (!isLink(e)) return;
+    e.preventDefault(); e.stopPropagation();
+    clear(); stage.classList.remove("drop-on");
+    const action = e.dataTransfer.getData(LINK_TYPE);
+    if (action === `menu:${menu.id}`) return;                  // a menu does not link to itself
+    const btn = e.target.closest?.(".el.button");
+    const rect = stage.getBoundingClientRect();
+    commit((p) => {
+      const mm = p.menus.find((x) => x.id === menu.id);
+      if (btn) { mm.buttons[Number(btn.dataset.i)].action = action; S.element = { kind: "button", i: Number(btn.dataset.i) }; return; }
+      const x = Math.max(0, Math.min(700, Math.round((e.clientX - rect.left) / (sx * scale))));
+      const y = Math.max(0, Math.min(discH() - 20, Math.round((e.clientY - rect.top) / scale)));
+      const id = uniqueId(action.split(":")[1].replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 30) + "_btn", mm.buttons.map((b) => b.id));
+      mm.buttons.push({ id, label: linkLabel(action), x, y, action });
+      S.element = { kind: "button", i: mm.buttons.length - 1 };
+    });
+    S.sels = [S.element];
+  });
+}
+
 // ---------------------------------------------------------------- commands
 // Everything the menus can do, in one place: the menu bar (in a browser), the
 // Mac app's own menu bar (it calls window.oncemoreCommand), right-click menus
