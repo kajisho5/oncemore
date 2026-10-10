@@ -124,3 +124,20 @@ gradient) and encodes it with the built-in `mpeg4` and `aac` encoders, which
 exist in every ffmpeg build. Sample A is 1280×720 16:9 with on-screen chapter
 labels; sample B is 640×480 4:3 at 25 fps with 44.1 kHz audio, to exercise
 pillarboxing and rate conversion.
+
+## 14. Lessons taken from ffmpeg-skill's field notes
+
+The author's ffmpeg-skill repository documents real-world ffmpeg pitfalls.
+Three apply here and were acted on:
+
+* **drawtext draws missing glyphs as empty boxes and exits 0.** oncemore reads
+  the font's `cmap` (formats 4/12, TTF/OTF/TTC face 0, `fontcheck.py`) and
+  auto-detection picks the first candidate that covers every menu character;
+  an explicit font that does not cover them is an error naming the characters.
+  `validate` runs the same check.
+* **`-filters` can list drawtext on builds that cannot draw.** `doctor` now
+  renders one frame with drawtext and checks that pixels were drawn.
+* **ffmpeg 7.1+ turns output `-colorspace` into a conversion constraint.** For
+  SD BT.601 output this should be a no-op, but rather than rely on reasoning
+  the E2E suite decodes a solid menu background and checks the colour, so the
+  macOS job (Homebrew ffmpeg 9.x) measures it.

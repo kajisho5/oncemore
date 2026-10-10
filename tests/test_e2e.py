@@ -87,7 +87,8 @@ class TestDefaultSample(unittest.TestCase):
         self.assertIn("progress", kinds)
         self.assertEqual(self.result["event"], "result")
         self.assertTrue(self.result["ok"])
-        self.assertEqual(self.result["iso"], self.iso)
+        # realpath: on macOS the temp dir is /var -> /private/var
+        self.assertEqual(os.path.realpath(self.result["iso"]), os.path.realpath(self.iso))
         steps = [e["step"] for e in self.events if e["event"] == "step"]
         for s in ("probe", "menu", "encode", "author", "iso"):
             self.assertIn(s, steps)
@@ -110,6 +111,8 @@ class TestDefaultSample(unittest.TestCase):
             vrs = f.read(2048 * 4)
         self.assertIn(b"CD001", vrs)  # ISO 9660 primary descriptor
         self.assertIn(b"NSR02", vrs)  # UDF 1.02 descriptor
+        self.assertEqual(vrs[1:6], b"CD001")
+        self.assertEqual(vrs[40:72].decode("ascii").strip(), "SAMPLE_DISC")  # PVD volume id
 
     def test_title_vob_streams(self):
         vob = iso_extract(self.iso, "/VIDEO_TS/VTS_01_1.VOB", os.path.join(self.tmp, "t.vob"))
@@ -229,6 +232,20 @@ class TestPalLpcmBuild(unittest.TestCase):
         self.assertIn('<cell start="0:00:00.000" end="0:00:08.000" chapter="1"/>', xml)
         self.assertIn('<cell start="0:00:08.000" end="0:00:16.000" chapter="1"/>', xml)
 
+    def test_menu_colours_survive_encoding(self):
+        """A solid background must decode to (nearly) the same RGB. Catches a
+        double colour-matrix conversion such as ffmpeg 7.1+'s colourspace
+        negotiation re-converting already-BT.601 frames."""
+        mpg = os.path.join(self.out, ".work", "menus", "chapters.mpg")
+        p = subprocess.run(["ffmpeg", "-v", "error", "-i", mpg, "-frames:v", "1",
+                            "-vf", "crop=32:32:680:536,scale=in_color_matrix=bt601:in_range=tv,"
+                                   "format=rgb24",
+                            "-f", "rawvideo", "pipe:1"], capture_output=True, check=True)
+        px = p.stdout
+        avg = [sum(px[i::3]) / (len(px) // 3) for i in range(3)]
+        for got, want in zip(avg, (0x10, 0x18, 0x20)):  # DEFAULT_BG #101820
+            self.assertAlmostEqual(got, want, delta=6, msg=f"decoded {avg}")
+
     def test_validate_reports_plan(self):
         rc, out, err = run_cli("--json", "validate", self.project)
         self.assertEqual(rc, 0, err)
@@ -236,6 +253,7 @@ class TestPalLpcmBuild(unittest.TestCase):
         self.assertEqual(r["video_bps"], 8_000_000)
         self.assertEqual([t["audio"] for t in r["titles"]], ["lpcm", "lpcm"])
         self.assertEqual(r["titles"][0]["chapters"], [0.0, 8.0, 16.0])
+        self.assertTrue(r["font"])
 
     def test_preview_menu(self):
         png = os.path.join(self.tmp, "preview.png")

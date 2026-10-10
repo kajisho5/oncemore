@@ -17,10 +17,13 @@ def _gib(n):
 
 
 def cmd_doctor(args, rep):
+    from .menu import drawtext_probe
+
     info = tools.doctor()
+    info["drawtext_render"] = drawtext_probe()
     ok = all(r["path"] for r in info["tools"] if r["required"]) and info["iso_tool"] is not None
     drawtext = next((r.get("drawtext") for r in info["tools"] if r["name"] == "ffmpeg"), None)
-    ok = ok and bool(drawtext)
+    ok = ok and bool(drawtext) and info["drawtext_render"]["ok"]
     if info["iso_tool"] and not info["iso_udf"]:
         ok = False
     lines = [f"oncemore {__version__}  python {info['python']}  {info['platform']}", ""]
@@ -31,7 +34,11 @@ def cmd_doctor(args, rep):
             extra = "  drawtext: " + ("yes" if r.get("drawtext") else "NO (menu text needs it)")
         where = r["path"] or ("not found" + ("" if r["required"] else " (optional)"))
         lines.append(f"  {mark}{r['name']:<12} {r['version'] or '':<14} {where}{extra}")
+    dr = info["drawtext_render"]
     lines.append("")
+    lines.append("  drawtext test render: " + ("ok" if dr["ok"] else "FAILED - " + dr["detail"]))
+    if dr.get("font"):
+        lines.append(f"  default menu font: {dr['font']}")
     udf = "UDF + ISO 9660" if info["iso_udf"] else "ISO 9660 only - not playable as an image"
     lines.append(f"  ISO backend: {info['iso_tool'] or 'none'}" + (f" ({udf})" if info["iso_tool"] else ""))
     if not ok:

@@ -26,6 +26,7 @@ class TestCli(unittest.TestCase):
         for n in ("ffmpeg", "ffprobe", "dvdauthor", "spumux"):
             self.assertIn(n, names)
         self.assertIn("iso_tool", events[-1])
+        self.assertIn("ok", events[-1]["drawtext_render"])
 
     def test_missing_project_no_traceback(self):
         rc, out, err = run_cli("validate", "/nonexistent/project.oncemore.json")

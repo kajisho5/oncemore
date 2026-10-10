@@ -261,6 +261,11 @@ By hand:
   oncemore therefore prefers hdiutil / genisoimage / mkisofs and warns when it
   falls back to xorriso.
 * Highlights are hard-edged (2-bit subpictures); labels use one font per disc.
+  Every character must exist in that font (drawtext has no fallback); oncemore
+  checks the font's character map and stops instead of drawing empty boxes.
+  Emoji are not supported.
+* Images written by `hdiutil` carry the label in ISO 9660, but libdvdnav shows
+  an empty disc title for them (seen on macOS CI; not yet investigated).
 * No copy protection (by design, permanently).
 
 ## License

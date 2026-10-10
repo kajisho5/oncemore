@@ -89,7 +89,7 @@ def init(target, standard="NTSC", aspect="16:9", force=False, reporter=None):
         font = None
         if text:
             try:
-                src = find_font()
+                src = find_font(text="Sample Title AB - Demo Chapter 0123456789 (4:3 source)")
                 font = "font" + (os.path.splitext(src)[1] or ".ttf")
                 try:
                     os.symlink(src, os.path.join(tmp, font))

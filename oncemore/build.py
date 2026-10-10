@@ -47,8 +47,13 @@ def inspect(project, reporter=None):
             menu_seconds += min(encode.probe(m.audio).get("duration") or 5.0, 600.0)
         else:
             menu_seconds += 5.0
+    font = None
+    if project.menus:
+        from .menu import find_font, menu_text
+        font = find_font(project.disc.font, menu_text(project))
     plan = encode.plan_bitrate([(infos[t.id]["duration"], t.audio_bps) for t in project.titles],
                                project.disc.capacity, menu_seconds, project.disc.video_bitrate)
+    plan["font"] = font
     return infos, plan
 
 
@@ -68,6 +73,7 @@ def summary(project, infos, plan):
                    "buttons": [{"id": b.id, "label": b.label, "action": b.action}
                                for b in m.buttons]}
                   for m in project.menus],
+        "font": plan.get("font"),
         "video_bps": plan["video_bps"],
         "estimated_bytes": plan["estimated_bytes"],
         "capacity_bytes": plan["capacity"],

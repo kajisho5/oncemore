@@ -14,12 +14,13 @@ scanned for its bounding box and glyph mask.
 import glob
 import os
 import shutil
+import struct
 import subprocess
 import unicodedata
 from dataclasses import dataclass, field
 from xml.sax.saxutils import quoteattr
 
-from . import encode, navigation, png4, tools
+from . import encode, fontcheck, navigation, png4, tools
 from .errors import OncemoreError, ProjectError, ToolFailedError
 
 # Font search order. Japanese-capable fonts first so labels can be Japanese.
@@ -52,15 +53,8 @@ _FALLBACK_GLOBS = (
 )
 
 
-def find_font(explicit=None):
-    """Path of the font used for menu text."""
-    if explicit:
-        if not os.path.isfile(explicit):
-            raise OncemoreError(f"font not found: {explicit}")
-        return explicit
-    env = os.environ.get("ONCEMORE_FONT")
-    if env and os.path.isfile(env):
-        return env
+def _font_candidates():
+    """Auto-detection order, as paths (may contain duplicates)."""
     for d in _MAC_FONT_DIRS:
         try:
             names = {unicodedata.normalize("NFC", n): n for n in os.listdir(d)}
@@ -69,11 +63,9 @@ def find_font(explicit=None):
         for want in _MAC_FONT_NAMES:
             real = names.get(unicodedata.normalize("NFC", want))
             if real:
-                return os.path.join(d, real)
+                yield os.path.join(d, real)
     for pattern in _NOTO_GLOBS + _FALLBACK_GLOBS:
-        hits = sorted(glob.glob(pattern, recursive=True))
-        if hits:
-            return hits[0]
+        yield from sorted(glob.glob(pattern, recursive=True))
     fc = shutil.which("fc-match")
     if fc:
         for q in ("Noto Sans CJK JP:bold", "sans-serif:bold"):
@@ -83,9 +75,103 @@ def find_font(explicit=None):
             except (OSError, subprocess.SubprocessError):
                 p = ""
             if p and os.path.isfile(p):
-                return p
-    raise OncemoreError("no usable font found for menu text",
-                        hint="Set disc.font in the project, or ONCEMORE_FONT, to a .ttf/.otf/.ttc file.")
+                yield p
+
+
+def _missing(path, text):
+    """Characters of `text` the font lacks; None if the font cannot be inspected."""
+    try:
+        return fontcheck.missing(path, text)
+    except (OSError, fontcheck.FontError, struct.error):
+        return None
+
+
+def _quote_chars(chars, limit=12):
+    shown = " ".join(chars[:limit])
+    return shown + (f" (+{len(chars) - limit} more)" if len(chars) > limit else "")
+
+
+def find_font(explicit=None, text=""):
+    """Path of the font used for menu text.
+
+    drawtext has no glyph fallback (missing characters become empty boxes and
+    ffmpeg still succeeds), so the chosen font must cover every character of
+    `text`. An explicit font that does not is an error; auto-detection picks
+    the first candidate that covers everything.
+    """
+    explicit = explicit or (os.environ.get("ONCEMORE_FONT") or None)
+    if explicit:
+        if not os.path.isfile(explicit):
+            raise OncemoreError(f"font not found: {explicit}")
+        lack = _missing(explicit, text)
+        if lack:
+            raise OncemoreError(
+                f"font {explicit} has no glyphs for: {_quote_chars(lack)}",
+                hint="drawtext would draw them as empty boxes. Choose a font that covers "
+                     "these characters (disc.font or ONCEMORE_FONT).")
+        return explicit
+    seen = set()
+    best = None  # (number of missing chars, path)
+    for path in _font_candidates():
+        if path in seen:
+            continue
+        seen.add(path)
+        lack = _missing(path, text)
+        if lack == []:
+            return path
+        if lack is not None and (best is None or len(lack) < len(best[0])):
+            best = (lack, path)
+    if best is None:
+        raise OncemoreError("no usable font found for menu text",
+                            hint="Set disc.font in the project, or ONCEMORE_FONT, to a "
+                                 ".ttf/.otf/.ttc file.")
+    raise OncemoreError(
+        f"no installed font can draw: {_quote_chars(best[0])} (closest: {best[1]})",
+        hint="Install a font that covers them (for Japanese: Noto Sans CJK, e.g. "
+             "'sudo apt-get install fonts-noto-cjk') or set disc.font. Emoji are not "
+             "supported by drawtext.")
+
+
+def drawtext_probe():
+    """Render one frame with drawtext for real. Some builds list the filter
+    in `-filters` but cannot draw (no font backend, or a crash)."""
+    ffmpeg = tools.find("ffmpeg")
+    if not ffmpeg or not tools.has_drawtext():
+        return {"ok": False, "detail": "drawtext filter not available"}
+    try:
+        font = find_font(text="Ag")
+    except OncemoreError as e:
+        return {"ok": False, "detail": e.message}
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix="oncemore-doctor-") as d:
+        link = os.path.join(d, "font" + (os.path.splitext(font)[1] or ".ttf"))
+        try:
+            os.symlink(font, link)
+        except OSError:
+            shutil.copyfile(font, link)
+        with open(os.path.join(d, "t.txt"), "w") as f:
+            f.write("Ag")
+        cmd = [ffmpeg, "-hide_banner", "-nostdin", "-v", "error", "-f", "lavfi", "-i",
+               "color=c=black:s=64x32:d=1", "-vf",
+               f"drawtext=fontfile={os.path.basename(link)}:textfile=t.txt:fontsize=24:"
+               "fontcolor=white:x=2:y=2,format=gray", "-frames:v", "1", "-f", "rawvideo",
+               "pipe:1"]
+        try:
+            p = subprocess.run(cmd, cwd=d, capture_output=True, timeout=60)
+        except (OSError, subprocess.SubprocessError) as e:
+            return {"ok": False, "detail": str(e), "font": font}
+    if p.returncode != 0 or not any(b > 128 for b in p.stdout):
+        return {"ok": False, "font": font,
+                "detail": tools.tail(p.stderr.decode("utf-8", "replace"), 3) or "nothing drawn"}
+    return {"ok": True, "font": font}
+
+
+def menu_text(project):
+    """All text drawn on the project's menus."""
+    parts = []
+    for m in project.menus:
+        parts += [t.text for t in m.texts] + [b.label for b in m.buttons]
+    return "".join(parts)
 
 
 # --------------------------------------------------------------------------
@@ -139,7 +225,7 @@ class MenuBuilder:
         """Font copied/linked into the work dir under an ASCII name, so the
         filter graph never has to escape spaces or Japanese characters."""
         if self._font_link is None:
-            src = find_font(self.disc.font)
+            src = find_font(self.disc.font, menu_text(self.project))
             ext = os.path.splitext(src)[1].lower() or ".ttf"
             link = os.path.join(self.work, "font" + ext)
             if os.path.lexists(link):
