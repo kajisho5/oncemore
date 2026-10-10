@@ -35,6 +35,7 @@ def cmd_doctor(args, rep):
             extra = "  drawtext: " + ("yes" if r.get("drawtext") else "NO (menu text needs it)")
         where = r["path"] or ("not found" + ("" if r["required"] else " (optional)"))
         lines.append(f"  {mark}{r['name']:<12} {r['version'] or '':<14} {where}{extra}")
+    lines.append("  (the ISO tools are optional: oncemore writes UDF + ISO 9660 images itself)")
     dr = info["drawtext_render"]
     lines.append("")
     lines.append("  drawtext test render: " + ("ok" if dr["ok"] else "FAILED - " + dr["detail"]))
@@ -292,7 +293,8 @@ def make_parser():
     s.add_argument("project", help=proj_help)
     s.add_argument("-o", "--output", required=True, help="output .iso file")
     s.add_argument("--iso-tool", default="auto",
-                   choices=["auto", "xorriso", "hdiutil", "genisoimage", "mkisofs"])
+                   choices=["auto", "builtin", "hdiutil", "genisoimage", "mkisofs", "xorriso"],
+                   help="auto = the built-in writer (UDF 1.02 + ISO 9660, nothing to install)")
     s.add_argument("--build-dir", help="where to author VIDEO_TS (default: next to the ISO)")
     build_opts(s)
     s.set_defaults(func=cmd_iso)

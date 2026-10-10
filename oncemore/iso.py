@@ -4,6 +4,8 @@ DVD players and libdvdread (the library VLC, mpv and most software players
 use) locate VIDEO_TS through the UDF file system, so a DVD-Video image needs
 a UDF + ISO 9660 "bridge" layout. Backends, in `auto` order:
 
+  builtin      oncemore's own writer (udfwriter.py): UDF 1.02 + ISO 9660,
+               files placed where the IFOs say; nothing to install
   hdiutil      macOS built-in: `makehybrid -udf -udf-version 1.02 -iso`
   genisoimage  `-dvd-video -udf` (Debian/Ubuntu package `genisoimage`)
   mkisofs      `-dvd-video -udf` (cdrtools; `brew install cdrtools`)
@@ -15,7 +17,7 @@ a UDF + ISO 9660 "bridge" layout. Backends, in `auto` order:
 import os
 import shutil
 
-from . import tools, udfinfo
+from . import tools, udfinfo, udfwriter
 from .errors import OncemoreError
 
 XORRISO_WARNING = (
@@ -83,6 +85,13 @@ def make_iso(dvd_dir, out_iso, label, tool="auto", log=None, reporter=None):
     os.makedirs(os.path.dirname(out_iso) or ".", exist_ok=True)
     if os.path.exists(out_iso):
         os.remove(out_iso)
+    if name == "builtin":
+        # (hidden entries such as .work are left out by the writer itself)
+        udfwriter.write_image(
+            dvd_dir, out_iso, label,
+            on_progress=(lambda f: reporter.progress("iso", f)) if reporter else None)
+        return {"tool": name, "path": out_iso, "bytes": os.path.getsize(out_iso),
+                "udf": True, "volume_names": udfinfo.volume_names(out_iso), "warnings": []}
     os.makedirs(os.path.join(dvd_dir, "AUDIO_TS"), exist_ok=True)
     src, cleanup = _staging(dvd_dir)
     warnings = []

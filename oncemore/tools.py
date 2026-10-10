@@ -47,9 +47,11 @@ _VERSION_ARGS = {
 }
 
 REQUIRED = ("ffmpeg", "ffprobe", "dvdauthor", "spumux")
-# UDF-capable tools first; xorriso writes no UDF (see iso.py)
-ISO_TOOLS = ("hdiutil", "genisoimage", "mkisofs", "xorriso")
-UDF_TOOLS = ("hdiutil", "genisoimage", "mkisofs")
+# "builtin" is oncemore's own UDF + ISO 9660 writer (udfwriter.py), always
+# there; then the external UDF-capable tools; xorriso writes no UDF (iso.py)
+ISO_TOOLS = ("builtin", "hdiutil", "genisoimage", "mkisofs", "xorriso")
+UDF_TOOLS = ("builtin", "hdiutil", "genisoimage", "mkisofs")
+EXTERNAL_ISO_TOOLS = ISO_TOOLS[1:]
 
 _cache = {}
 
@@ -148,6 +150,8 @@ def iso_tool(preferred="auto"):
     """Pick the ISO backend: (name, path)."""
     order = ISO_TOOLS if preferred == "auto" else (preferred,)
     for n in order:
+        if n == "builtin":
+            return n, None
         if n == "hdiutil" and not is_macos():
             continue
         p = find(n)
@@ -182,7 +186,7 @@ def require(names, need_drawtext=False, need_iso=False, iso_preference="auto"):
 def doctor():
     """Collect tool status as a list of dicts (used by `oncemore doctor`)."""
     rows = []
-    for n in REQUIRED + ISO_TOOLS:
+    for n in REQUIRED + EXTERNAL_ISO_TOOLS:
         if n == "hdiutil" and not is_macos():
             continue
         p = find(n)

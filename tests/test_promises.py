@@ -56,6 +56,20 @@ class TestDiscImage(unittest.TestCase):
         self.assertIn('run_cli("--json", "iso"', e2e)
         self.assertIn("dvdnav_sim.DvdSim", e2e)
 
+    def test_no_iso_tool_needed(self):
+        # the image is written by oncemore itself, whatever is installed
+        from oncemore import tools
+        old = os.environ.get("PATH")
+        try:
+            os.environ["PATH"] = ""
+            tools.reset_cache()
+            self.assertEqual(tools.iso_tool(), ("builtin", None))
+            tools.require([], need_iso=True)
+        finally:
+            os.environ["PATH"] = old or ""
+            tools.reset_cache()
+        self.assertTrue(os.path.isfile(os.path.join(ROOT, "oncemore", "udfwriter.py")))
+
     def test_no_burning_needed(self):
         # writing to a drive is never required: nothing calls a burner
         for path, src in package_sources():

@@ -563,3 +563,23 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   clips and the disc format). The disc never uses that preview.
 * Anything that needs a picture at a time of the title (menu thumbnails,
   poster frames, the simulator) maps the time to the clip playing then.
+
+## 37. A built-in UDF + ISO 9660 writer
+
+* Writing the image needed an external tool (hdiutil on macOS, genisoimage
+  or mkisofs elsewhere), and xorriso — the one most often installed — cannot
+  write UDF, which libdvdread players need. The image format is small and
+  fixed, so oncemore writes it itself (udfwriter.py, standard library only)
+  and the external tools remain as `--iso-tool` choices.
+* Layout follows genisoimage `-dvd-video -udf`: ISO 9660 + UDF 1.02 bridge,
+  VIDEO_TS first and in DVD order, every VIDEO_TS file at the sector the
+  IFOs give (gaps zero-filled; genisoimage leaves uninitialised memory
+  there), AVDP at 256 and at the end. The tests compare the sector of every
+  file with genisoimage's image of the same folder and play the result with
+  libdvdnav.
+* Every input problem stops with an error and removes the partial image
+  (labels, 8.3 names in VIDEO_TS, files over 1 GiB, missing IFOs, IFOs that
+  contradict the file sizes). Hidden entries (the build's .work folder) are
+  never written.
+* One timestamp for every structure, so the same folder and date give a
+  byte-identical image.

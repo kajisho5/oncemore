@@ -60,6 +60,11 @@ browser) and lands only with green CI.
   chapters you drag, audio and subtitle tracks), Properties / Layers,
   workspaces in the top bar, resizable and remembered panels
 
+**P8 — The disc image without extra tools** (done)
+- [x] oncemore's own UDF 1.02 + ISO 9660 writer, the default ISO backend:
+  no hdiutil / genisoimage / mkisofs needed; same layout as genisoimage on
+  the test discs, checked with isoinfo, xorriso and libdvdnav
+
 **P9 — Titles from several videos** (done)
 - [x] A title made of clips (parts of several files with in / out points),
   joined while encoding, a chapter per clip; clip editor and timeline in the

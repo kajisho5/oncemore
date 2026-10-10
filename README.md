@@ -46,7 +46,7 @@ programs:
 |---|---|
 | `ffmpeg`, `ffprobe` (with the `drawtext` filter) | MPEG-2/AC-3 encoding, menu rendering, probing |
 | `dvdauthor`, `spumux` | DVD-Video structure (IFO/VOB), button highlights |
-| an ISO tool that writes **UDF**: `hdiutil` (built into macOS), `genisoimage` or `mkisofs` | the disc image |
+| *(nothing)* — oncemore writes the UDF + ISO 9660 disc image itself; `hdiutil`, `genisoimage`, `mkisofs` can be chosen instead | the disc image |
 
 ### macOS (Homebrew)
 
@@ -60,9 +60,8 @@ oncemore doctor
   without libfreetype, so it has no `drawtext` filter for menu text.
   `ffmpeg-full` is keg-only (not linked into your PATH); oncemore finds it in
   `$(brew --prefix)/opt/ffmpeg-full/bin` automatically.
-* The ISO is written with macOS's own `hdiutil` (UDF 1.02 + ISO 9660), so no
-  extra ISO tool is needed. `brew install cdrtools` adds `mkisofs` as an
-  alternative.
+* The ISO is written by oncemore itself (UDF 1.02 + ISO 9660), so no ISO
+  tool is needed; `--iso-tool hdiutil` uses macOS's own instead.
 
 ### Debian / Ubuntu
 
@@ -187,7 +186,7 @@ sources — nothing large lives in this repository.
 oncemore init <dir> [--standard NTSC|PAL] [--aspect 16:9|4:3] [--force]
 oncemore validate <project> [--no-media]       # schema + references + media + size estimate
 oncemore build <project> -o out/               # writes out/VIDEO_TS (and out/AUDIO_TS)
-oncemore iso <project> -o out.iso [--iso-tool auto|hdiutil|genisoimage|mkisofs|xorriso]
+oncemore iso <project> -o out.iso [--iso-tool auto|builtin|hdiutil|genisoimage|mkisofs|xorriso]
 oncemore preview-menu <project> --menu main -o main.png [--button id] [--state highlight|select|normal] [--outline]
 oncemore simulate <project> --keys down,enter,menu   # press remote keys, no encoding
 oncemore import-psd <project> design.psd --menu main [--first-play]   # a menu from Photoshop
@@ -479,7 +478,7 @@ from the button positions (with wrap-around within a row/column).
 ```
 sources ─ffprobe─▶ plan bitrate ─ffmpeg (2-pass MPEG-2 + AC-3/LPCM)─▶ titles/*.mpg
 menu JSON ─ffmpeg drawtext─▶ base.png ─▶ menu.mpg ─spumux (4-colour PNG highlights)─▶ menu.mpg
-dvdauthor XML ─dvdauthor─▶ VIDEO_TS ─hdiutil / genisoimage─▶ disc.iso
+dvdauthor XML ─dvdauthor─▶ VIDEO_TS ─built-in UDF + ISO 9660 writer─▶ disc.iso
 ```
 
 * **Bitrate**: from the total title length, the audio bitrates, a menu
@@ -551,8 +550,11 @@ to ignore it, and delete the folder to reclaim the space.
   already-telecined 29.97i film.
 * `xorriso` cannot write UDF; images made with it are ISO 9660 only and are
   **not** opened by libdvdread-based players (VLC, mpv) or most DVD players.
-  oncemore therefore prefers hdiutil / genisoimage / mkisofs and warns when it
-  falls back to xorriso.
+  It is only used when chosen with `--iso-tool xorriso`, with a warning.
+* The built-in ISO writer lays the disc out like genisoimage `-dvd-video
+  -udf` (same sector for every file on the test discs, files placed where
+  the IFOs say, UDF 1.02 + ISO 9660 bridge). It keeps one timestamp for the
+  whole disc, not each file's.
 * Highlights are hard-edged (2-bit subpictures); labels use one font per disc.
   Every character must exist in that font (drawtext has no fallback); oncemore
   checks the font's character map and stops instead of drawing empty boxes.
