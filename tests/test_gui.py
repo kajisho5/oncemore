@@ -448,6 +448,94 @@ class TestGuiBrowser(unittest.TestCase):
                 self.skipTest("no Chromium for Playwright")
             return p.chromium.launch(executable_path=exe)
 
+    def test_menu_bar_context_menus_and_shortcuts(self):
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.on("dialog", lambda d: d.accept())
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click("#np-sample")
+            page.locator(".nav-item[data-view=title][data-id=t2]").wait_for(timeout=120000)
+            self.assertEqual(page.locator("#menubar > button").all_inner_texts(),
+                             ["File", "Edit", "Disc", "View", "Help"])
+            # Disc > New playlist
+            page.click("#menubar > button:has-text('Disc')")
+            page.click(".popup button:has-text('New playlist')")
+            self.wait_saved(page)
+            self.assertEqual(len(self.project().get("playlists", [])), 1)
+            self.assertEqual(page.locator(".popup").count(), 0)
+            # Edit > Undo takes it back
+            page.click("#menubar > button:has-text('Edit')")
+            page.click(".popup button:has-text('Undo')")
+            self.poll(lambda: not self.project().get("playlists"))
+            # right-click a title: duplicate, play first, delete
+            page.click(".nav-item[data-view=title][data-id=t2]", button="right")
+            page.click(".popup button:has-text('Duplicate')")
+            self.poll(lambda: [x["id"] for x in self.project()["titles"]] == ["t1", "t2", "t2_copy1"])
+            self.assertEqual(self.project()["titles"][2]["name"], "Sample Title B copy")
+            page.click(".nav-item[data-view=title][data-id=t2_copy1]", button="right")
+            page.click(".popup button:has-text('Play first')")
+            self.poll(lambda: self.project()["disc"]["first_play"] == "title:t2_copy1")
+            page.click(".nav-item[data-view=title][data-id=t2_copy1]", button="right")
+            page.click(".popup button.danger:has-text('Delete')")
+            self.poll(lambda: len(self.project()["titles"]) == 2)
+            page.click(".nav-item[data-view=title][data-id=t1]", button="right")
+            self.assertTrue(page.locator(".popup button:has-text('Move up')").is_disabled())
+            page.keyboard.press("Escape")
+            self.assertEqual(page.locator(".popup").count(), 0)
+            # workspaces from the keyboard
+            page.keyboard.press("Alt+2")
+            page.locator("#center-head", has_text="Flowchart").wait_for()
+            page.keyboard.press("Alt+1")
+            page.locator("#center-head", has_text="Disc").wait_for()
+            # a chapter at the playhead with M
+            page.click(".nav-item[data-view=title][data-id=t2]")
+            page.fill("#tc-input", "00:00:03.000")
+            page.press("#tc-input", "Enter")
+            page.locator("#tc-input").blur()
+            page.keyboard.press("m")
+            self.poll(lambda: len(self.project()["titles"][1]["chapters"]) == 2)
+            # menu stage: right-click a button, duplicate it
+            page.click(".nav-item[data-view=menu][data-id=main]")
+            n = len(self.project()["menus"][0]["buttons"])
+            page.click(".stage .el.button >> nth=0", button="right")
+            page.click(".popup button:has-text('Duplicate')")
+            self.poll(lambda: len(self.project()["menus"][0]["buttons"]) == n + 1)
+            # the list of shortcuts
+            page.keyboard.press("Shift+?")
+            page.locator("#modal table.shortcuts", has_text="Add chapter at playhead").wait_for()
+            browser.close()
+        self.assertEqual(errors, [])
+
+    def test_native_menus_in_the_mac_app(self):
+        # Oncemore.app has a real menu bar: the page hides its own and its
+        # menu items call window.oncemoreCommand
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            ctx = browser.new_context(viewport={"width": 1400, "height": 900}, locale="en-US",
+                                      bypass_csp=True,
+                                      user_agent="Mozilla/5.0 (Macintosh) AppleWebKit OncemoreApp")
+            page = ctx.new_page()
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click("#np-sample")
+            page.locator(".nav-item[data-view=title]").first.wait_for(timeout=120000)
+            self.assertTrue(page.locator("#menubar").is_hidden())
+            page.evaluate("window.oncemoreCommand('ws_flow')")
+            page.locator("#center-head", has_text="Flowchart").wait_for()
+            page.evaluate("window.oncemoreCommand('new_slideshow')")
+            self.wait_saved(page)
+            self.assertTrue(any("slideshow" in t for t in self.project()["titles"]))
+            browser.close()
+        swift = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                  "macos", "Oncemore", "main.swift"), encoding="utf-8").read()
+        js = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                               "oncemore", "gui", "static", "app.js"), encoding="utf-8").read()
+        for cid in re.findall(r'cmd\("[^"]+", "(\w+)"', swift):
+            self.assertRegex(js, rf"\n  {cid}: \{{", cid)     # every native item has a command
+        self.assertIn('applicationNameForUserAgent = "OncemoreApp"', swift)
+
     def test_reorder_titles(self):
         with sync_playwright() as p:
             browser = self.launch(p)

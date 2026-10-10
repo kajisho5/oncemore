@@ -48,6 +48,16 @@ const I18N = {
     render_play: "Render & play", rendering: "Rendering…", add_picture: "+ Add a picture…", seconds: "Seconds on screen",
     transition: "Transition", crossfade: "Cross-fade", cut: "Cut", transition_duration: "Cross-fade (s)",
     pan_zoom: "Slow zoom in / out (pan & zoom)", slideshow_chapters: "Every picture starts a chapter.",
+    m_file: "File", m_edit: "Edit", m_disc: "Disc", m_view: "View", m_help: "Help",
+    cmd_import_files: "Import files…", cmd_import_psd: "Import Photoshop design…", cmd_check: "Check project",
+    cmd_build: "Build disc…", cmd_reveal: "Show project folder", cmd_undo: "Undo", cmd_redo: "Redo",
+    cmd_duplicate: "Duplicate", cmd_delete: "Delete", cmd_new_slideshow: "New slideshow", cmd_new_menu: "New menu…",
+    cmd_new_playlist: "New playlist", cmd_add_chapter: "Add chapter at playhead", cmd_play: "Play / pause",
+    cmd_ws_author: "Author", cmd_ws_flow: "Flowchart", cmd_ws_sim: "Preview (remote control)", cmd_ws_build: "Build",
+    cmd_theme: "Light / dark theme", cmd_language: "日本語", cmd_shortcuts: "Keyboard shortcuts", cmd_about: "About oncemore",
+    open: "Open", set_first_play: "Play first when the disc starts", copy_of: "{x} copy", reveal_file: "Show in folder",
+    copy: "Copy", paste: "Paste", nudge: "Move selected elements (10 px with Shift)", copy_paste: "Copy / paste elements",
+    about_text: "Open-source DVD-Video authoring: menus, chapters, playlists and a disc image, on your own computer. No copy protection.",
     clips: "Clips", add_clip: "Add a clip…", clip_in: "In", clip_out: "Out", clip_end: "end",
     clips_hint: "The clips play one after another as one title. Without chapters of its own, every clip starts a chapter.",
     joining: "Joining the clips…", clip_whole: "whole file", clips_n: "{n} clips", clip_source_hint: "Add a clip to join more videos into this title.",
@@ -157,6 +167,16 @@ const I18N = {
     render_play: "書き出して再生", rendering: "書き出し中…", add_picture: "＋写真を追加…", seconds: "表示秒数",
     transition: "切り替え", crossfade: "クロスフェード", cut: "カット", transition_duration: "クロスフェード（秒）",
     pan_zoom: "ゆっくりズーム（パン＆ズーム）", slideshow_chapters: "写真ごとにチャプターになります。",
+    m_file: "ファイル", m_edit: "編集", m_disc: "ディスク", m_view: "表示", m_help: "ヘルプ",
+    cmd_import_files: "ファイルを読み込む…", cmd_import_psd: "Photoshop デザインを読み込む…", cmd_check: "プロジェクトをチェック",
+    cmd_build: "ディスクを書き出す…", cmd_reveal: "プロジェクトのフォルダを表示", cmd_undo: "取り消す", cmd_redo: "やり直す",
+    cmd_duplicate: "複製", cmd_delete: "削除", cmd_new_slideshow: "新規スライドショー", cmd_new_menu: "新規メニュー…",
+    cmd_new_playlist: "新規プレイリスト", cmd_add_chapter: "再生位置にチャプターを追加", cmd_play: "再生／一時停止",
+    cmd_ws_author: "オーサリング", cmd_ws_flow: "フローチャート", cmd_ws_sim: "プレビュー（リモコン）", cmd_ws_build: "書き出し",
+    cmd_theme: "ライト／ダーク", cmd_language: "English", cmd_shortcuts: "キーボードショートカット", cmd_about: "oncemore について",
+    open: "開く", set_first_play: "ディスクの最初に再生", copy_of: "{x} のコピー", reveal_file: "フォルダで表示",
+    copy: "コピー", paste: "ペースト", nudge: "選択した要素を移動（Shift で 10px）", copy_paste: "要素のコピー／ペースト",
+    about_text: "オープンソースの DVD-Video オーサリング。メニュー・チャプター・プレイリスト・ディスクイメージを自分のコンピュータで作れます。コピーガードはありません。",
     clips: "クリップ", add_clip: "クリップを追加…", clip_in: "イン", clip_out: "アウト", clip_end: "最後",
     clips_hint: "クリップは順番に続けて 1 つのタイトルとして再生されます。チャプターを指定しなければ、クリップごとにチャプターになります。",
     joining: "クリップをつないでいます…", clip_whole: "ファイル全体", clips_n: "{n} クリップ", clip_source_hint: "クリップを追加すると、複数の動画を 1 つのタイトルにつなげられます。",
@@ -490,7 +510,7 @@ async function refreshMedia() {
 function renderAll() {
   document.documentElement.lang = LANG;
   document.querySelectorAll("[data-i18n]").forEach((el) => (el.textContent = t(el.dataset.i18n)));
-  renderTopbar(); renderWorkspaces(); renderLeft(); renderCenterHead(); renderMain();
+  renderMenubar(); renderTopbar(); renderWorkspaces(); renderLeft(); renderCenterHead(); renderMain();
   renderInspector(); renderTimeline(); renderStatus();
 }
 function renderTopbar() {
@@ -1161,11 +1181,7 @@ function renderTitleInspector(el) {
     S.sel.id = nid; renderAll();
   };
   bindOrder(el, "titles", ti.id);
-  $("#del-title").onclick = () => {
-    if (!confirm(t("confirm_delete", { x: ti.name || ti.id }))) return;
-    commit((p) => { p.titles = p.titles.filter((x) => x.id !== ti.id); });
-    select("disc");
-  };
+  $("#del-title").onclick = () => deleteItem("title", ti.id);
 }
 
 // ---------------------------------------------------------------- menus
@@ -1280,15 +1296,7 @@ function renderPlaylist(m) {
     row.querySelector("[data-item-del]").onclick = () => commit((p) => { find(p).items.splice(i, 1); });
   });
   $("#add-item").onclick = () => commit((p) => { find(p).items.push(titles[0].id); });
-  $("#del-playlist").onclick = () => {
-    if (!confirm(t("confirm_delete", { x: pl.name || pl.id }))) return;
-    commit((p) => {
-      p.playlists = p.playlists.filter((x) => x.id !== pl.id);
-      if (!p.playlists.length) delete p.playlists;
-      for (const mm of p.menus || []) for (const b of mm.buttons || []) if (b.action === `playlist:${pl.id}`) b.action = "stop";
-    });
-    select("disc");
-  };
+  $("#del-playlist").onclick = () => deleteItem("playlist", pl.id);
 }
 
 function renderMenu(m) {
@@ -1489,43 +1497,66 @@ function stageKeys(ev) {
   const menu = curMenu();
   if (!menu) return;
   const mod = ev.metaKey || ev.ctrlKey, H = discH();
-  const listOf = (mm, kind) => (kind === "button" ? mm.buttons : kind === "text" ? (mm.texts = mm.texts || []) : (mm.shapes = mm.shapes || []));
   const arrows = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
   if (arrows[ev.key] && !mod) {
     ev.preventDefault();
     const [ax, ay] = arrows[ev.key], n = ev.shiftKey ? 10 : 1;
     commit((p) => {
       const mm = p.menus.find((x) => x.id === menu.id);
-      for (const k of S.sels) { const it = listOf(mm, k.kind)[k.i]; it.x = Math.max(0, Math.min(719, it.x + ax * n)); it.y = Math.max(0, Math.min(H - 1, it.y + ay * n)); }
+      for (const k of S.sels) { const it = elementList(mm, k.kind)[k.i]; it.x = Math.max(0, Math.min(719, it.x + ax * n)); it.y = Math.max(0, Math.min(H - 1, it.y + ay * n)); }
     });
   } else if ((ev.key === "Delete" || ev.key === "Backspace") && !mod) {
     ev.preventDefault();
-    commit((p) => {
-      const mm = p.menus.find((x) => x.id === menu.id);
-      for (const k of [...S.sels].sort((a, b) => b.i - a.i)) {
-        const l = listOf(mm, k.kind);
-        if (k.kind === "button" && l.length <= 1) continue;
-        l.splice(k.i, 1);
-      }
-      S.element = null; S.sels = [];
-    });
+    deleteElements();
   } else if (mod && (ev.key === "c" || ev.key === "C")) {
-    S.clip = S.sels.map((k) => ({ kind: k.kind, it: JSON.parse(JSON.stringify(listOf(menu, k.kind)[k.i])) }));
+    copyElements();
   } else if (mod && (ev.key === "d" || ev.key === "D" || ev.key === "v" || ev.key === "V")) {
-    const src = ev.key.toLowerCase() === "d" ? S.sels.map((k) => ({ kind: k.kind, it: listOf(menu, k.kind)[k.i] })) : S.clip;
-    if (!src?.length) return;
-    ev.preventDefault();
-    commit((p) => {
-      const mm = p.menus.find((x) => x.id === menu.id), added = [];
-      for (const { kind, it } of src) {
-        const c = JSON.parse(JSON.stringify(it));
-        c.x = Math.min(719, c.x + 12); c.y = Math.min(H - 1, c.y + 12);
-        if (kind === "button") { c.id = uniqueId(c.id.replace(/\d+$/, "") || "button", mm.buttons.map((b) => b.id)); delete c.nav; }
-        const l = listOf(mm, kind); l.push(c); added.push({ kind, i: l.length - 1 });
-      }
-      S.sels = added; S.element = added[added.length - 1];
-    });
+    if (duplicateElements(ev.key.toLowerCase() === "v")) ev.preventDefault();
   }
+}
+// the selected elements of the menu being edited (stage, layers, menu bar)
+const elementList = (mm, kind) => (kind === "button" ? mm.buttons : kind === "text" ? (mm.texts = mm.texts || []) : (mm.shapes = mm.shapes || []));
+const hasElements = () => S.sel.view === "menu" && !!curMenu() && !!(S.sels?.length || S.element);
+function deleteElements() {
+  const menu = curMenu();
+  if (!menu || !hasElements()) return false;
+  const sels = S.sels?.length ? S.sels : [S.element];
+  commit((p) => {
+    const mm = p.menus.find((x) => x.id === menu.id);
+    for (const k of [...sels].sort((a, b) => b.i - a.i)) {
+      const l = elementList(mm, k.kind);
+      if (k.kind === "button" && l.length <= 1) continue;     // a menu keeps one button
+      l.splice(k.i, 1);
+    }
+    S.element = null; S.sels = [];
+  });
+  return true;
+}
+function copyElements() {
+  const menu = curMenu();
+  if (!menu || !hasElements()) return false;
+  const sels = S.sels?.length ? S.sels : [S.element];
+  S.clip = sels.map((k) => ({ kind: k.kind, it: JSON.parse(JSON.stringify(elementList(menu, k.kind)[k.i])) }));
+  return true;
+}
+function duplicateElements(fromClipboard) {
+  const menu = curMenu();
+  if (!menu) return false;
+  const sels = S.sels?.length ? S.sels : S.element ? [S.element] : [];
+  const src = fromClipboard ? S.clip : sels.map((k) => ({ kind: k.kind, it: elementList(menu, k.kind)[k.i] }));
+  if (!src?.length) return false;
+  const H = discH();
+  commit((p) => {
+    const mm = p.menus.find((x) => x.id === menu.id), added = [];
+    for (const { kind, it } of src) {
+      const c = JSON.parse(JSON.stringify(it));
+      c.x = Math.min(719, c.x + 12); c.y = Math.min(H - 1, c.y + 12);
+      if (kind === "button") { c.id = uniqueId(c.id.replace(/\d+$/, "") || "button", mm.buttons.map((b) => b.id)); delete c.nav; }
+      const l = elementList(mm, kind); l.push(c); added.push({ kind, i: l.length - 1 });
+    }
+    S.sels = added; S.element = added[added.length - 1];
+  });
+  return true;
 }
 // menu fonts in the editor: load the element's font file so the stage looks right
 const loadedFonts = new Set();
@@ -1718,11 +1749,7 @@ function renderMenuInspector(el) {
     commit((p) => { renameRefs(p, "menu", menu.id, nid); find(p).id = nid; });
     S.sel.id = nid; renderAll();
   };
-  $("#del-menu").onclick = () => {
-    if (!confirm(t("confirm_delete", { x: menu.id }))) return;
-    commit((p) => { p.menus = p.menus.filter((x) => x.id !== menu.id); });
-    select("disc");
-  };
+  $("#del-menu").onclick = () => deleteItem("menu", menu.id);
 }
 
 // ---------------------------------------------------------------- media inspector
@@ -1797,7 +1824,10 @@ function uploadFiles(files) {
       delete S.uploads[f.name];
       try {
         const r = JSON.parse(xhr.responseText);
-        if (xhr.status === 200) { S.media = r.media; S.selectedMedia = r.path; }
+        if (xhr.status === 200) {
+          S.media = r.media; S.selectedMedia = r.path;
+          if (S.psdAfterUpload === f.name) { S.psdAfterUpload = null; mediaAction("psd", r.path); }
+        }
         else alert(r.error);
       } catch (e) { alert(xhr.statusText); }
       renderSidebar(); renderInspector();
@@ -2128,7 +2158,7 @@ function applyTheme() {
 // ---------------------------------------------------------------- boot
 function applyState(r) {
   S.project = r.project; S.dir = r.dir; S.media = r.media; S.check = r.check;
-  S.tools = r.tools; S.platform = r.platform;
+  S.tools = r.tools; S.platform = r.platform; S.version = r.version;
 }
 async function boot() {
   const m = location.hash.match(/token=([\w-]+)/);
@@ -2140,6 +2170,210 @@ async function boot() {
   S.sel = first ? { view: "menu", id: first.id } : { view: "disc" };
   renderAll();
 }
+// ---------------------------------------------------------------- commands
+// Everything the menus can do, in one place: the menu bar (in a browser), the
+// Mac app's own menu bar (it calls window.oncemoreCommand), right-click menus
+// and keyboard shortcuts all run these. "mod" is ⌘ on a Mac and Ctrl elsewhere.
+const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+const IN_APP = /OncemoreApp/.test(navigator.userAgent);
+const LISTS = { title: "titles", menu: "menus", playlist: "playlists" };
+const hasProject = () => !!P();
+const editing = () => (["title", "menu", "playlist"].includes(S.sel.view) && (P()[LISTS[S.sel.view]] || []).some((x) => x.id === S.sel.id));
+function deleteItem(kind, id) {
+  const x = (P()[LISTS[kind]] || []).find((y) => y.id === id);
+  if (!x || !confirm(t("confirm_delete", { x: x.name || x.id }))) return;
+  commit((p) => {
+    p[LISTS[kind]] = p[LISTS[kind]].filter((y) => y.id !== id);
+    if (kind === "playlist") {
+      if (!p.playlists.length) delete p.playlists;
+      for (const mm of p.menus || []) for (const b of mm.buttons || []) if (b.action === `playlist:${id}`) b.action = "stop";
+    }
+  });
+  select("disc");
+}
+function duplicateItem(kind, id) {
+  const list = P()[LISTS[kind]] || [], i = list.findIndex((y) => y.id === id);
+  if (i < 0) return;
+  const ids = kind === "menu" ? allMenuIds() : list.map((y) => y.id);
+  const nid = uniqueId(`${id.replace(/_copy\d*$/, "")}_copy`, ids);
+  commit((p) => {
+    const c = JSON.parse(JSON.stringify(p[LISTS[kind]][i]));
+    c.id = nid;
+    if (c.name) c.name = t("copy_of", { x: c.name });
+    if (kind === "title") delete c.auto_chapter_menu;      // its chapter menus would clash
+    p[LISTS[kind]].splice(i + 1, 0, c);
+  });
+  select(kind, nid);
+}
+function moveItem(kind, id, delta) {
+  const list = P()[LISTS[kind]] || [], i = list.findIndex((y) => y.id === id), j = i + delta;
+  if (i < 0 || j < 0 || j >= list.length) return;
+  commit((p) => { const l = p[LISTS[kind]]; [l[i], l[j]] = [l[j], l[i]]; });
+}
+function setFirstPlay(kind, id) { commit((p) => { p.disc.first_play = `${kind}:${id}`; }); }
+function pickPsd() {
+  const inp = document.createElement("input");
+  inp.type = "file"; inp.accept = ".psd,.psb";
+  inp.onchange = () => { if (inp.files[0]) { S.psdAfterUpload = inp.files[0].name; uploadFiles([inp.files[0]]); } };
+  inp.click();
+}
+function revealProject() {
+  api("/api/reveal", { method: "POST", body: { path: "project.oncemore.json" } }).catch((e) => alert(e.message));
+}
+function aboutBox() {
+  openModal(`<h2>oncemore</h2><p>${esc(t("about_text"))}</p><p class="hint">${esc(S.version || "")} · GPL-3.0</p>`);
+}
+function shortcutsSheet() {
+  const rows = Object.entries(COMMANDS).filter(([, c]) => c.key).map(([id, c]) => `<tr><td>${esc(t("cmd_" + id))}</td><td class="mono">${esc(keyLabel(c.key))}</td></tr>`).join("");
+  openModal(`<h2>${t("cmd_shortcuts")}</h2><table class="shortcuts">${rows}
+    <tr><td>${esc(t("nudge"))}</td><td class="mono">← ↑ → ↓ / ${esc(keyLabel("shift"))}</td></tr>
+    <tr><td>${esc(t("copy_paste"))}</td><td class="mono">${esc(keyLabel("mod+c"))} / ${esc(keyLabel("mod+v"))}</td></tr></table>`);
+}
+const WS = (k) => () => { if (k === "author") { const last = S.lastAuthor || { view: "disc" }; select(last.view, last.id); } else select(k); };
+const COMMANDS = {
+  import_files: { key: "mod+i", run: pickFiles, when: hasProject },
+  import_psd: { run: pickPsd, when: hasProject },
+  check: { run: runCheck, when: hasProject },
+  build: { key: "mod+b", run: () => select("build"), when: hasProject },
+  reveal: { run: revealProject, when: hasProject },
+  undo: { key: "mod+z", run: undo, when: () => S.undo.length > 0 },
+  redo: { key: "mod+shift+z", run: redo, when: () => S.redo.length > 0 },
+  duplicate: { key: "mod+d", run: () => (hasElements() ? duplicateElements(false) : duplicateItem(S.sel.view, S.sel.id)),
+    when: () => hasElements() || (editing() && S.sel.view !== "playlist") },
+  delete: { key: "delete", run: (via) => (hasElements() ? deleteElements() : via !== "key" && deleteItem(S.sel.view, S.sel.id)),
+    when: () => hasElements() || editing() },
+  new_slideshow: { run: () => addSlideshow(), when: hasProject },
+  new_menu: { run: () => addMenu(), when: hasProject },
+  new_playlist: { run: () => addPlaylist(), when: () => hasProject() && (P().titles || []).length > 0 },
+  add_chapter: { key: "m", run: () => $("#add-ch")?.click(), when: () => S.sel.view === "title" && !!$("#add-ch") },
+  play: { key: "space", run: () => $("#play")?.click(), when: () => S.sel.view === "title" && !!$("#play") },
+  ws_author: { key: "alt+1", run: WS("author"), when: hasProject },
+  ws_flow: { key: "alt+2", run: WS("flow"), when: hasProject },
+  ws_sim: { key: "alt+3", run: WS("sim"), when: hasProject },
+  ws_build: { key: "alt+4", run: WS("build"), when: hasProject },
+  theme: { run: () => $("#btn-theme").click() },
+  language: { run: () => $("#btn-lang").click() },
+  shortcuts: { key: "?", run: shortcutsSheet },
+  about: { run: aboutBox },
+};
+const MENUBAR = [
+  ["m_file", ["import_files", "import_psd", "-", "check", "build", "-", "reveal"]],
+  ["m_edit", ["undo", "redo", "-", "duplicate", "delete"]],
+  ["m_disc", ["new_slideshow", "new_menu", "new_playlist", "-", "add_chapter", "play"]],
+  ["m_view", ["ws_author", "ws_flow", "ws_sim", "ws_build", "-", "theme", "language"]],
+  ["m_help", ["shortcuts", "about"]],
+];
+function runCommand(id, via = "menu") {
+  const c = COMMANDS[id];
+  if (!c || (c.when && !c.when())) return false;
+  closePopups();
+  c.run(via);
+  return true;
+}
+window.oncemoreCommand = (id) => runCommand(id, "menu");
+function keyLabel(spec) {
+  const names = IS_MAC ? { mod: "⌘", shift: "⇧", alt: "⌥", delete: "⌫", space: "Space" } : { mod: "Ctrl", shift: "Shift", alt: "Alt", delete: "Delete", space: "Space" };
+  const parts = spec.split("+").map((p) => names[p] || p.toUpperCase());
+  return IS_MAC ? parts.join("") : parts.join("+");
+}
+function keyMatches(spec, e) {
+  const parts = spec.split("+"), key = parts[parts.length - 1];
+  const want = { mod: parts.includes("mod"), shift: parts.includes("shift"), alt: parts.includes("alt") };
+  if (key === "?") return e.key === "?" && !(e.metaKey || e.ctrlKey || e.altKey);
+  if (want.mod !== (e.metaKey || e.ctrlKey) || want.shift !== e.shiftKey || want.alt !== e.altKey) return false;
+  if (key === "delete") return e.key === "Delete" || e.key === "Backspace";
+  if (key === "space") return e.code === "Space";
+  if (/^[0-9]$/.test(key)) return e.code === "Digit" + key;
+  return e.code === "Key" + key.toUpperCase();
+}
+function commandKeys(e) {
+  for (const [id, c] of Object.entries(COMMANDS)) {
+    if (!c.key || !keyMatches(c.key, e)) continue;
+    if (c.when && !c.when()) return false;
+    e.preventDefault();
+    runCommand(id, "key");
+    return true;
+  }
+  return false;
+}
+// -- the menu bar and right-click menus: one kind of pop-up list
+function closePopups() { document.querySelectorAll(".popup").forEach((x) => x.remove()); $("#menubar")?.querySelectorAll(".open").forEach((b) => b.classList.remove("open")); }
+function openPopup(x, y, items) {
+  closePopups();
+  const pop = document.createElement("div");
+  pop.className = "popup"; pop.setAttribute("role", "menu");
+  pop.innerHTML = items.map((it, k) => it === "-" ? `<div class="sep"></div>`
+    : `<button role="menuitem" data-k="${k}" class="${it.danger ? "danger" : ""}" ${it.disabled ? "disabled" : ""}><span>${esc(it.label)}</span><span class="key">${esc(it.key || "")}</span></button>`).join("");
+  document.body.appendChild(pop);
+  const r = pop.getBoundingClientRect();
+  pop.style.left = `${Math.max(4, Math.min(x, innerWidth - r.width - 4))}px`;
+  pop.style.top = `${Math.max(4, Math.min(y, innerHeight - r.height - 4))}px`;
+  pop.querySelectorAll("[data-k]").forEach((b) => (b.onclick = (ev) => { ev.stopPropagation(); const it = items[Number(b.dataset.k)]; closePopups(); it.run(); }));
+  return pop;
+}
+const cmdItem = (id) => ({ label: t("cmd_" + id), key: COMMANDS[id].key ? keyLabel(COMMANDS[id].key) : "", disabled: COMMANDS[id].when ? !COMMANDS[id].when() : false, run: () => runCommand(id) });
+function renderMenubar() {
+  const bar = $("#menubar");
+  bar.hidden = IN_APP;                        // the Mac app has its own menu bar
+  bar.innerHTML = MENUBAR.map(([label], k) => `<button data-mb="${k}" aria-haspopup="true">${esc(t(label))}</button>`).join("");
+  const open = (b) => {
+    const [, ids] = MENUBAR[Number(b.dataset.mb)], r = b.getBoundingClientRect();
+    openPopup(r.left, r.bottom + 2, ids.map((id) => (id === "-" ? "-" : cmdItem(id)))).classList.add("from-bar");
+    b.classList.add("open");
+  };
+  bar.querySelectorAll("[data-mb]").forEach((b) => {
+    b.onclick = (ev) => { ev.stopPropagation(); if (b.classList.contains("open")) closePopups(); else open(b); };
+    b.onmouseenter = () => { if (bar.querySelector(".open") && !b.classList.contains("open")) open(b); };
+  });
+}
+function itemMenu(kind, id) {
+  const list = P()[LISTS[kind]] || [], i = list.findIndex((y) => y.id === id);
+  if (i < 0) return null;                     // (generated chapter menus have no menu)
+  return [
+    { label: t("open"), run: () => select(kind, id) },
+    ...(kind !== "playlist" ? [{ label: t("cmd_duplicate"), run: () => duplicateItem(kind, id) }] : []),
+    "-",
+    { label: t("move_up"), disabled: i === 0, run: () => moveItem(kind, id, -1) },
+    { label: t("move_down"), disabled: i === list.length - 1, run: () => moveItem(kind, id, 1) },
+    { label: t("set_first_play"), disabled: P().disc.first_play === `${kind}:${id}`, run: () => setFirstPlay(kind, id) },
+    "-",
+    { label: t("delete"), danger: true, run: () => deleteItem(kind, id) },
+  ];
+}
+function mediaMenu(path) {
+  const item = S.media.find((m) => m.path === path);
+  if (!item) return null;
+  const menu = S.sel.view === "menu" ? curMenu() : null, out = [];
+  if (item.kind === "video") { out.push({ label: t("add_as_title"), run: () => mediaAction("title", path) }); if (menu) out.push({ label: t("use_as_video_bg"), run: () => mediaAction("vbg", path) }); }
+  if (item.kind === "image") { if (menu) out.push({ label: t("use_as_bg"), run: () => mediaAction("bg", path) }); out.push({ label: t("new_menu_with_bg"), run: () => mediaAction("newmenu", path) }); }
+  if (item.kind === "audio" && menu) out.push({ label: t("use_as_music"), run: () => mediaAction("music", path) });
+  if (item.kind === "design") out.push({ label: t("make_menu_from_psd"), run: () => mediaAction("psd", path) });
+  if (out.length) out.push("-");
+  out.push({ label: t("reveal_file"), run: () => api("/api/reveal", { method: "POST", body: { path } }).catch((e) => alert(e.message)) });
+  return out;
+}
+function stageMenu(el) {
+  const k = { kind: el.dataset.kind, i: Number(el.dataset.i) };
+  if (!(S.sels || []).some((x) => x.kind === k.kind && x.i === k.i)) { S.element = k; S.sels = [k]; renderMain(); renderInspector(); }
+  return [
+    { label: t("cmd_duplicate"), key: keyLabel("mod+d"), run: () => duplicateElements(false) },
+    { label: t("copy"), key: keyLabel("mod+c"), run: copyElements },
+    { label: t("paste"), key: keyLabel("mod+v"), disabled: !S.clip?.length, run: () => duplicateElements(true) },
+    "-",
+    { label: t("delete"), key: keyLabel("delete"), danger: true, run: deleteElements },
+  ];
+}
+document.addEventListener("contextmenu", (ev) => {
+  if (!P() || ev.target.closest("input, textarea, select")) return;
+  const nav = ev.target.closest(".nav-item[data-view]"), media = ev.target.closest(".media-item[data-media]"), el = ev.target.closest(".stage .el[data-kind]");
+  const items = nav && LISTS[nav.dataset.view] ? itemMenu(nav.dataset.view, nav.dataset.id) : media ? mediaMenu(media.dataset.media) : el ? stageMenu(el) : null;
+  if (!items) return;
+  ev.preventDefault();
+  openPopup(ev.clientX, ev.clientY, items);
+});
+document.addEventListener("click", (ev) => { if (!ev.target.closest(".popup")) closePopups(); });
+window.addEventListener("blur", closePopups);
+
 $("#btn-undo").onclick = undo;
 $("#btn-redo").onclick = redo;
 $("#btn-check").onclick = runCheck;
@@ -2150,10 +2384,12 @@ initSplitters();
 $("#btn-lang").onclick = () => { LANG = LANG === "ja" ? "en" : "ja"; localStorage.setItem("oncemore.lang", LANG); renderAll(); };
 $("#modal").addEventListener("click", (e) => { if (e.target.id === "modal" || e.target.classList.contains("modal-close")) closeModal(); });
 window.addEventListener("keydown", (e) => {
-  const inField = ["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement?.tagName);
-  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && !inField) { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
-  if (e.key === "Escape") closeModal();
-  if (inField) return;
+  const inField = ["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement?.tagName) || document.activeElement?.isContentEditable;
+  if (e.key === "Escape") { closeModal(); closePopups(); }
+  if (inField || !$("#modal").hidden && e.key !== "?") return;
+  if (document.activeElement?.closest?.("#sim-screen")) return;     // the simulator's remote keys
+  if (P() && commandKeys(e)) return;
+  if (!P() && e.key === "?") { shortcutsSheet(); return; }
   stageKeys(e);
 });
 window.addEventListener("resize", () => { if (S.sel.view === "menu") renderMain(); });

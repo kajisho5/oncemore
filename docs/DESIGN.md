@@ -67,6 +67,12 @@ labels stay at 4.5:1 or more on their surface in both themes.
   status bar: issues · missing tools · project folder
 ```
 
+* **Menu bar** (top bar, left): File, Edit, Disc, View, Help. Every item is
+  a command (app.js `COMMANDS`) that the right-click menus, the keyboard
+  shortcuts and Oncemore.app's native menu bar run too; inside the Mac app
+  the page hides its own menu bar.
+* **Right-click menus** on titles, menus and playlists in the project panel,
+  on files in Media and on elements of the menu stage.
 * **Workspaces** (top bar) switch the centre between authoring, the
   flowchart, the remote-control preview and the build; Author returns to the
   last edited object.
@@ -94,6 +100,7 @@ labels stay at 4.5:1 or more on their surface in both themes.
 | Timeline | `.tl`, `.tl-row`, `.tl-label`, `.tl-track`, `.tl-ruler`, `.tl-lane`, `.tl-clip.audio/.sub`, `.tl-chapter`, `.tl-playhead` |
 | Card, notes | `.card`, `.hint`, `.issues li.warning/.info`, `.pill` |
 | Modal | `#modal .modal-card` |
+| Menu bar, pop-up menus | `.menubar > button(.open)`, `.popup > button(.danger)` with `.key`, `.sep` |
 
 ## Writing
 

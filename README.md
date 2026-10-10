@@ -136,6 +136,13 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   frame or by its shape). Use an image or a video as the background. **Exact preview**
   renders the menu exactly as the disc will show it, with button hit areas.
 * ▲/▼ in the right-hand panel change the order of titles and menus.
+* **Menus and shortcuts**: the menu bar (File, Edit, Disc, View, Help — in
+  Oncemore.app it is the Mac's own menu bar) has every command; right-click a
+  title, menu or playlist (open, duplicate, move, play first, delete), a file
+  in *Media* or an element on the menu stage. Shortcuts: ⌘I import, ⌘B build,
+  ⌘D duplicate, ⌘Z / ⇧⌘Z undo / redo, M add a chapter at the playhead, Space
+  play / pause, ⌥1–⌥4 workspaces, ? the list of shortcuts (Ctrl instead of ⌘
+  on other systems).
 * **Flowchart** shows the whole disc: first play, menus, titles, playlists and
   every link between them (buttons, end actions, time-outs, the remote's Menu
   and Title keys). Boxes a viewer can never reach, or menus they cannot leave,

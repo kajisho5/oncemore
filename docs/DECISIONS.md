@@ -583,3 +583,20 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   never written.
 * One timestamp for every structure, so the same folder and date give a
   byte-identical image.
+
+## 38. Menus, right-click menus and shortcuts
+
+* Desktop authoring apps are driven from a menu bar, right-click menus and
+  shortcuts as much as from panels, so the app has all three, built on one
+  command list (app.js `COMMANDS`: what runs, when it is available, its
+  shortcut). A command added there is available everywhere at once.
+* Oncemore.app shows the Mac's own menu bar; its items call
+  `window.oncemoreCommand(id)` in the page, and the page hides its own menu
+  bar when the user agent says it runs inside the app. A test checks that
+  every native item names an existing command.
+* Shortcuts avoid keys browsers keep for themselves: workspaces are ⌥1–⌥4
+  (⌘1–⌘4 switch browser tabs), chapter marks and playback use single keys (M,
+  Space) only when no field has the focus. Undo in the native menu edits the
+  focused field when there is one, otherwise the project.
+* Delete from the keyboard only removes menu elements; titles, menus and
+  playlists are deleted from a menu, with a confirmation.

@@ -70,6 +70,12 @@ browser) and lands only with green CI.
   joined while encoding, a chapter per clip; clip editor and timeline in the
   app, joined preview, simulator and menu thumbnails follow the clips
 
+**P10 — Menus and shortcuts** (done)
+- [x] A menu bar with every command (File, Edit, Disc, View, Help); the Mac
+  app's native menu bar runs the same commands
+- [x] Right-click menus for project items, media files and menu elements
+- [x] Keyboard shortcuts and a list of them (?)
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 
