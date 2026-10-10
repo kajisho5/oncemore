@@ -125,6 +125,15 @@ def cmd_preview(args, rep):
     return 0
 
 
+def cmd_gui(args, rep):
+    from .gui.server import serve
+
+    path = os.path.abspath(args.project)
+    if os.path.isfile(path):
+        path = os.path.dirname(path)
+    return serve(path, port=args.port, open_browser=not args.no_browser, reporter=rep)
+
+
 def make_parser():
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
@@ -180,6 +189,13 @@ def make_parser():
     s.add_argument("--outline", action="store_true", help="draw every button's hit area")
     s.add_argument("--keep-work", action="store_true")
     s.set_defaults(func=cmd_preview)
+
+    s = sub.add_parser("gui", parents=[common], help="open the authoring GUI in your browser")
+    s.add_argument("project", nargs="?", default=".",
+                   help="project folder (created if missing; default: current folder)")
+    s.add_argument("--port", type=int, default=0, help="port (default: any free port)")
+    s.add_argument("--no-browser", action="store_true", help="only print the URL")
+    s.set_defaults(func=cmd_gui)
 
     s = sub.add_parser("doctor", parents=[common], help="check external tools")
     s.set_defaults(func=cmd_doctor)

@@ -29,7 +29,8 @@ oncemore = "oncemore.cli:main"
 Homepage = "https://github.com/kajisho5/oncemore"
 
 [tool.setuptools]
-packages = ["oncemore"]
+packages = ["oncemore", "oncemore.gui"]
 
 [tool.setuptools.package-data]
 oncemore = ["project.schema.json"]
+"oncemore.gui" = ["static/*"]

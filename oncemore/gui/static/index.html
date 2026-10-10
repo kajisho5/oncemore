@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>oncemore</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header id="topbar">
+  <div class="brand"><span class="logo">◉</span> oncemore</div>
+  <div id="disc-name" class="disc-name"></div>
+  <div id="save-state" class="save-state"></div>
+  <div class="spacer"></div>
+  <button id="btn-undo" class="icon" title="Undo (⌘Z)">↶</button>
+  <button id="btn-redo" class="icon" title="Redo (⇧⌘Z)">↷</button>
+  <button id="btn-check" data-i18n="check">Check</button>
+  <button id="btn-build" class="primary" data-i18n="build">Build</button>
+  <button id="btn-lang" class="icon" title="Language">文A</button>
+</header>
+<div id="layout">
+  <nav id="sidebar"></nav>
+  <main id="main"></main>
+  <aside id="inspector"></aside>
+</div>
+<footer id="statusbar"></footer>
+<div id="drop-overlay" hidden><div data-i18n="drop_here">Drop files to add them to the project</div></div>
+<div id="modal" hidden><div class="modal-card"><button class="icon modal-close">✕</button><div id="modal-body"></div></div></div>
+<script src="app.js"></script>
+</body>
+</html>
