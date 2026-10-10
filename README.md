@@ -191,8 +191,9 @@ panel (selection, text, zoom, new button / rectangle, Photoshop, Preview) with
 the **Workspace** menu and a search field; **Project · Menus · Timelines ·
 Build** on the left, **Monitor · Menu Viewer · Flowchart** in the middle, the
 **Timeline** across the bottom of both, **Properties** and **Library ·
-Layers** on the right. Mid-grey panels, light text fields, an amber outline on
-the panel you are working in, amber timecode. Panels are resized by dragging
+Layers** on the right. Two skins (Edit > Preferences): **Modern**, the
+default, and **Classic** — mid-grey panels, light text fields, an amber outline
+on the panel you are working in, amber timecode. Panels are resized by dragging
 their edges. The design rules are in [docs/DESIGN.md](docs/DESIGN.md) and the
 app shows them at `/styleguide.html`.
 

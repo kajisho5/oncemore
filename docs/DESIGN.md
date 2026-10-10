@@ -6,19 +6,25 @@ the app's address (e.g. `http://127.0.0.1:PORT/styleguide.html`).
 
 ## Principles
 
-1. **Pictures read true.** The workspace is neutral grey: mid-grey panels on
-   a near-black ground (a light theme and a Brightness setting are in
-   Edit > Preferences). Menus and video sit on black, never on a tinted
-   surface, so colours are judged against what a TV shows.
-2. **Amber means "where you are".** The panel being worked in has an amber
-   outline and timecode is amber; selected rows are a quiet blue-grey. The
-   DVD highlight colours (yellow, orange) stay for what is on the disc.
+1. **Pictures read true.** The workspace is neutral grey in both skins
+   (Edit > Preferences: Skin, light theme, Brightness). Menus and video sit
+   on black, never on a tinted surface, so colours are judged against what a
+   TV shows.
+2. **Two skins, one layout.** *Modern* (the default): dark panels on a darker
+   ground, dark fields, flat controls, underlined tabs, blue for the panel in
+   use, for timecode and for selection. *Classic*: the classic disc
+   authoring look — mid-grey panels, light fields with dark text, raised
+   controls, boxed tabs with grips, amber outline and amber timecode. Only
+   tokens and a short block of Classic-only rules differ; components are
+   shared. The DVD highlight colours (yellow, orange) stay for what is on
+   the disc in both.
 3. **Every kind of object has one colour, everywhere.** Menus are yellow,
    titles green, playlists purple, remote-control and system entries blue,
    audio teal, subtitles pink, chapters orange: in the project panel, the
    flowchart, the timeline and the layers panel alike.
-4. **The workspace is the classic one.** Layout, palette and controls follow
-   the professional disc authoring app people learned on: a menu bar, a Tools
+4. **The workspace is the classic one.** The layout (both skins) and the
+   Classic skin's palette and controls follow the professional disc
+   authoring app people learned on: a menu bar, a Tools
    panel with the Workspace menu, a Project frame (Project · Menus ·
    Timelines · Build) and the viewers (Monitor · Menu Viewer · Flowchart)
    side by side, the Timeline across the bottom of both, Properties and
@@ -42,6 +48,7 @@ raw hex colour outside the tokens).
 |---|---|
 | Surfaces | `--c-bg-0` gaps between frames, `--c-bg-1` panels, `--c-bg-2` tab strips / bars, `--c-bg-3` selected rows, `--c-bg-4` raised (headers, buttons, back tabs), `--c-bg-5` track headers, `--c-field` text fields, `--c-line`, `--c-line-strong`, `--c-scrim` |
 | Text | `--c-text`, `--c-text-2` (labels, hints), `--c-text-field` (in text fields), `--c-text-on-accent`, `--c-text-on-ui` |
+| Skin | `--raised`, `--raised-hi` (controls, headers), `--bevel`, `--field-shadow`, `--c-field-border`, `--r-field`, `--foot-h`; `:root[data-skin="classic"]` redefines these and the colours, type sizes, radii and bar heights |
 | Working | `--c-active-panel` (outline of the panel in use), `--c-timecode`, `--c-playhead`, `--c-clip`, `--c-clip-head`, `--c-clip-audio`, `--c-clip-text` (timeline clips), `--c-ui`, `--c-ui-soft` |
 | Accent | `--c-accent` (highlight yellow), `--c-accent-2` (activated orange), `--c-focus` |
 | Status | `--c-success`, `--c-warning`, `--c-danger` |

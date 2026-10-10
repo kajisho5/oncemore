@@ -669,4 +669,9 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   into a window of its own. Undo / Redo, Check and Build left the top bar for
   the Edit and File menus and the Build panel; the theme and language moved to
   Edit > Preferences.
-
+* The classic look is a skin, *Classic*; the default skin, *Modern*, keeps
+  the same layout and controls with a current look (dark flat panels, dark
+  fields, underlined tabs, blue for the panel in use and timecode). The
+  choice is in Edit > Preferences and remembered per browser. Skins differ
+  only in tokens plus a short block of Classic-only rules, so every feature
+  works the same in both.

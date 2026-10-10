@@ -104,7 +104,9 @@ browser) and lands only with green CI.
 - [x] Project panel with a preview of the selection; Monitor transport bar;
   Properties with right-aligned labels; flowchart cards with pictures;
   New Project dialog; Project Preview window; View menu; Edit > Preferences
-  (brightness, theme, language)
+  (skin, brightness, theme, language)
+- [x] Two skins: Modern (default, a current flat dark look) and Classic (the
+  classic look above)
 
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.

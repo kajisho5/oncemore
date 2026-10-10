@@ -152,6 +152,7 @@ const I18N = {
     settings: "Settings", size_estimate: "Estimated size", check_project: "Check Project…", new_item: "New Item", delete_item: "Delete",
     tool_import_psd: "Make a menu from a Photoshop file", preview_close: "Close the preview",
     basic: "Basic", motion: "Motion", toggle_safe: "Show Safe Area",
+    skin: "Skin", skin_modern: "Modern", skin_classic: "Classic", skin_hint: "Classic: the look of the classic disc authoring apps (mid-grey panels, light fields, amber timecode). The layout is the same.",
   },
   ja: {
     check: "チェック", build: "ビルド", drop_here: "ファイルをドロップしてプロジェクトに追加",
@@ -302,6 +303,7 @@ const I18N = {
     settings: "設定", size_estimate: "推定サイズ", check_project: "プロジェクトをチェック…", new_item: "新規項目", delete_item: "削除",
     tool_import_psd: "Photoshop ファイルからメニューを作る", preview_close: "プレビューを閉じる",
     basic: "基本", motion: "モーション", toggle_safe: "セーフエリアを表示",
+    skin: "スキン", skin_modern: "モダン", skin_classic: "クラシック", skin_hint: "クラシック：昔ながらのディスクオーサリングアプリの見た目（中間グレーのパネル、明るい入力欄、琥珀色のタイムコード）。配置は同じです。",
   },
 };
 let LANG = (() => {
@@ -2644,6 +2646,7 @@ function preferencesBox() {
       <div class="row"><span class="shrink hint">${t("darker")}</span><input type="range" id="pref-bright" min="-8" max="14" step="1" value="${b}"><span class="shrink hint">${t("lighter")}</span>
       <button class="small shrink" id="pref-bright-def">${t("default")}</button></div>
       <div class="hint">${esc(t("brightness_hint"))}</div></label>
+    <label class="field"><span>${t("skin")}</span>${selectHtml("skin", [["modern", t("skin_modern")], ["classic", t("skin_classic")]], store.get("skin", "modern"), 'id="pref-skin"')}<div class="hint">${esc(t("skin_hint"))}</div></label>
     <label class="field"><span>${t("cmd_theme")}</span>${selectHtml("theme", [["dark", "Dark"], ["light", "Light"]], store.get("theme", "dark"), 'id="pref-theme"')}</label>
     <label class="field"><span>${t("language")}</span>${selectHtml("lang", [["en", "English"], ["ja", "日本語"]], LANG, 'id="pref-lang"')}</label>`);
   const set = (v) => { store.set("brightness", v); applyBrightness(); };
@@ -2651,10 +2654,13 @@ function preferencesBox() {
   $("#pref-bright-def").onclick = () => { $("#pref-bright").value = 0; set(0); };
   $("#pref-lang").onchange = (e) => { LANG = e.target.value; try { localStorage.setItem("oncemore.lang", LANG); } catch (x) { /* storage blocked */ } renderAll(); preferencesBox(); };
   $("#pref-theme").onchange = (e) => { store.set("theme", e.target.value); applyTheme(); };
+  $("#pref-skin").onchange = (e) => { store.set("skin", e.target.value); applyTheme(); renderAll(); };
 }
 function applyTheme() {
-  const th = store.get("theme", "dark");
+  const th = store.get("theme", "dark"), skin = store.get("skin", "modern");
   if (th === "light") document.documentElement.dataset.theme = "light"; else delete document.documentElement.dataset.theme;
+  // the skin: Modern (default) or Classic (the classic disc authoring look)
+  if (skin === "classic") document.documentElement.dataset.skin = "classic"; else delete document.documentElement.dataset.skin;
 }
 
 // ---------------------------------------------------------------- boot

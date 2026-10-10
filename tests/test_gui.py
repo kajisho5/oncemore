@@ -1077,9 +1077,13 @@ class TestGuiBrowser(unittest.TestCase):
             page.mouse.click(ruler["x"] + ruler["width"] * 0.75, ruler["y"] + 5)
             page.locator("#tc", has_text="00:00:18").wait_for()
             # theme and panel sizes are remembered
+            # Modern is the default skin; Classic is chosen in Edit > Preferences
+            self.assertIsNone(page.evaluate("document.documentElement.dataset.skin"))
             page.keyboard.press("Control+Comma")                       # Edit > Preferences
+            page.select_option("#pref-skin", "classic")
             page.select_option("#pref-theme", "light")
             page.keyboard.press("Escape")
+            self.assertEqual(page.evaluate("document.documentElement.dataset.skin"), "classic")
             self.assertEqual(page.evaluate("document.documentElement.dataset.theme"), "light")
             sp = page.locator(".splitter[data-split=left]").bounding_box()
             page.mouse.move(sp["x"] + 2, sp["y"] + 200)
@@ -1090,6 +1094,7 @@ class TestGuiBrowser(unittest.TestCase):
             page.reload()
             page.locator("#workspaces option").first.wait_for(state="attached", timeout=60000)
             self.assertEqual(page.evaluate("document.documentElement.dataset.theme"), "light")
+            self.assertEqual(page.evaluate("document.documentElement.dataset.skin"), "classic")
             self.assertAlmostEqual(page.locator("#p-left").bounding_box()["width"], width, delta=2)
             browser.close()
         self.assertEqual(errors, [])
