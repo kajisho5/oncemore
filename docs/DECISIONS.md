@@ -675,3 +675,18 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   choice is in Edit > Preferences and remembered per browser. Skins differ
   only in tokens plus a short block of Classic-only rules, so every feature
   works the same in both.
+
+## 43. Replacing assets and editing designs elsewhere
+
+* A file's uses are found by walking the whole project for strings that are
+  paths of media files (by extension), not by a list of known fields: new
+  fields that hold files are covered without touching this code. A label
+  that happens to equal a path exactly would be replaced too; that is
+  accepted.
+* Edit menu in Photoshop opens the `.psd` with the program the system uses
+  for it (`open` / `xdg-open`), only for existing files inside the project
+  folder. The app then checks the file's modification time every two
+  seconds and, when it changes, offers Import again instead of importing on
+  its own: importing replaces the menu's pictures, and the person may still
+  be saving in between.
+

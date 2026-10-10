@@ -136,6 +136,15 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   frame or by its shape). Use an image or a video as the background. **Exact preview**
   renders the menu exactly as the disc will show it, with button hit areas.
 * ▲/▼ in the right-hand panel change the order of titles and menus.
+* **Chapters at intervals** (Timeline menu): a chapter every *n* minutes or
+  seconds, replacing the chapters there are or adding to them.
+* **Replace asset** (File menu, or right-click a file): every use of one file
+  in the project points to another — also how a missing file is found again
+  (missing files are listed first, and the issue list offers it).
+* **Edit menu in Photoshop** (Edit menu, Tools panel or Properties): opens a
+  menu's `.psd`; when it is saved there, the Menu Viewer offers to import it
+  again. **File > Project settings** shows the disc's settings; the **Window**
+  menu brings any panel to the front.
 * **Transcode now**: titles are encoded when the disc is built, or ahead of
   time with *Transcode this title now* / *Transcode all titles now* (right-click
   a title, or the Disc menu); the build then reuses them. A filled dot next to

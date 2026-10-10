@@ -889,6 +889,34 @@ class Handler(BaseHTTPRequestHandler):
         self.json({"revealed": True, "path": full})
 
 
+    def api_post_open(self, q):
+        """Open a project file in the program the system uses for it (Edit
+        Menu in Photoshop opens the menu's .psd)."""
+        full = self.app.resolve(self.body_json().get("path"))
+        if not os.path.isfile(full):
+            raise FileNotFoundError(full)
+        if sys.platform == "darwin":
+            cmd = ["open", full]
+        elif sys.platform.startswith("win"):
+            os.startfile(full)          # noqa: (Windows only)
+            return self.json({"opened": True, "path": full})
+        elif shutil.which("xdg-open"):
+            cmd = ["xdg-open", full]
+        else:
+            return self.json({"opened": False, "path": full})
+        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.json({"opened": True, "path": full})
+
+    def api_get_stat(self, q):
+        """When a project file last changed (null if it is not there)."""
+        full = self.app.resolve(q.get("path"))
+        try:
+            st = os.stat(full)
+        except OSError:
+            return self.json({"exists": False, "mtime": None, "bytes": None})
+        self.json({"exists": True, "mtime": st.st_mtime, "bytes": st.st_size})
+
+
 def make_server(project_dir, port=0):
     app = App(project_dir)
     handler = type("BoundHandler", (Handler,), {"app": app})
