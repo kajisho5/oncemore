@@ -815,3 +815,26 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   only points there.
 * Tests use fake burners that record their arguments; no test burns.
 
+## 53. Blu-ray
+
+* oncemore writes the BDMV navigation files itself (index.bdmv,
+  MovieObject.bdmv, playlists, clip information with the EP map); there is
+  no free authoring tool to lean on the way dvdauthor serves DVD, and the
+  files are small. The layouts follow what libbluray reads (and what
+  tsMuxeR writes); the tests read every disc back with libbluray, including
+  first play through the HDMV commands.
+* ffmpeg encodes straight into BDAV transport streams (192-byte packets,
+  the Blu-ray PIDs). Pictures are coded at a constant quality (x264 CRF,
+  `bluray-compat`, level 4.1, 4 slices, one-second GOPs) capped at the rate
+  that fills BD25 / BD50, so the disc never overflows and short projects
+  are not padded with bits.
+* The HD frame is 1920×1080. Film stays 23.976p; NTSC and PAL video become
+  progressive frames in a 1080i stream at 29.97 / 25 fps, because Blu-ray
+  has no 1080p at those rates.
+* The EP map is built from the stream itself: every picture is one PES
+  packet and key frames carry the random-access flag. Chapters are made key
+  frames when encoding, and the marks sit on those frames.
+* One playlist per title, per project playlist and for Play All; a movie
+  object per playlist plays it and jumps to the next title when the end
+  action names one. Without menus, any other end action stops; first play
+  and the Top Menu key fall back to the first title when they name a menu.

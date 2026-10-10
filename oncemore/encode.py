@@ -174,7 +174,7 @@ def fit_filter(info, disc, pad_color="black", fps=True, mode="progressive", ivtc
         if fps:
             n, d = FILM_FPS if mode == "pulldown" else (num, den)
             parts.append(f"fps={n}/{d}")
-    parts.append(f"scale={w}:{h}:flags=bicubic:out_color_matrix=bt601:out_range=tv")
+    parts.append(f"scale={w}:{h}:flags=bicubic:out_color_matrix={getattr(disc, 'matrix', 'bt601')}:out_range=tv")
     if (w, h) != (disc.width, disc.height):
         parts.append(f"pad={disc.width}:{disc.height}:{px}:{py}:color={pad_color}")
     if mode == "interlaced":

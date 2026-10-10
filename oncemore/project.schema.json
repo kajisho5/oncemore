@@ -184,6 +184,21 @@
             "type": "string"
           },
           "description": "Files or folders copied to the root of the disc next to VIDEO_TS (DVD-ROM content for computers)."
+        },
+        "bluray": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Settings used when the project is built as a Blu-ray.",
+          "properties": {
+            "target": {
+              "enum": [
+                "BD25",
+                "BD50"
+              ],
+              "default": "BD25",
+              "description": "Disc size: single layer (25 GB) or dual layer (50 GB)."
+            }
+          }
         }
       }
     },

@@ -162,6 +162,12 @@ browser) and lands only with green CI.
 - [x] Build > Output: DVD disc (the image, then written to a blank DVD in
   the chosen recorder) and `oncemore burn`
 
+**P28 — Blu-ray, titles and chapters** (done)
+- [x] Build > Format: Blu-ray and `build --format bluray`: a BDMV folder
+  with every title in HD H.264, AC-3 / LPCM tracks, chapters, playlists,
+  Play All, first play and title end actions; BD25 / BD50; read back with
+  libbluray in the tests
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 
@@ -220,7 +226,8 @@ below.
 
 ## Phase 5 — Blu-ray
 
-First menu-less BDMV (titles + chapters), then IGS menus.
+Menu-less BDMV with titles, chapters and playlists: done (P28). Next: a
+UDF 2.50 disc image, PGS subtitles, then IGS menus and pop-up menus.
 
 ## Later
 

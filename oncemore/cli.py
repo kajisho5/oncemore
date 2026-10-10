@@ -182,6 +182,11 @@ def cmd_import_psd(args, rep):
 
 def cmd_build(args, rep):
     project = load_project(args.project)
+    if args.format == "bluray":
+        res = build.build_bluray(project, args.output, rep, fast=args.fast,
+                                 keep_work=args.keep_work, cache=not args.no_cache)
+        rep.result(res, f"BDMV written to {res['bdmv']} ({_gib(res['bytes'])})")
+        return 0
     res = build.build(project, args.output, rep, fast=args.fast, keep_work=args.keep_work,
                       cache=not args.no_cache)
     rep.result(res, f"VIDEO_TS written to {res['video_ts']} ({_gib(res['bytes'])})")
@@ -302,9 +307,13 @@ def make_parser():
                         help="encode everything again (default: reuse unchanged titles and "
                              "menus from <project>/.oncemore-cache)")
 
-    s = sub.add_parser("build", parents=[common], help="author VIDEO_TS into a directory")
+    s = sub.add_parser("build", parents=[common],
+                       help="author VIDEO_TS (or a Blu-ray BDMV) into a directory")
     s.add_argument("project", help=proj_help)
     s.add_argument("-o", "--output", required=True, help="output directory")
+    s.add_argument("--format", choices=["dvd", "bluray"], default="dvd",
+                   help="dvd = VIDEO_TS (default); bluray = BDMV in HD (titles, chapters, "
+                        "playlists; no menus or subtitles yet)")
     build_opts(s)
     s.set_defaults(func=cmd_build)
 
