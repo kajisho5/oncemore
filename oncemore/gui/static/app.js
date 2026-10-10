@@ -3346,4 +3346,26 @@ window.addEventListener("keydown", (e) => {
   stageKeys(e);
 });
 window.addEventListener("resize", () => { if (S.sel.view === "menu") renderMain(); });
+// Re-rendering replaces panels with innerHTML. When that removes a text field
+// the person was typing in, the browser fires its change event right then; the
+// handler commits and renders the same panel again, inside the first render,
+// which then fails ("the node to be removed is no longer a child"). A render
+// asked for by such an event is therefore run just after the current one.
+let renderDepth = 0, eventInRender = false;
+for (const type of ["change", "blur", "focusout"]) {
+  document.addEventListener(type, () => {
+    if (renderDepth && !eventInRender) { eventInRender = true; queueMicrotask(() => { eventInRender = false; }); }
+  }, true);
+}
+const outsideRender = (fn) => function (...args) {
+  if (renderDepth && eventInRender) { queueMicrotask(() => outsideRender(fn)(...args)); return undefined; }
+  renderDepth++;
+  try { return fn.apply(this, args); } finally { renderDepth--; }
+};
+renderAll = outsideRender(renderAll);
+renderMain = outsideRender(renderMain);
+renderInspector = outsideRender(renderInspector);
+renderSidebar = outsideRender(renderSidebar);
+renderLeft = outsideRender(renderLeft);
+renderLayers = outsideRender(renderLayers);
 boot();
