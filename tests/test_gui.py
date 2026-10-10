@@ -163,7 +163,7 @@ class TestGuiApi(unittest.TestCase):
     @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/dvdauthor/ISO tool")
     def test_playback_proxy(self):
         self.s.call("/api/new", "POST", {"sample": True})
-        src = os.path.join(self.dir, "media", "sample_b.mp4")
+        src = os.path.realpath(os.path.join(self.dir, "media", "sample_b.mp4"))  # macOS /var
         for fmt, magic, codecs in (("mp4", b"ftyp", ["aac", "h264"]),
                                    ("webm", b"\x1a\x45\xdf\xa3", ["opus", "vp8"])):
             q = f"path=media/sample_b.mp4&format={fmt}"
