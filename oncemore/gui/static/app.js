@@ -34,6 +34,8 @@ const I18N = {
     highlight_image: "Highlight picture", highlight_image_hint: "Optional: a picture whose opaque pixels light up when the button is selected.",
     new_menu: "New menu", blank_menu: "Blank", template_hint: "Start from a layout; everything stays editable.",
     motion_bg: "Motion background", animated_thumbs: "Thumbnails play the chapter",
+    override: "Then (override)", override_none: "The title's own end action",
+    override_hint: "Where to go when the title this button plays ends, instead of its own end action (only when started from this button).",
     thumb_section: "Thumbnail", thumb_on: "Show a picture of the linked title / chapter",
     thumb_time: "Frame at (s)", thumb_anim: "Play it (motion menus)",
     sub_style: "Subtitle look (all tracks)", sub_margin: "Bottom margin", outline_w: "Outline width",
@@ -211,6 +213,8 @@ const I18N = {
     highlight_image: "ハイライト画像", highlight_image_hint: "任意：不透明な部分が選択時に光る画像。",
     new_menu: "新しいメニュー", blank_menu: "白紙", template_hint: "レイアウトから始められます。あとから全部編集できます。",
     motion_bg: "動く背景", animated_thumbs: "サムネイルでチャプターを再生",
+    override: "終了後（上書き）", override_none: "タイトル自身の終了時アクション",
+    override_hint: "このボタンで再生したタイトルが終わったときの行き先。タイトル自身の終了時アクションの代わりに使われます（このボタンから再生したときだけ）。",
     thumb_section: "サムネイル", thumb_on: "リンク先のタイトル／チャプターの絵を表示",
     thumb_time: "フレーム位置（秒）", thumb_anim: "再生する（モーションメニュー）",
     sub_style: "字幕の見た目（全トラック）", sub_margin: "下の余白", outline_w: "縁取りの太さ",
@@ -560,7 +564,7 @@ function renameRefs(p, kind, oldId, newId) {
     if (ti.auto_chapter_menu && typeof ti.auto_chapter_menu === "object") ti.auto_chapter_menu.back = fix(ti.auto_chapter_menu.back);
   }
   for (const m of p.menus || []) {
-    for (const b of m.buttons || []) b.action = fix(b.action);
+    for (const b of m.buttons || []) { b.action = fix(b.action); if (b.override) b.override = fix(b.override); }
     if (m.end_action) m.end_action = fix(m.end_action);
   }
   p.disc.title_key = fix(p.disc.title_key);
@@ -2210,6 +2214,7 @@ function renderMenuInspector(el) {
     el.innerHTML = `<h2>${sel.kind === "button" ? t("button") : t("text")}</h2>
       ${sel.kind === "button" ? `<label class="field"><span>${t("text")}</span><input data-k="label" value="${esc(it.label)}"></label>
         <label class="field"><span>${t("action")} ${whipHtml("action")}</span>${selectHtml("action", actionOptions(), it.action)}</label>
+        ${/^(title|chapter):/.test(it.action || "") ? `<label class="field"><span>${t("override")}</span>${selectHtml("override", [["__none__", t("override_none")], ...actionOptions({ forButton: false, includeChapters: false, allowPlayAll: false })], it.override || "__none__")}<div class="hint">${esc(t("override_hint"))}</div></label>` : ""}
         <label class="field"><span></span><label><input type="checkbox" data-k="auto_activate" ${it.auto_activate ? "checked" : ""}> ${t("auto_activate")}</label></label>
         <label class="field" data-nobind><span>${t("image")}</span>${selectHtml("image", [["__none__", t("none")], ...mediaOf("image").map((x) => [x, x])], it.image || "__none__")}
           <div class="hint">${esc(t("image_hint"))}</div></label>`
@@ -2247,7 +2252,7 @@ function renderMenuInspector(el) {
         if (o.nav && !Object.keys(o.nav).length) delete o.nav;
         if (key === "highlight" && o.highlight === "frame") delete o.highlight;
         if (key === "auto_activate" && !o.auto_activate) delete o.auto_activate;
-        if (key === "action" && !/^(title|chapter):/.test(o.action)) delete o.thumbnail;   // needs a title / chapter
+        if (key === "action" && !/^(title|chapter):/.test(o.action)) { delete o.thumbnail; delete o.override; }   // need a title / chapter
       },
     });
     const thSet = (fn) => commit((p) => { const o = find(p).buttons[sel.i]; fn(o); });
@@ -3098,7 +3103,10 @@ function dropRefs(p, gone, titleId) {
     if (ti.auto_chapter_menu && typeof ti.auto_chapter_menu === "object" && dead(ti.auto_chapter_menu.back)) delete ti.auto_chapter_menu.back;
   }
   for (const m of p.menus || []) {
-    for (const b of m.buttons || []) if (dead(b.action)) b.action = "stop";
+    for (const b of m.buttons || []) {
+      if (dead(b.action)) { b.action = "stop"; delete b.override; }
+      if (dead(b.override)) delete b.override;
+    }
     if (dead(m.end_action)) m.end_action = "stop";
   }
   for (const pl of p.playlists || []) {

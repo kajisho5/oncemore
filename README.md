@@ -404,6 +404,10 @@ the menu, so a "setup" menu is just a few of these buttons plus a BACK button.
 ends with its own `end_action`. `resume` continues the title the remote's Menu
 or Title key interrupted, where it was left; when there is nothing to resume
 (at the start of the disc, or after the title ended) it plays the first title.
+`override` on a `title:` / `chapter:` button (`menu:<id>` \| `title:<id>` \| `stop`)
+replaces the end action of the title it plays, for that play only: titles
+can chain into each other for "play all" while each song button still
+returns to the menu.
 **Image buttons**: `image` (a picture, transparent PNG works best) replaces the
 label (then optional), drawn with its top-left at `x`/`y`; `width` on the
 720-wide grid (default: the picture's own width; the height follows its

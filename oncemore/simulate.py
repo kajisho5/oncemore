@@ -20,6 +20,8 @@ requests):
   menu_key    menu the Menu key opens during the current title (g3)
   remember    {menu id: last button used} for menus that remember it
   loops       times the current menu has played (g4)
+  override    end action replacing the playing title's own (a button's
+              `override`), None when there is none
   resume      {"title", "chapter", "button"} the Menu / Title key left, for resume
               buttons (the player's resume information; None once the
               title ended, as the resume flag register says)
@@ -72,7 +74,7 @@ class Simulator:
     def start(self):
         s = {"domain": "stopped", "menu": None, "button": 1, "title": None, "chapter": 0,
              "audio": 1, "subtitle": 0, "playall": 0, "playlist": 0, "item_end": 0,
-             "menu_key": None, "remember": {}, "loops": 0, "resume": None, "log": []}
+             "menu_key": None, "remember": {}, "loops": 0, "resume": None, "override": None, "log": []}
         sub = author.default_subtitle(self.p)
         if sub is not None:
             s["subtitle"] = sub + 1
@@ -123,6 +125,7 @@ class Simulator:
         self.note(s, "stop")
 
     def single(self, s):
+        s["override"] = None
         if self.p.uses_playall:
             s["playall"] = 0
         if self.p.uses_playlists:
@@ -130,6 +133,7 @@ class Simulator:
 
     def playlist_start(self, s, pid):
         state, _, _, item = next(x for x in self.states if x[1].id == pid)
+        s["override"] = None
         if self.p.uses_playall:
             s["playall"] = 0
         s["playlist"], s["item_end"] = state, item.last or 0
@@ -146,6 +150,7 @@ class Simulator:
             if self.p.uses_playlists:
                 s["playlist"] = s["item_end"] = 0
             s["playall"] = 1
+            s["override"] = None
             self.play(s, self.p.titles[0].id)
         elif kind == "title":
             self.single(s)
@@ -188,6 +193,11 @@ class Simulator:
         """The title has ended: playlist, then play all, then its end action."""
         t = self.p.title(s["title"])
         s["resume"] = None
+        if s.get("override"):
+            action, s["override"] = s["override"], None
+            self.note(s, f"override: {action}")
+            self.end_command(s, action)
+            return
         for state, pl, i, it in self.states:
             if it.title_id != t.id or s["playlist"] != state:
                 continue
@@ -217,6 +227,7 @@ class Simulator:
         if kind == "playlist":
             self.playlist_start(s, target)
         elif kind in ("title", "playall"):
+            s["override"] = None
             if self.p.uses_playlists:
                 s["playlist"] = s["item_end"] = 0
             if self.p.uses_playall:
@@ -301,6 +312,9 @@ class Simulator:
         if author.button_reg(m) and parse_action(g["action"])[0] not in ("audio", "subtitle"):
             s["remember"][m.id] = s["button"]
         self.menu_command(s, g["action"])
+        b = next((x for x in m.buttons if x.id == g["id"]), None)
+        if b is not None and b.override and parse_action(g["action"])[0] in ("title", "chapter"):
+            s["override"] = b.override
 
     def view(self, s):
         """What a viewer sees: (domain, menu id / title number, button / chapter)."""

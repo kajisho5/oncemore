@@ -376,6 +376,7 @@ class Button:
     highlight_image: str = None  # picture whose opaque pixels are the highlight
     width: int = None          # its width on the 720-wide grid (None = natural)
     highlight: str = "frame"   # image buttons: "frame" | "shape"
+    override: str = None       # end action of the title this button plays, instead of its own
 
 
 @dataclass
@@ -450,6 +451,12 @@ class Project:
             [b.action for m in self.menus for b in m.buttons] + \
             [m.end_action for m in self.menus if m.loop is not None]
         return "playall" in actions
+
+    @property
+    def overrides(self):
+        """End-action overrides used by buttons, in a fixed order (1-based
+        numbers in the override register)."""
+        return sorted({b.override for m in self.menus for b in m.buttons if b.override})
 
     @property
     def uses_resume(self):
@@ -778,7 +785,8 @@ class _Builder:
                           highlight_image=self.file(f"{where}.buttons[{j}].highlight_image",
                                                     b.get("highlight_image")),
                           **self.style(f"{where}.buttons[{j}]", b),
-                          width=b.get("width"), highlight=b.get("highlight", "frame"))
+                          width=b.get("width"), highlight=b.get("highlight", "frame"),
+                          override=b.get("override"))
                    for j, b in enumerate(m["buttons"])]
         for j, (b, spec) in enumerate(zip(buttons, m["buttons"])):
             if "thumbnail" in spec:
@@ -1010,6 +1018,11 @@ class _Builder:
                 else f"menu {m.id!r}"
             for j, b in enumerate(m.buttons):
                 check(f"{where}.buttons[{j}].action", b.action, allow_resume=True)
+                if b.override:
+                    if parse_action(b.action)[0] not in ("title", "chapter"):
+                        self.err(f"{where}.buttons[{j}].override",
+                                 "an override needs a title:... or chapter:... action")
+                    check(f"{where}.buttons[{j}].override", b.override)
             if m.loop is not None:
                 check(f"{where}.end_action", m.end_action)
         for i, pl in enumerate(project.playlists):
@@ -1029,10 +1042,14 @@ class _Builder:
                              "of them")
                 elif it.last == n:
                     it.last = None          # to the end: the title's own end
-        if project.uses_resume and project.titles:
+        if project.titles:
             from . import author
-            if author.resume_reg(project) is None:
+            if project.uses_resume and author.resume_reg(project) is None:
                 self.err("menus", "a resume button needs one free player register, and "
+                                  "this disc uses them all (fewer menus that remember "
+                                  "their last button would free one)")
+            if project.overrides and author.override_reg(project) is None:
+                self.err("menus", "end-action overrides need one free player register, and "
                                   "this disc uses them all (fewer menus that remember "
                                   "their last button would free one)")
         for kind, attr in (("audio", "audio_tracks"), ("subtitle", "subtitles")):

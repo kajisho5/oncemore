@@ -1407,7 +1407,7 @@ class TestGuiBrowser(unittest.TestCase):
 
     def test_thumbnails_chapter_menu_texts_subtitle_look(self):
         """Settings that used to be JSON only: a button's thumbnail, the
-        chapter menu's texts, the subtitle look."""
+        chapter menu's texts, the subtitle look; a button's end-action override."""
         with sync_playwright() as p:
             browser = self.launch(p)
             page = browser.new_page(viewport={"width": 1440, "height": 900}, locale="en-US")
@@ -1427,10 +1427,16 @@ class TestGuiBrowser(unittest.TestCase):
             self.assertEqual(self.project()["menus"][0]["buttons"][2]["thumbnail"]["time"], 2)
             page.locator(".stage .thumb-pv img").wait_for()
             self.assertTrue(page.locator("#th-anim").is_disabled())        # still menu
+            # end-action override: after title 2, the chapter menu
+            page.select_option("#inspector select[data-k=override]", "menu:chapters")
+            self.wait_saved(page)
+            self.assertEqual(self.project()["menus"][0]["buttons"][2]["override"], "menu:chapters")
             self.assertTrue(self.s.app.check(self.project())["valid"])
             page.select_option("#inspector select[data-k=action]", "menu:main")
             self.wait_saved(page)
-            self.assertNotIn("thumbnail", self.project()["menus"][0]["buttons"][2])
+            b = self.project()["menus"][0]["buttons"][2]
+            self.assertNotIn("thumbnail", b)
+            self.assertNotIn("override", b)                     # (only for title / chapter links)
             # the chapter menu's texts
             page.click(".nav-item[data-view=title][data-id=t1]")
             page.fill("#inspector [data-cm=back_label]", "RETURN")

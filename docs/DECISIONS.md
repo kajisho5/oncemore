@@ -775,3 +775,14 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
 * Fades between two particular menus (a dissolve from the menu you came
   from) would need a video per link; not done.
 
+## 50. End-action overrides
+
+* An override is per play, not per title, so it lives in a register: the
+  button stores the override's number (1 = the first distinct override in
+  the project), and each title's `<post>` checks it before anything else
+  and clears it, so a title it then jumps to ends normally.
+* Every other way of starting a title (title / chapter buttons without an
+  override, play all, playlists, menu time-outs, the Title key) clears it;
+  a resume keeps it, since it is the same play going on.
+* It takes the next free register after the resume flag. Discs without
+  overrides are unchanged.
