@@ -151,6 +151,7 @@ oncemore doctor                                # 外部ツールの有無・バ�
 | `first_play` | `menu:<id>` \| `title:<id>` | 最初のメニュー、無ければ最初のタイトル |
 | `font` | パス または `null` | 自動：ヒラギノ（macOS）→ Noto Sans CJK → DejaVu Sans |
 | `video_bitrate` | `"auto"` かビットレート（`"6M"`、`5500000`）、1〜8 Mbps | `auto` |
+| `subtitle_style` | 全字幕の `{size, color, outline, outline_width, margin}` | 30px（PAL 36）、白、黒縁 3px、下から 36px（PAL 43） |
 
 **titles[]**（1〜99）
 
@@ -163,6 +164,10 @@ oncemore doctor                                # 外部ツールの有無・バ�
 | `audio.codec` | `ac3` \| `lpcm` | `ac3` |
 | `audio.bitrate` | AC-3 のみ、64k〜448k | `192k` |
 | `end_action` | `menu:<id>` \| `title:<id>` \| `stop` | first_play のメニュー、無ければ `stop` |
+| `aspect` | このタイトルの `4:3` \| `16:9` | `disc.aspect` |
+| `audio.lang` | 音声（1 トラック時）の ISO 639-1 言語コード | なし |
+| `audio_tracks` | 1〜8 個の `{source?, stream?, lang?}`：複数音声（下記） | `source` の音声 1 本 |
+| `subtitles` | 32 個までの `{file, lang?, default?}` SRT ファイル（下記） | なし |
 | `auto_chapter_menu` | `true` またはオブジェクト（下記） | なし |
 
 `auto_chapter_menu` のオブジェクト：`id`（既定 `chapters_<タイトルid>`、2 ページ目以降は
@@ -178,16 +183,47 @@ oncemore doctor                                # 外部ツールの有無・バ�
 | `id` | 識別子 | 必須 |
 | `background` | 静止画 または `null` | `null` |
 | `background_color` | `#RRGGBB` | `#000000` |
-| `audio` | 音楽ファイル または `null` | 無音 |
-| `duration` | ループの長さ（秒） | BGM の長さ、無ければ 5 |
+| `background_video` | **モーションメニュー**用の動画（`background` より優先） | `null` |
+| `audio` | 音楽ファイル または `null` | 背景動画の音、無ければ無音 |
+| `duration` | ループの長さ（秒） | 動画／BGM の長さ（600 以下）、無ければ 5 |
 | `font_size`、`text_color` | テキスト・ボタンの既定値 | `32`、`#FFFFFF` |
 | `highlight_color`、`select_color` | ボタンの色 | `#FFD400`、`#FF5A00` |
 | `texts[]` | `{text, x, y, size?, color?}` 装飾テキスト | `[]` |
 | `buttons[]` | 1〜36 個 | 必須 |
 
 **buttons[]**：`id`、`label`、`x`、`y`（ラベルの左上）、`action`
-（`menu:<id>` \| `title:<id>` \| `chapter:<タイトルid>:<番号>` \| `stop`）、任意で
-`size`、`color`、自動ナビゲーションを上書きする `nav`（`{"up": id, "down": id, "left": id, "right": id}`）。
+（`menu:<id>` \| `title:<id>` \| `chapter:<タイトルid>:<番号>` \| `audio:<n>` \|
+`subtitle:<n>` \| `subtitle:off` \| `stop`）、任意で `size`、`color`、自動ナビゲーションを
+上書きする `nav`（`{"up": id, "down": id, "left": id, "right": id}`）。
+`audio:<n>` / `subtitle:<n>`（1 始まり）はストリームを切り替えてメニューに留まるので、
+「音声・字幕設定」メニューはこれらのボタンと BACK ボタンを並べるだけで作れます。
+
+### 複数音声と字幕
+
+```jsonc
+"titles": [{
+  "id": "t1", "source": "media/movie.mp4",
+  "audio": { "codec": "ac3", "bitrate": "192k" },          // 全トラック共通
+  "audio_tracks": [
+    { "lang": "ja" },                                       // source の音声ストリーム 0
+    { "source": "media/commentary.wav", "lang": "en" },     // 別ファイル
+    { "stream": 1, "lang": "fr" }                           // source の 2 本目の音声
+  ],
+  "subtitles": [
+    { "file": "media/ja.srt", "lang": "ja", "default": true },
+    { "file": "media/en.srt", "lang": "en" }
+  ]
+}]
+```
+
+* 各トラックは映像の長さに合わせて無音で埋める／切り詰めます。存在しないストリームは `validate` が報告します。
+* DVD はストリーム属性を titleset 単位で持つため、n 番目のストリームの言語はディスク全体で 1 つです
+  （タイトル間で `lang` を揃える必要があります）。
+* 字幕は SubRip（`.srt`、UTF-8 または Shift_JIS）。各字幕をメニューと同じフォントで
+  （白文字＋縁取り、`disc.subtitle_style` で変更可）描き、DVD の 4 色サブピクチャに減色して
+  spumux で多重化します。`<i>` や `{\an8}` などの装飾タグは除去し、時間が重なる字幕は前を短くします。
+* `"default": true` の字幕はディスク起動時に表示 ON になります（その後の視聴者の選択は保持）。
+  指定が無ければ字幕は OFF で始まります。
 
 **座標** はアスペクト比に関係なく DVD のピクセル（NTSC 720×480、PAL 720×576）です。
 文字は正方ピクセルのキャンバスに描いてから圧縮するので、16:9 でも横に伸びません。
@@ -212,6 +248,11 @@ dvdauthor XML ─dvdauthor─▶ VIDEO_TS ─hdiutil / genisoimage─▶ disc.is
 * **メニュー**はすべて 1 つの titleset に置き、ボタンからはメニュー・タイトル・チャプターへ直接ジャンプします。
   タイトルからはその titleset のルートメニューしか呼べないため、別のメニューへ戻るときは
   GPRM `g1` に行き先番号を入れてルートメニュー経由で振り分けます。
+* **titleset**：DVD は映像・音声の形式を titleset 単位で持つため、タイトルを（アスペクト比, 音声コーデック）で
+  自動的にグループ分けします。16:9 AC-3 のタイトルに 4:3 LPCM のタイトルを混ぜれば、後者は titleset 2 に入ります。
+  メニューは titleset 1 に置き、titleset をまたぐジャンプは dvdauthor の jumppad、別 titleset のタイトルから
+  メニューへの復帰は VMGM のトップメニュー経由です（その titleset について dvdauthor が
+  「creating a dummy menu」と出しますが想定どおりです）。
 * **ハイライト**は自前のエンコーダ（`zlib`＋`struct`）で書いた 2bit インデックス PNG を spumux に渡しています。
 
 ## 動作確認
@@ -236,12 +277,13 @@ DVD ナビゲーションライブラリ）でメニューのボタンを実際�
 * **書き込み** — macOS は Finder または `hdiutil burn demo.iso`、Linux は
   `growisofs -dvd-compat -Z /dev/dvd=demo.iso`。oncemore 自体は書き込みを行いません。
 
-## 既知の制限（フェーズ1）
+## 既知の制限
 
-* 静止メニューのみ（モーションメニュー・動画背景なし）。
-* 音声はステレオのみ（ダウンミックス）、1 トラック、字幕なし。
-* 全タイトルが 1 つの titleset に入るため、音声コーデックは全タイトル共通（すべて AC-3 か
-  すべて LPCM）、アスペクト比もディスクで 1 種類。
+* モーションメニューは動画 1 本のループのみ（アニメーションするボタンや遷移効果はなし）。
+* 音声はステレオのみ（ダウンミックス）。字幕は SRT のみ、ディスク全体で 1 スタイル、
+  下中央固定（字幕ごとの位置・色指定はなし）。
+* 音声・字幕の n 番目のストリームの言語はディスク全体で 1 つ。メニューのアスペクト比は
+  1 種類（`disc.aspect`）で、タイトルは個別に指定できます。
 * フレームレート変換は単純な間引き／複製（テレシネ／逆テレシネなし）。インターレース素材は
   デインターレースしてプログレッシブで出力。
 * `end_action` の連鎖以外の「全部再生して戻る」ロジックはなし。
@@ -251,8 +293,10 @@ DVD ナビゲーションライブラリ）でメニューのボタンを実際�
 * ハイライトは 2bit サブピクチャなので縁が硬い。フォントはディスク全体で 1 種類。
   drawtext にはフォールバックが無いため、全文字がそのフォントに含まれている必要があります。
   oncemore はフォントの文字マップを検査し、豆腐（空の箱）を描く前に停止します。絵文字は非対応。
-* `hdiutil` で作った ISO は ISO 9660 側にラベルが入りますが、libdvdnav 上のディスクタイトルは空になります
-  （macOS CI で確認。原因は未調査）。
+* `hdiutil` で作った ISO では、libdvdnav 系プレーヤー（VLC など）のディスク名メタデータが空になります。
+  libdvdnav はディスク名をセクタ 32 から直接読みますが（実 DVD と genisoimage はここに UDF の記述子を置く）、
+  hdiutil は別の位置に置くためです。UDF / ISO 9660 のボリューム名自体は正しく入っており（テストで確認）、
+  再生には影響しません。
 * コピーガードなし（設計方針として今後も入れません）。
 
 ## ライセンス

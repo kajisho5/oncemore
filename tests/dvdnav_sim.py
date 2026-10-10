@@ -71,6 +71,11 @@ def _declare(lib):
         "dvdnav_is_domain_fp": (ctypes.c_int8, [P]),
         "dvdnav_get_number_of_titles": (ctypes.c_int, [P, i32p]),
         "dvdnav_get_number_of_parts": (ctypes.c_int, [P, ctypes.c_int32, i32p]),
+        "dvdnav_get_active_audio_stream": (ctypes.c_int8, [P]),
+        "dvdnav_get_active_spu_stream": (ctypes.c_int8, [P]),
+        "dvdnav_audio_stream_to_lang": (ctypes.c_uint16, [P, ctypes.c_uint8]),
+        "dvdnav_spu_stream_to_lang": (ctypes.c_uint16, [P, ctypes.c_uint8]),
+        "dvdnav_get_title_string": (ctypes.c_int, [P, ctypes.POINTER(ctypes.c_char_p)]),
     }
     for name, (res, args) in sigs.items():
         fn = getattr(lib, name)
@@ -162,6 +167,24 @@ class DvdSim:
         n = ctypes.c_int32()
         self.lib.dvdnav_get_number_of_parts(self.h, title, ctypes.byref(n))
         return n.value
+
+    def active_audio(self):
+        return self.lib.dvdnav_get_active_audio_stream(self.h)
+
+    def active_subtitle(self):
+        """(stream, shown): physical subpicture stream and whether it is displayed."""
+        v = self.lib.dvdnav_get_active_spu_stream(self.h) & 0xFF
+        return (v & 0x7F, not v & 0x80)
+
+    @staticmethod
+    def _lang(code):
+        return None if code in (0, 0xFFFF) else chr(code >> 8) + chr(code & 0xFF)
+
+    def audio_lang(self, stream):
+        return self._lang(self.lib.dvdnav_audio_stream_to_lang(self.h, stream))
+
+    def subtitle_lang(self, stream):
+        return self._lang(self.lib.dvdnav_spu_stream_to_lang(self.h, stream))
 
     # -- driving ---------------------------------------------------------------
     def run_until(self, pred, max_events=2_000_000):

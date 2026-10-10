@@ -155,6 +155,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `first_play` | `menu:<id>` \| `title:<id>` | first menu, else first title |
 | `font` | path or `null` | auto: Hiragino (macOS) → Noto Sans CJK → DejaVu Sans |
 | `video_bitrate` | `"auto"` or bitrate (`"6M"`, `5500000`), 1–8 Mbit/s | `auto` |
+| `subtitle_style` | `{size, color, outline, outline_width, margin}` for all subtitles | 30 px (PAL 36), white, black outline 3 px, 36 px (PAL 43) from the bottom |
 
 **titles[]** (1–99)
 
@@ -167,6 +168,10 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `audio.codec` | `ac3` \| `lpcm` | `ac3` |
 | `audio.bitrate` | AC-3 only, 64k–448k | `192k` |
 | `end_action` | `menu:<id>` \| `title:<id>` \| `stop` | first-play menu, else `stop` |
+| `aspect` | `4:3` \| `16:9` for this title | `disc.aspect` |
+| `audio.lang` | ISO 639-1 code of the (single) audio track | none |
+| `audio_tracks` | 1–8 `{source?, stream?, lang?}`: several audio streams (below) | one track from `source` |
+| `subtitles` | up to 32 `{file, lang?, default?}` SRT files (below) | none |
 | `auto_chapter_menu` | `true` or object (below) | off |
 
 `auto_chapter_menu` object: `id` (default `chapters_<title id>`; extra pages get
@@ -183,17 +188,49 @@ with PREV/NEXT buttons when there are more.
 | `id` | identifier | required |
 | `background` | still image or `null` | `null` |
 | `background_color` | `#RRGGBB` | `#000000` |
-| `audio` | music file or `null` | silence |
-| `duration` | loop length, seconds | music length, else 5 |
+| `background_video` | video file for a **motion menu** (overrides `background`) | `null` |
+| `audio` | music file or `null` | the background video's sound, else silence |
+| `duration` | loop length, seconds | video / music length (≤ 600), else 5 |
 | `font_size`, `text_color` | defaults for texts/buttons | `32`, `#FFFFFF` |
 | `highlight_color`, `select_color` | button colours | `#FFD400`, `#FF5A00` |
 | `texts[]` | `{text, x, y, size?, color?}` decorative text | `[]` |
 | `buttons[]` | 1–36 buttons | required |
 
 **buttons[]**: `id`, `label`, `x`, `y` (top-left of the label), `action`
-(`menu:<id>` \| `title:<id>` \| `chapter:<title id>:<n>` \| `stop`), optional
-`size`, `color`, and `nav` (`{"up": id, "down": id, "left": id, "right": id}`)
-to override the automatic navigation.
+(`menu:<id>` \| `title:<id>` \| `chapter:<title id>:<n>` \| `audio:<n>` \|
+`subtitle:<n>` \| `subtitle:off` \| `stop`), optional `size`, `color`, and `nav`
+(`{"up": id, "down": id, "left": id, "right": id}`) to override the automatic
+navigation. `audio:<n>` / `subtitle:<n>` (1-based) select a stream and stay on
+the menu, so a "setup" menu is just a few of these buttons plus a BACK button.
+
+### Audio tracks and subtitles
+
+```jsonc
+"titles": [{
+  "id": "t1", "source": "media/movie.mp4",
+  "audio": { "codec": "ac3", "bitrate": "192k" },          // applies to every track
+  "audio_tracks": [
+    { "lang": "ja" },                                       // stream 0 of `source`
+    { "source": "media/commentary.wav", "lang": "en" },     // another file
+    { "stream": 1, "lang": "fr" }                           // 2nd audio stream of `source`
+  ],
+  "subtitles": [
+    { "file": "media/ja.srt", "lang": "ja", "default": true },
+    { "file": "media/en.srt", "lang": "en" }
+  ]
+}]
+```
+
+* Tracks are padded with silence / cut to the video length; a missing stream
+  is reported by `validate`.
+* Stream *n* has one language for the whole disc (DVD stores stream attributes
+  per titleset), so `lang` must agree between titles.
+* Subtitles are SubRip (`.srt`, UTF-8 or Shift_JIS). Each cue is drawn with the
+  menu font (white with an outline, see `disc.subtitle_style`), reduced to a
+  4-colour DVD subpicture and muxed with spumux. `<i>`/`{\an8}` style tags are
+  removed; overlapping cues are shortened.
+* `"default": true` turns that subtitle stream on when the disc starts
+  (players keep the viewer's later choice). Without it subtitles start off.
 
 **Coordinates** are DVD pixels: 720 × 480 (NTSC) or 720 × 576 (PAL), whatever
 the aspect ratio. oncemore draws text on a square-pixel canvas and squeezes it,
@@ -220,6 +257,12 @@ dvdauthor XML ─dvdauthor─▶ VIDEO_TS ─hdiutil / genisoimage─▶ disc.is
 * **Menus** all live in one titleset; buttons jump straight to menus, titles and
   chapters. A title can only *call* its titleset's root menu, so returning to
   another menu goes through the root menu with the target number in GPRM `g1`.
+* **Titlesets**: DVD stores one video/audio format per titleset, so titles are
+  grouped by (aspect, audio codec) automatically; a 4:3 LPCM title next to 16:9
+  AC-3 ones simply lands in titleset 2. Menus stay in titleset 1, jumps across
+  titlesets use dvdauthor jumppads, and a title in another titleset returns to
+  a menu through the VMGM top menu (dvdauthor then notes "creating a dummy
+  menu" for that titleset, which is expected).
 * **Highlights** are 2-bit indexed PNGs written by oncemore's own encoder
   (`zlib` + `struct`), handed to spumux.
 
@@ -247,12 +290,13 @@ By hand:
 * **Burning** — on macOS, Finder/`hdiutil burn demo.iso`; on Linux,
   `growisofs -dvd-compat -Z /dev/dvd=demo.iso`. Not part of oncemore.
 
-## Known limitations (phase 1)
+## Known limitations
 
-* Still menus only (no motion menus or video backgrounds); one loop length per menu.
-* Stereo audio only (sources are down-mixed); one audio track; no subtitles.
-* All titles share one titleset, so they must use the same audio codec
-  (all AC-3 or all LPCM) and the disc has one aspect ratio.
+* Motion menus loop one video; there are no animated buttons or transitions.
+* Stereo audio only (sources are down-mixed). Subtitles: SRT only, one style
+  per disc, bottom-centred; no positioning or colours per cue.
+* Audio/subtitle stream *n* has one language for the whole disc. Menus have
+  one aspect ratio (`disc.aspect`); titles may differ.
 * Frame-rate conversion is plain frame dropping/duplication (no telecine/IVTC);
   interlaced sources are deinterlaced and the output is progressive.
 * No "play all then return" logic beyond `end_action` chains.
@@ -264,8 +308,11 @@ By hand:
   Every character must exist in that font (drawtext has no fallback); oncemore
   checks the font's character map and stops instead of drawing empty boxes.
   Emoji are not supported.
-* Images written by `hdiutil` carry the label in ISO 9660, but libdvdnav shows
-  an empty disc title for them (seen on macOS CI; not yet investigated).
+* With `hdiutil` images, libdvdnav-based players (e.g. VLC) show no disc
+  *title metadata*: libdvdnav reads the title raw from sector 32, where real
+  DVDs and genisoimage keep the UDF volume descriptor, and hdiutil puts it
+  elsewhere. The UDF and ISO 9660 volume names themselves are correct
+  (checked by the tests); playback is unaffected.
 * No copy protection (by design, permanently).
 
 ## License

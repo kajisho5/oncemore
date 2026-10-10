@@ -116,6 +116,59 @@ class TestAuthorXml(unittest.TestCase):
         self.assertIn('format="pcm"', x)
         self.assertNotIn("widescreen", x)
 
+    def test_streams_and_switch_buttons(self):
+        d = sample_project()
+        d["titles"][0]["audio_tracks"] = [{"lang": "ja"}, {"source": "c.wav", "lang": "en"}]
+        d["titles"][0]["subtitles"] = [{"file": "en.srt", "lang": "en"},
+                                       {"file": "ja.srt", "lang": "ja", "default": True}]
+        d["menus"][0]["buttons"] += [
+            {"id": "a2", "label": "A2", "x": 400, "y": 220, "action": "audio:2"},
+            {"id": "s1", "label": "S1", "x": 400, "y": 280, "action": "subtitle:1"},
+            {"id": "so", "label": "OFF", "x": 400, "y": 340, "action": "subtitle:off"}]
+        p = build_project(d, "/v/project.oncemore.json", check_files=False)
+        x = author.build_xml(p, {"main": "m", "chapters": "c"}, {"t1": "a", "t2": "b"}, "/o")
+        self.assertIn('<audio format="ac3" channels="2" lang="ja"/>', x)
+        self.assertIn('<audio format="ac3" channels="2" lang="en"/>', x)
+        self.assertLess(x.index('<subpicture lang="en"/>'), x.index('<subpicture lang="ja"/>'))
+        self.assertIn('<button name="a2">audio = 1;</button>', x)
+        self.assertIn('<button name="s1">subtitle = 64;</button>', x)
+        self.assertIn('<button name="so">subtitle = 0;</button>', x)
+        self.assertIn("<fpc>subtitle = 65; g1 = 0; jump titleset 1 menu entry root;</fpc>", x)
+
+    def test_multiple_titlesets(self):
+        d = sample_project()
+        d["titles"][1].update({"aspect": "4:3", "audio": {"codec": "lpcm"},
+                               "end_action": "menu:chapters"})
+        d["titles"][0]["end_action"] = "title:t2"
+        d["menus"][0]["buttons"].append({"id": "b2", "label": "B2", "x": 400, "y": 220,
+                                         "action": "chapter:t2:1"})
+        p = build_project(d, "/v/project.oncemore.json", check_files=False)
+        x = author.build_xml(p, {"main": "m", "chapters": "c"}, {"t1": "a", "t2": "b"}, "/o")
+        self.assertIn('<dvdauthor dest="/o" jumppad="yes">', x)
+        self.assertEqual(x.count("<titleset>"), 2)
+        self.assertIn('<button name="b">jump titleset 2 title 1;</button>', x)
+        self.assertIn('<button name="b2">jump titleset 2 title 1 chapter 1;</button>', x)
+        self.assertIn("<post>jump titleset 2 title 1;</post>", x)                  # t1 -> t2
+        self.assertIn("<post>g1 = 2; call vmgm menu entry title;</post>", x)       # t2 -> menu 2
+        self.assertIn('<pgc entry="title"><pre>jump titleset 1 menu entry root;</pre></pgc>', x)
+        self.assertIn('<video format="ntsc" aspect="4:3"/>', x)
+        self.assertIn('<audio format="pcm"', x)
+        import xml.dom.minidom
+        xml.dom.minidom.parseString(x)
+
+    def test_audio_graph(self):
+        d = sample_project()
+        d["titles"][0]["audio_tracks"] = [{}, {"source": "c.wav", "stream": 1}, {"stream": 3}]
+        p = build_project(d, "/v/project.oncemore.json", check_files=False)
+        t = p.titles[0]
+        probes = {t.source: {"audio_streams": 1}, t.audio_tracks[1].source: {"audio_streams": 2}}
+        extra, graph, labels = encode.audio_graph(t, probes)
+        self.assertEqual(extra, ["-i", t.audio_tracks[1].source])
+        self.assertEqual(graph.split(";"), ["[0:a:0]aresample=48000,apad[a0]",
+                                             "[1:a:1]aresample=48000,apad[a1]",
+                                             "anullsrc=channel_layout=stereo:sample_rate=48000[a2]"])
+        self.assertEqual(labels, ["[a0]", "[a1]", "[a2]"])
+
     def test_xml_is_well_formed(self):
         import xml.dom.minidom
         xml.dom.minidom.parseString(self.xml)

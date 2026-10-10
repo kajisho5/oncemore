@@ -13,9 +13,8 @@ number in `g1` before `call menu entry root;`. The root menu's `<pre>`
 dispatches on `g1` and clears it. First play and the VMGM title menu use the
 same mechanism. Verified with libdvdnav and VLC.
 
-Consequence: all titles share one audio format and the disc has a single aspect
-ratio. Mixed audio codecs are rejected by `validate` with a clear message
-rather than silently transcoded. Multiple titlesets are phase 3.
+Consequence (phase 1): all titles shared one audio format and aspect ratio.
+Lifted in §20.
 
 ## 2. ISO backend order: hdiutil → genisoimage → mkisofs → xorriso
 
@@ -160,3 +159,61 @@ the frame count and first-frame pointer of every LPCM packet in place from the
 packet's byte position in its stream. The decoded audio is bit-identical
 before and after, and dvdauthor reports no warnings; the PAL/LPCM E2E test
 now asserts an empty warning list.
+## 16. The empty disc title with hdiutil images is libdvdnav's, not the ISO's
+
+macOS CI showed libdvdnav logging an empty "DVD Title" for hdiutil images.
+Reading the image back (`udfinfo.py`) shows the UDF Primary Volume Descriptor
+and the ISO 9660 descriptor both carry the label. libdvdnav's `dvd_read_name`
+(src/vm/vm.c) reads the title raw from sector 32, where physical DVDs and
+genisoimage place the UDF Main Volume Descriptor Sequence; hdiutil places it
+elsewhere. Only the title *metadata* in libdvdnav players is affected, so
+oncemore leaves hdiutil as the macOS default and documents it. `iso` still
+warns if the UDF volume name ever differs from the label.
+
+## 17. Subtitles are rendered by oncemore, not by spumux's text mode
+
+spumux can render text subtitles itself, but with its own font handling and
+no outline control. Drawing each cue with the same drawtext pipeline as the
+menus gives the same font (with the cmap coverage check, so Japanese never
+turns into boxes), a proper outline, and correct proportions on 16:9 discs.
+The RGBA result is reduced to transparent / fill / outline / anti-alias,
+cropped, and placed with spumux `xoffset`/`yoffset`. Cues are rendered in
+parallel (about 80 ms each).
+
+## 18. Stream defaults are disc-wide and set once at first play
+
+DVD subtitle/audio selection lives in SPRM 1/2, shared by every title. Setting
+it in each title's `<pre>` would override what the viewer picked in a setup
+menu, so a `"default": true` subtitle is switched on once in the first-play
+program instead. Stream languages are per titleset, hence per disc here, and
+`validate` rejects titles that disagree.
+
+## 19. Motion menus reuse the still-menu graph
+
+The menu drawing graph (background → thumbnails → drawtext → squeeze) is
+shared: for a still menu it renders one PNG which is then looped, for a motion
+menu the same graph runs over every frame of the video (converted to the disc
+frame rate, last frame held if `duration` is longer). Highlights are the same
+spumux subpicture, so navigation is unchanged.
+
+## 20. Several titlesets, grouped automatically
+
+Titles are grouped by (aspect, audio codec) in project order; the first
+title's group is titleset 1 and keeps all menus, so single-format projects
+produce exactly the phase-1 structure (no jumppad). With more groups:
+
+* buttons use `jump titleset N title K [chapter C]` and dvdauthor's
+  `jumppad="yes"` builds the VMGM routing (verified with libdvdnav, including
+  a chapter of a title in titleset 2);
+* a title outside titleset 1 cannot CallSS titleset 1's menus, so it stores
+  the target menu in g1 and calls the VMGM title menu, which jumps to
+  titleset 1's root menu where the existing g1 dispatcher takes over. For
+  that the VMGM title menu no longer clears g1 in multi-titleset discs (the
+  dispatcher clears it after use, so the remote's Top Menu still lands on
+  the root menu);
+* each titleset gets its own `<video>`/`<audio>`/`<subpicture>` attributes;
+  chapter-menu thumbnails are fitted from the title's own aspect into the
+  menu's thumbnail box (a 4:3 title is pillarboxed in a 16:9 menu).
+
+dvdauthor warns "The use of jumppad requires a menu; creating a dummy ENGLISH
+menu" for titlesets without menus; that is expected and harmless.

@@ -21,6 +21,7 @@ MUX_OVERHEAD = 0.03          # MPEG program-stream / NAV pack overhead
 DISC_SAFETY = 0.02           # keep 2 % of the disc free
 IFO_RESERVE = 4 * 1024 * 1024
 MENU_VIDEO_BPS = 4_000_000   # still menus; real size is usually far smaller
+MOTION_MENU_VIDEO_BPS = 6_000_000
 MENU_AUDIO_BPS = 192_000
 
 
@@ -46,6 +47,7 @@ def probe(path):
     a = next((s for s in streams if s.get("codec_type") == "audio"), None)
     fmt = info.get("format", {})
     out = {"path": path, "has_video": v is not None, "has_audio": a is not None,
+           "audio_streams": sum(1 for s in streams if s.get("codec_type") == "audio"),
            "duration": _float(fmt.get("duration")) or (_float(v.get("duration")) if v else None),
            "format": fmt.get("format_name")}
     if v:
@@ -226,26 +228,59 @@ LPCM_FRAME_FILTER = ("aresample=48000,aformat=sample_fmts=s16:channel_layouts=st
                      "asetnsamples=n=80:p=0")
 
 
-def audio_args(codec, bitrate):
+def audio_args(codec, bitrate, framing=True):
+    """Encoder options. `framing=False` when the LPCM framing filter is
+    already part of a -filter_complex chain (-af cannot be combined)."""
     if codec == "lpcm":
-        return ["-c:a", "pcm_s16be", "-ar", "48000", "-ac", "2", "-af", LPCM_FRAME_FILTER]
+        return ["-c:a", "pcm_s16be", "-ar", "48000", "-ac", "2"] + \
+            (["-af", LPCM_FRAME_FILTER] if framing else [])
     return ["-c:a", "ac3", "-b:a", str(bitrate), "-ar", "48000", "-ac", "2"]
 
 
+def audio_graph(title, probes):
+    """Inputs and filter_complex mapping every audio track of a title.
+
+    Returns (extra_input_args, filter_complex, [output labels]). Input 0 is
+    the title source; other sources are appended. Tracks whose stream does not
+    exist (a source without audio) become silence; every track is padded so
+    the output can be cut to the video length with -t.
+    """
+    sources = [title.source]
+    for tr in title.audio_tracks:
+        if tr.source not in sources:
+            sources.append(tr.source)
+    extra = []
+    for src in sources[1:]:
+        extra += ["-i", src]
+    chains, labels = [], []
+    for k, tr in enumerate(title.audio_tracks):
+        idx = sources.index(tr.source)
+        have = probes[tr.source].get("audio_streams", 0)
+        if tr.stream < have:
+            chain = f"[{idx}:a:{tr.stream}]aresample=48000,apad"
+        else:
+            chain = "anullsrc=channel_layout=stereo:sample_rate=48000"
+        if title.audio_codec == "lpcm":
+            chain += "," + LPCM_FRAME_FILTER
+        chains.append(f"{chain}[a{k}]")
+        labels.append(f"[a{k}]")
+    return extra, ";".join(chains), labels
+
+
 def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
-                 on_progress=None):
+                 on_progress=None, probes=None):
     """Encode one title to a DVD-compliant MPEG-2 program stream."""
     if not info.get("has_video"):
         raise OncemoreError(f"title {title.id!r}: {title.source} has no video stream")
     duration = info["duration"]
     target = "ntsc-dvd" if disc.standard == "NTSC" else "pal-dvd"
-    inputs = ["-i", title.source]
-    if info.get("has_audio"):
-        amap = ["-map", "0:a:0"]
-    else:
-        inputs += ["-f", "lavfi", "-t", f"{duration:.3f}", "-i",
-                   "anullsrc=channel_layout=stereo:sample_rate=48000"]
-        amap = ["-map", "1:a:0"]
+    probes = dict(probes or {})
+    probes.setdefault(title.source, info)
+    extra, graph, labels = audio_graph(title, probes)
+    inputs = ["-i", title.source] + extra
+    amap = ["-filter_complex", graph]
+    for lab in labels:
+        amap += ["-map", lab]
     keys, _ = chapter_points(title.chapters, disc.fps)
     keyframes = ",".join(f"{t:.6f}" for t in keys)
     video = ["-map", "0:v:0", "-vf", fit_filter(info, disc), "-target", target,
@@ -269,17 +304,22 @@ def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
                    duration, os.path.join(logdir, f"title-{title.id}-pass1.log"), prog(0),
                    cwd=work, what=f"ffmpeg (title {title.id}, pass 1)")
         video += ["-pass", "2", "-passlogfile", passlog]
-    run_ffmpeg(inputs + video + amap + audio_args(title.audio_codec, title.audio_bitrate)
-               + ["-shortest", out_path],
+    run_ffmpeg(inputs + video + amap + audio_args(title.audio_codec, title.audio_bitrate,
+                                                  framing=False)
+               + ["-t", f"{duration:.3f}", out_path],
                duration, os.path.join(logdir, f"title-{title.id}.log"), prog(passes - 1),
                cwd=work, what=f"ffmpeg (title {title.id})")
     return out_path
 
 
 def extract_thumbnail(source, info, disc, time, size, out_path, log):
-    """Grab one frame at `time`, formatted like the encoded title, scaled to size."""
+    """Grab one frame at `time`, formatted like the encoded title (`disc` =
+    the title's settings), and fit it into a `size` box of square pixels."""
     t = max(0.0, min(time, (info.get("duration") or time + 1) - 0.2))
-    vf = fit_filter(info, disc, fps=False) + f",scale={size[0]}:{size[1]},setsar=1"
+    w, h = size
+    vf = (fit_filter(info, disc, fps=False) +
+          f",scale=iw*sar:ih,setsar=1,scale={w}:{h}:force_original_aspect_ratio=decrease,"
+          f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1")
     tools.run([tools.find("ffmpeg"), "-hide_banner", "-nostdin", "-y", "-ss", f"{t:.3f}",
                "-i", source, "-frames:v", "1", "-vf", vf, out_path], log=log,
               what="ffmpeg (thumbnail)")

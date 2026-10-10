@@ -178,13 +178,24 @@ class TestProject(unittest.TestCase):
         self.assertIn("no title with id 'zz'", msg)
         self.assertIn("no button 'ghost'", msg)
 
-    def test_duplicate_ids_and_mixed_audio(self):
+    def test_duplicate_ids(self):
         d = copy.deepcopy(self.data)
         d["titles"][1]["id"] = "t1"
-        d["titles"][1]["audio"] = {"codec": "lpcm"}
-        msg = self.errors(d)
-        self.assertIn("duplicate id 't1'", msg)
-        self.assertIn("same audio codec", msg)
+        self.assertIn("duplicate id 't1'", self.errors(d))
+
+    def test_titlesets_by_aspect_and_codec(self):
+        d = copy.deepcopy(self.data)
+        d["titles"].append({"id": "t3", "source": "c.mp4", "aspect": "4:3"})
+        d["titles"].append({"id": "t4", "source": "d.mp4", "audio": {"codec": "lpcm"}})
+        d["titles"].append({"id": "t5", "source": "e.mp4"})
+        p = build(d)
+        got = [(t.id, t.titleset, t.number, t.global_number, t.aspect) for t in p.titles]
+        self.assertEqual(got, [("t1", 1, 1, 1, "16:9"), ("t2", 1, 2, 2, "16:9"),
+                               ("t3", 2, 1, 4, "4:3"), ("t4", 3, 1, 5, "16:9"),
+                               ("t5", 1, 3, 3, "16:9")])
+        self.assertEqual(p.titleset_count, 3)
+        self.assertEqual(p.disc_for(p.title("t3")).aspect, "4:3")
+        self.assertEqual(p.disc.aspect, "16:9")
 
     def test_chapter_order_and_range(self):
         d = copy.deepcopy(self.data)
@@ -222,6 +233,54 @@ class TestProject(unittest.TestCase):
         paths = [i["path"] for i in cm.exception.issues]
         self.assertIn("titles[0].source", paths)
         self.assertIn("menus[0].background", paths)
+
+    def test_audio_tracks_and_subtitles(self):
+        d = copy.deepcopy(self.data)
+        d["titles"][0]["audio_tracks"] = [{"lang": "ja"}, {"source": "c.wav", "stream": 1,
+                                                           "lang": "en"}]
+        d["titles"][0]["subtitles"] = [{"file": "ja.srt", "lang": "ja", "default": True},
+                                       {"file": "en.srt", "lang": "en"}]
+        d["titles"][1]["subtitles"] = [{"file": "b.srt"}]
+        d["menus"][0]["buttons"].append({"id": "a2", "label": "A2", "x": 400, "y": 220,
+                                         "action": "audio:2"})
+        d["menus"][0]["buttons"].append({"id": "so", "label": "OFF", "x": 400, "y": 280,
+                                         "action": "subtitle:off"})
+        p = build(d)
+        t = p.titles[0]
+        self.assertEqual([(os.path.basename(a.source), a.stream, a.lang) for a in t.audio_tracks],
+                         [("sample_a.mp4", 0, "ja"), ("c.wav", 1, "en")])
+        self.assertEqual(t.audio_bps, 2 * 192_000)
+        self.assertEqual(p.titles[1].audio_bps, 192_000)
+        self.assertEqual(p.audio_langs, ["ja", "en"])
+        self.assertEqual(p.subtitle_langs, ["ja", "en"])   # title 2's unnamed stream 1 is ja
+        self.assertTrue(t.subtitles[0].default)
+        self.assertEqual(P.parse_action("audio:2"), ("audio", None, 2))
+        self.assertEqual(P.parse_action("subtitle:off"), ("subtitle", None, 0))
+
+    def test_stream_errors(self):
+        d = copy.deepcopy(self.data)
+        d["titles"][0]["subtitles"] = [{"file": "a.srt", "lang": "ja", "default": True},
+                                       {"file": "b.srt", "lang": "en", "default": True}]
+        d["titles"][1]["subtitles"] = [{"file": "c.srt", "lang": "fr"}]
+        d["titles"][1]["audio_tracks"] = [{"lang": "en"}]
+        d["titles"][0]["audio"] = {"codec": "lpcm"}
+        d["titles"][1]["audio"] = {"codec": "lpcm"}
+        d["titles"][0]["audio_tracks"] = [{"lang": "ja"}] * 6
+        d["menus"][0]["buttons"][0]["action"] = "subtitle:3"
+        msg = self.errors(d)
+        self.assertIn("only one subtitle track can be the default", msg)
+        self.assertIn("subtitle stream 1 is 'ja' in another title", msg)
+        self.assertIn("audio stream 1 is 'ja' in another title", msg)
+        self.assertIn("6 lpcm tracks need 9.22 Mbit/s", msg)
+        self.assertIn("no subtitle stream 3", msg)
+
+    def test_subtitle_style_defaults(self):
+        self.assertEqual(build(self.data).disc.subtitle_style["size"], 30)
+        d = copy.deepcopy(self.data)
+        d["disc"]["standard"] = "PAL"
+        d["disc"]["subtitle_style"] = {"color": "#FFFF00"}
+        st = build(d).disc.subtitle_style
+        self.assertEqual((st["size"], st["color"], st["margin"]), (36, "#FFFF00", 43))
 
     def test_invalid_json_file(self):
         import tempfile
