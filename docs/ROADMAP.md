@@ -3,6 +3,58 @@
 oncemore is built in layers: a scriptable core (this repository, phase 1) with a
 stable project format and machine-readable CLI output, and user interfaces on top.
 
+## Parity with professional DVD authoring tools
+
+Goal: everything a disc made with the classic professional authoring apps
+(the ones Mac users relied on until they were discontinued) can do on a
+DVD-Video, oncemore can do too — without copying their names, files or look.
+Each milestone is one pull request with tests (unit, libdvdnav navigation,
+browser) and lands only with green CI.
+
+**P1 — Menu timing and the remote control** (done)
+- [x] Menu loop count (`loop`: forever or *n*), loop point for motion menus
+  (intro once, then loop from *t*), and a menu end action after the last loop
+  (timeout to a title / menu / play all)
+- [x] Default button per menu; each menu remembers the last button used
+- [x] Auto-activate buttons (selecting runs them)
+- [x] Menu key target per title, Title (top menu) key target per disc; the Menu
+  key also works in titles outside the first titleset
+
+**P2 — Playlists and chapters**
+- [ ] Playlists: any sequence of titles and chapter ranges with their own end
+  action, reachable from buttons (`playlist:<id>`)
+- [ ] Chapter names and poster frames, used by chapter menus
+
+**P3 — Menu design**
+- [ ] Text styles: font per element, outline / shadow; decorative rectangles
+- [ ] Editor: multi-select, align / distribute, snapping guides, arrow-key
+  nudge, duplicate / copy-paste
+- [ ] Custom highlight layers (a picture whose pixels are the highlight)
+- [ ] Menu templates (main, scene selection, setup) to start from
+- [ ] Animated (video) thumbnail buttons in motion menus
+
+**P4 — Content and encoding**
+- [ ] Slideshows: pictures with durations, cross-fades, pan & zoom, music
+- [ ] Subtitle editing in the app; WebVTT / ASS input; per-cue position and colour
+- [ ] Encode cache (unchanged titles and menus are not re-encoded) and
+  per-title quality (bitrate) settings
+- [ ] Interlaced output for interlaced sources; soft 3:2 pulldown for 23.976p film
+- [ ] AC-3 pass-through
+- [ ] DVD-ROM content (extra files next to VIDEO_TS on the disc)
+
+**P5 — Seeing and checking the whole disc**
+- [ ] Flowchart of the navigation (menus, titles, playlists and their links)
+- [ ] Project check: unreachable titles / menus, dead ends, missing end actions
+- [ ] Disc simulator in the app: a remote control that drives menus,
+  highlights, titles and end actions before anything is encoded
+
+**P6 — Bringing existing designs**
+- [ ] Layered PSD menus using the common layer-name convention (button layer
+  groups, highlight layers, thumbnail placeholders)
+
+Not planned: copy protection of any kind (never); DDP masters. Multi-angle
+titles are left for later.
+
 ## Phase 1 — core CLI and project format (done)
 
 * `project.oncemore.json` + JSON Schema

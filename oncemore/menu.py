@@ -209,6 +209,7 @@ class ButtonGeom:
     shape: list            # list of Mask objects + rects drawn in highlight colour
     action: str
     nav: dict = field(default_factory=dict)
+    auto: bool = False     # auto-activate: runs as soon as it is selected
 
 
 @dataclass
@@ -356,7 +357,8 @@ class MenuBuilder:
                 x1, y1 = min(W - 1, x1 + 2), min(H - 2, y1 + 2)
                 y0 -= y0 % 2
                 y1 += y1 % 2
-                geoms.append(ButtonGeom(b.id, (x0, y0, x1, y1), shapes, b.action))
+                geoms.append(ButtonGeom(b.id, (x0, y0, x1, y1), shapes, b.action,
+                                        auto=b.auto_activate))
                 continue
             mask = self.measure(menu.id, b)
             x0, y0, x1, y1 = mask.bbox()
@@ -375,7 +377,8 @@ class MenuBuilder:
             x1, y1 = min(W - 1, x1 + 6), min(H - 2, y1 + 4)
             y0 -= y0 % 2
             y1 += y1 % 2
-            geoms.append(ButtonGeom(b.id, (x0, y0, x1, y1), shapes, b.action))
+            geoms.append(ButtonGeom(b.id, (x0, y0, x1, y1), shapes, b.action,
+                                    auto=b.auto_activate))
         for i, a in enumerate(geoms):
             for b in geoms[i + 1:]:
                 if a.rect[0] < b.rect[2] and b.rect[0] < a.rect[2] and \
@@ -509,7 +512,8 @@ class MenuBuilder:
         for g in assets.buttons:
             x0, y0, x1, y1 = g.rect
             nav = " ".join(f'{d}={quoteattr(g.nav[d])}' for d in navigation.DIRECTIONS)
-            lines.append(f'      <button name={quoteattr(g.id)} x0="{x0}" y0="{y0}" '
+            tag = "action" if g.auto else "button"     # <action>: auto-action button
+            lines.append(f'      <{tag} name={quoteattr(g.id)} x0="{x0}" y0="{y0}" '
                          f'x1="{x1}" y1="{y1}" {nav}/>')
         lines += ["    </spu>", "  </stream>", "</subpictures>", ""]
         path = os.path.join(self.work, f"{assets.menu_id}.spumux.xml")
@@ -550,6 +554,9 @@ class MenuBuilder:
                  "-b:v", str(vbps), "-maxrate", "8000000", "-bufsize", "1835008"]
         args += encode._color_args(self.disc)
         args += encode.audio_args("ac3", 192_000) + ["-t", f"{dur:.3f}"]
+        if menu.loop_point:
+            # repeats start at a cell boundary, which needs a GOP (VOBU) there
+            args += ["-force_key_frames", f"{menu.loop_point:.3f}"]
         raw = os.path.join(self.work, f"{menu.id}.raw.mpg")
         encode.run_ffmpeg(args + [os.path.basename(raw)], dur,
                           os.path.join(self.logs, f"menu-{menu.id}.log"), on_progress,

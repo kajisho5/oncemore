@@ -1,3 +1,4 @@
+import json
 import unittest
 
 from oncemore import author, encode
@@ -85,16 +86,17 @@ class TestAuthorXml(unittest.TestCase):
 
     def test_structure(self):
         x = self.xml
-        self.assertIn('<fpc>g1 = 0; jump titleset 1 menu entry root;</fpc>', x)
+        self.assertIn('<fpc>g1 = 1; jump titleset 1 menu entry root;</fpc>', x)
         self.assertIn('<pgc entry="root">', x)
-        self.assertIn("if (g1 == 2) { g1 = 0; jump menu 2; }", x)
-        self.assertIn('<button name="play">g2 = 1; jump title 1;</button>', x)   # play all
-        self.assertIn('<button name="ch">jump menu 2;</button>', x)
-        self.assertIn('<button name="b">g2 = 0; jump title 2;</button>', x)
-        self.assertIn('<button name="ch2">g2 = 0; jump title 1 chapter 2;</button>', x)
+        self.assertIn("<pre>if (g1 == 2) { g1 = 0; jump menu 2; } g1 = 0; "
+                      "if (g5 != 0) { button = g5; } else { button = 1024; }</pre>", x)
+        self.assertIn('<button name="play">g5 = button; g2 = 1; jump title 1;</button>', x)
+        self.assertIn('<button name="ch">g5 = button; jump menu 2;</button>', x)
+        self.assertIn('<button name="b">g5 = button; g2 = 0; jump title 2;</button>', x)
+        self.assertIn('<button name="ch2">g6 = button; g2 = 0; jump title 1 chapter 2;</button>', x)
         # t1: on to t2 when playing all, else back to main
-        self.assertIn('<post>if (g2 == 1) { jump title 2; } g1 = 0; call menu entry root;</post>', x)
-        self.assertIn('<post>g2 = 0; g1 = 0; call menu entry root;</post>', x)  # last title
+        self.assertIn('<post>if (g2 == 1) { jump title 2; } g1 = 1; call menu entry root;</post>', x)
+        self.assertIn('<post>g2 = 0; g1 = 1; call menu entry root;</post>', x)  # last title
         self.assertIn('<post>jump cell 1;</post>', x)                            # looping menu
         self.assertIn('widescreen="nopanscan"', x)
         self.assertIn('chapters="0:00:00.000,0:00:08.025,0:00:16.033"', x)
@@ -106,9 +108,9 @@ class TestAuthorXml(unittest.TestCase):
         p = build_project(d, "/v/project.oncemore.json", check_files=False)
         x = author.build_xml(p, {"main": "m", "chapters": "c"}, {"t1": "a", "t2": "b"}, "/o")
         self.assertNotIn("g2", x)
-        self.assertIn('<button name="play">jump title 1;</button>', x)
+        self.assertIn('<button name="play">g5 = button; jump title 1;</button>', x)
         self.assertIn('<post>jump title 2;</post>', x)
-        self.assertIn('<post>g1 = 0; call menu entry root;</post>', x)
+        self.assertIn('<post>g1 = 1; call menu entry root;</post>', x)
 
     def test_first_play_playall(self):
         d = sample_project()
@@ -130,10 +132,63 @@ class TestAuthorXml(unittest.TestCase):
         self.assertIn('<audio format="ac3" channels="6"/>', x)
         self.assertIn('<audio format="ac3" channels="2"/>', x)
         self.assertIn(
-            "<post>if (g2 == 1) { jump titleset 2 title 1; } g1 = 0; call menu entry root;</post>", x)
+            "<post>if (g2 == 1) { jump titleset 2 title 1; } g1 = 1; call menu entry root;</post>", x)
         self.assertEqual(encode.audio_args("ac3", 448_000, channels=6)[-2:], ["-ac", "6"])
         _, graph, _ = encode.audio_graph(t2, {t2.source: {"audio_streams": 0}})
         self.assertEqual(graph, "anullsrc=channel_layout=5.1:sample_rate=48000[a0]")
+
+    def p1_project(self):
+        d = sample_project()
+        d["disc"]["title_key"] = "menu:intro"
+        d["titles"][0]["remote_menu"] = "chapters"
+        main = d["menus"][0]
+        main["default_button"] = "b"
+        main["buttons"].append({"id": "auto", "label": "AUTO", "x": 470, "y": 220,
+                                "action": "title:t2", "auto_activate": True})
+        d["menus"].append({"id": "intro", "background_video": "media/sample_a.mp4",
+                           "duration": 6, "loop": 2, "loop_point": 3, "end_action": "title:t2",
+                           "remember_button": False,
+                           "buttons": [{"id": "skip", "label": "SKIP", "x": 80, "y": 380,
+                                        "action": "menu:main"}]})
+        return build_project(d, "/v/project.oncemore.json", check_files=False)
+
+    def test_menu_timing_and_remote(self):
+        p = self.p1_project()
+        self.assertEqual([m.id for m in p.menus], ["main", "intro", "chapters"])
+        x = author.build_xml(p, {"main": "m", "intro": "i", "chapters": "c"},
+                             {"t1": "a", "t2": "b"}, "/o")
+        # Title key -> intro (menu 2); Menu key: the title's remote_menu, via g3
+        self.assertIn('<pgc entry="title"><pre>g3 = 0; if (g1 == 0) { g1 = 2; } '
+                      'jump titleset 1 menu entry root;</pre></pgc>', x)
+        self.assertIn("<pre>if (g1 == 0) { g1 = g3; } g3 = 0; "
+                      "if (g1 == 2) { g1 = 0; jump menu 2; } if (g1 == 3) { g1 = 0; jump menu 3; } "
+                      "g1 = 0; if (g5 != 0) { button = g5; } else { button = 3072; }</pre>", x)
+        self.assertIn("<pre>g3 = 3;</pre>", x)                        # t1: Menu -> chapters
+        self.assertIn("<pre>g3 = 1;</pre>", x)                        # t2: the root menu
+        # intro: plays 0-6 s, then 3-6 s again, then title 2; no button memory
+        self.assertIn('<vob file="i"><cell start="0" end="0:00:03.000" chapter="1"/>'
+                      '<cell start="0:00:03.000"/></vob>', x)
+        self.assertIn("<post>g4 += 1; if (g4 lt 2) { jump cell 2; } g2 = 0; jump title 2;</post>", x)
+        self.assertIn("<pre>g4 = 0;</pre>", x)
+        self.assertIn('<button name="skip">jump menu 1;</button>', x)
+        import xml.dom.minidom
+        xml.dom.minidom.parseString(x)
+
+    def test_title_key_to_title_and_validation(self):
+        d = sample_project()
+        d["disc"]["title_key"] = "playall"
+        p = build_project(d, "/v/project.oncemore.json", check_files=False)
+        self.assertIn("if (g1 == 0) { g2 = 1; jump title 1; }", author.vmgm_title_command(p))
+        d["menus"][0]["default_button"] = "nope"
+        d["menus"][0]["loop"] = 3
+        d["menus"][0]["end_action"] = "menu:missing"
+        d["titles"][0]["remote_menu"] = "gone"
+        with self.assertRaises(ProjectError) as cm:
+            build_project(d, "/v/project.oncemore.json", check_files=False)
+        msg = json.dumps(cm.exception.issues)
+        self.assertIn("no button 'nope' in this menu", msg)
+        self.assertIn("no menu with id 'missing'", msg)
+        self.assertIn("titles[0].remote_menu", msg)
 
     def test_end_action_to_non_root_menu(self):
         d = sample_project()
@@ -171,7 +226,7 @@ class TestAuthorXml(unittest.TestCase):
         self.assertIn('<button name="a2">audio = 1;</button>', x)
         self.assertIn('<button name="s1">subtitle = 64;</button>', x)
         self.assertIn('<button name="so">subtitle = 0;</button>', x)
-        self.assertIn("<fpc>subtitle = 65; g1 = 0; jump titleset 1 menu entry root;</fpc>", x)
+        self.assertIn("<fpc>subtitle = 65; g1 = 1; jump titleset 1 menu entry root;</fpc>", x)
 
     def test_multiple_titlesets(self):
         d = sample_project()
@@ -184,12 +239,14 @@ class TestAuthorXml(unittest.TestCase):
         x = author.build_xml(p, {"main": "m", "chapters": "c"}, {"t1": "a", "t2": "b"}, "/o")
         self.assertIn('<dvdauthor dest="/o" jumppad="yes">', x)
         self.assertEqual(x.count("<titleset>"), 2)
-        self.assertIn('<button name="b">g2 = 0; jump titleset 2 title 1;</button>', x)
-        self.assertIn('<button name="b2">g2 = 0; jump titleset 2 title 1 chapter 1;</button>', x)
+        self.assertIn('<button name="b">g5 = button; g2 = 0; jump titleset 2 title 1;</button>', x)
+        self.assertIn('<button name="b2">g5 = button; g2 = 0; jump titleset 2 title 1 chapter 1;</button>', x)
         self.assertIn("<post>if (g2 == 1) { jump titleset 2 title 1; } "
                       "jump titleset 2 title 1;</post>", x)                           # t1 -> t2
         self.assertIn("<post>g2 = 0; g1 = 2; call vmgm menu entry title;</post>", x)  # t2 -> menu 2
         self.assertIn('<pgc entry="title"><pre>jump titleset 1 menu entry root;</pre></pgc>', x)
+        # the Menu key inside titleset 2 goes back to the root menu through the VMGM
+        self.assertIn('<pgc entry="root"><pre>g1 = 1; jump vmgm menu entry title;</pre></pgc>', x)
         self.assertIn('<video format="ntsc" aspect="4:3"/>', x)
         self.assertIn('<audio format="pcm"', x)
         import xml.dom.minidom

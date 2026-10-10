@@ -77,6 +77,7 @@ def _declare(lib):
         "dvdnav_audio_stream_channels": (ctypes.c_uint16, [P, ctypes.c_uint8]),
         "dvdnav_spu_stream_to_lang": (ctypes.c_uint16, [P, ctypes.c_uint8]),
         "dvdnav_get_title_string": (ctypes.c_int, [P, ctypes.POINTER(ctypes.c_char_p)]),
+        "dvdnav_menu_call": (ctypes.c_int, [P, ctypes.c_int]),
     }
     for name, (res, args) in sigs.items():
         fn = getattr(lib, name)
@@ -99,6 +100,7 @@ class DvdSim:
         self.buf = ctypes.create_string_buffer(2048 * 2)
         self.stopped = False
         self.events = 0
+        self.cells = []        # (domain, pgcn, cell) at every cell change
 
     def close(self):
         if self.h:
@@ -128,6 +130,9 @@ class DvdSim:
             self.lib.dvdnav_wait_skip(self.h)
         elif e == EV_STOP:
             self.stopped = True
+        elif e == EV_CELL_CHANGE:
+            cell = int.from_bytes(self.buf.raw[:4], "little", signed=True)
+            self.cells.append((self.domain(), self.pgcn(), cell))
         return e
 
     # -- state ---------------------------------------------------------------
@@ -246,6 +251,16 @@ class DvdSim:
         pci = self.lib.dvdnav_get_current_nav_pci(self.h)
         if self.lib.dvdnav_button_activate(self.h, pci) != DVDNAV_STATUS_OK:
             raise NavError("button_activate failed: " + self._err())
+
+    MENU_TITLE, MENU_ROOT = 2, 3
+
+    def menu_key(self, which=None):
+        """Press the remote's Menu key (or Title key with MENU_TITLE)."""
+        if self.lib.dvdnav_menu_call(self.h, which or self.MENU_ROOT) != DVDNAV_STATUS_OK:
+            raise NavError("menu_call failed: " + self._err())
+
+    def title_key(self):
+        self.menu_key(self.MENU_TITLE)
 
     def play_to_end_of_title(self, max_events=2_000_000):
         """Play until the current title ends (another title starts or a menu

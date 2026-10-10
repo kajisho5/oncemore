@@ -201,6 +201,7 @@ oncemore doctor                                # 外部ツールの有無・バ�
 | `aspect` | `4:3` \| `16:9` | 必須 |
 | `target` | `DVD5` \| `DVD9` | `DVD5` |
 | `first_play` | `menu:<id>` \| `title:<id>` \| `playall` | 最初のメニュー、無ければ最初のタイトル |
+| `title_key` | リモコンのタイトル／トップメニューキーで開くもの：`menu:<id>` \| `title:<id>` \| `playall` | 最初のメニュー |
 | `font` | パス または `null` | 自動：ヒラギノ（macOS）→ Noto Sans CJK → DejaVu Sans |
 | `video_bitrate` | `"auto"` かビットレート（`"6M"`、`5500000`）、1〜8 Mbps | `auto` |
 | `subtitle_style` | 全字幕の `{size, color, outline, outline_width, margin}` | 30px（PAL 36）、白、黒縁 3px、下から 36px（PAL 43） |
@@ -217,6 +218,7 @@ oncemore doctor                                # 外部ツールの有無・バ�
 | `audio.bitrate` | AC-3 のみ、64k〜448k | `192k`（5.1ch は `448k`） |
 | `audio.channels` | `2`（ステレオ。素材はダウンミックス）\| `6`（5.1ch、AC-3 のみ） | `2` |
 | `end_action` | `menu:<id>` \| `title:<id>` \| `stop` | first_play のメニュー、無ければ `stop` |
+| `remote_menu` | このタイトルの再生中にリモコンのメニューキーで開くメニュー | 最初のメニュー |
 | `aspect` | このタイトルの `4:3` \| `16:9` | `disc.aspect` |
 | `audio.lang` | 音声（1 トラック時）の ISO 639-1 言語コード | なし |
 | `audio_tracks` | 1〜8 個の `{source?, stream?, lang?}`：複数音声（下記） | `source` の音声 1 本 |
@@ -239,12 +241,18 @@ oncemore doctor                                # 外部ツールの有無・バ�
 | `background_video` | **モーションメニュー**用の動画（`background` より優先） | `null` |
 | `audio` | 音楽ファイル または `null` | 背景動画の音、無ければ無音 |
 | `duration` | ループの長さ（秒） | 動画／BGM の長さ（600 以下）、無ければ 5 |
+| `loop` | `"forever"` か、`end_action` までに再生する回数 | `forever` |
+| `loop_point` | 2 回目以降の再生開始位置（時間）。それより前はイントロとして 1 回だけ再生 | `0` |
+| `end_action` | 最後の再生のあと：`menu:` \| `title:` \| `chapter:` \| `playall` \| `stop` | `stop` |
+| `default_button` | メニューを開いたときに選ばれているボタンの id | 先頭 |
+| `remember_button` | 戻ってきたとき前に使ったボタンを選ぶ（メニュー 1〜8） | `true` |
 | `font_size`、`text_color` | テキスト・ボタンの既定値 | `32`、`#FFFFFF` |
 | `highlight_color`、`select_color` | ボタンの色 | `#FFD400`、`#FF5A00` |
 | `texts[]` | `{text, x, y, size?, color?}` 装飾テキスト | `[]` |
 | `buttons[]` | 1〜36 個 | 必須 |
 
-**buttons[]**：`id`、`label`、`x`、`y`（ラベルの左上）、`action`
+**buttons[]**：`id`、`label`、`x`、`y`（ラベルの左上）、`action`、
+`auto_activate`（選んだだけで実行）、
 （`menu:<id>` \| `title:<id>` \| `chapter:<タイトルid>:<番号>` \| `playall` \| `audio:<n>` \|
 `subtitle:<n>` \| `subtitle:off` \| `stop`）、任意で `size`、`color`、自動ナビゲーションを
 上書きする `nav`（`{"up": id, "down": id, "left": id, "right": id}`）。

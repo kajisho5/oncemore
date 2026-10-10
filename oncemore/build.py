@@ -69,6 +69,11 @@ def inspect(project, reporter=None):
             if what == "background_video" and not (info.get("has_video") and info.get("duration")):
                 issues.append({"path": f"menu {m.id!r}.background_video",
                                "message": "not a video with a known duration"})
+    for m in project.menus:
+        if m.loop_point and m.loop_point >= menu_seconds(m, probe) - 0.5:
+            issues.append({"path": f"menu {m.id!r}.loop_point",
+                           "message": f"loop point {m.loop_point:.2f}s must be at least 0.5 s "
+                                      f"before the end of the menu ({menu_seconds(m, probe):.2f}s)"})
     if issues:
         raise ProjectError("media check failed", issues)
     menu_total = sum(menu_seconds(m, probe) for m in project.menus)

@@ -293,3 +293,33 @@ caches it in `.oncemore-cache/proxy/` (keyed by path, size and mtime) and
 serves it with `Range` support. Playback is for watching only: when it stops
 the editor shows the exact frame from the source again, so chapter marks stay
 frame-accurate.
+
+## 26. Menu timing and remote keys, in a fixed register map
+
+Registers: g1 target menu (the root menu consumes it and resets it to 0),
+g2 play-all flag, g3 the Menu-key target of the playing title, g4 the loop
+counter of the current menu, g5-g12 the last button used in menus 1-8.
+g13-g15 are left alone: dvdauthor uses them as scratch registers, notably for
+buttons with several statements, which it compiles into a dispatcher in the
+PGC's post commands. That dispatcher falls through from one button's code into
+the next when a block does not jump, so only buttons that leave the menu get
+the extra "remember this button" statement; stream-switch buttons stay single
+statements.
+
+* `g1` now always holds the explicit menu number (1 for the root menu). That
+  makes 0 mean "nothing pending", which the VMGM title menu uses to tell the
+  remote's Title key (g1 == 0) from a route out of another titleset (g1 set),
+  so `disc.title_key` can target any menu, title or play-all.
+* Menu key: a title with `remote_menu` sets g3 in its pre commands; the root
+  menu takes g3 when g1 is 0. Titlesets after the first get a root menu
+  without video that sends the Menu key back through the VMGM (before, the
+  Menu key did nothing there).
+* Loop count / loop point / end action: the menu post counts plays in g4.
+  A loop point splits the menu VOB into two cells (with a forced keyframe at
+  the point, so the cell starts a VOBU) and repeats jump to cell 2.
+* Default and remembered buttons set SPRM8 (`button = …`) in the menu's pre.
+* Auto-activate buttons are spumux `<action>` elements, which dvdauthor writes
+  with the button's auto-action flag.
+
+All of it is checked by driving a disc through libdvdnav (Menu / Title keys,
+highlight after returning, an intro that plays cells 1, 2, 2 and times out).
