@@ -152,6 +152,10 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
 * **Colour set** (menu Properties): Normal (buttons while not selected,
   optional), Highlight and Activated colours, each with an opacity; previews
   and the simulator show them as the player will.
+* **Chapter markers from the file**: a video that carries chapter markers
+  (MP4, MOV, MKV …) brings them along, names included, when it becomes a
+  title; Timeline > Import chapter markers from the source reads them again
+  (for titles made of clips, the markers inside each clip).
 * **Chapters at intervals** (Timeline menu): a chapter every *n* minutes or
   seconds, replacing the chapters there are or adding to them.
 * **Replace asset** (File menu, or right-click a file): every use of one file
