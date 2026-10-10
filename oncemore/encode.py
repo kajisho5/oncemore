@@ -218,9 +218,17 @@ def _color_args(disc):
     return ["-color_primaries", "smpte170m", "-color_trc", "smpte170m", "-colorspace", "smpte170m"]
 
 
+# LPCM is encoded in 80-sample frames (one DVD LPCM frame, 1/600 s) so that
+# ffmpeg's packet PTS line up with frame starts; see lpcmfix.py.
+# Resampling/remixing must happen before the split: a converter ffmpeg inserts
+# after the user filters would re-chunk the frames.
+LPCM_FRAME_FILTER = ("aresample=48000,aformat=sample_fmts=s16:channel_layouts=stereo,"
+                     "asetnsamples=n=80:p=0")
+
+
 def audio_args(codec, bitrate):
     if codec == "lpcm":
-        return ["-c:a", "pcm_s16be", "-ar", "48000", "-ac", "2"]
+        return ["-c:a", "pcm_s16be", "-ar", "48000", "-ac", "2", "-af", LPCM_FRAME_FILTER]
     return ["-c:a", "ac3", "-b:a", str(bitrate), "-ar", "48000", "-ac", "2"]
 
 

@@ -4,7 +4,7 @@ import json
 import os
 import shutil
 
-from . import author, encode, iso, tools
+from . import author, encode, iso, lpcmfix, tools
 from .errors import OncemoreError, ProjectError
 from .menu import MenuBuilder
 
@@ -116,6 +116,9 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None):
         out = os.path.join(work, "titles", f"{t.id}.mpg")
         encode.encode_title(t, infos[t.id], project.disc, vbps, out, work, two_pass=not fast,
                             on_progress=lambda f, tid=t.id: reporter.progress("encode", f, tid))
+        if t.audio_codec == "lpcm":
+            n = lpcmfix.fix_file(out)
+            reporter.debug(f"fixed {n} LPCM packet headers in {t.id}")
         title_files[t.id] = out
 
     reporter.step("author", "Authoring VIDEO_TS (dvdauthor)")
