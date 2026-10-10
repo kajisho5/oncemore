@@ -729,3 +729,17 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
 * Reverting happens in the page, as one more edit (Undo brings the current
   project back), not on the server.
 
+## 47. Inverse telecine
+
+* Telecined film is 29.97i in which every fifth frame is made of fields of
+  two film frames. Deinterlacing it keeps that frame (blended or combed)
+  and stores 20 % more frames; matching the fields back together
+  (`fieldmatch`), deinterlacing only what does not match (`yadif
+  deint=interlaced`) and dropping the duplicate (`decimate`) recovers the
+  film frames, which are then stored like 23.976p film (soft pulldown).
+  On the test source this measured 39.6 dB against the original film after
+  encoding, deinterlacing 35.6 dB.
+* It is chosen, not detected: telling telecined film from video needs to
+  look at many frames, and getting it wrong on real video would drop
+  frames. `scan: ivtc` is NTSC only.
+

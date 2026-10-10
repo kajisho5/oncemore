@@ -1056,6 +1056,16 @@ class TestScanModes(unittest.TestCase):
              "interlace=scan=tff,setfield=tff",
              ["-c:v", "mpeg2video", "-b:v", "12M", "-flags", "+ilme+ildct"])
         make("p60.mp4", "testsrc2=s=1280x720:r=60000/1001:d=6", None, ["-c:v", "libx264"])
+        # film telecined to 29.97i (3:2 pulldown burnt into the fields), and the film itself
+        cls.film720 = os.path.join(cls.tmp, "film720.mkv")
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi",
+                        "-i", "testsrc2=s=720x480:r=24000/1001:d=6", "-vf", "setsar=32/27",
+                        "-pix_fmt", "yuv420p",
+                        "-c:v", "ffv1", cls.film720], check=True)
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", cls.film720, "-f", "lavfi",
+                        "-i", "sine=f=440:d=6", "-vf", "telecine=first_field=top:pattern=23",
+                        "-c:v", "mpeg2video", "-q:v", "2", "-flags", "+ilme+ildct", "-aspect", "16:9",
+                        "-c:a", "mp2", "-shortest", os.path.join(media, "tc.mpg")], check=True)
         cls.path = os.path.join(proj, "project.oncemore.json")
         with open(cls.path) as f:
             data = json.load(f)
@@ -1065,6 +1075,7 @@ class TestScanModes(unittest.TestCase):
             {"id": "i1080", "source": "media/i1080.ts", "end_action": "menu:main"},
             {"id": "p60", "source": "media/p60.mp4", "end_action": "menu:main"},
             {"id": "pal", "source": "media/sample_b.mp4", "end_action": "menu:main"},
+            {"id": "tc", "source": "media/tc.mpg", "scan": "ivtc", "end_action": "menu:main"},
         ]
         data["menus"] = [{"id": "main", "buttons": [
             {"id": t["id"], "label": t["id"].upper(), "x": 100, "y": 120 + 60 * k,
@@ -1094,7 +1105,25 @@ class TestScanModes(unittest.TestCase):
     def test_modes_reported(self):
         modes = {t["id"]: t["scan"] for t in self.result["titles"]}
         self.assertEqual(modes, {"film": "pulldown", "i1080": "interlaced",
-                                 "p60": "interlaced", "pal": "progressive"})
+                                 "p60": "interlaced", "pal": "progressive", "tc": "pulldown"})
+
+    def test_inverse_telecine(self):
+        """The film frames come back whole: 23.976 frames a second with soft
+        pulldown flags, and closer to the original film than deinterlacing
+        the telecined fields would be."""
+        fr = self.frames("tc")
+        self.assertAlmostEqual(len(fr), 144, delta=2)
+        self.assertEqual([f["repeat_pict"] for f in fr][:4], [1, 0, 1, 0])
+        def psnr(args):
+            out = subprocess.run(["ffmpeg", "-v", "info"] + args + ["-i", self.film720, "-lavfi",
+                                  "[0:v]setpts=N/(24000/1001)/TB[a];[1:v]setpts=N/(24000/1001)/TB[b];"
+                                  "[a][b]psnr", "-f", "null", "-"], capture_output=True, text=True).stderr
+            return float(re.findall(r"average:([0-9.]+)", out)[-1])
+        ours = psnr(["-i", os.path.join(self.work, "tc.mpg")])
+        naive = os.path.join(self.tmp, "naive.mkv")
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", os.path.join(self.tmp, "s", "media", "tc.mpg"),
+                        "-vf", "bwdif,fps=24000/1001", "-c:v", "ffv1", naive], check=True)
+        self.assertGreater(ours, psnr(["-i", naive]) + 2.0)     # (measured: +4 dB)
 
     def test_soft_pulldown(self):
         fr = self.frames("film")
