@@ -146,13 +146,28 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   button for it. *Routing* draws where the remote's arrow keys go from each
   button (solid: set by you in Properties, dashed: automatic), exactly as the
   disc will have it.
-* **Menus and shortcuts**: the menu bar (File, Edit, Disc, View, Help — in
-  Oncemore.app it is the Mac's own menu bar) has every command; right-click a
-  title, menu or playlist (open, duplicate, move, play first, delete), a file
-  in *Media* or an element on the menu stage. Shortcuts: ⌘I import, ⌘B build,
-  ⌘D duplicate, ⌘Z / ⇧⌘Z undo / redo, M add a chapter at the playhead, Space
-  play / pause, ⌥1–⌥4 workspaces, ? the list of shortcuts (Ctrl instead of ⌘
-  on other systems).
+* **Menus and shortcuts**: the menu bar is laid out the way disc authoring
+  people know it — File, Edit, Object, Menu, Timeline, Window, Help (in
+  Oncemore.app it is the Mac's own menu bar); right-click a title, menu or
+  playlist (open, duplicate, move, play first, transcode, delete), a file in
+  *Media* or an element on the menu. Shortcuts: ⌘I import, ⌘B build, ⌘D
+  duplicate, ⌘Z / ⇧⌘Z undo / redo, ⌘L link of the selected button, V / T / Z
+  selection, text and zoom tools, + / − zoom, `*` (Shift+8) chapter at the
+  playhead, PgUp / PgDn previous / next chapter, Space play / pause, ⇧Space
+  preview, ⌥⇧1–4 workspaces, ? the list (Ctrl instead of ⌘ on other systems).
+* **The menu editor**: a tools strip (selection, text — click where it goes,
+  zoom, new button / rectangle, preview) and a viewer bar under the menu: zoom,
+  safe area, routing, snapping, and *Highlights: Normal / Selected /
+  Activated* showing every button as the disc will in that state. Buttons
+  whose areas overlap are outlined in red.
+* **Pick whip**: drag the ◎ next to a button's link (or a title's end action,
+  or the disc's first play) to a title, menu or playlist in the project panel
+  or the flowchart. In the **flowchart**, drag from one item to another to link
+  them (first play, end actions, or — after picking it — a menu's button);
+  items nothing leads to sit in a "Not used" row at the bottom.
+* **Preview** (⇧Space) starts the remote-control preview at the menu you are
+  editing; in it, 1–9 press that button, Home is the Title key, Insert the
+  Menu key, End plays to the end.
 * **Flowchart** shows the whole disc: first play, menus, titles, playlists and
   every link between them (buttons, end actions, time-outs, the remote's Menu
   and Title keys). Boxes a viewer can never reach, or menus they cannot leave,

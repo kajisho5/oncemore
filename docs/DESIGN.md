@@ -71,6 +71,14 @@ labels stay at 4.5:1 or more on their surface in both themes.
   a command (app.js `COMMANDS`) that the right-click menus, the keyboard
   shortcuts and Oncemore.app's native menu bar run too; inside the Mac app
   the page hides its own menu bar.
+* **Menu editor**: a tools strip on the left (selection V, text T, zoom Z,
+  new button, new rectangle, preview) and a viewer bar under the picture
+  (zoom, safe area, routing, snapping, highlight states, exact preview).
+  Overlapping button areas get a red (danger) outline.
+* **Pick whip** (◎, remote blue) next to links in Properties: drag it to a
+  project item or a flowchart box; the line follows the pointer and the
+  target gets a remote-blue outline. Flowchart boxes link the same way when
+  dragged; unused items sit below a dashed line.
 * **Menu stage**: *Routing* overlays the remote-control routing (remote
   blue; set by hand: accent, solid; automatic: dashed; wrapping routes arc
   outside the buttons). Project items can be dragged onto a button (link) or
@@ -105,6 +113,8 @@ labels stay at 4.5:1 or more on their surface in both themes.
 | Card, notes | `.card`, `.hint`, `.issues li.warning/.info`, `.pill` |
 | Modal | `#modal .modal-card` |
 | Menu bar, pop-up menus | `.menubar > button(.open)`, `.popup > button(.danger)` with `.key`, `.sep` |
+| Menu editor | `.menu-viewer > .tools (button.on, .sep)`, `.viewer-main`, `.viewer-bar (.seg)`, `.overlap` |
+| Pick whip | `.whip`, `svg.whip-line`, `.whip-target` |
 
 ## Writing
 

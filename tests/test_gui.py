@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -483,9 +484,9 @@ class TestGuiBrowser(unittest.TestCase):
             page.click("#np-sample")
             page.locator(".nav-item[data-view=title][data-id=t2]").wait_for(timeout=120000)
             self.assertEqual(page.locator("#menubar > button").all_inner_texts(),
-                             ["File", "Edit", "Disc", "View", "Help"])
+                             ["File", "Edit", "Object", "Menu", "Timeline", "Window", "Help"])
             # Disc > New playlist
-            page.click("#menubar > button:has-text('Disc')")
+            page.click("#menubar > button:has-text('Timeline')")
             page.click(".popup button:has-text('New playlist')")
             self.wait_saved(page)
             self.assertEqual(len(self.project().get("playlists", [])), 1)
@@ -513,16 +514,16 @@ class TestGuiBrowser(unittest.TestCase):
             page.keyboard.press("Escape")
             self.assertEqual(page.locator(".popup").count(), 0)
             # workspaces from the keyboard
-            page.keyboard.press("Alt+2")
+            page.keyboard.press("Alt+Shift+2")
             page.locator("#center-head", has_text="Flowchart").wait_for()
-            page.keyboard.press("Alt+1")
+            page.keyboard.press("Alt+Shift+1")
             page.locator("#center-head", has_text="Disc").wait_for()
-            # a chapter at the playhead with M
+            # a chapter at the playhead with * (Shift+8)
             page.click(".nav-item[data-view=title][data-id=t2]")
             page.fill("#tc-input", "00:00:03.000")
             page.press("#tc-input", "Enter")
             page.locator("#tc-input").blur()
-            page.keyboard.press("m")
+            page.keyboard.press("*")
             self.poll(lambda: len(self.project()["titles"][1]["chapters"]) == 2)
             # menu stage: right-click a button, duplicate it
             page.click(".nav-item[data-view=menu][data-id=main]")
@@ -595,6 +596,87 @@ class TestGuiBrowser(unittest.TestCase):
             browser.close()
         self.assertEqual(errors, [])
 
+    def test_authoring_tools_like_a_disc_authoring_app(self):
+        """Tools strip, viewer bar, pick whip, flowchart links and preview keys."""
+        def whip(page, handle, target):
+            a, b = page.locator(handle).bounding_box(), page.locator(target).bounding_box()
+            page.mouse.move(a["x"] + a["width"] / 2, a["y"] + a["height"] / 2)
+            page.mouse.down()
+            for k in range(1, 11):
+                page.mouse.move(a["x"] + (b["x"] + b["width"] / 2 - a["x"]) * k / 10,
+                                a["y"] + (b["y"] + b["height"] / 2 - a["y"]) * k / 10)
+            page.mouse.up()
+
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1800, "height": 1000}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click("#np-sample")
+            page.click(".nav-item[data-view=menu][data-id=main]", timeout=120000)
+            # Text tool (T): click where the text goes
+            n_texts = len(self.project()["menus"][0].get("texts", []))
+            page.locator("#stage").focus()
+            page.keyboard.press("t")
+            page.locator(".tools [data-tool=text].on").wait_for()
+            box = page.locator("#stage").bounding_box()
+            page.mouse.click(box["x"] + box["width"] * 0.8, box["y"] + box["height"] * 0.9)
+            self.poll(lambda: len(self.project()["menus"][0]["texts"]) == n_texts + 1)
+            txt = self.project()["menus"][0]["texts"][-1]
+            self.assertGreater(txt["x"], 500)
+            page.locator(".tools [data-tool=select].on").wait_for()
+            # Zoom tool and keys
+            page.keyboard.press("Escape")
+            page.locator("#stage").focus()
+            page.keyboard.press("z")
+            page.locator(".tools [data-tool=zoom].on").wait_for()
+            page.mouse.click(box["x"] + 20, box["y"] + 20)
+            self.assertNotEqual(page.input_value("#zoom"), "fit")
+            page.select_option("#zoom", "fit")
+            page.keyboard.press("v")
+            # every button in its "selected" state: the exact picture
+            page.click("[data-sp=highlight]")
+            page.locator(".stage img.exact").wait_for(timeout=120000)
+            page.click("[data-sp=highlight]")
+            page.locator(".stage img.exact").wait_for(state="detached")
+            # overlapping buttons are outlined in red
+            buttons = self.project()["menus"][0]["buttons"]
+            page.click(".stage .el.button >> nth=1")
+            page.fill("#inspector input[data-k=y]", str(buttons[0]["y"]))
+            page.press("#inspector input[data-k=y]", "Enter")
+            page.locator(".stage .overlap").first.wait_for(timeout=120000)
+            self.assertEqual(page.locator(".stage .overlap").count(), 2)
+            page.keyboard.press("Meta+z" if sys.platform == "darwin" else "Control+z")
+            page.locator(".stage .overlap").first.wait_for(state="detached", timeout=60000)
+            # the pick whip: from the button's link to a title in the project panel
+            page.click(".stage .el.button >> nth=0")
+            whip(page, "#inspector [data-whip=action]", ".nav-item[data-view=title][data-id=t2]")
+            self.poll(lambda: self.project()["menus"][0]["buttons"][0]["action"] == "title:t2")
+            # Cmd/Ctrl+L goes to the link
+            page.locator("#stage").focus()
+            page.keyboard.press("Meta+l" if sys.platform == "darwin" else "Control+l")
+            page.locator("#inspector select[data-k=action]:focus").wait_for()
+            # flowchart: drag from first play to a title; a new playlist is unused
+            page.click("#menubar > button:has-text('Timeline')")
+            page.click(".popup button:has-text('New playlist')")
+            page.click("#menubar > button:has-text('Window')")
+            page.click(".popup button:has-text('Flowchart')")
+            page.locator("#flow g.node[data-node='title:t1']").wait_for(timeout=60000)
+            page.locator("#flow g.node.unused[data-node^='playlist:']").wait_for()
+            whip(page, "#flow g.node[data-node=fp]", "#flow g.node[data-node='title:t1']")
+            self.poll(lambda: self.project()["disc"]["first_play"] == "title:t1")
+            # Preview (Shift+Space) from a menu; number keys press its buttons
+            page.click(".nav-item[data-view=menu][data-id=main]")
+            page.locator("#stage").focus()
+            page.keyboard.press("Shift+Space")
+            page.locator("#sim-status", has_text="main").wait_for(timeout=120000)
+            page.locator("#sim-screen").focus()
+            page.keyboard.press("1")
+            page.locator("#sim-status", has_text="t2").wait_for(timeout=60000)
+            browser.close()
+        self.assertEqual(errors, [])
+
     def test_native_menus_in_the_mac_app(self):
         # Oncemore.app has a real menu bar: the page hides its own and its
         # menu items call window.oncemoreCommand
@@ -619,7 +701,7 @@ class TestGuiBrowser(unittest.TestCase):
         js = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                                "oncemore", "gui", "static", "app.js"), encoding="utf-8").read()
         for cid in re.findall(r'cmd\("[^"]+", "(\w+)"', swift):
-            self.assertRegex(js, rf"\n  {cid}: \{{", cid)     # every native item has a command
+            self.assertRegex(js, rf"[\n ] *{cid}: [{{a]", cid)  # every native item has a command
         self.assertIn('applicationNameForUserAgent = "OncemoreApp"', swift)
 
     def test_reorder_titles(self):

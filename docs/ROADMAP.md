@@ -86,6 +86,15 @@ browser) and lands only with green CI.
   transcoded / not yet mark per title; the build reuses them
 - [x] Sound waveforms on the timeline
 
+**P13 — Working like a disc authoring app** (done)
+- [x] Menu bar order File / Edit / Object / Menu / Timeline / Window / Help
+  (also in the Mac app), Object commands (align, distribute, arrange, convert)
+- [x] Tools strip (selection, text, zoom, preview) and a viewer bar (zoom,
+  safe area, routing, highlight states of all buttons, overlap outlines)
+- [x] Pick whip for links; linking by dragging in the flowchart; unused items
+  in their own row; preview from the current menu with number / Home / End keys
+- [x] The usual shortcuts (V T Z, + −, `*`, PgUp / PgDn, ⇧Space, ⌘L, ⌥⇧1–4)
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

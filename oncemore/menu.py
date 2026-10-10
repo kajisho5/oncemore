@@ -386,7 +386,10 @@ class MenuBuilder:
         return mask
 
     # -- geometry ----------------------------------------------------------------
-    def layout(self, menu):
+    def layout(self, menu, overlaps=None):
+        """Button areas, highlight shapes and routing. Overlapping buttons are
+        an error, unless `overlaps` (a list) is given to collect them (the
+        app outlines them)."""
         W, H = self.disc.width, self.disc.height
         geoms = []
         for b in menu.buttons:
@@ -454,6 +457,9 @@ class MenuBuilder:
             for b in geoms[i + 1:]:
                 if a.rect[0] < b.rect[2] and b.rect[0] < a.rect[2] and \
                         a.rect[1] < b.rect[3] and b.rect[1] < a.rect[3]:
+                    if overlaps is not None:
+                        overlaps.append([a.id, b.id])
+                        continue
                     raise ProjectError(
                         f"menu {menu.id!r}: buttons {a.id!r} and {b.id!r} overlap "
                         f"({a.rect} vs {b.rect}); move them apart")
@@ -674,8 +680,10 @@ class MenuBuilder:
         return out
 
     # -- preview -----------------------------------------------------------------
-    def preview(self, menu, out_png, button=None, state="highlight", outline=False):
-        """Write a square-pixel PNG of the menu as a viewer would see it."""
+    def preview(self, menu, out_png, button=None, state="highlight", outline=False, every=False):
+        """Write a square-pixel PNG of the menu as a viewer would see it.
+        every=True shows all buttons in `state` at once (normal / highlight /
+        select), to check the highlights of the whole menu."""
         assets = self.prepare(menu)
         ids = [g.id for g in assets.buttons]
         if button is None:
@@ -684,12 +692,13 @@ class MenuBuilder:
             raise OncemoreError(f"menu {menu.id!r} has no button {button!r} "
                                 f"(buttons: {', '.join(ids)})")
         color = {"highlight": menu.highlight_color, "select": menu.select_color}.get(state)
-        canvas = self.highlight_canvas(assets.buttons, only=None if outline else button,
+        canvas = self.highlight_canvas(assets.buttons,
+                                       only=None if (outline or every) else button,
                                        outline=outline)
         if state == "normal" or color is None:
             # drop the highlight shapes, keep outlines (index 2) if requested
             canvas.pixels = bytearray(2 if p == 2 else 0 for p in canvas.pixels)
-        elif outline:
+        elif outline and not every:
             only = self.highlight_canvas(assets.buttons, only=button)
             canvas.pixels = bytearray(1 if o == 1 else (2 if p == 2 else 0)
                                       for p, o in zip(canvas.pixels, only.pixels))
