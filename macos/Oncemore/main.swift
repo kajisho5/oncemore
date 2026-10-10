@@ -98,6 +98,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
         buildMenu()
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .nonPersistent()
+        // the page hides its own menu bar inside the app (this one has a real one)
+        config.applicationNameForUserAgent = "OncemoreApp"
         webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 1400, height: 880), configuration: config)
         webView.uiDelegate = self
         webView.navigationDelegate = self
@@ -185,6 +187,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
     }
 
     @objc func reloadPage(_ sender: Any?) { webView.reload() }
+
+    // Menu items that act on the project run the page's own commands (the
+    // same ones as its menu bar, right-click menus and shortcuts).
+    @objc func runWebCommand(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String, id.allSatisfy({ $0.isLetter || $0 == "_" }) else { return }
+        webView?.evaluateJavaScript("window.oncemoreCommand && window.oncemoreCommand('\(id)')", completionHandler: nil)
+    }
+
+    // Undo / Redo: text editing inside a field, otherwise the project's history
+    @objc func webUndo(_ sender: Any?) { webEdit("undo") }
+    @objc func webRedo(_ sender: Any?) { webEdit("redo") }
+    func webEdit(_ what: String) {
+        let js = """
+        (function () { var a = document.activeElement;
+          if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.isContentEditable)) document.execCommand('\(what)');
+          else if (window.oncemoreCommand) window.oncemoreCommand('\(what)'); })()
+        """
+        webView?.evaluateJavaScript(js, completionHandler: nil)
+    }
 
     // MARK: messages
 
@@ -308,35 +329,68 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
             .separator(),
             mi("Quit oncemore", #selector(NSApplication.terminate(_:)), "q"),
         ])
-        let file = add("File", [
-            mi("New Project…", #selector(newProject(_:)), "n"),
-            mi("Open Project…", #selector(openProject(_:)), "o"),
+        func cmd(_ title: String, _ id: String, _ key: String = "", _ mods: NSEvent.ModifierFlags = .command) -> NSMenuItem {
+            let item = mi(title, #selector(runWebCommand(_:)), key, mods)
+            item.representedObject = id
+            item.target = self
+            return item
+        }
+        func own(_ item: NSMenuItem) -> NSMenuItem { item.target = self; return item }
+        _ = add("File", [
+            own(mi("New Project…", #selector(newProject(_:)), "n")),
+            own(mi("Open Project…", #selector(openProject(_:)), "o")),
             .separator(),
-            mi("Show Project Folder in Finder", #selector(revealProject(_:)), "r", [.command, .shift]),
+            cmd("Import Files…", "import_files", "i"),
+            cmd("Import Photoshop Design…", "import_psd"),
+            .separator(),
+            cmd("Check Project", "check"),
+            cmd("Build Disc…", "build", "b"),
+            .separator(),
+            own(mi("Show Project Folder in Finder", #selector(revealProject(_:)), "r", [.command, .shift])),
             .separator(),
             mi("Close Window", #selector(NSWindow.performClose(_:)), "w"),
         ])
-        file.items.forEach { if $0.action == #selector(newProject(_:)) || $0.action == #selector(openProject(_:)) || $0.action == #selector(revealProject(_:)) { $0.target = self } }
-        // Standard editing items so copy/paste and text undo work in fields
+        // Cut / Copy / Paste / Select All stay the standard ones for text fields
         _ = add("Edit", [
-            mi("Undo", Selector(("undo:")), "z"),
-            mi("Redo", Selector(("redo:")), "z", [.command, .shift]),
+            own(mi("Undo", #selector(webUndo(_:)), "z")),
+            own(mi("Redo", #selector(webRedo(_:)), "z", [.command, .shift])),
             .separator(),
             mi("Cut", #selector(NSText.cut(_:)), "x"),
             mi("Copy", #selector(NSText.copy(_:)), "c"),
             mi("Paste", #selector(NSText.paste(_:)), "v"),
             mi("Select All", #selector(NSText.selectAll(_:)), "a"),
+            .separator(),
+            cmd("Duplicate", "duplicate", "d"),
+            cmd("Delete", "delete"),
         ])
-        let view = add("View", [
-            mi("Reload", #selector(reloadPage(_:)), "r"),
+        _ = add("Disc", [
+            cmd("New Slideshow", "new_slideshow"),
+            cmd("New Menu…", "new_menu"),
+            cmd("New Playlist", "new_playlist"),
+            .separator(),
+            cmd("Add Chapter at Playhead", "add_chapter"),
+            cmd("Play / Pause", "play"),
+        ])
+        _ = add("View", [
+            cmd("Author", "ws_author", "1", .option),
+            cmd("Flowchart", "ws_flow", "2", .option),
+            cmd("Preview (Remote Control)", "ws_sim", "3", .option),
+            cmd("Build", "ws_build", "4", .option),
+            .separator(),
+            cmd("Light / Dark Theme", "theme"),
+            cmd("English / 日本語", "language"),
+            .separator(),
+            own(mi("Reload", #selector(reloadPage(_:)), "r")),
             mi("Enter Full Screen", #selector(NSWindow.toggleFullScreen(_:)), "f", [.command, .control]),
         ])
-        view.items.first?.target = self
         let windowMenu = add("Window", [
             mi("Minimize", #selector(NSWindow.performMiniaturize(_:)), "m"),
             mi("Zoom", #selector(NSWindow.performZoom(_:)), ""),
         ])
         NSApp.windowsMenu = windowMenu
+        NSApp.helpMenu = add("Help", [
+            cmd("Keyboard Shortcuts", "shortcuts", "/"),
+        ])
         NSApp.mainMenu = main
     }
 }
