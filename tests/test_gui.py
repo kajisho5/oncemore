@@ -292,6 +292,65 @@ class TestGuiApi(unittest.TestCase):
 
 
 
+class TestDesignSystem(unittest.TestCase):
+    """The design system holds: tokens are the only source of colours, every
+    variable used is defined, and the two languages have the same keys."""
+
+    STATIC = os.path.join(os.path.dirname(__file__), "..", "oncemore", "gui", "static")
+
+    def read(self, name):
+        with open(os.path.join(self.STATIC, name), encoding="utf-8") as f:
+            return f.read()
+
+    def test_variables_defined(self):
+        defined = set(re.findall(r"(--[\w-]+)\s*:", self.read("tokens.css") + self.read("app.css")))
+        for name in ("app.css", "app.js", "styleguide.html", "styleguide.js", "index.html"):
+            used = {v for v in re.findall(r"var\((--[\w-]+)", self.read(name))
+                    if not v.endswith("-")}           # (built in code: var(--c-kind-${k}))
+            self.assertEqual(used - defined, set(), name)
+        # the style guide shows every colour token
+        colours = {v for v in re.findall(r"(--c-[\w-]+)\s*:", self.read("tokens.css"))}
+        shown = set(re.findall(r"--c-[\w-]+", self.read("styleguide.html")))
+        self.assertEqual(colours - shown - {"--c-scrim", "--c-text-on-accent"}, set())
+
+    def test_no_raw_colours_outside_tokens(self):
+        css = self.read("app.css")
+        self.assertEqual(re.findall(r"#[0-9a-fA-F]{3,8}\b", css), [])
+
+    def test_light_theme_covers_colours(self):
+        tokens = self.read("tokens.css")
+        dark, light = tokens.split(':root[data-theme="light"]')
+        need = {v for v in re.findall(r"(--c-[\w-]+)\s*:", dark)
+                if v not in ("--c-picture", "--c-on-picture", "--c-guide", "--c-hit")}
+        self.assertEqual(need - set(re.findall(r"(--c-[\w-]+)\s*:", light)), set())
+
+    def test_i18n_keys_match(self):
+        js = self.read("app.js")
+        start = js.index("const I18N = {")
+        body = js[start:js.index("\n};", start)]
+        en, ja = body.split("\n  ja: {")
+        key = re.compile(r"(?:^|[{,\s])([a-z][a-z0-9_]*):\s*\"", re.M)
+        ken, kja = set(key.findall(en)), set(key.findall(ja))
+        self.assertEqual(ken ^ kja, set())
+        used = {k for k in re.findall(r"\bt\(\"([a-z0-9_]+)\"", js)
+                if not k.endswith("_")}               # (prefixes completed in code)
+        self.assertEqual(used - ken, set())
+
+    def test_styleguide_served(self):
+        d = tempfile.mkdtemp(prefix="oncemore-sg-")
+        s = GuiServer(d)
+        try:
+            for name, ctype in (("styleguide.html", "text/html"), ("tokens.css", "text/css"),
+                                ("styleguide.js", "javascript")):
+                status, body = s.call("/" + name, token=False)
+                self.assertEqual(status, 200, name)
+            status, body = s.call("/styleguide.html", token=False)
+            self.assertIn(b"tokens.css", body)
+        finally:
+            s.close()
+            shutil.rmtree(d, ignore_errors=True)
+
+
 def _chromium():
     exe = None
     for cand in ("/opt/pw-browsers/chromium", os.environ.get("ONCEMORE_TEST_CHROMIUM", "")):
@@ -618,6 +677,69 @@ class TestGuiBrowser(unittest.TestCase):
             self.assertEqual(menu["buttons"][2]["action"], "title:t2")
             self.assertEqual(menu["psd"], "media/design.psd")
             self.assertTrue(self.s.app.check(self.project())["valid"])
+            browser.close()
+        self.assertEqual(errors, [])
+
+    def test_workspace(self):
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1440, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click("#np-sample")
+            page.click(".nav-item[data-view=menu][data-id=main]", timeout=120000)
+            page.locator(".stage .el.button").first.wait_for(timeout=60000)
+            # workspaces
+            page.click("#workspaces [data-ws=flow]")
+            page.locator(".flow-svg").wait_for(timeout=60000)
+            page.click("#workspaces [data-ws=author]")
+            page.locator("#center-head", has_text="main").wait_for()
+            # layers <-> stage selection
+            rows = page.locator("#layers .layer-row[data-lk=button]")
+            self.assertEqual(rows.count(), 3)
+            rows.nth(1).click()
+            page.locator("#layers .layer-row.selected[data-li='1']").wait_for()
+            self.assertIn("selected", page.locator(".stage .el.button").nth(1).get_attribute("class"))
+            self.assertEqual(page.locator("#inspector [data-k=label]").input_value(), "CHAPTERS")
+            page.locator(".stage .el.button").nth(2).click()
+            page.locator("#layers .layer-row.selected[data-li='2']").wait_for()
+            # library: a text style on the selected button
+            page.click("[data-lt=library]")
+            page.click("[data-style=outline]")
+            self.poll(lambda: self.project()["menus"][0]["buttons"][2].get("outline") == "#000000")
+            page.click("[data-lt=project]")
+            # timeline: move chapter 2 by dragging its mark, seek from the ruler
+            page.click(".nav-item[data-view=title][data-id=t1]")
+            page.locator("#p-timeline .tl-chapter[data-tlch='1']").wait_for(timeout=60000)
+            mk = page.locator(".tl-chapter[data-tlch='1']").bounding_box()
+            ruler = page.locator("#tl-ruler").bounding_box()
+            page.mouse.move(mk["x"] + 1, mk["y"] + mk["height"] / 2)
+            page.mouse.down()
+            page.mouse.move(mk["x"] + 1 + ruler["width"] / 24 * 2, mk["y"] + mk["height"] / 2,
+                            steps=5)
+            page.mouse.up()
+            def second():
+                c = self.project()["titles"][0]["chapters"][1]
+                c = c["time"] if isinstance(c, dict) else c
+                return sum(float(x) * 60 ** i for i, x in enumerate(reversed(str(c).split(":"))))
+            self.poll(lambda: abs(second() - 8) > 0.5, timeout=10)
+            self.assertAlmostEqual(second(), 10, delta=0.4)          # ~2 s later, on a frame
+            page.mouse.click(ruler["x"] + ruler["width"] * 0.75, ruler["y"] + 5)
+            page.locator("#tc", has_text="00:00:18").wait_for()
+            # theme and panel sizes are remembered
+            page.click("#btn-theme")
+            self.assertEqual(page.evaluate("document.documentElement.dataset.theme"), "light")
+            sp = page.locator(".splitter[data-split=left]").bounding_box()
+            page.mouse.move(sp["x"] + 2, sp["y"] + 200)
+            page.mouse.down()
+            page.mouse.move(sp["x"] + 82, sp["y"] + 200, steps=4)
+            page.mouse.up()
+            width = page.locator("#p-left").bounding_box()["width"]
+            page.reload()
+            page.locator("#workspaces button").first.wait_for(timeout=60000)
+            self.assertEqual(page.evaluate("document.documentElement.dataset.theme"), "light")
+            self.assertAlmostEqual(page.locator("#p-left").bounding_box()["width"], width, delta=2)
             browser.close()
         self.assertEqual(errors, [])
 

@@ -15,6 +15,20 @@ anywhere: the app is served from your machine and works on your files.
 
 ![The menu editor](docs/images/gui-menu-en.png)
 
+## What oncemore promises
+
+These are the reasons it exists; the tests and CI guard each of them
+(`tests/test_promises.py`), so they cannot quietly go away:
+
+* **A real authoring app on the Mac** — Oncemore.app for Apple silicon and
+  Intel, built and smoke-tested on every change.
+* **A disc image, not a burner** — it writes a standard ISO (UDF + ISO 9660)
+  or a VIDEO_TS folder; burning, if you want a disc, is any tool's job.
+* **Runs in a browser** — the app is a web page served from your own machine,
+  so it also works on Linux and needs no installer beyond Python.
+* **Open and yours** — GPL-3.0, no account, no network access, no telemetry,
+  and no copy protection, ever. Projects are plain JSON.
+
 ## Why
 
 Adobe Encore was discontinued in 2012; Apple's DVD Studio Pro and iDVD are gone,
@@ -133,7 +147,18 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   ⌘Z / Ctrl+Z undoes. The UI follows your browser language (English/日本語,
   switch with 文A).
 
-![Chapters on the timeline](docs/images/gui-title-en.png)
+![A title with its timeline: picture, chapters, audio and subtitle tracks](docs/images/gui-title-en.png)
+
+The workspace: **Project** (and **Library**: templates, backgrounds, text
+styles, Photoshop designs) on the left, the editor in the middle with the
+**Timeline** under a title, **Properties** and **Layers** on the right, and
+the **Author / Flowchart / Preview / Build** workspaces in the top bar. Panels
+are resized by dragging their edges; there is a light theme (◐). The design
+rules are in [docs/DESIGN.md](docs/DESIGN.md) and the app shows them at
+`/styleguide.html`.
+
+![The flowchart](docs/images/gui-flow-en.png)
+![The disc simulator](docs/images/gui-sim-en.png)
 
 The app listens on 127.0.0.1 only, with a random per-launch key in the URL;
 it reads and writes files only inside the project folder.

@@ -84,6 +84,12 @@ const I18N = {
     nothing_selected: "Select a button or text on the menu, or edit the menu settings below.",
     rename_hint: "Changing an ID also updates everything that points to it.",
     flowchart: "Flowchart", simulator: "Simulator", menu: "Menu", title: "Title",
+    ws_author: "Author", ws_preview: "Preview", properties: "Properties", project: "Project", library: "Library",
+    lib_templates: "Menu templates", lib_backgrounds: "Backgrounds", lib_text_styles: "Text styles",
+    lib_style_hint: "Select buttons or texts in a menu, then click a style.",
+    style_plain: "Plain", style_outline: "Outline", style_shadow: "Shadow", style_outline_shadow: "Outline + shadow",
+    layers: "Layers", buttons: "Buttons", texts: "Texts", shapes: "Rectangles", rectangle: "Rectangle",
+    timeline: "Timeline", video: "Video",
     import_psd: "Import from Photoshop", import: "Import", importing: "Reading the layers…",
     import_psd_hint: "A layered .psd / .psb: groups named \"(+) Name\" become buttons, their \"(=1)\" layers the highlight and a \"(%)\" layer the thumbnail; everything else visible is the background. Drop the file onto the window to add it.",
     no_psd: "No Photoshop files in Media yet: drop a .psd onto the window.",
@@ -184,6 +190,12 @@ const I18N = {
     nothing_selected: "メニュー上のボタンやテキストを選択するか、下のメニュー設定を編集してください。",
     rename_hint: "ID を変えると、それを参照している箇所もまとめて更新されます。",
     flowchart: "フローチャート", simulator: "シミュレータ", menu: "メニュー", title: "タイトル",
+    ws_author: "オーサリング", ws_preview: "プレビュー", properties: "プロパティ", project: "プロジェクト", library: "ライブラリ",
+    lib_templates: "メニューテンプレート", lib_backgrounds: "背景", lib_text_styles: "文字スタイル",
+    lib_style_hint: "メニューのボタンやテキストを選んでからスタイルをクリックします。",
+    style_plain: "なし", style_outline: "縁取り", style_shadow: "影", style_outline_shadow: "縁取り＋影",
+    layers: "レイヤー", buttons: "ボタン", texts: "テキスト", shapes: "四角形", rectangle: "四角形",
+    timeline: "タイムライン", video: "映像",
     import_psd: "Photoshop から読み込み", import: "読み込む", importing: "レイヤーを読み込んでいます…",
     import_psd_hint: "レイヤー付きの .psd / .psb：「(+) 名前」のグループがボタン、その中の「(=1)」レイヤーがハイライト、「(%)」レイヤーがサムネイルの位置になり、それ以外の表示中のレイヤーが背景になります。ファイルはウィンドウにドロップして追加します。",
     no_psd: "素材に Photoshop ファイルがありません。.psd をウィンドウにドロップしてください。",
@@ -404,7 +416,8 @@ async function refreshMedia() {
 function renderAll() {
   document.documentElement.lang = LANG;
   document.querySelectorAll("[data-i18n]").forEach((el) => (el.textContent = t(el.dataset.i18n)));
-  renderTopbar(); renderSidebar(); renderMain(); renderInspector(); renderStatus();
+  renderTopbar(); renderWorkspaces(); renderLeft(); renderCenterHead(); renderMain();
+  renderInspector(); renderTimeline(); renderStatus();
 }
 function renderTopbar() {
   $("#disc-name").textContent = P()?.disc?.label || "";
@@ -463,6 +476,7 @@ function renderSidebar() {
 }
 function select(view, id) {
   S.sel = { view, id }; S.element = null; S.selectedMedia = null; S.preview = null;
+  if (workspaceOf(view) === "author") S.lastAuthor = { view, id };
   renderAll();
 }
 
@@ -479,6 +493,9 @@ function renderMain() {
   return renderDisc(m);
 }
 function renderInspector() {
+  $("#right-head").innerHTML = `<span class="title">${t("properties")}</span>`;
+  renderLayers();
+  if (S.leftTab === "library") renderLibrary();
   const el = $("#inspector");
   if (!P()) { el.innerHTML = ""; return; }
   if (S.selectedMedia) return renderMediaInspector(el);
@@ -606,7 +623,7 @@ function renderTitle(m) {
   const img = $("#frame");
   let pending = null, last = -1;
   const show = (time) => {
-    S.playhead[ti.id] = time;
+    S.playhead[ti.id] = time; tlPlayhead(time);
     $("#tc").textContent = fmtTime(time); $("#tc-input").value = fmtTime(time);
     clearTimeout(pending);
     pending = setTimeout(() => {
@@ -632,11 +649,12 @@ function renderTitle(m) {
     if (playing) toFrames(null);
     time = Math.max(0, Math.min(dur, time)); scrub.value = time; show(time);
   };
+  S.titleSeek = seek;
   scrub.oninput = () => { if (playing) toFrames(null); show(Number(scrub.value)); };
   video.onpause = () => { if (playing) toFrames(snap(video.currentTime)); };
   video.ontimeupdate = () => {
     if (!playing) return;
-    scrub.value = video.currentTime; S.playhead[ti.id] = video.currentTime;
+    scrub.value = video.currentTime; S.playhead[ti.id] = video.currentTime; tlPlayhead(video.currentTime);
     $("#tc").textContent = fmtTime(video.currentTime); $("#tc-input").value = fmtTime(video.currentTime);
   };
   video.onerror = () => { if (video.getAttribute("src")) { msg.hidden = false; msg.textContent = t("play_err"); toFrames(null); } };
@@ -1786,6 +1804,231 @@ async function pollJob() {
   if (!S.job.done) setTimeout(pollJob, 500);
 }
 
+// ---------------------------------------------------------------- workspace
+// Project | editor (+ Timeline) | Properties (+ Layers); see docs/DESIGN.md
+const WORKSPACES = [["author", "ws_author"], ["flow", "flowchart"], ["sim", "ws_preview"], ["build", "build"]];
+const workspaceOf = (view) => (["flow", "sim", "build"].includes(view) ? view : "author");
+const store = { get(k, d) { try { const v = localStorage.getItem("oncemore." + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem("oncemore." + k, JSON.stringify(v)); } catch (e) { /* private mode */ } } };
+
+function renderWorkspaces() {
+  const ws = $("#workspaces");
+  if (!P()) { ws.innerHTML = ""; return; }
+  const cur = workspaceOf(S.sel.view);
+  ws.innerHTML = WORKSPACES.map(([k, l]) => `<button data-ws="${k}" class="${cur === k ? "active" : ""}">${esc(t(l))}</button>`).join("");
+  ws.querySelectorAll("[data-ws]").forEach((b) => (b.onclick = () => {
+    const k = b.dataset.ws;
+    if (k === "author") { const last = S.lastAuthor || { view: "disc" }; select(last.view, last.id); } else select(k);
+  }));
+}
+function renderLeft() {
+  const lib = S.leftTab === "library";
+  $("#left-tabs").innerHTML = P() ? `<div class="tabs"><button class="tab ${lib ? "" : "active"}" data-lt="project">${t("project")}</button><button class="tab ${lib ? "active" : ""}" data-lt="library">${t("library")}</button></div>` : "";
+  $("#left-tabs").querySelectorAll("[data-lt]").forEach((b) => (b.onclick = () => { S.leftTab = b.dataset.lt; renderLeft(); }));
+  $("#sidebar").hidden = lib; $("#library").hidden = !lib;
+  if (lib) renderLibrary(); else renderSidebar();
+}
+function renderCenterHead() {
+  const h = $("#center-head"), v = S.sel.view;
+  if (!P()) { h.innerHTML = ""; return; }
+  const kinds = { title: ["title", "kind-title"], menu: ["menu", "kind-menu"], playlist: ["playlist", "kind-playlist"], flow: ["flowchart", "kind-remote"], sim: ["simulator", "kind-remote"], build: ["build", ""], disc: ["disc", ""] };
+  const [label, cls] = kinds[v] || ["disc", ""];
+  let name = "";
+  if (v === "title") { const x = curTitle(); name = x ? x.name || x.id : ""; }
+  else if (v === "menu" || v === "playlist") name = S.sel.id || "";
+  else if (v === "disc") name = P().disc.label;
+  h.innerHTML = `${cls ? `<span class="kind-dot ${cls}"></span>` : ""}<span>${esc(t(label))}</span>${name ? `<span class="crumb">${esc(name)}</span>` : ""}`;
+}
+
+// -- library: templates, backgrounds, text styles, Photoshop designs
+const TEXT_STYLES = [
+  ["plain", {}], ["outline", { outline: "#000000", outline_width: 3 }], ["shadow", { shadow: "#000000AA", shadow_offset: 3 }],
+  ["outline_shadow", { outline: "#000000", outline_width: 2, shadow: "#00000088", shadow_offset: 4 }],
+];
+async function renderLibrary() {
+  const el = $("#library");
+  if (!S.templates) { try { S.templates = (await api("/api/templates")).templates; } catch (e) { S.templates = []; } }
+  if (S.leftTab !== "library") return;
+  const menu = S.sel.view === "menu" ? curMenu() : null;
+  const sels = menu ? (S.sels || []).filter((x) => x.kind !== "shape") : [];
+  el.innerHTML = `
+    <div class="lib-section"><h4>${t("lib_templates")}</h4><div class="lib-grid">
+      ${S.templates.map((x) => `<button class="lib-item" data-tpl="${esc(x.id)}" title="${esc(x[LANG] || x.en)}"><b>${esc((x[LANG] || x.en).split(/ [—-] /)[0])}</b><span class="hint">${esc((x[LANG] || x.en).split(/ [—-] /)[1] || "")}</span></button>`).join("")}
+    </div></div>
+    <div class="lib-section"><h4>${t("lib_backgrounds")}</h4>${mediaOf("image").length ? `<div class="lib-grid">
+      ${mediaOf("image").map((x) => `<button class="lib-item" data-bg="${esc(x)}" title="${esc(menu ? t("use_as_bg") : t("new_menu_with_bg"))}"><img src="${imgUrl("file", { path: x })}" alt=""><span>${esc(x.replace(/^media\//, ""))}</span></button>`).join("")}</div>`
+      : `<div class="hint">${esc(t("add_files"))}</div>`}</div>
+    <div class="lib-section"><h4>${t("lib_text_styles")}</h4><div class="lib-grid">
+      ${TEXT_STYLES.map(([k, st]) => `<button class="lib-item" data-style="${k}" ${sels.length ? "" : "disabled"} title="${esc(t("lib_style_hint"))}"><span class="sw" style="color:var(--c-on-picture);${st.outline ? `text-shadow:1px 1px 0 #000,-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000${st.shadow ? ",3px 3px 0 rgba(0,0,0,.6)" : ""}` : st.shadow ? "text-shadow:3px 3px 0 rgba(0,0,0,.7)" : ""}">Aa</span><span>${esc(t("style_" + k))}</span></button>`).join("")}
+    </div>${sels.length ? "" : `<div class="hint">${esc(t("lib_style_hint"))}</div>`}</div>
+    <div class="lib-section"><h4>Photoshop</h4>${mediaOf("design").length ? `<div class="lib-grid">${mediaOf("design").map((x) => `<button class="lib-item" data-psd="${esc(x)}"><b>PSD</b><span>${esc(x.replace(/^media\//, ""))}</span></button>`).join("")}</div>` : `<div class="hint">${esc(t("no_psd"))}</div>`}</div>`;
+  el.querySelectorAll("[data-tpl]").forEach((b) => (b.onclick = async () => {
+    const id = uniqueId(b.dataset.tpl, allMenuIds()), first = (P().menus || [])[0];
+    const r = await api("/api/template", { method: "POST", body: { template: b.dataset.tpl, id, project: S.project, back: first ? `menu:${first.id}` : null } });
+    commit((p) => { (p.menus = p.menus || []).push(r.menu); });
+    select("menu", id);
+  }));
+  el.querySelectorAll("[data-bg]").forEach((b) => (b.onclick = () => mediaAction(menu ? "bg" : "newmenu", b.dataset.bg)));
+  el.querySelectorAll("[data-psd]").forEach((b) => (b.onclick = () => mediaAction("psd", b.dataset.psd)));
+  el.querySelectorAll("[data-style]").forEach((b) => (b.onclick = () => {
+    const st = TEXT_STYLES.find((x) => x[0] === b.dataset.style)[1];
+    commit((p) => {
+      const mm = p.menus.find((x) => x.id === menu.id);
+      for (const k of sels) {
+        const it = (k.kind === "button" ? mm.buttons : mm.texts)[k.i];
+        for (const f of ["outline", "outline_width", "shadow", "shadow_offset"]) delete it[f];
+        Object.assign(it, st);
+      }
+    });
+    S.preview = null; renderMain(); renderInspector();
+  }));
+}
+
+// -- layers: every element of the menu, top first, synced with the stage selection
+function renderLayers() {
+  const panel = $("#p-layers"), body = $("#layers");
+  const menu = S.sel.view === "menu" && P() ? curMenu() : null;
+  panel.hidden = !menu;
+  if (!menu) return;
+  $("#layers-head").innerHTML = `<span class="title">${t("layers")}</span>`;
+  const sel = (k, i) => (S.sels || []).some((x) => x.kind === k && x.i === i) || (S.element && S.element.kind === k && S.element.i === i);
+  const row = (k, i, ico, name, to, n) => `<div class="layer-row ${sel(k, i) ? "selected" : ""}" data-lk="${k}" data-li="${i}">
+      <span class="ico">${ico}</span><span class="nm">${esc(name)}</span>${to ? `<span class="to">${esc(to)}</span>` : ""}
+      <span class="ops"><button class="small" data-lmove="-1" ${i ? "" : "disabled"} title="▲">▲</button><button class="small" data-lmove="1" ${i + 1 < n ? "" : "disabled"} title="▼">▼</button><button class="small danger" data-ldel title="${esc(t("delete"))}">✕</button></span></div>`;
+  const bs = menu.buttons || [], ts = menu.texts || [], ss = menu.shapes || [];
+  body.innerHTML = `<div class="layer-group">${t("buttons")} (${bs.length})</div>${bs.map((b, i) => row("button", i, b.image ? "▣" : b.label ? "◉" : "⬚", b.label || b.id, b.action, bs.length)).join("")}
+    ${ts.length ? `<div class="layer-group">${t("texts")} (${ts.length})</div>${ts.map((x, i) => row("text", i, "T", x.text, "", ts.length)).join("")}` : ""}
+    ${ss.length ? `<div class="layer-group">${t("shapes")} (${ss.length})</div>${ss.map((x, i) => row("shape", i, "■", `${t("rectangle")} ${i + 1}`, "", ss.length)).join("")}` : ""}
+    <div class="layer-group">${t("background")}</div><div class="layer-row"><span class="ico">▤</span><span class="nm">${esc(menu.background_video || menu.background || menu.background_color || "#000")}</span></div>`;
+  const list = (mm, k) => (k === "button" ? mm.buttons : k === "text" ? mm.texts : mm.shapes);
+  body.querySelectorAll(".layer-row[data-lk]").forEach((r) => {
+    const k = r.dataset.lk, i = Number(r.dataset.li);
+    r.onclick = (e) => {
+      if (e.target.closest("button")) return;
+      const key = { kind: k, i };
+      if (e.shiftKey || e.metaKey || e.ctrlKey) S.sels = [...(S.sels || []).filter((x) => !(x.kind === k && x.i === i)), key];
+      else S.sels = [key];
+      S.element = key; S.selectedMedia = null;
+      renderMain(); renderInspector();
+    };
+    r.querySelectorAll("[data-lmove]").forEach((b) => (b.onclick = () => {
+      const j = i + Number(b.dataset.lmove);
+      commit((p) => { const l = list(p.menus.find((x) => x.id === menu.id), k); [l[i], l[j]] = [l[j], l[i]]; });
+      S.element = { kind: k, i: j }; S.sels = [S.element]; S.preview = null; renderMain(); renderInspector();
+    }));
+    r.querySelector("[data-ldel]").onclick = () => {
+      commit((p) => { list(p.menus.find((x) => x.id === menu.id), k).splice(i, 1); });
+      S.element = null; S.sels = []; S.preview = null; renderMain(); renderInspector();
+    };
+  });
+}
+
+// -- timeline: ruler, picture, chapters, audio and subtitle tracks of a title
+function tlPlayhead(time) {
+  const ph = $("#tl-playhead");
+  if (ph && S.tl) ph.style.left = `${S.tl.x0 + time * S.tl.pps}px`;
+}
+async function renderTimeline() {
+  const panel = $("#p-timeline"), split = $("#tl-splitter");
+  const ti = S.sel.view === "title" && P() ? curTitle() : null;
+  const show = !!(ti && ti.source && !ti.slideshow);
+  panel.hidden = split.hidden = !show;
+  if (!show) { S.tl = null; return; }
+  const info = await probe(ti.source);
+  if (S.sel.view !== "title" || curTitle() !== ti) return;
+  const dur = info?.duration || 0;
+  const zoom = S.tlZoom || 1;
+  $("#tl-head").innerHTML = `<span class="title">${t("timeline")}</span><span class="crumb">${esc(ti.name || ti.id)} · ${fmtTime(dur)}</span><span class="spacer"></span>
+    <button class="small" id="tl-out" title="−">−</button><button class="small" id="tl-in" title="+">+</button>`;
+  $("#tl-out").onclick = () => { S.tlZoom = Math.max(1, zoom / 2); renderTimeline(); };
+  $("#tl-in").onclick = () => { S.tlZoom = Math.min(64, zoom * 2); renderTimeline(); };
+  const box = $("#tl"), LABEL = 110;
+  const width = Math.max(200, (box.clientWidth || 800) - LABEL - 16) * zoom;
+  const pps = dur ? width / dur : 1;
+  S.tl = { x0: LABEL, pps, dur };
+  const step = [0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600].find((s) => s * pps >= 70) || 1200;
+  const ticks = [];
+  for (let x = 0; x <= dur; x += step) ticks.push(`<span class="tick" style="left:${x * pps}px">${fmtTime(x).replace(/\.\d+$/, "").replace(/^00:/, "")}</span>`);
+  const thumbW = 78, nThumb = Math.min(200, Math.ceil(width / thumbW));
+  const thumbs = Array.from({ length: nThumb }, (_, k) => `<img src="${imgUrl("frame", { path: ti.source, t: Math.min(dur - 0.05, (k + 0.5) * thumbW / pps).toFixed(2), w: 160 })}" style="width:${thumbW}px" alt="">`).join("");
+  const entries = chapterEntries(ti);
+  const tracks = ti.audio_tracks && ti.audio_tracks.length ? ti.audio_tracks : [{}];
+  const subs = ti.subtitles || [];
+  const lane = (label, cls, inner, kind = "") => `<div class="tl-row"><span class="tl-label">${kind ? `<span class="kind-dot" style="background:var(--c-kind-${kind})"></span>` : ""}${esc(label)}</span><div class="tl-track tl-lane ${cls}" style="width:${width}px">${inner}</div></div>`;
+  box.innerHTML = `<div class="tl" style="width:${LABEL + width + 16}px">
+    <div class="tl-row"><span class="tl-label"></span><div class="tl-track tl-ruler" id="tl-ruler" style="width:${width}px">${ticks.join("")}</div></div>
+    ${lane(t("video"), "video", thumbs, "title")}
+    ${lane(t("chapters"), "chapters", entries.map((c, i) => `<div class="tl-chapter ${i ? "" : "first"}" data-tlch="${i}" style="left:${c.time * pps}px" title="${esc(fmtTime(c.time))}"><span>${i + 1}${c.name ? " " + esc(c.name) : ""}</span></div>`).join(""), "chapter")}
+    ${tracks.map((a, k) => lane(`${t("audio")} ${k + 1}${a.lang ? " · " + a.lang : ""}`, "", `<div class="tl-clip audio" style="left:0;width:${dur * pps}px">${esc((a.source || ti.source).replace(/^media\//, ""))}${a.stream ? " #" + a.stream : ""}</div>`, "audio")).join("")}
+    ${subs.map((s, k) => lane(`${t("subtitles")} ${k + 1}${s.lang ? " · " + s.lang : ""}`, "", `<span class="hint" data-subk="${k}"></span>`, "subtitle")).join("")}
+    <div class="tl-playhead" id="tl-playhead"></div></div>`;
+  tlPlayhead(S.playhead[ti.id] || 0);
+  const at = (ev, el) => Math.max(0, Math.min(dur, (ev.clientX - el.getBoundingClientRect().left) / pps));
+  const seek = (time) => (S.titleSeek ? S.titleSeek(time) : (S.playhead[ti.id] = time, tlPlayhead(time)));
+  $("#tl-ruler").onpointerdown = (ev) => seek(at(ev, $("#tl-ruler")));
+  box.querySelector(".tl-lane.video").onpointerdown = (ev) => seek(at(ev, ev.currentTarget));
+  // drag a chapter mark (not the first) to move it, frame-accurately
+  const fps = (() => { const [a, b] = String(info.fps || "30").split(/[/:]/).map(Number); return b ? a / b : a || 30; })();
+  box.querySelectorAll(".tl-chapter[data-tlch]").forEach((mk) => {
+    const i = Number(mk.dataset.tlch);
+    mk.onpointerdown = (ev) => {
+      ev.stopPropagation();
+      const track = mk.parentElement;
+      if (!i) { seek(entries[0].time); return; }
+      mk.setPointerCapture(ev.pointerId);
+      let time = entries[i].time;
+      const lo = entries[i - 1].time + 1 / fps, hi = (entries[i + 1]?.time ?? dur) - 1 / fps;
+      mk.onpointermove = (e) => { time = Math.round(Math.max(lo, Math.min(hi, at(e, track))) * fps) / fps; mk.style.left = `${time * pps}px`; };
+      mk.onpointerup = () => {
+        mk.onpointermove = mk.onpointerup = null;
+        if (Math.abs(time - entries[i].time) < 1e-6) { seek(time); return; }
+        commit((p) => { const x = p.titles.find((y) => y.id === ti.id), list = chapterEntries(x); list[i].time = time; setChapters(x, list); });
+        renderMain(); seek(time);
+      };
+    };
+  });
+  // subtitle cues as clips
+  subs.forEach(async (s, k) => {
+    let data;
+    try { data = await api("/api/subtitles?" + new URLSearchParams({ path: s.file })); } catch (e) { return; }
+    const host = box.querySelector(`[data-subk="${k}"]`);
+    if (!host) return;
+    host.outerHTML = data.cues.map((c) => `<div class="tl-clip sub" data-cue="${c.start}" style="left:${c.start * pps}px;width:${Math.max(3, (c.end - c.start) * pps)}px" title="${esc(c.text)}">${esc(c.text.split("\n")[0])}</div>`).join("");
+    box.querySelectorAll(".tl-clip.sub").forEach((c) => (c.onclick = () => seek(Number(c.dataset.cue))));
+  });
+}
+
+// -- splitters: drag to resize the side panels and the timeline (remembered)
+function initSplitters() {
+  const root = document.documentElement;
+  for (const [k, d] of [["left-w", 250], ["right-w", 310], ["timeline-h", 190]]) {
+    const v = store.get(k, null);
+    if (v) root.style.setProperty("--" + k, v + "px");
+    else root.style.removeProperty("--" + k);
+    void d;
+  }
+  document.querySelectorAll(".splitter").forEach((sp) => {
+    sp.onpointerdown = (ev) => {
+      ev.preventDefault();
+      sp.setPointerCapture(ev.pointerId); sp.classList.add("dragging");
+      const which = sp.dataset.split;
+      const start = { x: ev.clientX, y: ev.clientY,
+        v: which === "left" ? $("#p-left").offsetWidth : which === "right" ? $("#p-right").offsetWidth : $("#p-timeline").offsetHeight };
+      sp.onpointermove = (e) => {
+        let v;
+        if (which === "left") { v = Math.max(170, Math.min(520, start.v + e.clientX - start.x)); root.style.setProperty("--left-w", v + "px"); store.set("left-w", v); }
+        else if (which === "right") { v = Math.max(240, Math.min(560, start.v - (e.clientX - start.x))); root.style.setProperty("--right-w", v + "px"); store.set("right-w", v); }
+        else { v = Math.max(90, Math.min(window.innerHeight * 0.6, start.v - (e.clientY - start.y))); root.style.setProperty("--timeline-h", v + "px"); store.set("timeline-h", v); }
+      };
+      sp.onpointerup = () => { sp.onpointermove = sp.onpointerup = null; sp.classList.remove("dragging"); if (which !== "timeline" && S.sel.view === "title") renderTimeline(); };
+    };
+  });
+}
+function applyTheme() {
+  const th = store.get("theme", "dark");
+  if (th === "light") document.documentElement.dataset.theme = "light"; else delete document.documentElement.dataset.theme;
+}
+
 // ---------------------------------------------------------------- boot
 function applyState(r) {
   S.project = r.project; S.dir = r.dir; S.media = r.media; S.check = r.check;
@@ -1805,6 +2048,9 @@ $("#btn-undo").onclick = undo;
 $("#btn-redo").onclick = redo;
 $("#btn-check").onclick = runCheck;
 $("#btn-build").onclick = () => select("build");
+$("#btn-theme").onclick = () => { store.set("theme", store.get("theme", "dark") === "light" ? "dark" : "light"); applyTheme(); };
+applyTheme();
+initSplitters();
 $("#btn-lang").onclick = () => { LANG = LANG === "ja" ? "en" : "ja"; localStorage.setItem("oncemore.lang", LANG); renderAll(); };
 $("#modal").addEventListener("click", (e) => { if (e.target.id === "modal" || e.target.classList.contains("modal-close")) closeModal(); });
 window.addEventListener("keydown", (e) => {

@@ -1,0 +1,118 @@
+/* oncemore design tokens — the only place colours, type, spacing, radii,
+   shadows and timing are defined. Components use these variables, never
+   raw values (tests/test_gui.py checks that every var() used is defined).
+   See docs/DESIGN.md. */
+
+:root {
+  /* -- surfaces (dark is the default: pictures read true on neutral grey) */
+  --c-bg-0: #121418;        /* app background, behind panels */
+  --c-bg-1: #1b1e24;        /* panels */
+  --c-bg-2: #23272f;        /* raised: buttons, panel headers, hover rows */
+  --c-bg-3: #2c313b;        /* pressed / selected rows */
+  --c-field: #15171c;       /* inputs */
+  --c-line: #313643;        /* hairlines between areas */
+  --c-line-strong: #454c5c; /* hover borders */
+  --c-scrim: rgba(8, 10, 14, .78);
+
+  /* -- text */
+  --c-text: #e6e8ee;
+  --c-text-2: #98a0b3;      /* secondary: labels, hints */
+  --c-text-on-accent: #111214;
+
+  /* -- the accent is the default DVD highlight colour */
+  --c-accent: #ffd400;
+  --c-accent-2: #ff5a00;    /* "selected" / activated */
+  --c-focus: #6aa8ff;
+
+  /* -- status */
+  --c-success: #3ccf8e;
+  --c-warning: #f5b942;
+  --c-danger: #ff5f6d;
+
+  /* -- object kinds: the same colour everywhere (project panel, flowchart,
+        timeline, layers) */
+  --c-kind-menu: #ffd400;
+  --c-kind-title: #4cc38a;
+  --c-kind-playlist: #b48cff;
+  --c-kind-remote: #6aa9ff;
+  --c-kind-audio: #4fb6d8;
+  --c-kind-subtitle: #e58bd0;
+  --c-kind-chapter: #ff8a3d;
+
+  /* -- picture areas stay black in both themes; editor overlays */
+  --c-picture: #000000;
+  --c-on-picture: #ffffff;
+  --c-guide: #ff3dbb;       /* snapping guides */
+  --c-hit: #00e5ff;         /* button hit areas */
+
+  /* -- type */
+  --font-ui: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans CJK JP",
+    "Noto Sans JP", "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13px;
+  --fs-lg: 15px;
+  --fs-xl: 20px;
+  --lh: 1.45;
+
+  /* -- spacing (4 px grid) */
+  --sp-1: 2px;
+  --sp-2: 4px;
+  --sp-3: 8px;
+  --sp-4: 12px;
+  --sp-5: 16px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+
+  /* -- shape */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 10px;
+  --r-pill: 999px;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .35);
+  --shadow-2: 0 8px 28px rgba(0, 0, 0, .45);
+
+  /* -- workspace */
+  --panel-head-h: 30px;
+  --left-w: 250px;
+  --right-w: 310px;
+  --timeline-h: 190px;
+  --splitter: 5px;
+
+  /* -- motion */
+  --dur-fast: 120ms;
+  --dur-med: 200ms;
+
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --c-bg-0: #e9ebef;
+  --c-bg-1: #f6f7f9;
+  --c-bg-2: #ffffff;
+  --c-bg-3: #e3e7ee;
+  --c-field: #ffffff;
+  --c-line: #d3d8e0;
+  --c-line-strong: #aeb6c3;
+  --c-scrim: rgba(30, 34, 40, .55);
+  --c-text: #1b1e24;
+  --c-text-2: #5c6576;
+  --c-accent: #c79a00;
+  --c-accent-2: #d84a00;
+  --c-text-on-accent: #ffffff;
+  --c-focus: #2f6fdb;
+  --c-success: #1e9e65;
+  --c-warning: #b9800f;
+  --c-danger: #d63848;
+  --c-kind-menu: #b48a00;
+  --c-kind-title: #23945f;
+  --c-kind-playlist: #7a4fd6;
+  --c-kind-remote: #2f6fdb;
+  --c-kind-audio: #1f86a8;
+  --c-kind-subtitle: #b8479f;
+  --c-kind-chapter: #d8621a;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .12);
+  --shadow-2: 0 8px 28px rgba(0, 0, 0, .18);
+  color-scheme: light;
+}
