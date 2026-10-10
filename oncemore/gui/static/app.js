@@ -17,7 +17,7 @@ const I18N = {
     codec: "Codec", bitrate: "Bitrate", language: "Language", end_action: "When it ends",
     title_key: "Title / Top Menu key opens", menu_key: "Menu key opens", first_menu: "First menu",
     playback: "Playback", loop: "Plays", loop_forever: "Repeat forever", loop_n: "{n} time(s), then…",
-    loop_point: "Repeat from (s)", menu_end: "After the last time", default_button: "Button highlighted first",
+    loop_point: "Repeat from (s)", fade_in: "Fade in from black (s)", menu_end: "After the last time", default_button: "Button highlighted first",
     remember_button: "Come back to the button used last", auto_activate: "Run on selection (no Enter needed)",
     chapter_menu: "Chapter menu", chapter_menu_on: "Generate a chapter menu with thumbnails",
     subtitles: "Subtitles", audio_tracks: "Audio tracks", default_on: "on at start",
@@ -189,7 +189,7 @@ const I18N = {
     codec: "形式", bitrate: "ビットレート", language: "言語", end_action: "再生終了後",
     title_key: "タイトル／トップメニューキーで開く", menu_key: "メニューキーで開く", first_menu: "最初のメニュー",
     playback: "再生", loop: "再生回数", loop_forever: "ずっと繰り返す", loop_n: "{n} 回再生して…",
-    loop_point: "繰り返しの開始位置（秒）", menu_end: "最後の再生のあと", default_button: "最初に選ばれるボタン",
+    loop_point: "繰り返しの開始位置（秒）", fade_in: "黒からのフェードイン（秒）", menu_end: "最後の再生のあと", default_button: "最初に選ばれるボタン",
     remember_button: "戻ってきたら前に使ったボタンを選ぶ", auto_activate: "選んだだけで実行（決定キー不要）",
     chapter_menu: "チャプターメニュー", chapter_menu_on: "サムネイル付きチャプターメニューを自動生成",
     subtitles: "字幕", audio_tracks: "音声トラック", default_on: "最初から表示",
@@ -2253,6 +2253,7 @@ function renderMenuInspector(el) {
     <div class="grid2">
       <label class="field"><span>${t("loop")}</span>${selectHtml("loop", [["forever", t("loop_forever")], ...[1, 2, 3, 5, 10].map((n) => [String(n), t("loop_n", { n })])], String(menu.loop || "forever"))}</label>
       <label class="field"><span>${t("loop_point")}</span><input type="number" data-k="loop_point" min="0" step="0.1" value="${menu.loop_point ?? ""}" placeholder="0"></label>
+      <label class="field"><span>${t("fade_in")}</span><input type="number" data-k="fade_in" min="0" max="10" step="0.1" value="${menu.fade_in ?? ""}" placeholder="0"></label>
     </div>
     ${menu.loop && menu.loop !== "forever" ? `<label class="field"><span>${t("menu_end")}</span>${selectHtml("end_action", actionOptions({ forButton: false, includeChapters: true, allowPlayAll: true }), menu.end_action || "stop")}</label>` : ""}
     ${menu.psd ? `<label class="field"><span>Photoshop</span><div class="row"><span class="mono shrink" style="overflow:hidden;text-overflow:ellipsis">${esc(menu.psd)}</span><button class="small shrink" id="psd-edit">${t("cmd_edit_psd")}</button><button class="small shrink" id="psd-again">${t("reimport")}</button></div><div class="hint">${esc(t("reimport_hint"))}</div></label>` : ""}
@@ -2261,11 +2262,12 @@ function renderMenuInspector(el) {
     ${orderHtml(t("order_menu"))}
     <h3></h3><button class="danger" id="del-menu">${t("delete")}</button>`;
   bindFields(el, find, {
-    numeric: ["font_size", "duration", "loop_point"],
+    numeric: ["font_size", "duration", "loop_point", "fade_in"],
     onAfter: (p, key, val) => {
       const mm = find(p);
       if (key === "loop") { if (val === "forever") { delete mm.loop; delete mm.end_action; } else mm.loop = Number(val); }
       if (key === "loop_point" && !val) delete mm.loop_point;
+      if (key === "fade_in" && !val) delete mm.fade_in;
     },
   });
   if ($("#psd-again")) $("#psd-again").onclick = () => { S.psdChanged = null; importPsd(menu.psd, menu.id); };

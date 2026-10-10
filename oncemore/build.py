@@ -117,8 +117,10 @@ def inspect(project, reporter=None, prepare=True):
                                "message": "not a video with a known duration"})
     for m in project.menus:
         if m.loop_point and m.loop_point >= menu_seconds(m, probe) - 0.5:
-            issues.append({"path": f"menu {m.id!r}.loop_point",
-                           "message": f"loop point {m.loop_point:.2f}s must be at least 0.5 s "
+            what = "fade_in" if m.fade_in == m.loop_point else "loop_point"
+            name = "the fade-in ending at" if what == "fade_in" else "loop point"
+            issues.append({"path": f"menu {m.id!r}.{what}",
+                           "message": f"{name} {m.loop_point:.2f}s must be at least 0.5 s "
                                       f"before the end of the menu ({menu_seconds(m, probe):.2f}s)"})
     if issues:
         raise ProjectError("media check failed", issues)

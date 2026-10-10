@@ -664,6 +664,10 @@ class MenuBuilder:
         target = "ntsc-dvd" if self.disc.standard == "NTSC" else "pal-dvd"
         a, b = self.disc.aspect.split(":")
         finish = f"scale=out_color_matrix=bt601:out_range=tv,format=yuv420p,setdar={a}/{b}"
+        if menu.fade_in:
+            # from black, once: the loop point is at the end of the fade or later
+            finish = f"fade=t=in:st=0:d={menu.fade_in:.3f}," + finish
+        afade = f",afade=t=in:st=0:d={menu.fade_in:.3f}" if menu.fade_in else ""
         if menu.background_video:
             # motion menu: draw the menu onto every frame of the video
             inputs, graph = self.compose(menu)
@@ -677,9 +681,9 @@ class MenuBuilder:
             n, graph, vmap, vbps = 1, f"[0:v]{finish}[v]", "[v]", encode.MENU_VIDEO_BPS
         if menu.audio:
             args += ["-i", menu.audio]
-            graph += f";[{n}:a:0]aresample=48000,apad[a]"
+            graph += f";[{n}:a:0]aresample=48000{afade},apad[a]"
         elif menu.background_video and self._probe(menu.background_video).get("has_audio"):
-            graph += ";[0:a:0]aresample=48000,apad[a]"
+            graph += f";[0:a:0]aresample=48000{afade},apad[a]"
         else:
             graph += ";anullsrc=channel_layout=stereo:sample_rate=48000[a]"
         args += ["-filter_complex", graph, "-map", vmap, "-map", "[a]",

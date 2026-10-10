@@ -135,6 +135,10 @@ browser) and lands only with green CI.
 - [x] Resume buttons (`resume`): back to where the Menu / Title key left the
   title, or the first title when there is nothing to resume
 
+**P22 — Menu fade-in** (done)
+- [x] A menu can fade in from black (picture and sound) when it starts,
+  once; repeats start after the fade
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 
@@ -183,7 +187,7 @@ Done:
 
 Still to do:
 
-* Menu transitions, animated buttons
+* Transitions between particular menus (dissolves), animated buttons
 
 ## Phase 4 — web version
 
