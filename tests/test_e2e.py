@@ -97,6 +97,9 @@ class TestDefaultSample(unittest.TestCase):
     def test_build_dir_removed(self):
         self.assertEqual(sorted(os.listdir(self.tmp)), ["demo", "demo.iso"])
 
+    def test_written_by_the_builtin_writer(self):
+        self.assertEqual((self.result["iso_tool"], self.result["iso_udf"]), ("builtin", True))
+
     def test_iso_contains_video_ts(self):
         files = iso_list(self.iso)
         for name in ("VIDEO_TS.IFO", "VIDEO_TS.BUP", "VTS_01_0.IFO", "VTS_01_0.BUP",
@@ -1288,6 +1291,21 @@ class TestClips(unittest.TestCase):
         self.assertTrue(purple(mean(os.path.join(media, "silent.mp4"), 0.997)))
         self.assertFalse(purple(mean(os.path.join(media, "sample_a.mp4"), 4)))
         self.assertTrue(purple(thumb), thumb)
+
+    def test_external_iso_tools_still_work(self):
+        from oncemore import iso
+        disc = os.path.join(self.result["build_dir"], "disc")
+        for name in ("genisoimage", "mkisofs", "hdiutil"):
+            if tools.iso_tool(name)[0] is None:
+                continue
+            out = os.path.join(self.tmp, f"{name}.iso")
+            info = iso.make_iso(disc, out, "SAMPLE_DISC", name)
+            self.assertEqual((info["tool"], info["udf"]), (name, True))
+            self.assertEqual(sorted(f for f in iso_list(out) if "VIDEO_TS" in f),
+                             sorted(f for f in iso_list(self.iso) if "VIDEO_TS" in f))
+            break
+        else:
+            self.skipTest("no external UDF ISO tool")
 
     @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
     def test_chapters_on_disc(self):

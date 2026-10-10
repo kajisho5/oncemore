@@ -43,7 +43,7 @@ oncemore 本体は Python 3.11+ の標準ライブラリのみで動きます。
 |---|---|
 | `ffmpeg` / `ffprobe`（`drawtext` フィルタ入り） | MPEG-2/AC-3 エンコード、メニュー描画、解析 |
 | `dvdauthor` / `spumux` | DVD-Video 構造（IFO/VOB）、ボタンのハイライト |
-| **UDF** を書ける ISO ツール：`hdiutil`（macOS 標準）、`genisoimage`、`mkisofs` | ディスクイメージ |
+| *（不要）* — UDF + ISO 9660 のディスクイメージは oncemore 自身が書き出します。`hdiutil`・`genisoimage`・`mkisofs` を選ぶこともできます | ディスクイメージ |
 
 ### macOS（Homebrew）
 
@@ -57,8 +57,8 @@ oncemore doctor
   libfreetype なしでビルドされており、メニュー文字に使う `drawtext` フィルタがありません。
   `ffmpeg-full` は keg-only（PATH にリンクされない）ですが、oncemore が
   `$(brew --prefix)/opt/ffmpeg-full/bin` を自動で探します。
-* ISO は macOS 標準の `hdiutil`（UDF 1.02 + ISO 9660）で作るので、追加の ISO ツールは不要です。
-  代替として `brew install cdrtools` で `mkisofs` も使えます。
+* ISO は oncemore 自身が書き出す（UDF 1.02 + ISO 9660）ので、ISO ツールは不要です。
+  `--iso-tool hdiutil` で macOS 標準のツールを使うこともできます。
 
 ### Debian / Ubuntu
 
@@ -169,7 +169,7 @@ oncemore iso demo/project.oncemore.json -o demo.iso  # エンコード→オー�
 oncemore init <dir> [--standard NTSC|PAL] [--aspect 16:9|4:3] [--force]
 oncemore validate <project> [--no-media]       # スキーマ＋参照＋素材＋容量見積もり
 oncemore build <project> -o out/               # out/VIDEO_TS（と out/AUDIO_TS）を生成
-oncemore iso <project> -o out.iso [--iso-tool auto|hdiutil|genisoimage|mkisofs|xorriso]
+oncemore iso <project> -o out.iso [--iso-tool auto|builtin|hdiutil|genisoimage|mkisofs|xorriso]
 oncemore preview-menu <project> --menu main -o main.png [--button id] [--state highlight|select|normal] [--outline]
 oncemore simulate <project> --keys down,enter,menu   # リモコン操作を再現（エンコードなし）
 oncemore import-psd <project> design.psd --menu main [--first-play]   # Photoshop からメニューを作成
@@ -439,7 +439,7 @@ oncemore doctor                                # 外部ツールの有無・バ�
 ```
 素材 ─ffprobe─▶ ビットレート計画 ─ffmpeg（2パス MPEG-2 + AC-3/LPCM）─▶ titles/*.mpg
 メニュー JSON ─ffmpeg drawtext─▶ base.png ─▶ menu.mpg ─spumux（4色 PNG ハイライト）─▶ menu.mpg
-dvdauthor XML ─dvdauthor─▶ VIDEO_TS ─hdiutil / genisoimage─▶ disc.iso
+dvdauthor XML ─dvdauthor─▶ VIDEO_TS ─内蔵 UDF + ISO 9660 ライタ─▶ disc.iso
 ```
 
 * **ビットレート**：全タイトルの尺、音声ビットレート、メニュー分と 2% の余裕から算出し、
@@ -501,7 +501,10 @@ DVD ナビゲーションライブラリ）でメニューのボタンを実際�
   すでにテレシネされた 29.97i のフィルム素材の逆テレシネはしません。
 * `xorriso` は UDF を書けないため、xorriso で作った ISO は ISO 9660 のみとなり、
   libdvdread 系プレーヤー（VLC、mpv）や多くの DVD プレーヤーで **開けません**。
-  そのため hdiutil / genisoimage / mkisofs を優先し、xorriso にフォールバックした場合は警告します。
+  `--iso-tool xorriso` を指定したときだけ使い、警告を出します。
+* 内蔵の ISO ライタは genisoimage の `-dvd-video -udf` と同じ配置で書き出します（テストのディスクでは
+  全ファイルが同じセクタ、ファイルは IFO が示す位置、UDF 1.02 + ISO 9660 のブリッジ）。
+  タイムスタンプはディスク全体で 1 つで、各ファイルの更新日時は保持しません。
 * ハイライトは 2bit サブピクチャなので縁が硬い。フォントはディスク全体で 1 種類。
   drawtext にはフォールバックが無いため、全文字がそのフォントに含まれている必要があります。
   oncemore はフォントの文字マップを検査し、豆腐（空の箱）を描く前に停止します。絵文字は非対応。
