@@ -7,3 +7,8 @@ document.getElementById("theme").onclick = () => {
   const r = document.documentElement;
   if (r.dataset.theme === "light") delete r.dataset.theme; else r.dataset.theme = "light";
 };
+document.getElementById("skin").onclick = (e) => {
+  const r = document.documentElement;
+  if (r.dataset.skin === "classic") delete r.dataset.skin; else r.dataset.skin = "classic";
+  e.target.textContent = `Skin: ${r.dataset.skin === "classic" ? "Classic" : "Modern"}`;
+};

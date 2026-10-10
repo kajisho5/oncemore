@@ -71,7 +71,7 @@ browser) and lands only with green CI.
   app, joined preview, simulator and menu thumbnails follow the clips
 
 **P10 — Menus and shortcuts** (done)
-- [x] A menu bar with every command (File, Edit, Disc, View, Help); the Mac
+- [x] A menu bar with every command; the Mac
   app's native menu bar runs the same commands
 - [x] Right-click menus for project items, media files and menu elements
 - [x] Keyboard shortcuts and a list of them (?)
@@ -94,6 +94,19 @@ browser) and lands only with green CI.
 - [x] Pick whip for links; linking by dragging in the flowchart; unused items
   in their own row; preview from the current menu with number / Home / End keys
 - [x] The usual shortcuts (V T Z, + −, `*`, PgUp / PgDn, ⇧Space, ⌘L, ⌥⇧1–4)
+
+**P14 — The classic look and panel layout** (done)
+- [x] Mid-grey panels on a near-black ground, light text fields, amber outline
+  on the panel in use, amber timecode, tabs with grip and close box
+- [x] Tools panel with the Workspace menu and search; Project · Menus ·
+  Timelines · Build | Monitor · Menu Viewer · Flowchart | Properties and
+  Library · Layers; the Timeline across the bottom, always there
+- [x] Project panel with a preview of the selection; Monitor transport bar;
+  Properties with right-aligned labels; flowchart cards with pictures;
+  New Project dialog; Project Preview window; View menu; Edit > Preferences
+  (skin, brightness, theme, language)
+- [x] Two skins: Modern (default, a current flat dark look) and Classic (the
+  classic look above)
 
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.

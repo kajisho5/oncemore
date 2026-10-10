@@ -177,21 +177,25 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   encoded: menus are the exact previews with the real highlight, titles show
   the chapter's first frame. It follows the same navigation rules as the
   built disc (checked against libdvdnav in the tests).
-* **Check** estimates the size and finds problems; **Build** writes the `.iso`
-  (or a VIDEO_TS folder) into `my-disc/output/`, with progress.
+* The **Build** panel (next to Project): **Check Project…** estimates the size
+  and finds problems; **Build** writes the `.iso` (or a VIDEO_TS folder) into
+  `my-disc/output/`, with progress.
 * Everything is saved automatically to `my-disc/project.oncemore.json`;
-  ⌘Z / Ctrl+Z undoes. The UI follows your browser language (English/日本語,
-  switch with 文A).
+  ⌘Z / Ctrl+Z undoes. The UI follows your browser language (English/日本語;
+  Edit > Preferences switches it, sets the brightness and a light theme).
 
 ![A title with its timeline: picture, chapters, audio and subtitle tracks](docs/images/gui-title-en.png)
 
-The workspace: **Project** (and **Library**: templates, backgrounds, text
-styles, Photoshop designs) on the left, the editor in the middle with the
-**Timeline** under a title, **Properties** and **Layers** on the right, and
-the **Author / Flowchart / Preview / Build** workspaces in the top bar. Panels
-are resized by dragging their edges; there is a light theme (◐). The design
-rules are in [docs/DESIGN.md](docs/DESIGN.md) and the app shows them at
-`/styleguide.html`.
+The workspace is the classic disc authoring layout: the menu bar, a **Tools**
+panel (selection, text, zoom, new button / rectangle, Photoshop, Preview) with
+the **Workspace** menu and a search field; **Project · Menus · Timelines ·
+Build** on the left, **Monitor · Menu Viewer · Flowchart** in the middle, the
+**Timeline** across the bottom of both, **Properties** and **Library ·
+Layers** on the right. Two skins (Edit > Preferences): **Modern**, the
+default, and **Classic** — mid-grey panels, light text fields, an amber outline
+on the panel you are working in, amber timecode. Panels are resized by dragging
+their edges. The design rules are in [docs/DESIGN.md](docs/DESIGN.md) and the
+app shows them at `/styleguide.html`.
 
 ![The flowchart](docs/images/gui-flow-en.png)
 ![The disc simulator](docs/images/gui-sim-en.png)

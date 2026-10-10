@@ -3,26 +3,50 @@
    raw values (tests/test_gui.py checks that every var() used is defined).
    See docs/DESIGN.md. */
 
+/* Two skins share the layout. Modern (the default): dark neutral panels on a
+   darker ground, dark fields, flat controls, blue for the panel in use and
+   for timecode. Classic (Edit > Preferences > Skin, :root[data-skin=classic]
+   below): the look of the classic disc authoring apps — mid-grey panels,
+   light text fields with dark text, raised controls, amber outline and amber
+   timecode. Both stay neutral grey so pictures read true. --ui-b is the
+   Brightness preference, added to every grey. */
 :root {
-  /* -- surfaces (dark is the default: pictures read true on neutral grey) */
-  --c-bg-0: #121418;        /* app background, behind panels */
-  --c-bg-1: #1b1e24;        /* panels */
-  --c-bg-2: #23272f;        /* raised: buttons, panel headers, hover rows */
-  --c-bg-3: #2c313b;        /* pressed / selected rows */
-  --c-field: #15171c;       /* inputs */
-  --c-line: #313643;        /* hairlines between areas */
-  --c-line-strong: #454c5c; /* hover borders */
-  --c-scrim: rgba(8, 10, 14, .78);
+  --ui-b: 0%;
+  /* -- surfaces */
+  --c-bg-0: hsl(0 0% calc(8% + var(--ui-b)));      /* gaps between frames */
+  --c-bg-1: hsl(0 0% calc(14% + var(--ui-b)));     /* panels */
+  --c-bg-2: hsl(0 0% calc(11% + var(--ui-b)));     /* tab strips, bars */
+  --c-bg-3: hsl(214 45% calc(30% + var(--ui-b)));  /* selected rows */
+  --c-bg-4: hsl(0 0% calc(20% + var(--ui-b)));     /* raised: headers, buttons */
+  --c-bg-5: hsl(0 0% calc(24% + var(--ui-b)));     /* track headers, hover */
+  --c-field: hsl(0 0% calc(9% + var(--ui-b)));     /* text fields */
+  --c-field-border: hsl(0 0% calc(24% + var(--ui-b)));
+  --c-text-field: #e6e6e6;
+  --c-line: hsl(0 0% calc(7% + var(--ui-b)));      /* separators (darker than panels) */
+  --c-line-strong: hsl(0 0% calc(30% + var(--ui-b)));
+  --c-scrim: rgba(0, 0, 0, .6);
+  --c-active-panel: #3d8bfd;                        /* outline of the panel in use */
+  --c-timecode: #5aa9ff;
+  --c-clip: #3f6c9b;                                /* video clips on a timeline */
+  --c-clip-head: #4f84bb;
+  --c-clip-audio: #3a7f67;
+  --c-clip-text: #f2f2f2;
+  --c-playhead: #f0544f;
 
   /* -- text */
-  --c-text: #e6e8ee;
-  --c-text-2: #98a0b3;      /* secondary: labels, hints */
-  --c-text-on-accent: #111214;
+  --c-text: #e6e6e6;
+  --c-text-2: #9d9d9d;      /* secondary: labels, hints */
+  --c-text-on-accent: #111111;
+  --c-text-on-ui: #ffffff;
+
+  /* -- the interface's own selection / focus / primary action */
+  --c-ui: #3d8bfd;
+  --c-ui-soft: #2c4f7c;
 
   /* -- the accent is the default DVD highlight colour */
   --c-accent: #ffd400;
   --c-accent-2: #ff5a00;    /* "selected" / activated */
-  --c-focus: #6aa8ff;
+  --c-focus: #4c9bf0;
 
   /* -- status */
   --c-success: #3ccf8e;
@@ -46,15 +70,15 @@
   --c-hit: #00e5ff;         /* button hit areas */
 
   /* -- type */
-  --font-ui: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans CJK JP",
-    "Noto Sans JP", "Segoe UI", sans-serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    "Hiragino Sans", "Noto Sans CJK JP", "Noto Sans JP", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   --fs-xs: 11px;
   --fs-sm: 12px;
   --fs-md: 13px;
-  --fs-lg: 15px;
-  --fs-xl: 20px;
-  --lh: 1.45;
+  --fs-lg: 14px;
+  --fs-xl: 17px;
+  --lh: 1.35;
 
   /* -- spacing (4 px grid) */
   --sp-1: 2px;
@@ -68,17 +92,24 @@
   /* -- shape */
   --r-sm: 4px;
   --r-md: 6px;
-  --r-lg: 10px;
+  --r-lg: 8px;
+  --r-field: 4px;
   --r-pill: 999px;
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, .35);
-  --shadow-2: 0 8px 28px rgba(0, 0, 0, .45);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow-2: 0 6px 22px rgba(0, 0, 0, .55);
+  /* -- controls: flat in Modern, raised in Classic */
+  --raised: var(--c-bg-4);
+  --raised-hi: var(--c-bg-5);
+  --bevel: none;
+  --field-shadow: none;
 
   /* -- workspace */
   --panel-head-h: 30px;
-  --left-w: 250px;
-  --right-w: 310px;
-  --timeline-h: 190px;
-  --splitter: 5px;
+  --foot-h: 30px;
+  --left-w: 34vw;
+  --right-w: 250px;
+  --timeline-h: 30vh;
+  --splitter: 4px;
 
   /* -- motion */
   --dur-fast: 120ms;
@@ -87,20 +118,77 @@
   color-scheme: dark;
 }
 
+:root[data-skin="classic"] {
+  --c-bg-0: hsl(0 0% calc(13% + var(--ui-b)));
+  --c-bg-1: hsl(0 0% calc(34% + var(--ui-b)));
+  --c-bg-2: hsl(0 0% calc(28% + var(--ui-b)));
+  --c-bg-3: hsl(213 18% calc(48% + var(--ui-b)));
+  --c-bg-4: hsl(0 0% calc(40% + var(--ui-b)));
+  --c-bg-5: hsl(0 0% calc(49% + var(--ui-b)));
+  --c-field: hsl(0 0% calc(66% + var(--ui-b)));
+  --c-field-border: hsl(0 0% calc(13% + var(--ui-b)));
+  --c-text-field: #111111;
+  --c-line: hsl(0 0% calc(18% + var(--ui-b)));
+  --c-line-strong: hsl(0 0% calc(48% + var(--ui-b)));
+  --c-active-panel: #e8ac05;
+  --c-timecode: #e8a628;
+  --c-clip: #d6bcd3;
+  --c-clip-head: #b48daf;
+  --c-clip-audio: #c49abd;
+  --c-clip-text: #1b1b1b;
+  --c-playhead: #e03a2f;
+  --c-text: #e2e2e2;
+  --c-text-2: #b4b4b4;
+  --c-ui: #3d78c8;
+  --c-ui-soft: #61779a;
+  --font-ui: "Segoe UI", Tahoma, "Lucida Grande", -apple-system, BlinkMacSystemFont,
+    "Hiragino Sans", "Noto Sans CJK JP", "Noto Sans JP", sans-serif;
+  --fs-xs: 10px;
+  --fs-sm: 11px;
+  --fs-md: 12px;
+  --fs-lg: 13px;
+  --fs-xl: 16px;
+  --r-sm: 2px;
+  --r-md: 3px;
+  --r-lg: 5px;
+  --r-field: 0;
+  --raised: linear-gradient(var(--c-bg-4), var(--c-bg-1));
+  --raised-hi: linear-gradient(var(--c-bg-5), var(--c-bg-4));
+  --bevel: inset 0 1px 0 rgba(255, 255, 255, .1);
+  --field-shadow: inset 1px 1px 0 rgba(0, 0, 0, .25);
+  --panel-head-h: 22px;
+  --foot-h: 26px;
+  --splitter: 3px;
+}
+
 :root[data-theme="light"] {
-  --c-bg-0: #e9ebef;
-  --c-bg-1: #f6f7f9;
-  --c-bg-2: #ffffff;
-  --c-bg-3: #e3e7ee;
-  --c-field: #ffffff;
-  --c-line: #d3d8e0;
-  --c-line-strong: #aeb6c3;
+  --c-bg-0: #a9a9a9;
+  --c-bg-1: #d6d6d6;
+  --c-bg-2: #c8c8c8;
+  --c-bg-3: #b9cfe9;
+  --c-bg-4: #bdbdbd;
+  --c-bg-5: #b0b0b0;
+  --c-field: #f6f6f6;
+  --c-text-field: #111111;
+  --c-field-border: #9c9c9c;
+  --c-active-panel: #2a6fc4;
+  --c-timecode: #1f63c4;
+  --c-clip: #9dbde2;
+  --c-clip-head: #7aa3d2;
+  --c-clip-audio: #94c9b4;
+  --c-clip-text: #111111;
+  --c-playhead: #cf2a1e;
+  --c-line: #9c9c9c;
+  --c-line-strong: #7d7d7d;
   --c-scrim: rgba(30, 34, 40, .55);
-  --c-text: #1b1e24;
-  --c-text-2: #5c6576;
+  --c-text: #1a1a1a;
+  --c-text-2: #4d4d4d;
   --c-accent: #c79a00;
   --c-accent-2: #d84a00;
   --c-text-on-accent: #ffffff;
+  --c-text-on-ui: #ffffff;
+  --c-ui: #2a6fc4;
+  --c-ui-soft: #b9cfe9;
   --c-focus: #2f6fdb;
   --c-success: #1e9e65;
   --c-warning: #b9800f;

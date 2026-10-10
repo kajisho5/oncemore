@@ -649,3 +649,29 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   native menu key equivalent so it never takes the key from text fields.
 * Overlapping buttons are still an error at build time; the editor asks the
   layout to collect them instead, so they can be shown while you fix them.
+
+## 42. The classic look
+
+* The first pass kept the operating model but drew its own look; that was
+  not what people coming back to the tool expect. The look now follows the
+  classic app as its published help shows it: the frame layout (Project /
+  Menus / Timelines / Build, Monitor / Menu Viewer / Flowchart, Properties
+  and Library / Layers on the right, the Timeline across the bottom), the
+  Tools panel with the Workspace menu, tab strips with grips and close boxes,
+  mid-grey panels, light text fields with dark text, right-aligned labels,
+  amber timecode and the amber outline on the panel in use. The greys were
+  measured from the help's screenshots.
+* Still not taken: names, logos, icons, artwork or screenshots. The icons are
+  drawn in app.js; the help's pictures were only looked at, never copied into
+  the repository. A test keeps product names out of the app and design docs.
+* Disc settings moved into Properties (select the disc: the Project preview
+  or the Flowchart's disc), Build into the Project frame, the Project Preview
+  into a window of its own. Undo / Redo, Check and Build left the top bar for
+  the Edit and File menus and the Build panel; the theme and language moved to
+  Edit > Preferences.
+* The classic look is a skin, *Classic*; the default skin, *Modern*, keeps
+  the same layout and controls with a current look (dark flat panels, dark
+  fields, underlined tabs, blue for the panel in use and timecode). The
+  choice is in Edit > Preferences and remembered per browser. Skins differ
+  only in tokens plus a short block of Classic-only rules, so every feature
+  works the same in both.
