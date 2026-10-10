@@ -368,6 +368,7 @@ def transcode(project, reporter, title_ids=None, fast=False):
 def menu_cache_key(project, menu, font):
     files = [menu.background, menu.background_video, menu.audio, font] + \
         [b.image for b in menu.buttons] + [b.highlight_image for b in menu.buttons] + \
+        [p.file for p in menu.images] + \
         [el.font for el in list(menu.texts) + list(menu.buttons)] + \
         [project.title(b.thumb.title_id).source for b in menu.buttons if b.thumb]
     return _cache_key("menu", {

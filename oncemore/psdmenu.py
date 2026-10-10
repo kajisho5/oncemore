@@ -312,7 +312,7 @@ def import_psd(psd_path, project, menu_id, out_dir, rel_base):
         shutil.rmtree(work, ignore_errors=True)
 
     menu = dict(old or {}, id=menu_id, background=rel(bg_png), buttons=buttons)
-    for k in ("texts", "shapes"):
+    for k in ("texts", "shapes", "images"):
         menu.pop(k, None)              # the artwork is in the background now
     if menu.get("default_button") not in {x["id"] for x in buttons}:
         menu.pop("default_button", None)

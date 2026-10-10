@@ -777,11 +777,19 @@ class TestMenuDesign(unittest.TestCase):
                         "-i", "color=c=black@0:s=40x40,format=rgba", "-vf",
                         "geq=r=255:g=255:b=255:a='if(between(hypot(X-20,Y-20),12,18),255,0)'",
                         "-frames:v", "1", os.path.join(proj, "media", "ring.png")], check=True)
+        # a logo: blue, with a transparent left half
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi",
+                        "-i", "color=c=blue:s=80x40,format=rgba", "-vf",
+                        "geq=r=0:g=0:b=255:a='if(lt(X,40),0,255)'",
+                        "-frames:v", "1", os.path.join(proj, "media", "logo.png")], check=True)
         path = os.path.join(proj, "project.oncemore.json")
         with open(path) as f:
             data = json.load(f)
         main = data["menus"][0]
         main["shapes"] = [{"x": 100, "y": 200, "w": 300, "h": 200, "color": "#FF0000"}]
+        main["images"] = [{"file": "media/logo.png", "x": 300, "y": 220, "w": 160, "h": 80},
+                          {"file": "media/logo.png", "x": 0, "y": 0, "w": 80, "h": 40,
+                           "hidden": True}]
         main["fade_in"] = 1
         main["texts"][0].update({"outline": "#000000", "outline_width": 3, "shadow": "#00000080"})
         main["buttons"][0]["font"] = find_font(text="PLAY ALL")      # an element's own font
@@ -815,6 +823,13 @@ class TestMenuDesign(unittest.TestCase):
         w = project.disc.width
         r, g, b = pixels[(300 * w + 380) * 3:(300 * w + 380) * 3 + 3]   # inside the panel
         self.assertTrue(r > 200 and g < 60 and b < 60, (r, g, b))
+
+        def px(x, y):
+            return tuple(pixels[(y * w + x) * 3:(y * w + x) * 3 + 3])
+        r, g, b = px(420, 260)                          # the logo's opaque half, over the panel
+        self.assertTrue(b > 200 and r < 60 and g < 60, (r, g, b))
+        r, g, b = px(330, 260)                          # its transparent half shows the panel
+        self.assertTrue(r > 200 and b < 60, (r, g, b))
         geoms = {gm.id: gm for gm in mb.layout(main)}
         ring = geoms["ch"].shape[0]
         self.assertIsInstance(ring, png4.Mask)

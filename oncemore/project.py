@@ -331,6 +331,17 @@ class Shape:
 
 
 @dataclass
+class Picture:
+    """A picture on a menu that is not a button (a logo, a photo)."""
+    file: str
+    x: int
+    y: int
+    w: int
+    h: int
+    opacity: float = 1.0
+
+
+@dataclass
 class PlaylistItem:
     title_id: str
     first: int = 1        # first chapter (1-based)
@@ -402,6 +413,7 @@ class Menu:
     default_button: str = None
     remember_button: bool = True
     shapes: list = field(default_factory=list)
+    images: list = field(default_factory=list)    # Picture, over the shapes
     normal_color: str = None   # the buttons' shapes while not selected (None: not shown)
     fade_in: float = 0.0       # seconds of fade from black when the menu starts (played once)
 
@@ -777,7 +789,8 @@ class _Builder:
         hidden = {b["id"] for b in m["buttons"] if b.get("hidden")}
         m = dict(m, buttons=[b for b in m["buttons"] if not b.get("hidden")],
                  texts=[t for t in m.get("texts", []) if not t.get("hidden")],
-                 shapes=[s for s in m.get("shapes", []) if not s.get("hidden")])
+                 shapes=[s for s in m.get("shapes", []) if not s.get("hidden")],
+                 images=[p for p in m.get("images", []) if not p.get("hidden")])
         if hidden:
             for b in m["buttons"]:
                 if any(v in hidden for v in b.get("nav", {}).values()):
@@ -847,6 +860,9 @@ class _Builder:
             remember_button=m.get("remember_button", True),
             shapes=[Shape(s["x"], s["y"], s["w"], s["h"], s.get("color", "#00000080"))
                     for s in m.get("shapes", [])],
+            images=[Picture(self.file(f"{where}.images[{j}].file", p["file"]), p["x"], p["y"],
+                            p["w"], p["h"], p.get("opacity", 1.0))
+                    for j, p in enumerate(m.get("images", []))],
             background_video=self.file(f"{where}.background_video", m.get("background_video")),
             background=self.file(f"{where}.background", m.get("background")),
             background_color=m.get("background_color", "#000000"),
