@@ -194,6 +194,10 @@ browser) and lands only with green CI.
   menus, stream changes, Resume, Top Menu key, last menu; checked by
   pressing keys in libbluray
 
+**P34 — Buttons after the intro** (done)
+- [x] `buttons_at_loop`: a menu's buttons appear at its loop point (or after
+  the fade-in), on DVD and Blu-ray
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

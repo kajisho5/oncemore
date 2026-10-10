@@ -17,7 +17,7 @@ const I18N = {
     codec: "Codec", bitrate: "Bitrate", language: "Language", end_action: "When it ends",
     title_key: "Title / Top Menu key opens", menu_key: "Menu key opens", first_menu: "First menu",
     playback: "Playback", loop: "Plays", loop_forever: "Repeat forever", loop_n: "{n} time(s), then…",
-    loop_point: "Repeat from (s)", fade_in: "Fade in from black (s)", menu_end: "After the last time", default_button: "Button highlighted first",
+    loop_point: "Repeat from (s)", buttons_at_loop: "Buttons appear at the loop point (the intro plays out)", fade_in: "Fade in from black (s)", menu_end: "After the last time", default_button: "Button highlighted first",
     remember_button: "Come back to the button used last", auto_activate: "Run on selection (no Enter needed)",
     chapter_menu: "Chapter menu", chapter_menu_on: "Generate a chapter menu with thumbnails",
     subtitles: "Subtitles", audio_tracks: "Audio tracks", default_on: "on at start",
@@ -205,7 +205,7 @@ const I18N = {
     codec: "形式", bitrate: "ビットレート", language: "言語", end_action: "再生終了後",
     title_key: "タイトル／トップメニューキーで開く", menu_key: "メニューキーで開く", first_menu: "最初のメニュー",
     playback: "再生", loop: "再生回数", loop_forever: "ずっと繰り返す", loop_n: "{n} 回再生して…",
-    loop_point: "繰り返しの開始位置（秒）", fade_in: "黒からのフェードイン（秒）", menu_end: "最後の再生のあと", default_button: "最初に選ばれるボタン",
+    loop_point: "繰り返しの開始位置（秒）", buttons_at_loop: "ボタンを繰り返しの開始位置から表示（イントロは最後まで再生）", fade_in: "黒からのフェードイン（秒）", menu_end: "最後の再生のあと", default_button: "最初に選ばれるボタン",
     remember_button: "戻ってきたら前に使ったボタンを選ぶ", auto_activate: "選んだだけで実行（決定キー不要）",
     chapter_menu: "チャプターメニュー", chapter_menu_on: "サムネイル付きチャプターメニューを自動生成",
     subtitles: "字幕", audio_tracks: "音声トラック", default_on: "最初から表示",
@@ -2424,6 +2424,7 @@ function renderMenuInspector(el) {
       <label class="field"><span>${t("loop_point")}</span><input type="number" data-k="loop_point" min="0" step="0.1" value="${menu.loop_point ?? ""}" placeholder="0"></label>
       <label class="field"><span>${t("fade_in")}</span><input type="number" data-k="fade_in" min="0" max="10" step="0.1" value="${menu.fade_in ?? ""}" placeholder="0"></label>
     </div>
+    ${menu.loop_point || menu.fade_in ? `<label class="field"><span></span><label><input type="checkbox" id="btn-at-loop" ${menu.buttons_at_loop ? "checked" : ""}> ${t("buttons_at_loop")}</label></label>` : ""}
     ${menu.loop && menu.loop !== "forever" ? `<label class="field"><span>${t("menu_end")}</span>${selectHtml("end_action", actionOptions({ forButton: false, includeChapters: true, allowPlayAll: true }), menu.end_action || "stop")}</label>` : ""}
     ${menu.psd ? `<label class="field"><span>Photoshop</span><div class="row"><span class="mono shrink" style="overflow:hidden;text-overflow:ellipsis">${esc(menu.psd)}</span><button class="small shrink" id="psd-edit">${t("cmd_edit_psd")}</button><button class="small shrink" id="psd-again">${t("reimport")}</button></div><div class="hint">${esc(t("reimport_hint"))}</div></label>` : ""}
     <label class="field"><span>${t("default_button")}</span>${selectHtml("default_button", [["__none__", t("auto")], ...(menu.buttons || []).map((b) => [b.id, `${b.id} (${b.label || b.image || ""})`])], menu.default_button || "__none__")}</label>
@@ -2435,13 +2436,14 @@ function renderMenuInspector(el) {
     onAfter: (p, key, val) => {
       const mm = find(p);
       if (key === "loop") { if (val === "forever") { delete mm.loop; delete mm.end_action; } else mm.loop = Number(val); }
-      if (key === "loop_point" && !val) delete mm.loop_point;
-      if (key === "fade_in" && !val) delete mm.fade_in;
+      if (key === "loop_point" && !val) { delete mm.loop_point; if (!mm.fade_in) delete mm.buttons_at_loop; }
+      if (key === "fade_in" && !val) { delete mm.fade_in; if (!mm.loop_point) delete mm.buttons_at_loop; }
     },
   });
   if ($("#psd-again")) $("#psd-again").onclick = () => { S.psdChanged = null; importPsd(menu.psd, menu.id); };
   if ($("#psd-edit")) $("#psd-edit").onclick = editPsd;
   bindColourSet(el, menu);
+  if ($("#btn-at-loop")) $("#btn-at-loop").onchange = (e) => commit((p) => { const mm = find(p); if (e.target.checked) mm.buttons_at_loop = true; else delete mm.buttons_at_loop; });
   $("#remember-btn").onchange = (e) => commit((p) => { const mm = find(p); if (e.target.checked) delete mm.remember_button; else mm.remember_button = false; });
   bindOrder(el, "menus", menu.id);
   $("#menu-id").onchange = (e) => {

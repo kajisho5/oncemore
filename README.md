@@ -386,6 +386,7 @@ when there are more.
 | `loop` | `"forever"` or how many times it plays before `end_action` | `forever` |
 | `loop_point` | repeats start here (time); the part before plays once as an intro | `0` |
 | `fade_in` | seconds the menu fades in from black (picture and sound), at most 10; played once, repeats start after it | `0` |
+| `buttons_at_loop` | the buttons appear (and work) only from the loop point (or the end of the fade-in) on, so the intro plays out | `false` |
 | `end_action` | after the last loop: `menu:` \| `title:` \| `chapter:` \| `playall` \| `stop` | `stop` |
 | `default_button` | button id highlighted when the menu opens | the first |
 | `remember_button` | coming back highlights the button used last (menus 1–7) | `true` |

@@ -241,6 +241,7 @@ class MenuAssets:
     spumux_xml: str = None
     mpg: str = None
     normal_png: str = None  # the buttons while not selected (menu.normal_color)
+    intro_mpg: str = None   # buttons_at_loop: the part before the loop point, no buttons
 
 
 def display_width(disc):
@@ -695,14 +696,28 @@ class MenuBuilder:
                  "-target", target, "-aspect", self.disc.aspect,
                  "-b:v", str(vbps), "-maxrate", "8000000", "-bufsize", "1835008"]
         args += encode._color_args(self.disc)
-        args += encode.audio_args("ac3", 192_000) + ["-t", f"{dur:.3f}"]
-        if menu.loop_point:
-            # repeats start at a cell boundary, which needs a GOP (VOBU) there
-            args += ["-force_key_frames", f"{menu.loop_point:.3f}"]
+        args += encode.audio_args("ac3", 192_000)
         raw = os.path.join(self.work, f"{menu.id}.raw.mpg")
-        encode.run_ffmpeg(args + [os.path.basename(raw)], dur,
-                          os.path.join(self.logs, f"menu-{menu.id}.log"), on_progress,
-                          cwd=self.work, what=f"ffmpeg (menu {menu.id})")
+        log = os.path.join(self.logs, f"menu-{menu.id}.log")
+        if menu.buttons_at_loop:
+            # two parts: the intro on its own (a DVD shows buttons for a whole
+            # program chain, so they wait in the next one), then the loop
+            lp = menu.loop_point
+            intro = os.path.join(self.work, f"{menu.id}.intro.mpg")
+            encode.run_ffmpeg(args + ["-t", f"{lp:.3f}", os.path.basename(intro)], dur, log,
+                              lambda f: on_progress and on_progress(f * lp / dur),
+                              cwd=self.work, what=f"ffmpeg (menu {menu.id}, intro)")
+            encode.run_ffmpeg(args + ["-ss", f"{lp:.3f}", "-t", f"{dur - lp:.3f}",
+                                      os.path.basename(raw)], dur, log, on_progress,
+                              cwd=self.work, what=f"ffmpeg (menu {menu.id})")
+            assets.intro_mpg = intro
+        else:
+            args += ["-t", f"{dur:.3f}"]
+            if menu.loop_point:
+                # repeats start at a cell boundary, which needs a GOP (VOBU) there
+                args += ["-force_key_frames", f"{menu.loop_point:.3f}"]
+            encode.run_ffmpeg(args + [os.path.basename(raw)], dur, log, on_progress,
+                              cwd=self.work, what=f"ffmpeg (menu {menu.id})")
         xml = self.spumux_xml(assets)
         out = os.path.join(self.work, f"{menu.id}.mpg")
         tools.require(["spumux"])

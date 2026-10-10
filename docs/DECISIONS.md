@@ -895,3 +895,17 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
 * libbluray runs menus only when a player draws them: the tests register
   an overlay callback, read which button graphics are drawn in which
   colour, and press keys with bd_user_input / bd_menu_call.
+
+## 57. Buttons after the intro
+
+* dvdauthor writes a menu's highlight information into every VOBU of the
+  program chain that has buttons, from its first VOBU on (dvdvob.c), so a
+  later spumux start does not hold them back. A menu whose buttons wait for
+  the loop point is therefore two PGCs: the intro (encoded on its own, no
+  subpicture), whose post jumps to the next PGC, and the part with the
+  buttons, which repeats. The menu's number is the intro's PGC, so every
+  jump to the menu shows the intro again; the PGCs after it are numbered on.
+  The buttons' PGC sets the starting button again (dvdauthor would give a
+  PGC without commands button 1).
+* On Blu-ray the buttons' composition is muxed at the loop point
+  (ffmpeg's -itsoffset on the IG stream), so there are none before it.

@@ -337,6 +337,7 @@ oncemore doctor                                # 外部ツールの有無・バ�
 | `loop` | `"forever"` か、`end_action` までに再生する回数 | `forever` |
 | `loop_point` | 2 回目以降の再生開始位置（時間）。それより前はイントロとして 1 回だけ再生 | `0` |
 | `fade_in` | メニュー開始時に黒からフェードインする秒数（映像と音声、最大 10）。1 回だけ再生し、繰り返しはその後から | `0` |
+| `buttons_at_loop` | ボタンを繰り返しの開始位置（またはフェードインの終わり）から表示・操作可能に。イントロは最後まで再生 | `false` |
 | `end_action` | 最後の再生のあと：`menu:` \| `title:` \| `chapter:` \| `playall` \| `stop` | `stop` |
 | `default_button` | メニューを開いたときに選ばれているボタンの id | 先頭 |
 | `remember_button` | 戻ってきたとき前に使ったボタンを選ぶ（メニュー 1〜7） | `true` |

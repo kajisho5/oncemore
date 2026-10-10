@@ -246,7 +246,7 @@ def encode_menu(project, menu, work, font, commands, max_bps, fast=False, on_pro
         f.write(ig_stream(menu, geoms, canvas, commands, frame_rate))
     music = menu.audio or (menu.background_video if menu.background_video and
                            mb._probe(menu.background_video).get("has_audio") else None)
-    still = not (menu.background_video or music)
+    still = not (menu.background_video or music or menu.fade_in)
     dur = STILL_SECONDS if still else mb.menu_duration(menu)
     num, den = fps
     finish = "scale=out_color_matrix=bt709:out_range=tv,format=yuv420p,setsar=1"
@@ -273,6 +273,9 @@ def encode_menu(project, menu, work, font, commands, max_bps, fast=False, on_pro
         graph += f";{src}aresample=48000{afade},apad[a]"
         maps += ["-map", "[a]"]
         audio = ["-c:a", "ac3", "-b:a", "192000", "-ac", "2", "-streamid", f"1:{bluray.AUDIO_PID}"]
+    if menu.buttons_at_loop and not still:
+        # the composition at the loop point: no buttons during the intro
+        inputs += ["-itsoffset", f"{menu.loop_point:.3f}"]
     inputs += ["-f", "sup", "-i", sup]
     maps += ["-map", f"{n}:0"]
     keys = [menu.loop_point] if menu.loop_point and not still else []
