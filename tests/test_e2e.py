@@ -730,5 +730,128 @@ class TestPlaylists(unittest.TestCase):
         self.assertTrue(os.path.getsize(out) > 1000)
 
 
+@unittest.skipUnless(TOOLS_OK, SKIP_REASON)
+class TestMenuDesign(unittest.TestCase):
+    """Rectangles, outlined / shadowed text, a font per element, a button
+    with its own highlight picture, and a motion chapter menu whose
+    thumbnails play."""
+
+    @classmethod
+    def setUpClass(cls):
+        from oncemore.menu import find_font
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-e2e-design-")
+        rc, _, err = run_cli("init", "design", cwd=cls.tmp)
+        assert rc == 0, err
+        proj = os.path.join(cls.tmp, "design")
+        # a ring: the highlight picture of the CHAPTERS button
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi",
+                        "-i", "color=c=black@0:s=40x40,format=rgba", "-vf",
+                        "geq=r=255:g=255:b=255:a='if(between(hypot(X-20,Y-20),12,18),255,0)'",
+                        "-frames:v", "1", os.path.join(proj, "media", "ring.png")], check=True)
+        path = os.path.join(proj, "project.oncemore.json")
+        with open(path) as f:
+            data = json.load(f)
+        main = data["menus"][0]
+        main["shapes"] = [{"x": 100, "y": 200, "w": 300, "h": 200, "color": "#FF0000"}]
+        main["texts"][0].update({"outline": "#000000", "outline_width": 3, "shadow": "#00000080"})
+        main["buttons"][0]["font"] = find_font(text="PLAY ALL")      # an element's own font
+        main["buttons"][1].update({"highlight_image": "media/ring.png", "x": 160})
+        data["titles"][0]["auto_chapter_menu"].update(
+            {"background_video": "media/sample_b.mp4", "duration": 4, "animated_thumbnails": True})
+        with open(path, "w") as f:
+            json.dump(data, f)
+        cls.path = path
+        cls.iso = os.path.join(cls.tmp, "design.iso")
+        rc, out, err = run_cli("--json", "iso", path, "-o", cls.iso, "--fast", cwd=cls.tmp)
+        assert rc == 0, err + out
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def builder(self):
+        from oncemore import menu as menu_mod
+        from oncemore.project import load_project
+        project = load_project(self.path)
+        return project, menu_mod.MenuBuilder(project, os.path.join(self.tmp, "work"))
+
+    def test_shapes_and_highlight_picture(self):
+        from oncemore import png4
+        project, mb = self.builder()
+        main = project.menu("main")
+        base = mb.render_base(main)
+        pixels = subprocess.run(["ffmpeg", "-v", "error", "-i", base, "-f", "rawvideo",
+                                 "-pix_fmt", "rgb24", "-"], capture_output=True).stdout
+        w = project.disc.width
+        r, g, b = pixels[(300 * w + 380) * 3:(300 * w + 380) * 3 + 3]   # inside the panel
+        self.assertTrue(r > 200 and g < 60 and b < 60, (r, g, b))
+        geoms = {gm.id: gm for gm in mb.layout(main)}
+        ring = geoms["ch"].shape[0]
+        self.assertIsInstance(ring, png4.Mask)
+        x0, y0, x1, y1 = ring.bbox()
+        self.assertAlmostEqual(y0, 280 + 2, delta=2)                 # the ring, at the button's y
+        self.assertAlmostEqual(y1, 280 + 38, delta=2)
+        self.assertLess(x0, 160 + 10)
+
+    def test_thumbnails_play(self):
+        project, mb = self.builder()
+        ch = project.menu("chapters")
+        inputs, graph = mb.compose(ch)
+        out = subprocess.run(["ffmpeg", "-v", "error"] + inputs +
+                             ["-filter_complex", graph, "-map", "[out]", "-frames:v", "40",
+                              "-f", "rawvideo", "-pix_fmt", "gray", "-"],
+                             cwd=mb.work, capture_output=True)
+        self.assertEqual(out.returncode, 0, out.stderr[-800:])
+        w, h = project.disc.width, project.disc.height
+        frames = [out.stdout[i * w * h:(i + 1) * w * h] for i in (0, 39)]
+        t = ch.buttons[0].thumb
+
+        def region(f):
+            return [f[y * w + x] for y in range(t.y + 5, t.y + t.h - 5, 4)
+                    for x in range(t.x + 5, t.x + t.w - 5, 4)]
+        a, b = region(frames[0]), region(frames[1])
+        diff = sum(abs(p - q) for p, q in zip(a, b)) / len(a)
+        self.assertGreater(diff, 2.0, "the chapter thumbnail did not move")
+
+    @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
+    def test_disc_navigates(self):
+        with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
+            self.assertEqual(d.wait_menu(), 1)
+            self.assertEqual(d.button_count(), 3)
+            d.activate(2)
+            self.assertEqual(d.wait_menu(), 2)
+            self.assertEqual(d.button_count(), 4)
+
+
+@unittest.skipUnless(TOOLS_OK, SKIP_REASON)
+class TestTemplates(unittest.TestCase):
+    """Every menu template gives a valid menu whose buttons do not overlap,
+    for the sample and for a disc with many titles, on NTSC and PAL."""
+
+    def test_templates_lay_out(self):
+        from oncemore import menu as menu_mod, templates
+        from oncemore.project import build_project
+        from oncemore.scaffold import sample_project
+        tmp = tempfile.mkdtemp(prefix="oncemore-e2e-tpl-")
+        self.addCleanup(shutil.rmtree, tmp, True)
+        big = sample_project()
+        big["titles"] = [dict(big["titles"][1], id=f"t{i}", name=f"A rather long title name {i}")
+                         for i in range(1, 9)]
+        big["playlists"] = [{"id": "pl", "name": "Highlights", "items": ["t1", "t2"]}]
+        for standard in ("NTSC", "PAL"):
+            for data in (sample_project(), big):
+                data = json.loads(json.dumps(data))
+                data["disc"]["standard"] = standard
+                if "chapters" not in [m["id"] for m in data["menus"]]:
+                    data["titles"][0]["auto_chapter_menu"] = {"id": "chapters", "back": "menu:main"}
+                for tpl in templates.TEMPLATES:
+                    data["menus"] = [m for m in data["menus"] if m["id"] == "main"]
+                    data["menus"].append(templates.make_menu(tpl, data, "tpl", back="menu:main"))
+                    p = build_project(data, "/v/project.oncemore.json", check_files=False)
+                    mb = menu_mod.MenuBuilder(p, os.path.join(tmp, f"{standard}-{tpl}"))
+                    geoms = mb.layout(p.menu("tpl"))           # raises on overlaps / empty labels
+                    self.assertGreaterEqual(len(geoms), 2, (standard, tpl))
+
+
 if __name__ == "__main__":
     unittest.main()

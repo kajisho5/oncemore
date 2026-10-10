@@ -22,6 +22,18 @@ const I18N = {
     chapter_menu: "Chapter menu", chapter_menu_on: "Generate a chapter menu with thumbnails",
     subtitles: "Subtitles", audio_tracks: "Audio tracks", default_on: "on at start",
     add_chapter: "Add chapter here", chapters: "Chapters", delete: "Delete",
+    add_shape: "+ Rectangle", snap: "Snap", align: "Align", n_selected: "{n} selected",
+    align_left: "Align left edges", align_hcenter: "Centre horizontally", align_right: "Align right edges",
+    align_top: "Align tops", align_vcenter: "Centre vertically", align_bottom: "Align bottoms",
+    distribute_h: "Distribute horizontally", distribute_v: "Distribute vertically",
+    stage_keys: "Shift-click: select several · arrows: nudge · ⌘D: duplicate · ⌘C/⌘V · Alt: no snapping",
+    multi_hint: "Drag to move them together, or use the align buttons above the menu.",
+    shape: "Rectangle", height: "Height", fill: "Fill", opacity: "Opacity",
+    text_style: "Text style", font: "Font", disc_font: "Disc font", outline: "Outline", shadow: "Shadow",
+    font_hint: "Add .ttf / .otf files to Media to use them here.",
+    highlight_image: "Highlight picture", highlight_image_hint: "Optional: a picture whose opaque pixels light up when the button is selected.",
+    new_menu: "New menu", blank_menu: "Blank", template_hint: "Start from a layout; everything stays editable.",
+    motion_bg: "Motion background", animated_thumbs: "Thumbnails play the chapter",
     image: "Image", width: "Width", highlight_style: "Highlight", hl_frame: "Frame around it", hl_shape: "Its shape",
     image_hint: "An image button shows the picture instead of the text (PNG with transparency works best).",
     chapter_name: "Name on the chapter menu", poster: "Poster", poster_hint: "Use the frame at the playhead as this chapter's thumbnail (click again to reset)",
@@ -79,6 +91,18 @@ const I18N = {
     chapter_menu: "チャプターメニュー", chapter_menu_on: "サムネイル付きチャプターメニューを自動生成",
     subtitles: "字幕", audio_tracks: "音声トラック", default_on: "最初から表示",
     add_chapter: "ここにチャプター", chapters: "チャプター", delete: "削除",
+    add_shape: "＋四角形", snap: "スナップ", align: "整列", n_selected: "{n} 個選択中",
+    align_left: "左揃え", align_hcenter: "左右中央揃え", align_right: "右揃え",
+    align_top: "上揃え", align_vcenter: "上下中央揃え", align_bottom: "下揃え",
+    distribute_h: "左右に等間隔", distribute_v: "上下に等間隔",
+    stage_keys: "Shift+クリックで複数選択・矢印キーで移動・⌘D 複製・⌘C/⌘V・Alt でスナップなし",
+    multi_hint: "ドラッグでまとめて移動、またはメニュー上の整列ボタンを使えます。",
+    shape: "四角形", height: "高さ", fill: "塗り", opacity: "不透明度",
+    text_style: "文字のスタイル", font: "フォント", disc_font: "ディスクのフォント", outline: "縁取り", shadow: "影",
+    font_hint: ".ttf / .otf ファイルを素材に追加するとここで選べます。",
+    highlight_image: "ハイライト画像", highlight_image_hint: "任意：不透明な部分が選択時に光る画像。",
+    new_menu: "新しいメニュー", blank_menu: "白紙", template_hint: "レイアウトから始められます。あとから全部編集できます。",
+    motion_bg: "動く背景", animated_thumbs: "サムネイルでチャプターを再生",
     image: "画像", width: "幅", highlight_style: "ハイライト", hl_frame: "周りに枠", hl_shape: "画像の形",
     image_hint: "画像ボタンは文字の代わりに画像を表示します（透過 PNG がおすすめ）。",
     chapter_name: "チャプターメニューに出す名前", poster: "サムネイル", poster_hint: "再生位置のフレームをこのチャプターのサムネイルにする（もう一度押すと解除）",
@@ -629,7 +653,9 @@ function renderTitleInspector(el) {
     <button class="small" id="add-sub" ${mediaOf("subtitle").length ? "" : "disabled"}>${t("add_sub")}</button>
     <h3>${t("chapter_menu")}</h3>
     <label><input type="checkbox" id="cm-on" ${cm ? "checked" : ""}> ${t("chapter_menu_on")}</label>
-    ${cm ? `<div style="margin-top:8px" data-nobind><label class="field"><span>BACK → </span>${selectHtml("back", [["__none__", t("auto")], ...actionOptions({ forButton: false, includeChapters: false })], (cm === true ? null : cm.back) || "__none__", 'id="cm-back"')}</label></div>` : ""}
+    ${cm ? `<div style="margin-top:8px" data-nobind><label class="field"><span>BACK → </span>${selectHtml("back", [["__none__", t("auto")], ...actionOptions({ forButton: false, includeChapters: false })], (cm === true ? null : cm.back) || "__none__", 'id="cm-back"')}</label>
+      <label class="field"><span>${t("motion_bg")}</span>${selectHtml("cmbg", [["__none__", t("none")], ...mediaOf("video").map((v) => [v, v])], (cm === true ? null : cm.background_video) || "__none__", 'id="cm-bgv"')}</label>
+      <label><input type="checkbox" id="cm-anim" ${cm !== true && cm.animated_thumbnails ? "checked" : ""} ${cm !== true && cm.background_video ? "" : "disabled"}> ${t("animated_thumbs")}</label></div>` : ""}
     <h3></h3>${orderHtml(t("order_title"))}
     <h3></h3><button class="danger" id="del-title">${t("delete")}</button>`;
   const find = (p) => p.titles.find((x) => x.id === ti.id);
@@ -669,6 +695,14 @@ function renderTitleInspector(el) {
   $("#add-track").onclick = () => commit((p) => { const x = find(p); x.audio_tracks = x.audio_tracks || [{}]; x.audio_tracks.push({}); });
   $("#add-sub").onclick = () => commit((p) => { const x = find(p); (x.subtitles = x.subtitles || []).push({ file: mediaOf("subtitle")[0] }); });
   $("#cm-on").onchange = (e) => commit((p) => { const x = find(p); if (e.target.checked) x.auto_chapter_menu = true; else delete x.auto_chapter_menu; });
+  const cmSet = (key, val) => commit((p) => {
+    const x = find(p), spec = x.auto_chapter_menu === true ? {} : x.auto_chapter_menu;
+    if (val === undefined || val === false) delete spec[key]; else spec[key] = val;
+    if (key === "background_video" && val === undefined) delete spec.animated_thumbnails;
+    x.auto_chapter_menu = Object.keys(spec).length ? spec : true;
+  });
+  if ($("#cm-bgv")) $("#cm-bgv").onchange = (e) => cmSet("background_video", e.target.value === "__none__" ? undefined : e.target.value);
+  if ($("#cm-anim")) $("#cm-anim").onchange = (e) => cmSet("animated_thumbnails", e.target.checked || undefined);
   const back = $("#cm-back");
   if (back) back.addEventListener("change", () => {
     commit((p) => {
@@ -693,8 +727,23 @@ function renderTitleInspector(el) {
 
 // ---------------------------------------------------------------- menus
 const curMenu = () => (P().menus || []).find((x) => x.id === S.sel.id);
-function addMenu() {
-  const id = uniqueId("menu", allMenuIds());
+async function addMenu() {
+  let list = [];
+  try { list = (await api("/api/templates")).templates; } catch (e) { list = []; }
+  openModal(`<h2>${t("new_menu")}</h2><div class="hint">${esc(t("template_hint"))}</div>
+    <div class="template-list"><button class="template" data-template="">${esc(t("blank_menu"))}</button>
+    ${list.map((x) => `<button class="template" data-template="${esc(x.id)}">${esc(x[LANG] || x.en)}</button>`).join("")}</div>`);
+  document.querySelectorAll("[data-template]").forEach((b) => (b.onclick = async () => {
+    closeModal();
+    const id = uniqueId(b.dataset.template || "menu", allMenuIds());
+    if (!b.dataset.template) return addBlankMenu(id);
+    const first = (P().menus || [])[0];
+    const r = await api("/api/template", { method: "POST", body: { template: b.dataset.template, id, project: S.project, back: first ? `menu:${first.id}` : null } });
+    commit((p) => { (p.menus = p.menus || []).push(r.menu); });
+    select("menu", id);
+  }));
+}
+function addBlankMenu(id) {
   const first = (P().titles || [])[0];
   commit((p) => {
     (p.menus = p.menus || []).push({ id, background_color: "#101820", texts: [{ text: "MY DISC", x: 80, y: 60, size: 48 }],
@@ -795,72 +844,234 @@ function renderMenu(m) {
   if (menu.background_video) bg = `<img class="bg" src="${imgUrl("frame", { path: menu.background_video, t: 0, w: 960 })}" alt="">`;
   else if (menu.background) bg = `<img class="bg" src="${imgUrl("file", { path: menu.background })}" alt="">`;
   const defSize = menu.font_size || 32, defColor = menu.text_color || "#FFFFFF";
+  const styleOf = (x) => ({ font: x.font, outline: x.outline, outline_width: x.outline_width || 2, shadow: x.shadow, shadow_offset: x.shadow_offset || 3 });
   const els = [
-    ...(menu.texts || []).map((x, i) => ({ kind: "text", i, x: x.x, y: x.y, size: x.size || defSize, color: x.color || defColor, label: x.text })),
-    ...(menu.buttons || []).map((b, i) => ({ kind: "button", i, x: b.x, y: b.y, size: b.size || defSize, color: b.color || defColor, label: b.label || "", image: b.image, width: b.width })),
+    ...(menu.shapes || []).map((x, i) => ({ kind: "shape", i, x: x.x, y: x.y, w: x.w, h: x.h, color: x.color || "#00000080" })),
+    ...(menu.texts || []).map((x, i) => ({ kind: "text", i, x: x.x, y: x.y, size: x.size || defSize, color: x.color || defColor, label: x.text, ...styleOf(x) })),
+    ...(menu.buttons || []).map((b, i) => ({ kind: "button", i, x: b.x, y: b.y, size: b.size || defSize, color: b.color || defColor, label: b.label || "", image: b.image, width: b.width, ...styleOf(b) })),
   ];
-  const sel = S.element;
-  const firstBtn = 0;
+  // selection: S.sels (all selected), S.element (the one the inspector shows)
+  if (!S.element) S.sels = [];
+  else if (!(S.sels || []).some((x) => x.kind === S.element.kind && x.i === S.element.i)) S.sels = [S.element];
+  const isSel = (e) => S.sels.some((x) => x.kind === e.kind && x.i === e.i);
+  const firstBtn = Math.max(0, (menu.buttons || []).findIndex((b) => b.id === menu.default_button));
+  for (const e of els) if (e.font) loadFont(e.font);
+  const css = (e) => {
+    let st = `left:${e.x * sx * scale}px;top:${e.y * scale}px;`;
+    if (e.kind === "shape") return st + `width:${e.w * sx * scale}px;height:${e.h * scale}px;background:${cssColor(e.color)}`;
+    st += `font-size:${e.size * scale}px;color:${esc(e.kind === "button" && e.i === firstBtn ? (menu.highlight_color || "#FFD400") : e.color)};`;
+    if (e.font) st += `font-family:${fontFamily(e.font)},sans-serif;`;
+    const sh = [];
+    if (e.outline) { const o = Math.max(1, e.outline_width * scale); for (const [dx, dy] of [[o, 0], [-o, 0], [0, o], [0, -o], [o, o], [-o, -o], [o, -o], [-o, o]]) sh.push(`${dx}px ${dy}px 0 ${cssColor(e.outline)}`); }
+    if (e.shadow) sh.push(`${e.shadow_offset * scale}px ${e.shadow_offset * scale}px 0 ${cssColor(e.shadow)}`);
+    if (sh.length) st += `text-shadow:${sh.join(",")};`;
+    return st;
+  };
   m.innerHTML = `<div class="stage-tools">
-      <button id="add-btn">${t("add_button")}</button><button id="add-text">${t("add_text")}</button>
+      <button id="add-btn">${t("add_button")}</button><button id="add-text">${t("add_text")}</button><button id="add-shape">${t("add_shape")}</button>
       <label class="shrink" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="safe" ${S.showSafe ? "checked" : ""}> ${t("safe_area")}</label>
+      <label class="shrink" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="snap" ${S.snap === false ? "" : "checked"}> ${t("snap")}</label>
       <button id="exact" class="${S.preview ? "" : "primary"}">${S.preview ? t("hide_preview") : t("exact_preview")}</button>
     </div>
-    <div class="stage-wrap"><div class="stage" id="stage" style="width:${w}px;height:${h}px;background:${esc(menu.background_color || "#000")}">
+    ${S.sels.length > 1 ? `<div class="stage-tools align-tools">${t("align")}:
+      ${[["left", "⇤"], ["hcenter", "↔"], ["right", "⇥"], ["top", "⤒"], ["vcenter", "↕"], ["bottom", "⤓"]].map(([k, i]) => `<button class="small" data-align="${k}" title="${esc(t("align_" + k))}">${i}</button>`).join("")}
+      ${S.sels.length > 2 ? `<button class="small" data-distribute="h" title="${esc(t("distribute_h"))}">⇹</button><button class="small" data-distribute="v" title="${esc(t("distribute_v"))}">⇳</button>` : ""}
+      <span class="hint">${esc(t("n_selected", { n: S.sels.length }))}</span></div>` : ""}
+    <div class="stage-wrap"><div class="stage" id="stage" tabindex="0" style="width:${w}px;height:${h}px;background:${esc(menu.background_color || "#000")}">
       ${bg}
       ${S.showSafe ? `<div class="safe" style="left:${w * 0.05}px;top:${h * 0.05}px;width:${w * 0.9}px;height:${h * 0.9}px"></div>` : ""}
-      ${els.map((e) => `<div class="el ${e.kind} ${sel && sel.kind === e.kind && sel.i === e.i ? "selected" : ""} ${e.kind === "button" && e.i === firstBtn ? "highlight" : ""}"
-          data-kind="${e.kind}" data-i="${e.i}"
-          style="left:${e.x * sx * scale}px;top:${e.y * scale}px;font-size:${e.size * scale}px;color:${esc(e.kind === "button" && e.i === firstBtn ? (menu.highlight_color || "#FFD400") : e.color)}">${e.image
+      ${els.map((e) => `<div class="el ${e.kind} ${isSel(e) ? "selected" : ""} ${e.kind === "button" && e.i === firstBtn ? "highlight" : ""}"
+          data-kind="${e.kind}" data-i="${e.i}" style="${css(e)}">${e.kind === "shape" ? "" : e.image
             ? `<img src="${imgUrl("file", { path: e.image })}" alt="${esc(e.label)}" draggable="false" style="display:block;width:${(e.width || 160) * sx * scale}px${e.i === firstBtn ? `;outline:2px solid ${esc(menu.highlight_color || "#FFD400")}` : ""}">`
             : esc(e.label)}</div>`).join("")}
+      <div class="guide gx" hidden></div><div class="guide gy" hidden></div>
     </div></div>
-    <div class="hint" style="text-align:center;margin-top:8px">${w}×${h} · 720×${H} DVD px · ${esc(P().disc.aspect)}</div>`;
+    <div class="hint" style="text-align:center;margin-top:8px">${w}×${h} · 720×${H} DVD px · ${esc(P().disc.aspect)} · ${esc(t("stage_keys"))}</div>`;
   const stage = $("#stage");
+  const nodeOf = (k) => stage.querySelector(`.el[data-kind="${k.kind}"][data-i="${k.i}"]`);
+  // element boxes on the 720-wide grid (texts measured from the page)
+  const box = (k) => {
+    const n = nodeOf(k), e = els.find((x) => x.kind === k.kind && x.i === k.i);
+    const bw = e.kind === "shape" ? e.w : n.offsetWidth / scale / sx, bh = e.kind === "shape" ? e.h : n.offsetHeight / scale;
+    return { x: e.x, y: e.y, w: bw, h: bh };
+  };
+  const listOf = (mm, kind) => (kind === "button" ? mm.buttons : kind === "text" ? (mm.texts = mm.texts || []) : (mm.shapes = mm.shapes || []));
   stage.querySelectorAll(".el").forEach((node) => {
     node.addEventListener("pointerdown", (ev) => {
       ev.preventDefault();
-      const kind = node.dataset.kind, i = Number(node.dataset.i);
-      S.element = { kind, i };
+      stage.focus();
+      const k = { kind: node.dataset.kind, i: Number(node.dataset.i) };
+      if (ev.shiftKey || ev.metaKey || ev.ctrlKey) {
+        const on = isSel(k);
+        S.sels = on ? S.sels.filter((x) => !(x.kind === k.kind && x.i === k.i)) : [...S.sels, k];
+        S.element = S.sels[S.sels.length - 1] || null;
+        renderMain(); renderInspector();
+        return;
+      }
+      const changedSel = !isSel(k) && S.sels.length > 1;
+      if (!isSel(k)) S.sels = [k];
+      S.element = k;
       stage.querySelectorAll(".el.selected").forEach((n) => n.classList.remove("selected"));
-      node.classList.add("selected");
+      S.sels.forEach((x) => nodeOf(x)?.classList.add("selected"));
       renderInspector();
+      // drag every selected element; snap the grabbed one to the others' edges / centres
+      const group = S.sels.map((x) => ({ k: x, b: box(x), node: nodeOf(x) }));
+      const me = group.find((g) => g.k.kind === k.kind && g.k.i === k.i).b;
+      const others = els.filter((e) => !isSel(e)).map((e) => box(e));
+      const vx = [0, 360, 720, 36, 684, ...others.flatMap((o) => [o.x, o.x + o.w / 2, o.x + o.w])];
+      const vy = [0, H / 2, H, H * 0.05, H * 0.95, ...others.flatMap((o) => [o.y, o.y + o.h / 2, o.y + o.h])];
+      const gx = stage.querySelector(".gx"), gy = stage.querySelector(".gy");
       const startX = ev.clientX, startY = ev.clientY;
-      const list = kind === "button" ? menu.buttons : menu.texts;
-      const ox = list[i].x, oy = list[i].y;
-      let nx = ox, ny = oy;
+      let dx = 0, dy = 0;
       node.setPointerCapture(ev.pointerId);
+      const snapTo = (pos, size, lines) => {
+        let best = null;
+        for (const [off] of [[0], [size / 2], [size]]) for (const l of lines) {
+          const d = l - (pos + off);
+          if (Math.abs(d) <= 6 && (!best || Math.abs(d) < Math.abs(best.d))) best = { d, l };
+        }
+        return best;
+      };
       const move = (e2) => {
-        nx = Math.round(Math.max(0, Math.min(719, ox + (e2.clientX - startX) / scale / sx)));
-        ny = Math.round(Math.max(0, Math.min(H - 1, oy + (e2.clientY - startY) / scale)));
-        node.style.left = nx * sx * scale + "px"; node.style.top = ny * scale + "px";
+        dx = Math.round((e2.clientX - startX) / scale / sx); dy = Math.round((e2.clientY - startY) / scale);
+        gx.hidden = gy.hidden = true;
+        if (S.snap !== false && !e2.altKey) {
+          const sxp = snapTo(me.x + dx, me.w, vx), syp = snapTo(me.y + dy, me.h, vy);
+          if (sxp) { dx += Math.round(sxp.d); gx.hidden = false; gx.style.left = sxp.l * sx * scale + "px"; }
+          if (syp) { dy += Math.round(syp.d); gy.hidden = false; gy.style.top = syp.l * scale + "px"; }
+        }
+        for (const g of group) {
+          const nx = Math.max(0, Math.min(719, g.b.x + dx)), ny = Math.max(0, Math.min(H - 1, g.b.y + dy));
+          g.node.style.left = nx * sx * scale + "px"; g.node.style.top = ny * scale + "px";
+        }
       };
       const up = () => {
         node.removeEventListener("pointermove", move); node.removeEventListener("pointerup", up);
-        if (nx !== ox || ny !== oy) commit((p) => {
+        gx.hidden = gy.hidden = true;
+        if (!dx && !dy && S.sels.length > 1) { S.sels = [k]; S.element = k; renderMain(); renderInspector(); return; }
+        if (!dx && !dy && changedSel) { renderMain(); return; }      // the align bar goes away
+        if (dx || dy) commit((p) => {
           const mm = p.menus.find((x) => x.id === menu.id);
-          const it = (kind === "button" ? mm.buttons : mm.texts)[i]; it.x = nx; it.y = ny;
+          for (const g of group) {
+            const it = listOf(mm, g.k.kind)[g.k.i];
+            it.x = Math.max(0, Math.min(719, Math.round(g.b.x + dx))); it.y = Math.max(0, Math.min(H - 1, Math.round(g.b.y + dy)));
+          }
         });
       };
       node.addEventListener("pointermove", move); node.addEventListener("pointerup", up);
     });
   });
-  stage.addEventListener("pointerdown", (ev) => { if (ev.target === stage || ev.target.classList.contains("bg")) { S.element = null; renderMain(); renderInspector(); } });
+  stage.addEventListener("pointerdown", (ev) => { if (ev.target === stage || ev.target.classList.contains("bg")) { S.element = null; S.sels = []; renderMain(); renderInspector(); } });
+  // align / distribute the selection
+  const arrange = (fn) => commit((p) => {
+    const mm = p.menus.find((x) => x.id === menu.id);
+    const items = S.sels.map((k) => ({ k, b: box(k), it: listOf(mm, k.kind)[k.i] }));
+    fn(items);
+    for (const x of items) { x.it.x = Math.max(0, Math.min(719, Math.round(x.it.x))); x.it.y = Math.max(0, Math.min(H - 1, Math.round(x.it.y))); }
+  });
+  m.querySelectorAll("[data-align]").forEach((b) => (b.onclick = () => arrange((items) => {
+    const a = b.dataset.align, L = Math.min(...items.map((x) => x.b.x)), R = Math.max(...items.map((x) => x.b.x + x.b.w));
+    const T = Math.min(...items.map((x) => x.b.y)), B = Math.max(...items.map((x) => x.b.y + x.b.h));
+    for (const x of items) {
+      if (a === "left") x.it.x = L;
+      if (a === "right") x.it.x = R - x.b.w;
+      if (a === "hcenter") x.it.x = (L + R) / 2 - x.b.w / 2;
+      if (a === "top") x.it.y = T;
+      if (a === "bottom") x.it.y = B - x.b.h;
+      if (a === "vcenter") x.it.y = (T + B) / 2 - x.b.h / 2;
+    }
+  })));
+  m.querySelectorAll("[data-distribute]").forEach((b) => (b.onclick = () => arrange((items) => {
+    const hz = b.dataset.distribute === "h", pos = (x) => (hz ? x.b.x : x.b.y), size = (x) => (hz ? x.b.w : x.b.h);
+    items.sort((p, q) => pos(p) - pos(q));
+    const first = items[0], last = items[items.length - 1];
+    const gap = (pos(last) + size(last) - pos(first) - items.reduce((s, x) => s + size(x), 0)) / (items.length - 1);
+    let at = pos(first);
+    for (const x of items) { if (hz) x.it.x = at; else x.it.y = at; at += size(x) + gap; }
+  })));
   $("#safe").onchange = (e) => { S.showSafe = e.target.checked; renderMain(); };
+  $("#snap").onchange = (e) => { S.snap = e.target.checked; };
   $("#add-btn").onclick = () => commit((p) => {
     const mm = p.menus.find((x) => x.id === menu.id);
     const id = uniqueId("button", mm.buttons.map((b) => b.id));
     const last = mm.buttons[mm.buttons.length - 1];
     mm.buttons.push({ id, label: "BUTTON", x: last ? last.x : 80, y: last ? Math.min(H - 40, last.y + 60) : 200, action: "stop" });
-    S.element = { kind: "button", i: mm.buttons.length - 1 };
+    S.element = { kind: "button", i: mm.buttons.length - 1 }; S.sels = [S.element];
   });
   $("#add-text").onclick = () => commit((p) => {
     const mm = p.menus.find((x) => x.id === menu.id);
     (mm.texts = mm.texts || []).push({ text: "TEXT", x: 80, y: 40 });
-    S.element = { kind: "text", i: mm.texts.length - 1 };
+    S.element = { kind: "text", i: mm.texts.length - 1 }; S.sels = [S.element];
   });
-  $("#exact").onclick = () => { if (S.preview) { S.preview = null; renderMain(); } else requestPreview(menu.id, sel && sel.kind === "button" ? menu.buttons[sel.i].id : null); };
+  $("#add-shape").onclick = () => commit((p) => {
+    const mm = p.menus.find((x) => x.id === menu.id);
+    (mm.shapes = mm.shapes || []).push({ x: 60, y: Math.round(H * 0.7), w: 600, h: 60, color: "#00000080" });
+    S.element = { kind: "shape", i: mm.shapes.length - 1 }; S.sels = [S.element];
+  });
+  $("#exact").onclick = () => { if (S.preview) { S.preview = null; renderMain(); } else requestPreview(menu.id, S.element && S.element.kind === "button" ? menu.buttons[S.element.i].id : null); };
   if (S.preview && S.previewFor === menu.id) drawPreview();
+}
+// keyboard editing on the menu stage: arrows nudge (Shift: 10 px), Delete,
+// Cmd/Ctrl+D duplicate, Cmd/Ctrl+C / V copy and paste
+function stageKeys(ev) {
+  if (S.element && !S.sels?.length) S.sels = [S.element];
+  if (S.sel.view !== "menu" || !S.sels?.length || ev.target.closest?.("input, textarea, select")) return;
+  const menu = curMenu();
+  if (!menu) return;
+  const mod = ev.metaKey || ev.ctrlKey, H = discH();
+  const listOf = (mm, kind) => (kind === "button" ? mm.buttons : kind === "text" ? (mm.texts = mm.texts || []) : (mm.shapes = mm.shapes || []));
+  const arrows = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  if (arrows[ev.key] && !mod) {
+    ev.preventDefault();
+    const [ax, ay] = arrows[ev.key], n = ev.shiftKey ? 10 : 1;
+    commit((p) => {
+      const mm = p.menus.find((x) => x.id === menu.id);
+      for (const k of S.sels) { const it = listOf(mm, k.kind)[k.i]; it.x = Math.max(0, Math.min(719, it.x + ax * n)); it.y = Math.max(0, Math.min(H - 1, it.y + ay * n)); }
+    });
+  } else if ((ev.key === "Delete" || ev.key === "Backspace") && !mod) {
+    ev.preventDefault();
+    commit((p) => {
+      const mm = p.menus.find((x) => x.id === menu.id);
+      for (const k of [...S.sels].sort((a, b) => b.i - a.i)) {
+        const l = listOf(mm, k.kind);
+        if (k.kind === "button" && l.length <= 1) continue;
+        l.splice(k.i, 1);
+      }
+      S.element = null; S.sels = [];
+    });
+  } else if (mod && (ev.key === "c" || ev.key === "C")) {
+    S.clip = S.sels.map((k) => ({ kind: k.kind, it: JSON.parse(JSON.stringify(listOf(menu, k.kind)[k.i])) }));
+  } else if (mod && (ev.key === "d" || ev.key === "D" || ev.key === "v" || ev.key === "V")) {
+    const src = ev.key.toLowerCase() === "d" ? S.sels.map((k) => ({ kind: k.kind, it: listOf(menu, k.kind)[k.i] })) : S.clip;
+    if (!src?.length) return;
+    ev.preventDefault();
+    commit((p) => {
+      const mm = p.menus.find((x) => x.id === menu.id), added = [];
+      for (const { kind, it } of src) {
+        const c = JSON.parse(JSON.stringify(it));
+        c.x = Math.min(719, c.x + 12); c.y = Math.min(H - 1, c.y + 12);
+        if (kind === "button") { c.id = uniqueId(c.id.replace(/\d+$/, "") || "button", mm.buttons.map((b) => b.id)); delete c.nav; }
+        const l = listOf(mm, kind); l.push(c); added.push({ kind, i: l.length - 1 });
+      }
+      S.sels = added; S.element = added[added.length - 1];
+    });
+  }
+}
+// menu fonts in the editor: load the element's font file so the stage looks right
+const loadedFonts = new Set();
+const fontFamily = (path) => `"om-${path.replace(/[^A-Za-z0-9]/g, "_")}"`;
+function loadFont(path) {
+  if (loadedFonts.has(path) || typeof FontFace === "undefined") return;
+  loadedFonts.add(path);
+  new FontFace(fontFamily(path).slice(1, -1), `url(${imgUrl("file", { path })})`).load()
+    .then((f) => { document.fonts.add(f); if (S.sel.view === "menu") renderMain(); }).catch(() => {});
+}
+function cssColor(c) {
+  if (!c) return "transparent";
+  const m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(c);
+  if (!m) return c;
+  const n = parseInt(m[1], 16), a = m[2] ? parseInt(m[2], 16) / 255 : 1;
+  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a.toFixed(3)})`;
 }
 async function requestPreview(menuId, button, generated = false) {
   const stage = $("#stage");
@@ -888,10 +1099,40 @@ function renderMenuInspector(el) {
   if (!menu) { el.innerHTML = ""; return; }
   const sel = S.element;
   const find = (p) => p.menus.find((x) => x.id === menu.id);
+  if (sel && S.sels?.length > 1) {
+    el.innerHTML = `<h2>${esc(t("n_selected", { n: S.sels.length }))}</h2><div class="hint">${esc(t("multi_hint"))}</div>`;
+    return;
+  }
+  if (sel && sel.kind === "shape") {
+    const it = (menu.shapes || [])[sel.i];
+    if (!it) { S.element = null; return renderMenuInspector(el); }
+    const c = it.color || "#00000080";
+    el.innerHTML = `<h2>${t("shape")}</h2>
+      <div class="grid2">
+        <label class="field"><span>X</span><input type="number" data-k="x" min="0" max="719" value="${it.x}"></label>
+        <label class="field"><span>Y</span><input type="number" data-k="y" min="0" max="${discH() - 1}" value="${it.y}"></label>
+        <label class="field"><span>${t("width")}</span><input type="number" data-k="w" min="1" max="720" value="${it.w}"></label>
+        <label class="field"><span>${t("height")}</span><input type="number" data-k="h" min="1" max="${discH()}" value="${it.h}"></label>
+      </div>
+      <div class="grid2" data-nobind>
+        <label class="field"><span>${t("fill")}</span><input type="color" id="shape-rgb" value="${esc(c.slice(0, 7))}"></label>
+        <label class="field"><span>${t("opacity")}</span><input type="range" id="shape-a" min="0" max="255" value="${c.length > 7 ? parseInt(c.slice(7), 16) : 255}"></label>
+      </div>
+      <button class="danger" id="del-el">${t("delete")}</button>`;
+    bindFields(el, (p) => find(p).shapes[sel.i], { numeric: ["x", "y", "w", "h"] });
+    const setColor = () => commit((p) => {
+      const a = Number($("#shape-a").value);
+      find(p).shapes[sel.i].color = $("#shape-rgb").value.toUpperCase() + (a >= 255 ? "" : a.toString(16).padStart(2, "0").toUpperCase());
+    });
+    $("#shape-rgb").onchange = setColor; $("#shape-a").onchange = setColor;
+    $("#del-el").onclick = () => { commit((p) => { find(p).shapes.splice(sel.i, 1); if (!find(p).shapes.length) delete find(p).shapes; }); S.element = null; S.sels = []; renderAll(); };
+    return;
+  }
   if (sel) {
     const list = sel.kind === "button" ? menu.buttons : menu.texts || [];
     const it = list[sel.i];
     if (!it) { S.element = null; return renderMenuInspector(el); }
+    const fonts = [["__none__", t("disc_font")], ...mediaOf("font").map((x) => [x, x.replace(/^media\//, "")])];
     const btnIds = [["__none__", t("nav_auto")], ...menu.buttons.filter((b) => b !== it).map((b) => [b.id, `${b.id} (${b.label || b.image})`])];
     const isImage = sel.kind === "button" && it.image;
     el.innerHTML = `<h2>${sel.kind === "button" ? t("button") : t("text")}</h2>
@@ -909,6 +1150,15 @@ function renderMenuInspector(el) {
         : `<label class="field"><span>${t("size")}</span><input type="number" data-k="size" min="8" max="200" value="${it.size || ""}" placeholder="${menu.font_size || 32}"></label>
         <label class="field"><span>${t("color")}</span><input type="color" data-k="color" value="${esc(it.color || menu.text_color || "#ffffff")}"></label>`}
       </div>
+      ${isImage ? "" : `<h3>${t("text_style")}</h3>
+      <label class="field"><span>${t("font")}</span>${selectHtml("font", fonts, it.font || "__none__")}<div class="hint">${esc(t("font_hint"))}</div></label>
+      <div class="grid2" data-nobind>
+        <label class="field"><span><input type="checkbox" id="st-outline" ${it.outline ? "checked" : ""}> ${t("outline")}</span>
+          <span class="row"><input type="color" id="st-outline-c" value="${esc((it.outline || "#000000").slice(0, 7))}"><input type="number" id="st-outline-w" min="1" max="10" value="${it.outline_width || 2}" style="width:56px"></span></label>
+        <label class="field"><span><input type="checkbox" id="st-shadow" ${it.shadow ? "checked" : ""}> ${t("shadow")}</span>
+          <span class="row"><input type="color" id="st-shadow-c" value="${esc((it.shadow || "#000000").slice(0, 7))}"><input type="number" id="st-shadow-o" min="1" max="20" value="${it.shadow_offset || 3}" style="width:56px"></span></label>
+      </div>`}
+      ${sel.kind === "button" ? `<label class="field"><span>${t("highlight_image")}</span>${selectHtml("highlight_image", [["__none__", t("auto")], ...mediaOf("image").map((x) => [x, x])], it.highlight_image || "__none__")}<div class="hint">${esc(t("highlight_image_hint"))}</div></label>` : ""}
       ${sel.kind === "button" ? `<h3>${t("nav")}</h3><div class="grid2">${["up", "down", "left", "right"].map((d) =>
         `<label class="field"><span>${d}</span>${selectHtml("nav." + d, btnIds, (it.nav || {})[d] || "__none__")}</label>`).join("")}</div>` : ""}
       <button class="danger" id="del-el">${t("delete")}</button>`;
@@ -921,6 +1171,18 @@ function renderMenuInspector(el) {
         if (key === "auto_activate" && !o.auto_activate) delete o.auto_activate;
       },
     });
+    // outline / shadow: checkbox + colour + size
+    const style = () => commit((p) => {
+      const o = (sel.kind === "button" ? find(p).buttons : find(p).texts)[sel.i];
+      for (const [k, cb, col, num, nk, def] of [["outline", "#st-outline", "#st-outline-c", "#st-outline-w", "outline_width", 2],
+        ["shadow", "#st-shadow", "#st-shadow-c", "#st-shadow-o", "shadow_offset", 3]]) {
+        if ($(cb).checked) {
+          o[k] = $(col).value.toUpperCase() + (k === "shadow" ? "B0" : "");
+          const n = Number($(num).value); if (n && n !== def) o[nk] = n; else delete o[nk];
+        } else { delete o[k]; delete o[nk]; }
+      }
+    });
+    el.querySelectorAll("#st-outline, #st-outline-c, #st-outline-w, #st-shadow, #st-shadow-c, #st-shadow-o").forEach((x) => (x.onchange = style));
     // picking an image: start at a width that keeps the whole picture on screen
     const imgSel = el.querySelector("select[data-k=image]");
     if (imgSel) imgSel.addEventListener("change", async () => {
@@ -1028,7 +1290,7 @@ function mediaAction(act, path, titleId) {
     S.selectedMedia = null; return select("title", id);
   }
   if (act === "newmenu") {
-    addMenu(); const mid = S.sel.id;
+    addBlankMenu(uniqueId("menu", allMenuIds())); const mid = S.sel.id;
     commit((p) => { p.menus.find((x) => x.id === mid).background = path; });
     S.selectedMedia = null; return renderAll();
   }
@@ -1179,20 +1441,8 @@ window.addEventListener("keydown", (e) => {
   const inField = ["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement?.tagName);
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && !inField) { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
   if (e.key === "Escape") closeModal();
-  if (inField || S.sel.view !== "menu" || !S.element) return;
-  const menu = curMenu(); if (!menu) return;
-  const step = e.shiftKey ? 10 : 1, d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
-  if (d) {
-    e.preventDefault();
-    const { kind, i } = S.element;
-    commit((p) => { const it = (kind === "button" ? p.menus.find((x) => x.id === menu.id).buttons : p.menus.find((x) => x.id === menu.id).texts)[i];
-      it.x = Math.max(0, Math.min(719, it.x + d[0])); it.y = Math.max(0, Math.min(discH() - 1, it.y + d[1])); });
-  } else if ((e.key === "Delete" || e.key === "Backspace") && !(S.element.kind === "button" && menu.buttons.length <= 1)) {
-    e.preventDefault();
-    const { kind, i } = S.element;
-    commit((p) => { (kind === "button" ? p.menus.find((x) => x.id === menu.id).buttons : p.menus.find((x) => x.id === menu.id).texts).splice(i, 1); });
-    S.element = null; renderAll();
-  }
+  if (inField) return;
+  stageKeys(e);
 });
 window.addEventListener("resize", () => { if (S.sel.view === "menu") renderMain(); });
 boot();

@@ -261,6 +261,20 @@ class Text:
     y: int
     size: int
     color: str
+    font: str = None           # own font file (None = the disc font)
+    outline: str = None
+    outline_width: int = 2
+    shadow: str = None
+    shadow_offset: int = 3
+
+
+@dataclass
+class Shape:
+    x: int
+    y: int
+    w: int
+    h: int
+    color: str = "#00000080"
 
 
 @dataclass
@@ -286,6 +300,7 @@ class Thumb:
     y: int
     w: int
     h: int
+    animated: bool = False     # plays the chapter (motion chapter menus)
 
 
 @dataclass
@@ -301,6 +316,12 @@ class Button:
     thumb: Thumb = None
     image: str = None          # image button: picture instead of the label
     auto_activate: bool = False
+    font: str = None
+    outline: str = None
+    outline_width: int = 2
+    shadow: str = None
+    shadow_offset: int = 3
+    highlight_image: str = None  # picture whose opaque pixels are the highlight
     width: int = None          # its width on the 720-wide grid (None = natural)
     highlight: str = "frame"   # image buttons: "frame" | "shape"
 
@@ -324,6 +345,7 @@ class Menu:
     end_action: str = "stop"   # after the last loop
     default_button: str = None
     remember_button: bool = True
+    shapes: list = field(default_factory=list)
 
 
 @dataclass
@@ -629,10 +651,14 @@ class _Builder:
                           color=b.get("color", tcolor), nav=dict(b.get("nav", {})),
                           image=self.file(f"{where}.buttons[{j}].image", b.get("image")),
                           auto_activate=bool(b.get("auto_activate")),
+                          highlight_image=self.file(f"{where}.buttons[{j}].highlight_image",
+                                                    b.get("highlight_image")),
+                          **self.style(f"{where}.buttons[{j}]", b),
                           width=b.get("width"), highlight=b.get("highlight", "frame"))
                    for j, b in enumerate(m["buttons"])]
         texts = [Text(text=t["text"], x=t["x"], y=t["y"], size=t.get("size", size),
-                      color=t.get("color", tcolor)) for t in m.get("texts", [])]
+                      color=t.get("color", tcolor), **self.style(f"{where}.texts[{j}]", t))
+                 for j, t in enumerate(m.get("texts", []))]
         for j, b in enumerate(buttons):
             if b.y >= disc.height:
                 self.err(f"{where}.buttons[{j}].y", f"must be < {disc.height} for {disc.standard}")
@@ -662,6 +688,8 @@ class _Builder:
             loop=loop, loop_point=loop_point, end_action=m.get("end_action", "stop"),
             default_button=m.get("default_button"),
             remember_button=m.get("remember_button", True),
+            shapes=[Shape(s["x"], s["y"], s["w"], s["h"], s.get("color", "#00000080"))
+                    for s in m.get("shapes", [])],
             background_video=self.file(f"{where}.background_video", m.get("background_video")),
             background=self.file(f"{where}.background", m.get("background")),
             background_color=m.get("background_color", "#000000"),
@@ -671,6 +699,12 @@ class _Builder:
             select_color=m.get("select_color", DEFAULT_SELECT),
             texts=texts, buttons=buttons,
         )
+
+    def style(self, where, spec):
+        """Per-element text style fields."""
+        return {"font": self.file(f"{where}.font", spec.get("font")),
+                "outline": spec.get("outline"), "outline_width": spec.get("outline_width", 2),
+                "shadow": spec.get("shadow"), "shadow_offset": spec.get("shadow_offset", 3)}
 
     ITEM_RE = re.compile(r"^([A-Za-z0-9_-]{1,40})(?::([1-9][0-9]*)(?:-([1-9][0-9]*))?)?$")
 
@@ -709,6 +743,9 @@ class _Builder:
                  for s in range(0, n, CHAPTERS_PER_PAGE)]
         ids = [base_id] + [f"{base_id}_{p}" for p in range(2, len(pages) + 1)]
         heading = spec.get("title", title.name)
+        if spec.get("animated_thumbnails") and not spec.get("background_video"):
+            self.warnings.append(f"{where}.animated_thumbnails needs background_video; "
+                                 "the thumbnails stay still")
         out = []
         for p, chaps in enumerate(pages):
             buttons = []
@@ -729,7 +766,8 @@ class _Builder:
                     thumb=Thumb(title.id,
                                 poster if poster is not None
                                 else start + min(1.0, (nxt - start) / 2),
-                                x, y, thumb_w, thumb_h)))
+                                x, y, thumb_w, thumb_h,
+                                animated=bool(spec.get("animated_thumbnails")))))
             nav_x = 54
             if back:
                 buttons.append(Button(id="back", label=spec.get("back_label", "BACK"), x=nav_x,
@@ -743,6 +781,8 @@ class _Builder:
             page_label = f"  ({p + 1}/{len(pages)})" if len(pages) > 1 else ""
             out.append(Menu(
                 id=ids[p],
+                background_video=self.file(f"{where}.background_video",
+                                           spec.get("background_video")),
                 background=self.file(f"{where}.background", spec.get("background")),
                 background_color=spec.get("background_color", DEFAULT_BG),
                 audio=self.file(f"{where}.audio", spec.get("audio")),

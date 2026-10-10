@@ -343,3 +343,23 @@ the next title short at that chapter.
 
 Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
 (1,2) → (2,2) (2,3) → (1,1) → menu, across two titlesets.
+
+## 28. Menu design stays within what a DVD can show
+
+* Rectangles, outlines and shadows are drawn into the menu picture (drawbox,
+  drawtext's border and shadow), so they cost nothing at playback. The
+  highlight mask is still measured from the plain letters: the highlight
+  recolours the letters, and the outline / shadow stay as they are.
+* A font per element is linked into the work folder under an ASCII name, like
+  the disc font, and checked for every character of that element (drawtext
+  has no fallback). The editor loads the same font file to draw the stage.
+* A button's `highlight_image` replaces the automatic highlight with the
+  opaque pixels of a picture — the equivalent of a hand-drawn highlight layer.
+  Its hit area covers both the label (or image) and the picture.
+* Animated thumbnails are the title itself, fitted the same way as still
+  thumbnails and overlaid on the motion background, so they cost no extra
+  encode step; they need a motion background (a still menu is one frame).
+* Templates are plain menu JSON generated for the project (its titles, chapter
+  menus, playlists and streams), sized for NTSC or PAL; labels are shortened
+  to fit their slot so the layout never produces overlapping buttons (tested
+  for every template with 2 and 8 titles on both standards).

@@ -352,6 +352,67 @@ class TestGuiBrowser(unittest.TestCase):
             browser.close()
         self.assertEqual(errors, [])
 
+    def test_menu_design_tools(self):
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click("#np-sample")
+            # a menu from a template, with buttons for the project's titles
+            page.click("#add-menu", timeout=120000)
+            page.click("[data-template='classic']")
+            page.wait_for_selector(".stage .el.shape")
+            self.wait_saved(page)
+            m = self.project()["menus"][-1]
+            self.assertEqual(m["id"], "classic1")
+            self.assertEqual([b["action"] for b in m["buttons"]][:3],
+                             ["playall", "title:t1", "title:t2"])
+            # the template lays out without overlaps: the exact preview renders
+            page.click("#exact")
+            page.wait_for_selector(".stage img.exact", timeout=60000)
+            page.click("#exact")
+            # select two buttons, align their left edges
+            btn = page.locator(".stage .el.button")
+            btn.nth(0).click()
+            btn.nth(1).click(modifiers=["Shift"])
+            page.locator("[data-align='left']").wait_for()
+            page.locator(".stage .el.button").nth(1).click(modifiers=["Shift"])   # off again
+            self.assertEqual(page.locator("[data-align]").count(), 0)
+            page.locator(".stage .el.button").nth(1).click(modifiers=["Shift"])
+            page.locator("#stage").focus()
+            page.keyboard.press("Shift+ArrowRight")                # nudge both by 10
+            self.wait_saved(page)
+            b = self.project()["menus"][-1]["buttons"]
+            self.assertEqual((b[0]["x"], b[1]["x"]), (94, 94))
+            page.click("[data-align='right']")
+            self.wait_saved(page)
+            # duplicate, then delete the copy again
+            n = len(self.project()["menus"][-1]["buttons"])
+            page.locator(".stage .el.button").nth(0).click()
+            page.keyboard.press("Control+d")
+            self.wait_saved(page)
+            self.assertEqual(len(self.project()["menus"][-1]["buttons"]), n + 1)
+            page.keyboard.press("Delete")
+            self.wait_saved(page)
+            self.assertEqual(len(self.project()["menus"][-1]["buttons"]), n)
+            # a rectangle, then its colour and opacity
+            page.click("#add-shape")
+            page.locator("#shape-a").wait_for()
+            page.fill("#shape-rgb", "#336699")
+            page.locator("#shape-a").fill("128")
+            page.locator("#shape-a").dispatch_event("change")
+            self.wait_saved(page)
+            self.assertEqual(self.project()["menus"][-1]["shapes"][-1]["color"], "#33669980")
+            # text style: outline on the title text
+            page.locator(".stage .el.text").first.click()
+            page.check("#st-outline")
+            self.wait_saved(page)
+            self.assertEqual(self.project()["menus"][-1]["texts"][0]["outline"], "#000000")
+            browser.close()
+        self.assertEqual(errors, [])
+
     def test_full_flow(self):
         errors = []
         with sync_playwright() as p:
@@ -402,6 +463,7 @@ class TestGuiBrowser(unittest.TestCase):
             # enable the chapter menu, then add a menu
             page.check("#cm-on")
             page.click("#add-menu")
+            page.click("[data-template='']")                  # Blank
             page.wait_for_selector(".stage .el.button")
             self.wait_saved(page)
             proj = self.project()
