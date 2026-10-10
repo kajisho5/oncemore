@@ -75,13 +75,19 @@ project. Python is bundled; only the video tools come from Homebrew:
 brew install ffmpeg-full dvdauthor
 ```
 
-Download `Oncemore-<version>-arm64.zip` (Apple silicon) from the latest CI run's
-artifacts or a release, unzip, and move *Oncemore.app* to Applications. The
+Download `Oncemore-<version>-arm64.zip` (Apple silicon) or
+`Oncemore-<version>-x86_64.zip` (Intel) from the
+[Releases](https://github.com/kajisho5/oncemore/releases) page (or the latest CI
+run's artifacts), unzip, and move *Oncemore.app* to Applications. The
 build is not notarised yet, so macOS blocks the first launch: open *System
 Settings › Privacy & Security* and click **Open Anyway** (or run
 `xattr -dr com.apple.quarantine /Applications/Oncemore.app`). Build it yourself
 with `macos/build_app.sh` (Xcode command line tools + `gh`); with a Developer ID
 set `CODESIGN_IDENTITY` and `NOTARIZE=1` to produce a signed, notarised app.
+Pushing a tag `v<version>` runs `.github/workflows/release.yml`, which builds
+both architectures, launches each on a sample project and attaches the zips to a
+draft release (signed and notarised when the signing secrets listed in that file
+are set).
 
 ## Quick start: the app in a browser
 
