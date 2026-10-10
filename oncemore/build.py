@@ -33,6 +33,11 @@ def inspect(project, reporter=None):
                 issues.append({"path": f"{where}.audio_tracks[{j}]",
                                "message": f"{os.path.basename(tr.source)} has {have} audio "
                                           f"stream(s); stream {tr.stream} does not exist"})
+            elif t.audio_channels == 6 and tr.stream == 0 \
+                    and 0 < probe(tr.source).get("audio_channels", 0) < 6:
+                warnings.append(f"{where}.audio_tracks[{j}]: {os.path.basename(tr.source)} has "
+                                f"{probe(tr.source)['audio_channels']} channel(s); the 5.1 "
+                                "track will only use the front speakers")
         for j, sub in enumerate(t.subtitles):
             cues[(t.id, j)] = subtitles.load_srt(sub.file)
             if not cues[(t.id, j)]:
@@ -90,7 +95,8 @@ def summary(project, infos, plan):
                     "duration": round(infos[t.id]["duration"], 3),
                     "input": f"{infos[t.id]['width']}x{infos[t.id]['height']}"
                              f"@{float(infos[t.id]['fps'] or 0):.3f}",
-                    "chapters": t.chapters, "audio": t.audio_codec, "aspect": t.aspect,
+                    "chapters": t.chapters, "audio": t.audio_codec,
+                    "audio_channels": t.audio_channels, "aspect": t.aspect,
                     "titleset": t.titleset, "global_number": t.global_number,
                     "audio_bps": t.audio_bps, "end_action": t.end_action,
                     "audio_tracks": [{"source": a.source, "stream": a.stream, "lang": a.lang}

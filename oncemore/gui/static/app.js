@@ -28,6 +28,7 @@ const I18N = {
     add_button: "+ Button", add_text: "+ Text", exact_preview: "Exact preview", hide_preview: "Hide preview",
     safe_area: "Safe area", button: "Button", text: "Text", action: "Action", size: "Size", color: "Colour",
     nav: "Remote navigation", nav_auto: "auto", none: "None", stop: "Stop",
+    playall: "Play all titles", channels: "Channels", stereo: "Stereo", surround: "5.1 surround",
     generated_menu: "This menu is generated from the chapters of “{t}”. Change it in that title's settings.",
     go_to_title: "Open title",
     build_iso: "Disc image (.iso)", build_folder: "VIDEO_TS folder", fast: "Fast (1-pass) encoding",
@@ -71,6 +72,7 @@ const I18N = {
     add_button: "＋ボタン", add_text: "＋テキスト", exact_preview: "実レンダリング確認", hide_preview: "確認を閉じる",
     safe_area: "セーフエリア", button: "ボタン", text: "テキスト", action: "リンク先", size: "サイズ", color: "色",
     nav: "リモコンの移動先", nav_auto: "自動", none: "なし", stop: "停止",
+    playall: "全タイトルを連続再生", channels: "チャンネル", stereo: "ステレオ", surround: "5.1ch サラウンド",
     generated_menu: "このメニューは「{t}」のチャプターから自動生成されます。変更はそのタイトルの設定で行います。",
     go_to_title: "タイトルを開く",
     build_iso: "ディスクイメージ（.iso）", build_folder: "VIDEO_TS フォルダ", fast: "高速（1パス）エンコード",
@@ -167,9 +169,10 @@ function uniqueId(prefix, existing) {
   while (existing.includes(`${prefix}${n}`)) n++;
   return `${prefix}${n}`;
 }
-function actionOptions({ forButton = true, allowStop = true, includeChapters = forButton } = {}) {
+function actionOptions({ forButton = true, allowStop = true, includeChapters = forButton, allowPlayAll = forButton } = {}) {
   const p = P(), opts = [];
   for (const id of allMenuIds()) opts.push([`menu:${id}`, t("menu_item", { m: id })]);
+  if (allowPlayAll && (p.titles || []).length) opts.push(["playall", t("playall")]);
   for (const ti of p.titles || []) {
     opts.push([`title:${ti.id}`, t("title_item", { t: ti.name || ti.id })]);
     if (includeChapters) chaptersOf(ti).forEach((_, i) =>
@@ -375,7 +378,7 @@ function renderWelcome(m) {
 // ---------------------------------------------------------------- disc
 function renderDisc(m) {
   const d = P().disc;
-  const fp = actionOptions({ forButton: false, allowStop: false, includeChapters: false });
+  const fp = actionOptions({ forButton: false, allowStop: false, includeChapters: false, allowPlayAll: true });
   m.innerHTML = `<div class="card" style="max-width:640px"><h2>${t("disc")}</h2>
     <label class="field"><span>${t("label")}</span><input data-k="label" value="${esc(d.label)}"></label>
     <div class="grid2">
@@ -482,7 +485,8 @@ function renderTitleInspector(el) {
     <h3>${t("audio")}</h3>
     <div class="grid2">
       <label class="field"><span>${t("codec")}</span>${selectHtml("audio.codec", [["ac3", "AC-3"], ["lpcm", "LPCM"]], audio.codec || "ac3")}</label>
-      <label class="field"><span>${t("bitrate")}</span>${selectHtml("audio.bitrate", [["128k", "128k"], ["192k", "192k"], ["224k", "224k"], ["256k", "256k"], ["384k", "384k"], ["448k", "448k"]], audio.bitrate || "192k", audio.codec === "lpcm" ? "disabled" : "")}</label>
+      <label class="field"><span>${t("bitrate")}</span>${selectHtml("audio.bitrate", [["128k", "128k"], ["192k", "192k"], ["224k", "224k"], ["256k", "256k"], ["384k", "384k"], ["448k", "448k"]], audio.bitrate || (audio.channels === 6 ? "448k" : "192k"), audio.codec === "lpcm" ? "disabled" : "")}</label>
+      <label class="field"><span>${t("channels")}</span>${selectHtml("audio.channels", [["2", t("stereo")], ["6", t("surround")]], String(audio.channels || 2), audio.codec === "lpcm" ? "disabled" : "")}</label>
     </div>
     ${tracks.length ? "" : `<label class="field"><span>${t("language")}</span>${selectHtml("audio.lang", langs, audio.lang || "")}</label>`}
     <h3>${t("audio_tracks")}</h3>
@@ -505,7 +509,13 @@ function renderTitleInspector(el) {
     ${cm ? `<div style="margin-top:8px" data-nobind><label class="field"><span>BACK → </span>${selectHtml("back", [["__none__", t("auto")], ...actionOptions({ forButton: false, includeChapters: false })], (cm === true ? null : cm.back) || "__none__", 'id="cm-back"')}</label></div>` : ""}
     <h3></h3><button class="danger" id="del-title">${t("delete")}</button>`;
   const find = (p) => p.titles.find((x) => x.id === ti.id);
-  bindFields(el, find, {});
+  bindFields(el, find, {
+    numeric: ["audio.channels"],
+    onAfter: (p, key, val) => {   // LPCM is stereo only; 2 is the default anyway
+      const a = find(p).audio;
+      if (a && (key === "audio.codec" && val === "lpcm" || key === "audio.channels" && val === 2)) delete a.channels;
+    },
+  });
   el.querySelectorAll("[data-track]").forEach((row) => {
     const i = Number(row.dataset.track);
     row.querySelectorAll("[data-k]").forEach((inp) => inp.addEventListener("change", () => {

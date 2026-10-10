@@ -74,6 +74,7 @@ def _declare(lib):
         "dvdnav_get_active_audio_stream": (ctypes.c_int8, [P]),
         "dvdnav_get_active_spu_stream": (ctypes.c_int8, [P]),
         "dvdnav_audio_stream_to_lang": (ctypes.c_uint16, [P, ctypes.c_uint8]),
+        "dvdnav_audio_stream_channels": (ctypes.c_uint16, [P, ctypes.c_uint8]),
         "dvdnav_spu_stream_to_lang": (ctypes.c_uint16, [P, ctypes.c_uint8]),
         "dvdnav_get_title_string": (ctypes.c_int, [P, ctypes.POINTER(ctypes.c_char_p)]),
     }
@@ -182,6 +183,9 @@ class DvdSim:
 
     def audio_lang(self, stream):
         return self._lang(self.lib.dvdnav_audio_stream_to_lang(self.h, stream))
+
+    def audio_channels(self, stream):
+        return self.lib.dvdnav_audio_stream_channels(self.h, stream)
 
     def subtitle_lang(self, stream):
         return self._lang(self.lib.dvdnav_spu_stream_to_lang(self.h, stream))

@@ -159,7 +159,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
     "standard": "NTSC",          // NTSC (720x480, 29.97) | PAL (720x576, 25)
     "aspect": "16:9",            // 4:3 | 16:9
     "target": "DVD5",            // DVD5 (4.37 GiB) | DVD9 (7.95 GiB)
-    "first_play": "menu:main",   // menu:<id> | title:<id>; default: first menu
+    "first_play": "menu:main",   // menu:<id> | title:<id> | playall; default: first menu
     "font": null,                // font file for menu text; null = auto
     "video_bitrate": "auto"      // "auto" = fit the disc, or e.g. "6M"
   },
@@ -169,8 +169,8 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
       "name": "Sample Title A",                     // used as chapter-menu heading
       "source": "media/sample_a.mp4",
       "chapters": ["00:00:00", "00:00:08", 16],     // "HH:MM:SS[.ms]", "MM:SS" or seconds
-      "audio": { "codec": "ac3", "bitrate": "192k" },// ac3 | lpcm (48 kHz/16-bit)
-      "end_action": "title:t2",                     // menu:<id> | title:<id> | stop
+      "audio": { "codec": "ac3", "bitrate": "192k" },// ac3 | lpcm (48 kHz/16-bit); "channels": 6 = 5.1
+      "end_action": "menu:main",                    // menu:<id> | title:<id> | stop
       "auto_chapter_menu": { "id": "chapters", "back": "menu:main" }  // or true
     }
   ],
@@ -181,7 +181,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
       "audio": null,                       // optional looping music
       "texts": [{ "text": "SAMPLE DISC", "x": 120, "y": 90, "size": 56 }],
       "buttons": [
-        { "id": "play", "label": "PLAY ALL", "x": 120, "y": 220, "action": "title:t1" },
+        { "id": "play", "label": "PLAY ALL", "x": 120, "y": 220, "action": "playall" },
         { "id": "ch",   "label": "CHAPTERS", "x": 120, "y": 280, "action": "menu:chapters" }
       ],
       "highlight_color": "#FFD400",
@@ -201,7 +201,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `standard` | `NTSC` \| `PAL` | required |
 | `aspect` | `4:3` \| `16:9` | required |
 | `target` | `DVD5` \| `DVD9` | `DVD5` |
-| `first_play` | `menu:<id>` \| `title:<id>` | first menu, else first title |
+| `first_play` | `menu:<id>` \| `title:<id>` \| `playall` | first menu, else first title |
 | `font` | path or `null` | auto: Hiragino (macOS) → Noto Sans CJK → DejaVu Sans |
 | `video_bitrate` | `"auto"` or bitrate (`"6M"`, `5500000`), 1–8 Mbit/s | `auto` |
 | `subtitle_style` | `{size, color, outline, outline_width, margin}` for all subtitles | 30 px (PAL 36), white, black outline 3 px, 36 px (PAL 43) from the bottom |
@@ -215,7 +215,8 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `source` | any video ffmpeg reads | required |
 | `chapters` | list of times; `0` is added if missing | `[0]` |
 | `audio.codec` | `ac3` \| `lpcm` | `ac3` |
-| `audio.bitrate` | AC-3 only, 64k–448k | `192k` |
+| `audio.bitrate` | AC-3 only, 64k–448k | `192k` (`448k` for 5.1) |
+| `audio.channels` | `2` (stereo, sources are down-mixed) \| `6` (5.1, AC-3 only) | `2` |
 | `end_action` | `menu:<id>` \| `title:<id>` \| `stop` | first-play menu, else `stop` |
 | `aspect` | `4:3` \| `16:9` for this title | `disc.aspect` |
 | `audio.lang` | ISO 639-1 code of the (single) audio track | none |
@@ -246,11 +247,14 @@ with PREV/NEXT buttons when there are more.
 | `buttons[]` | 1–36 buttons | required |
 
 **buttons[]**: `id`, `label`, `x`, `y` (top-left of the label), `action`
-(`menu:<id>` \| `title:<id>` \| `chapter:<title id>:<n>` \| `audio:<n>` \|
+(`menu:<id>` \| `title:<id>` \| `chapter:<title id>:<n>` \| `playall` \| `audio:<n>` \|
 `subtitle:<n>` \| `subtitle:off` \| `stop`), optional `size`, `color`, and `nav`
 (`{"up": id, "down": id, "left": id, "right": id}`) to override the automatic
 navigation. `audio:<n>` / `subtitle:<n>` (1-based) select a stream and stay on
 the menu, so a "setup" menu is just a few of these buttons plus a BACK button.
+`playall` plays every title in project order and then follows the last title's
+`end_action`; a title started on its own (by a title or chapter button) still
+ends with its own `end_action`.
 
 ### Audio tracks and subtitles
 
@@ -342,13 +346,13 @@ By hand:
 ## Known limitations
 
 * Motion menus loop one video; there are no animated buttons or transitions.
-* Stereo audio only (sources are down-mixed). Subtitles: SRT only, one style
-  per disc, bottom-centred; no positioning or colours per cue.
+* Audio is stereo or 5.1 AC-3, always re-encoded (no AC-3 pass-through).
+  Subtitles: SRT only, one style per disc, bottom-centred; no positioning or
+  colours per cue.
 * Audio/subtitle stream *n* has one language for the whole disc. Menus have
   one aspect ratio (`disc.aspect`); titles may differ.
 * Frame-rate conversion is plain frame dropping/duplication (no telecine/IVTC);
   interlaced sources are deinterlaced and the output is progressive.
-* No "play all then return" logic beyond `end_action` chains.
 * `xorriso` cannot write UDF; images made with it are ISO 9660 only and are
   **not** opened by libdvdread-based players (VLC, mpv) or most DVD players.
   oncemore therefore prefers hdiutil / genisoimage / mkisofs and warns when it

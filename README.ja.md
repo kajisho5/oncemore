@@ -151,7 +151,7 @@ oncemore doctor                                # 外部ツールの有無・バ�
     "standard": "NTSC",          // NTSC（720x480, 29.97）| PAL（720x576, 25）
     "aspect": "16:9",            // 4:3 | 16:9
     "target": "DVD5",            // DVD5（4.37 GiB）| DVD9（7.95 GiB）
-    "first_play": "menu:main",   // menu:<id> | title:<id>。既定は最初のメニュー
+    "first_play": "menu:main",   // menu:<id> | title:<id> | playall。既定は最初のメニュー
     "font": null,                // メニュー文字のフォント。null で自動検出
     "video_bitrate": "auto"      // "auto" で容量に合わせて自動。固定なら "6M" など
   },
@@ -161,8 +161,8 @@ oncemore doctor                                # 外部ツールの有無・バ�
       "name": "Sample Title A",                     // チャプターメニューの見出し
       "source": "media/sample_a.mp4",
       "chapters": ["00:00:00", "00:00:08", 16],     // "HH:MM:SS[.ms]"、"MM:SS"、秒数
-      "audio": { "codec": "ac3", "bitrate": "192k" },// ac3 | lpcm（48kHz/16bit）
-      "end_action": "title:t2",                     // menu:<id> | title:<id> | stop
+      "audio": { "codec": "ac3", "bitrate": "192k" },// ac3 | lpcm（48kHz/16bit）。"channels": 6 で 5.1ch
+      "end_action": "menu:main",                    // menu:<id> | title:<id> | stop
       "auto_chapter_menu": { "id": "chapters", "back": "menu:main" }  // または true
     }
   ],
@@ -173,7 +173,7 @@ oncemore doctor                                # 外部ツールの有無・バ�
       "audio": null,                       // 任意。ループ BGM
       "texts": [{ "text": "SAMPLE DISC", "x": 120, "y": 90, "size": 56 }],
       "buttons": [
-        { "id": "play", "label": "PLAY ALL", "x": 120, "y": 220, "action": "title:t1" },
+        { "id": "play", "label": "PLAY ALL", "x": 120, "y": 220, "action": "playall" },
         { "id": "ch",   "label": "CHAPTERS", "x": 120, "y": 280, "action": "menu:chapters" }
       ],
       "highlight_color": "#FFD400",
@@ -193,7 +193,7 @@ oncemore doctor                                # 外部ツールの有無・バ�
 | `standard` | `NTSC` \| `PAL` | 必須 |
 | `aspect` | `4:3` \| `16:9` | 必須 |
 | `target` | `DVD5` \| `DVD9` | `DVD5` |
-| `first_play` | `menu:<id>` \| `title:<id>` | 最初のメニュー、無ければ最初のタイトル |
+| `first_play` | `menu:<id>` \| `title:<id>` \| `playall` | 最初のメニュー、無ければ最初のタイトル |
 | `font` | パス または `null` | 自動：ヒラギノ（macOS）→ Noto Sans CJK → DejaVu Sans |
 | `video_bitrate` | `"auto"` かビットレート（`"6M"`、`5500000`）、1〜8 Mbps | `auto` |
 | `subtitle_style` | 全字幕の `{size, color, outline, outline_width, margin}` | 30px（PAL 36）、白、黒縁 3px、下から 36px（PAL 43） |
@@ -207,7 +207,8 @@ oncemore doctor                                # 外部ツールの有無・バ�
 | `source` | ffmpeg が読める動画 | 必須 |
 | `chapters` | 時刻のリスト。0 が無ければ自動追加 | `[0]` |
 | `audio.codec` | `ac3` \| `lpcm` | `ac3` |
-| `audio.bitrate` | AC-3 のみ、64k〜448k | `192k` |
+| `audio.bitrate` | AC-3 のみ、64k〜448k | `192k`（5.1ch は `448k`） |
+| `audio.channels` | `2`（ステレオ。素材はダウンミックス）\| `6`（5.1ch、AC-3 のみ） | `2` |
 | `end_action` | `menu:<id>` \| `title:<id>` \| `stop` | first_play のメニュー、無ければ `stop` |
 | `aspect` | このタイトルの `4:3` \| `16:9` | `disc.aspect` |
 | `audio.lang` | 音声（1 トラック時）の ISO 639-1 言語コード | なし |
@@ -237,11 +238,13 @@ oncemore doctor                                # 外部ツールの有無・バ�
 | `buttons[]` | 1〜36 個 | 必須 |
 
 **buttons[]**：`id`、`label`、`x`、`y`（ラベルの左上）、`action`
-（`menu:<id>` \| `title:<id>` \| `chapter:<タイトルid>:<番号>` \| `audio:<n>` \|
+（`menu:<id>` \| `title:<id>` \| `chapter:<タイトルid>:<番号>` \| `playall` \| `audio:<n>` \|
 `subtitle:<n>` \| `subtitle:off` \| `stop`）、任意で `size`、`color`、自動ナビゲーションを
 上書きする `nav`（`{"up": id, "down": id, "left": id, "right": id}`）。
 `audio:<n>` / `subtitle:<n>`（1 始まり）はストリームを切り替えてメニューに留まるので、
 「音声・字幕設定」メニューはこれらのボタンと BACK ボタンを並べるだけで作れます。
+`playall` は全タイトルをプロジェクトの順に再生し、最後のタイトルの `end_action` に従います。
+タイトル／チャプターボタンから単独で再生したタイトルは、そのタイトル自身の `end_action` で終わります。
 
 ### 複数音声と字幕
 
@@ -325,13 +328,12 @@ DVD ナビゲーションライブラリ）でメニューのボタンを実際�
 ## 既知の制限
 
 * モーションメニューは動画 1 本のループのみ（アニメーションするボタンや遷移効果はなし）。
-* 音声はステレオのみ（ダウンミックス）。字幕は SRT のみ、ディスク全体で 1 スタイル、
-  下中央固定（字幕ごとの位置・色指定はなし）。
+* 音声はステレオまたは 5.1ch の AC-3 で、常に再エンコード（AC-3 のパススルーはなし）。
+  字幕は SRT のみ、ディスク全体で 1 スタイル、下中央固定（字幕ごとの位置・色指定はなし）。
 * 音声・字幕の n 番目のストリームの言語はディスク全体で 1 つ。メニューのアスペクト比は
   1 種類（`disc.aspect`）で、タイトルは個別に指定できます。
 * フレームレート変換は単純な間引き／複製（テレシネ／逆テレシネなし）。インターレース素材は
   デインターレースしてプログレッシブで出力。
-* `end_action` の連鎖以外の「全部再生して戻る」ロジックはなし。
 * `xorriso` は UDF を書けないため、xorriso で作った ISO は ISO 9660 のみとなり、
   libdvdread 系プレーヤー（VLC、mpv）や多くの DVD プレーヤーで **開けません**。
   そのため hdiutil / genisoimage / mkisofs を優先し、xorriso にフォールバックした場合は警告します。

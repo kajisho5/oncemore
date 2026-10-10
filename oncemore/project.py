@@ -158,9 +158,10 @@ def normalize_label(label):
 
 def parse_action(s):
     """'menu:x' -> ('menu', 'x', None); 'chapter:t:2' -> ('chapter', 't', 2); 'stop';
-    'audio:2' -> ('audio', None, 2); 'subtitle:off' -> ('subtitle', None, 0)."""
-    if s == "stop":
-        return ("stop", None, None)
+    'audio:2' -> ('audio', None, 2); 'subtitle:off' -> ('subtitle', None, 0);
+    'playall' -> ('playall', None, None)."""
+    if s in ("stop", "playall"):
+        return (s, None, None)
     kind, _, rest = s.partition(":")
     if kind == "chapter":
         tid, _, n = rest.rpartition(":")
@@ -229,6 +230,7 @@ class Title:
     chapters: list
     audio_codec: str = "ac3"
     audio_bitrate: int = 192_000
+    audio_channels: int = 2  # 2 = stereo, 6 = 5.1 (AC-3 only)
     end_action: str = "stop"
     number: int = 0  # 1-based title number on the disc
     audio_tracks: list = field(default_factory=list)
@@ -239,7 +241,7 @@ class Title:
 
     @property
     def track_bps(self):
-        # LPCM 48 kHz / 16 bit / stereo
+        # LPCM 48 kHz / 16 bit / stereo (5.1 is AC-3 only)
         return 1_536_000 if self.audio_codec == "lpcm" else self.audio_bitrate
 
     @property
@@ -325,6 +327,16 @@ class Project:
     @property
     def root_menu(self):
         return self.menus[0] if self.menus else None
+
+    @property
+    def uses_playall(self):
+        actions = [self.disc.first_play] + [b.action for m in self.menus for b in m.buttons]
+        return "playall" in actions
+
+    def playall_next(self, title):
+        """Title after `title` in "Play all" order (project order), or None."""
+        i = self.titles.index(title)
+        return self.titles[i + 1] if i + 1 < len(self.titles) else None
 
     @property
     def audio_langs(self):
@@ -474,12 +486,12 @@ class _Builder:
         for n, m in enumerate(menus, 1):
             m.number = n
         # DVD keeps one video/audio format per titleset: group titles by
-        # (aspect, audio codec); the first title's group is titleset 1, which
-        # also holds the menus.
+        # (aspect, audio codec, channels); the first title's group is
+        # titleset 1, which also holds the menus.
         groups = []
         for t in titles:
             t.aspect = t.aspect or disc.aspect
-            key = (t.aspect, t.audio_codec)
+            key = (t.aspect, t.audio_codec, t.audio_channels)
             if key not in groups:
                 groups.append(key)
             t.titleset = groups.index(key) + 1
@@ -519,9 +531,15 @@ class _Builder:
             self.err(f"{where}.chapters", "chapter times must be strictly increasing")
         audio = t.get("audio", {})
         codec = audio.get("codec", "ac3")
-        bitrate = parse_bitrate(audio.get("bitrate", "192k"))
+        channels = audio.get("channels", 2)
+        bitrate = parse_bitrate(audio.get("bitrate", "448k" if channels == 6 else "192k"))
         if codec == "ac3" and not 64_000 <= bitrate <= 448_000:
             self.err(f"{where}.audio.bitrate", "AC-3 bitrate must be between 64k and 448k")
+        if codec == "lpcm" and channels != 2:
+            self.err(f"{where}.audio.channels", "5.1 needs AC-3; LPCM is stereo only")
+        elif channels == 6 and bitrate < 384_000:
+            self.warnings.append(f"{where}.audio.bitrate {bitrate // 1000}k is low for 5.1 "
+                                 "(384k or 448k recommended)")
         if codec == "lpcm" and "bitrate" in audio:
             self.warnings.append(f"{where}.audio.bitrate is ignored for lpcm (fixed 1536k)")
         source = self.file(f"{where}.source", t["source"])
@@ -540,7 +558,7 @@ class _Builder:
             self.err(f"{where}.subtitles", "only one subtitle track can be the default")
         title = Title(
             id=t["id"], name=t.get("name", t["id"]), source=source,
-            chapters=chapters, audio_codec=codec, audio_bitrate=bitrate,
+            chapters=chapters, audio_codec=codec, audio_bitrate=bitrate, audio_channels=channels,
             end_action=t.get("end_action", "stop"), audio_tracks=tracks, subtitles=subs,
             aspect=t.get("aspect"),
         )

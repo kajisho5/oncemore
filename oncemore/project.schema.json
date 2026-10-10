@@ -75,13 +75,8 @@
     },
     "action": {
       "type": "string",
-      "description": "menu:<id> | title:<id> | chapter:<title id>:<n> (1-based) | audio:<n> | subtitle:<n> | subtitle:off | stop",
-      "pattern": "^(menu:[A-Za-z0-9_-]{1,40}|title:[A-Za-z0-9_-]{1,40}|chapter:[A-Za-z0-9_-]{1,40}:[1-9][0-9]*|audio:[1-8]|subtitle:([1-9]|[12][0-9]|3[0-2]|off)|stop)$"
-    },
-    "target": {
-      "type": "string",
-      "description": "menu:<id> | title:<id>",
-      "pattern": "^(menu|title):[A-Za-z0-9_-]{1,40}$"
+      "description": "menu:<id> | title:<id> | chapter:<title id>:<n> (1-based) | playall | audio:<n> | subtitle:<n> | subtitle:off | stop. playall plays every title in project order, then follows the last title's end_action.",
+      "pattern": "^(menu:[A-Za-z0-9_-]{1,40}|title:[A-Za-z0-9_-]{1,40}|chapter:[A-Za-z0-9_-]{1,40}:[1-9][0-9]*|playall|audio:[1-8]|subtitle:([1-9]|[12][0-9]|3[0-2]|off)|stop)$"
     },
     "disc": {
       "type": "object",
@@ -117,8 +112,9 @@
           "default": "DVD5"
         },
         "first_play": {
-          "$ref": "#/$defs/target",
-          "description": "What starts when the disc is inserted. Default: first menu, or first title if there are no menus."
+          "type": "string",
+          "pattern": "^((menu|title):[A-Za-z0-9_-]{1,40}|playall)$",
+          "description": "menu:<id> | title:<id> | playall. What starts when the disc is inserted. Default: first menu, or first title if there are no menus."
         },
         "font": {
           "type": [
@@ -270,7 +266,15 @@
             },
             "bitrate": {
               "$ref": "#/$defs/bitrate",
-              "description": "AC-3 only. Default 192k."
+              "description": "AC-3 only. Default 192k (448k for 5.1)."
+            },
+            "channels": {
+              "enum": [
+                2,
+                6
+              ],
+              "default": 2,
+              "description": "2 = stereo (sources are down-mixed), 6 = 5.1 (AC-3 only)."
             },
             "lang": {
               "$ref": "#/$defs/lang"
