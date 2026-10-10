@@ -20,6 +20,11 @@ try:
     LIBBLURAY = bluray_sim.load_library()
 except Exception:  # pragma: no cover
     LIBBLURAY = None
+try:
+    from . import udfread_sim
+    LIBUDFREAD = udfread_sim.load_library()
+except Exception:  # pragma: no cover
+    LIBUDFREAD = None
 
 
 def project(**extra):
@@ -247,6 +252,31 @@ class TestBlurayBuild(unittest.TestCase):
         self.assertEqual(events, [("title", 1), ("playlist", 1), ("chapter", 1), ("chapter", 2),
                                   ("chapter", 3), ("end", 0), ("title", 2), ("playlist", 2),
                                   ("chapter", 1), ("chapter", 2), ("end", 0)])
+
+    @unittest.skipUnless(LIBBLURAY and LIBUDFREAD, "libbluray / libudfread not installed")
+    def test_disc_image(self):
+        iso = os.path.join(self.tmp, "bd.iso")
+        rc, out, err = run_cli("iso", self.tmp, "-o", iso, "--format", "bluray", "--fast",
+                               "--json")
+        self.assertEqual(rc, 0, err + out)
+        result = json.loads(out.splitlines()[-1])
+        self.assertEqual((result["iso_udf"], result["iso_bytes"]),
+                         ("2.50", os.path.getsize(iso)))
+        # the titles were encoded once: the image reuses them from the cache
+        self.assertIn("unchanged (cached)", out)
+        with udfread_sim.Image(LIBUDFREAD, iso) as image:
+            self.assertEqual(image.volume_id(), "BD_TEST")
+            with open(os.path.join(self.out, "BDMV", "PLAYLIST", "00001.mpls"), "rb") as f:
+                self.assertEqual(image.read("/BDMV/PLAYLIST/00001.mpls"), f.read())
+            stream = image.read("/BDMV/STREAM/00001.m2ts")
+            self.assertEqual(len(stream) % 192, 0)
+            self.assertEqual(stream[4], 0x47)
+        with bluray_sim.Disc(LIBBLURAY, iso) as disc:
+            self.assertEqual(disc.info()["hdmv_titles"], 4)
+            self.assertEqual(len(disc.playlist(1)["chapters"]), 3)
+            events = [e for e in disc.play() if e[0] != "title" or e[1] != 0xFFFF]
+        self.assertEqual(events[:2], [("title", 1), ("playlist", 1)])
+        self.assertIn(("title", 2), events)
 
 
 if __name__ == "__main__":

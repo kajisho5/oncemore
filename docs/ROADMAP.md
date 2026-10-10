@@ -168,6 +168,11 @@ browser) and lands only with green CI.
   Play All, first play and title end actions; BD25 / BD50; read back with
   libbluray in the tests
 
+**P29 — Blu-ray image** (done)
+- [x] Built-in UDF 2.50 writer (metadata partition with mirror): `iso
+  --format bluray`, Build > Blu-ray > image / BD disc; read back with
+  libudfread and libbluray
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 
@@ -226,8 +231,8 @@ below.
 
 ## Phase 5 — Blu-ray
 
-Menu-less BDMV with titles, chapters and playlists: done (P28). Next: a
-UDF 2.50 disc image, PGS subtitles, then IGS menus and pop-up menus.
+Menu-less BDMV with titles, chapters and playlists (P28) and its UDF 2.50
+image (P29): done. Next: PGS subtitles, then IGS menus and pop-up menus.
 
 ## Later
 

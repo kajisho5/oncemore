@@ -115,9 +115,9 @@ const I18N = {
     generated_menu: "This menu is generated from the chapters of “{t}”. Change it in that title's settings.",
     go_to_title: "Open title",
     build_iso: "Disc image (.iso)", build_folder: "VIDEO_TS folder", build_disc: "DVD disc (the image, then burned)",
-    build_format: "Format", format_dvd: "DVD", format_bluray: "Blu-ray", build_bdmv: "BDMV folder", bd_size: "Disc size",
+    build_format: "Format", format_dvd: "DVD", format_bluray: "Blu-ray", build_bdmv: "BDMV folder", build_bd_disc: "Blu-ray disc (the image, then burned)", bd_size: "Disc size",
     bd_note: "Blu-ray: titles in HD (1920×1080) with chapters, playlists and Play All. Menus and subtitles are DVD-only for now.",
-    recorder: "Recorder", recorder_hint: "Empty: the first DVD writer. Insert a blank DVD before you build.",
+    recorder: "Recorder", recorder_hint: "Empty: the first disc writer. Insert a blank disc (DVD, or BD for a Blu-ray) before you build.",
     burned: "Burned to the DVD", step_burn: "Burning the disc", fast: "Fast (1-pass) encoding",
     start_build: "Start", building: "Building…", build_done: "Done", build_failed: "Build failed",
     reveal: "Show in Finder", reveal_other: "Open folder", output: "Output", warnings: "Warnings",
@@ -300,9 +300,9 @@ const I18N = {
     generated_menu: "このメニューは「{t}」のチャプターから自動生成されます。変更はそのタイトルの設定で行います。",
     go_to_title: "タイトルを開く",
     build_iso: "ディスクイメージ（.iso）", build_folder: "VIDEO_TS フォルダ", build_disc: "DVD ディスク（イメージを作って書き込み）",
-    build_format: "フォーマット", format_dvd: "DVD", format_bluray: "Blu-ray", build_bdmv: "BDMV フォルダ", bd_size: "ディスク容量",
+    build_format: "フォーマット", format_dvd: "DVD", format_bluray: "Blu-ray", build_bdmv: "BDMV フォルダ", build_bd_disc: "Blu-ray ディスク（イメージを作って書き込み）", bd_size: "ディスク容量",
     bd_note: "Blu-ray: タイトルを HD（1920×1080）で、チャプター・プレイリスト・すべて再生付きで書き出します。メニューと字幕は今のところ DVD のみです。",
-    recorder: "ドライブ", recorder_hint: "空欄なら最初の DVD ドライブ。ビルドの前に空の DVD を入れてください。",
+    recorder: "ドライブ", recorder_hint: "空欄なら最初のドライブ。ビルドの前に空のディスク（Blu-ray なら BD）を入れてください。",
     burned: "DVD に書き込みました", step_burn: "ディスクに書き込み", fast: "高速（1パス）エンコード",
     start_build: "開始", building: "ビルド中…", build_done: "完了", build_failed: "ビルドに失敗",
     reveal: "Finder で表示", reveal_other: "フォルダを開く", output: "出力先", warnings: "警告",
@@ -2496,7 +2496,7 @@ function renderBuild(m) {
   }
   const result = evs.find((e) => e.event === "result"), error = evs.find((e) => e.event === "error");
   const logs = evs.filter((e) => e.event === "log").map((e) => `${e.level === "warn" ? "⚠ " : ""}${e.message}`);
-  const d = P().disc, fmt = S.buildFormat || "dvd", kind = fmt === "bluray" ? "folder" : S.buildKind || "iso";
+  const d = P().disc, fmt = S.buildFormat || "dvd", kind = S.buildKind || "iso";
   m.innerHTML = `<div class="build-panel">
     <div class="build-top"><button id="btn-check">${esc(t("check_project"))}</button><span class="spacer"></span>
       <button class="primary build-go" id="start" ${job && !job.done ? "disabled" : ""}>${job && !job.done ? t("building") : t("build")}</button></div>
@@ -2510,10 +2510,9 @@ function renderBuild(m) {
         ${["BD25", "BD50"].map((v) => `<option ${(d.bluray?.target || "BD25") === v ? "selected" : ""}>${v}</option>`).join("")}</select></label>
       <div class="frow"><span class="fl"></span><span class="hint">${esc(t("bd_note"))}</span></div>` : ""}</fieldset>
     <fieldset class="group"><legend>${t("output")}</legend>
-      ${fmt === "bluray" ? `<label class="frow"><span class="fl"></span><span><input type="radio" name="kind" value="folder" checked> ${t("build_bdmv")}</span></label>` : `
       <label class="frow"><span class="fl"></span><span><input type="radio" name="kind" value="iso" ${kind === "iso" ? "checked" : ""}> ${t("build_iso")}</span></label>
-      <label class="frow"><span class="fl"></span><span><input type="radio" name="kind" value="folder" ${kind === "folder" ? "checked" : ""}> ${t("build_folder")}</span></label>
-      <label class="frow"><span class="fl"></span><span><input type="radio" name="kind" value="disc" ${kind === "disc" ? "checked" : ""}> ${t("build_disc")}</span></label>`}
+      <label class="frow"><span class="fl"></span><span><input type="radio" name="kind" value="folder" ${kind === "folder" ? "checked" : ""}> ${t(fmt === "bluray" ? "build_bdmv" : "build_folder")}</span></label>
+      <label class="frow"><span class="fl"></span><span><input type="radio" name="kind" value="disc" ${kind === "disc" ? "checked" : ""}> ${t(fmt === "bluray" ? "build_bd_disc" : "build_disc")}</span></label>
       ${kind === "disc" ? `<label class="frow"><span class="fl">${t("recorder")}</span><input id="recorder" class="mono" value="${esc(S.recorder || "")}" placeholder="${S.platform === "darwin" ? "" : "/dev/sr0"}" title="${esc(t("recorder_hint"))}"></label>
       <div class="frow"><span class="fl"></span><span class="hint">${esc(t("recorder_hint"))}</span></div>` : ""}
       <div class="frow"><span class="fl">${t("destination")}</span><input class="mono" readonly value="${esc(S.dir)}/output"></div></fieldset>
@@ -2558,7 +2557,7 @@ const relPath = (abs) => abs.startsWith(S.dir) ? abs.slice(S.dir.length + 1) : a
 async function startBuild() {
   clearTimeout(S.saveTimer); await save();
   try {
-    const r = await api("/api/build", { method: "POST", body: { format: S.buildFormat || "dvd", kind: S.buildFormat === "bluray" ? "folder" : S.buildKind || "iso", fast: !!S.buildFast, no_cache: !!S.buildNoCache, device: S.recorder || undefined } });
+    const r = await api("/api/build", { method: "POST", body: { format: S.buildFormat || "dvd", kind: S.buildKind || "iso", fast: !!S.buildFast, no_cache: !!S.buildNoCache, device: S.recorder || undefined } });
     S.job = { id: r.job, done: false }; S.jobEvents = []; S.jobNext = 0;
     pollJob();
   } catch (e) { alert(e.message); }
