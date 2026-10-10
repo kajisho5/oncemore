@@ -4,7 +4,7 @@ import json
 import os
 import shutil
 
-from . import author, encode, iso, subtitles, tools
+from . import author, encode, iso, lpcmfix, subtitles, tools
 from .errors import OncemoreError, ProjectError
 from .menu import MenuBuilder, display_width, find_font, link_font, menu_seconds, menu_text
 
@@ -164,6 +164,9 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None):
         encode.encode_title(t, infos[t.id], project.disc, vbps, out, work, two_pass=not fast,
                             on_progress=lambda f, tid=t.id: reporter.progress("encode", f, tid),
                             probes=plan["_probes"])
+        if t.audio_codec == "lpcm":
+            n = lpcmfix.fix_file(out)
+            reporter.debug(f"fixed {n} LPCM packet headers in {t.id}")
         if t.subtitles:
             out = add_subtitles(project, t, out, plan, work, reporter)
         title_files[t.id] = out

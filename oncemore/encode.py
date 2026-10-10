@@ -220,9 +220,20 @@ def _color_args(disc):
     return ["-color_primaries", "smpte170m", "-color_trc", "smpte170m", "-colorspace", "smpte170m"]
 
 
-def audio_args(codec, bitrate):
+# LPCM is encoded in 80-sample frames (one DVD LPCM frame, 1/600 s) so that
+# ffmpeg's packet PTS line up with frame starts; see lpcmfix.py.
+# Resampling/remixing must happen before the split: a converter ffmpeg inserts
+# after the user filters would re-chunk the frames.
+LPCM_FRAME_FILTER = ("aresample=48000,aformat=sample_fmts=s16:channel_layouts=stereo,"
+                     "asetnsamples=n=80:p=0")
+
+
+def audio_args(codec, bitrate, framing=True):
+    """Encoder options. `framing=False` when the LPCM framing filter is
+    already part of a -filter_complex chain (-af cannot be combined)."""
     if codec == "lpcm":
-        return ["-c:a", "pcm_s16be", "-ar", "48000", "-ac", "2"]
+        return ["-c:a", "pcm_s16be", "-ar", "48000", "-ac", "2"] + \
+            (["-af", LPCM_FRAME_FILTER] if framing else [])
     return ["-c:a", "ac3", "-b:a", str(bitrate), "-ar", "48000", "-ac", "2"]
 
 
@@ -246,9 +257,12 @@ def audio_graph(title, probes):
         idx = sources.index(tr.source)
         have = probes[tr.source].get("audio_streams", 0)
         if tr.stream < have:
-            chains.append(f"[{idx}:a:{tr.stream}]aresample=48000,apad[a{k}]")
+            chain = f"[{idx}:a:{tr.stream}]aresample=48000,apad"
         else:
-            chains.append(f"anullsrc=channel_layout=stereo:sample_rate=48000[a{k}]")
+            chain = "anullsrc=channel_layout=stereo:sample_rate=48000"
+        if title.audio_codec == "lpcm":
+            chain += "," + LPCM_FRAME_FILTER
+        chains.append(f"{chain}[a{k}]")
         labels.append(f"[a{k}]")
     return extra, ";".join(chains), labels
 
@@ -290,7 +304,8 @@ def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
                    duration, os.path.join(logdir, f"title-{title.id}-pass1.log"), prog(0),
                    cwd=work, what=f"ffmpeg (title {title.id}, pass 1)")
         video += ["-pass", "2", "-passlogfile", passlog]
-    run_ffmpeg(inputs + video + amap + audio_args(title.audio_codec, title.audio_bitrate)
+    run_ffmpeg(inputs + video + amap + audio_args(title.audio_codec, title.audio_bitrate,
+                                                  framing=False)
                + ["-t", f"{duration:.3f}", out_path],
                duration, os.path.join(logdir, f"title-{title.id}.log"), prog(passes - 1),
                cwd=work, what=f"ffmpeg (title {title.id})")

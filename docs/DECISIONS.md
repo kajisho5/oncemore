@@ -142,7 +142,25 @@ Three apply here and were acted on:
   the E2E suite decodes a solid menu background and checks the colour, so the
   macOS job (Homebrew ffmpeg 9.x) measures it.
 
-## 15. The empty disc title with hdiutil images is libdvdnav's, not the ISO's
+## 15. Repairing ffmpeg's DVD LPCM headers
+
+ffmpeg's MPEG-PS muxer writes every LPCM packet's private header with a fixed
+"7 frames start here, first one at offset 4" (its source even says
+`XXX: check nb_frames`). dvdauthor derives each audio packet's duration from
+that count (150 ticks per 1/600 s frame), so every LPCM title produced
+thousands of "Audio pts ... moves backwards / Discontinuity ... please
+remultiplex" warnings and wrong audio timing tables; ffprobe and the earlier
+tests did not notice. AC-3 is not affected.
+
+Fix: encode LPCM in 80-sample frames (exactly one DVD LPCM frame; resampling
+and remixing are done in the same filter chain *before* the split, otherwise
+an auto-inserted converter re-chunks the frames), so the PTS ffmpeg writes is
+the PTS of the first frame starting in each packet; then `lpcmfix.py` rewrites
+the frame count and first-frame pointer of every LPCM packet in place from the
+packet's byte position in its stream. The decoded audio is bit-identical
+before and after, and dvdauthor reports no warnings; the PAL/LPCM E2E test
+now asserts an empty warning list.
+## 16. The empty disc title with hdiutil images is libdvdnav's, not the ISO's
 
 macOS CI showed libdvdnav logging an empty "DVD Title" for hdiutil images.
 Reading the image back (`udfinfo.py`) shows the UDF Primary Volume Descriptor
@@ -153,7 +171,7 @@ elsewhere. Only the title *metadata* in libdvdnav players is affected, so
 oncemore leaves hdiutil as the macOS default and documents it. `iso` still
 warns if the UDF volume name ever differs from the label.
 
-## 16. Subtitles are rendered by oncemore, not by spumux's text mode
+## 17. Subtitles are rendered by oncemore, not by spumux's text mode
 
 spumux can render text subtitles itself, but with its own font handling and
 no outline control. Drawing each cue with the same drawtext pipeline as the
@@ -163,7 +181,7 @@ The RGBA result is reduced to transparent / fill / outline / anti-alias,
 cropped, and placed with spumux `xoffset`/`yoffset`. Cues are rendered in
 parallel (about 80 ms each).
 
-## 17. Stream defaults are disc-wide and set once at first play
+## 18. Stream defaults are disc-wide and set once at first play
 
 DVD subtitle/audio selection lives in SPRM 1/2, shared by every title. Setting
 it in each title's `<pre>` would override what the viewer picked in a setup
@@ -171,7 +189,7 @@ menu, so a `"default": true` subtitle is switched on once in the first-play
 program instead. Stream languages are per titleset, hence per disc here, and
 `validate` rejects titles that disagree.
 
-## 18. Motion menus reuse the still-menu graph
+## 19. Motion menus reuse the still-menu graph
 
 The menu drawing graph (background → thumbnails → drawtext → squeeze) is
 shared: for a still menu it renders one PNG which is then looped, for a motion

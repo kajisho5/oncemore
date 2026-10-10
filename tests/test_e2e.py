@@ -217,6 +217,13 @@ class TestPalLpcmBuild(unittest.TestCase):
         self.assertIn("VTS_01_1.VOB", files)
         self.assertIn("disc.label normalised to 'SAMPLE_PAL_DISC'", self.result["warnings"])
 
+    def test_dvdauthor_reports_no_timing_problems(self):
+        """ffmpeg writes fixed LPCM frame counts; without lpcmfix dvdauthor
+        prints thousands of 'Audio pts ... moves backwards' warnings."""
+        with open(os.path.join(self.out, ".work", "logs", "dvdauthor.log")) as f:
+            warns = [l for l in f if l.startswith("WARN")]
+        self.assertEqual(warns, [])
+
     def test_pal_lpcm_streams(self):
         streams = ffprobe_streams(os.path.join(self.out, "VIDEO_TS", "VTS_01_1.VOB"))
         v = next(s for s in streams if s["codec_type"] == "video")
