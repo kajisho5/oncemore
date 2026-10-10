@@ -20,6 +20,7 @@ API (all JSON unless noted):
   GET  /api/jobs/ID?since=N          job events (same objects as --json)
   POST /api/reveal                   show a file in Finder / the file manager
   POST /api/clips                    a title made of clips: lengths + joined preview
+  POST /api/routing                  a menu's computed remote-control routing
 """
 
 import base64
@@ -655,6 +656,18 @@ class Handler(BaseHTTPRequestHandler):
                             "chapters": t.chapters, "chapter": k, "names": t.chapter_names,
                             "frame": {"path": self.app.rel(path), "t": round(at, 3)}}
         self.json(out)
+
+    def api_post_routing(self, q):
+        """Where the remote's arrow keys go from each button of a menu (the
+        computed routing, as the disc will have it), for the stage overlay."""
+        body = self.body_json()
+        project = self._project_from(body)
+        menu = project.menu(body.get("menu"))
+        if menu is None:
+            raise ValueError(f"no menu {body.get('menu')!r}")
+        lay = self._sim_menu(project, menu)
+        self.json({"buttons": lay["buttons"], "storage": lay["storage"],
+                   "manual": {b.id: sorted((b.nav or {}).keys()) for b in menu.buttons}})
 
     def api_post_sim_menu(self, q):
         body = self.body_json()

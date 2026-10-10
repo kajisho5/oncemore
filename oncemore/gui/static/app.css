@@ -345,3 +345,12 @@ table.clips td.act { white-space: nowrap; }
 table.shortcuts { border-collapse: collapse; width: 100%; }
 table.shortcuts td { padding: 4px 8px; border-bottom: 1px solid var(--c-line); }
 table.shortcuts td.mono { font-family: var(--font-mono); text-align: right; white-space: nowrap; }
+
+/* remote-control routing on the menu stage; drag-to-link drop targets */
+.stage svg.routing { position: absolute; inset: 0; pointer-events: none; z-index: 4; overflow: visible; }
+.stage svg.routing path { fill: none; stroke: var(--c-kind-remote); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.stage svg.routing path.manual { stroke: var(--c-accent); stroke-dasharray: none; }
+.stage svg.routing marker path { fill: var(--c-kind-remote); stroke: none; }
+.stage.drop-on { outline: 2px dashed var(--c-kind-remote); outline-offset: 2px; }
+.stage .el.drop-target { outline: 2px solid var(--c-kind-remote); background: var(--c-scrim); }
+.nav-item[draggable="true"] { cursor: grab; }

@@ -136,6 +136,11 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   frame or by its shape). Use an image or a video as the background. **Exact preview**
   renders the menu exactly as the disc will show it, with button hit areas.
 * ▲/▼ in the right-hand panel change the order of titles and menus.
+* **Linking and routing**: drag a title, menu or playlist from the project
+  panel onto a button to link it, or onto an empty part of the menu to add a
+  button for it. *Routing* draws where the remote's arrow keys go from each
+  button (solid: set by you in Properties, dashed: automatic), exactly as the
+  disc will have it.
 * **Menus and shortcuts**: the menu bar (File, Edit, Disc, View, Help — in
   Oncemore.app it is the Mac's own menu bar) has every command; right-click a
   title, menu or playlist (open, duplicate, move, play first, delete), a file
