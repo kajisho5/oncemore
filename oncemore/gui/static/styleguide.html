@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>oncemore design system</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="app.css">
+<style>
+  body { overflow: auto; display: block; }
+  .sg { max-width: 1080px; margin: 0 auto; padding: var(--sp-6) var(--sp-5); }
+  .sg h1 { font-size: var(--fs-xl); margin: 0 0 var(--sp-3); }
+  .sg section { margin: var(--sp-7) 0; }
+  .sg .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sp-3); }
+  .sg .sw { border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; background: var(--panel); }
+  .sg .sw i { display: block; height: 44px; }
+  .sg .sw code { display: block; padding: var(--sp-2) var(--sp-3); font-size: var(--fs-xs); color: var(--muted); }
+  .sg .demo { display: flex; gap: var(--sp-3); flex-wrap: wrap; align-items: center; padding: var(--sp-4); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); }
+  .sg .space i { display: inline-block; background: var(--accent); height: 12px; vertical-align: middle; }
+  .sg .mock { display: grid; grid-template-columns: 180px 1fr 200px; height: 220px; border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+  .sg .mock > div { display: flex; flex-direction: column; }
+</style>
+</head>
+<body>
+<div class="sg">
+  <div class="row"><h1 class="shrink">oncemore design system</h1><span class="spacer"></span>
+    <button class="icon shrink" id="theme" title="Light / dark">◐</button></div>
+  <p class="hint">Tokens live in <span class="mono">tokens.css</span>; components in <span class="mono">app.css</span> use only those variables. The rules are in <span class="mono">docs/DESIGN.md</span>.</p>
+
+  <section><h3>Surfaces and text</h3><div class="swatches" data-tokens="--c-bg-0 --c-bg-1 --c-bg-2 --c-bg-3 --c-field --c-line --c-line-strong --c-text --c-text-2"></div></section>
+  <section><h3>Accent and status</h3><div class="swatches" data-tokens="--c-accent --c-accent-2 --c-focus --c-success --c-warning --c-danger"></div></section>
+  <section><h3>Object kinds (same colour in every panel)</h3><div class="swatches" data-tokens="--c-kind-menu --c-kind-title --c-kind-playlist --c-kind-remote --c-kind-audio --c-kind-subtitle --c-kind-chapter"></div></section>
+  <section><h3>Picture and overlays</h3><div class="swatches" data-tokens="--c-picture --c-on-picture --c-guide --c-hit"></div></section>
+
+  <section><h3>Type</h3><div class="demo" style="flex-direction:column;align-items:flex-start">
+    <span style="font-size:var(--fs-xl);font-weight:700">Title 20 — メニュー</span>
+    <span style="font-size:var(--fs-lg);font-weight:600">Heading 15 — チャプター</span>
+    <span style="font-size:var(--fs-md)">Body 13 — The quick brown fox / 速い茶色の狐</span>
+    <span class="hint">Hint 12 — secondary text</span>
+    <span class="panel-head" style="background:none;border:0;padding:0">Panel label 11</span>
+    <span class="mono">00:01:23.456 mono 12</span></div></section>
+
+  <section><h3>Spacing (4 px grid) and radii</h3><div class="demo space" style="flex-direction:column;align-items:flex-start">
+    <span><i style="width:var(--sp-1)"></i> sp-1 2</span><span><i style="width:var(--sp-2)"></i> sp-2 4</span>
+    <span><i style="width:var(--sp-3)"></i> sp-3 8</span><span><i style="width:var(--sp-4)"></i> sp-4 12</span>
+    <span><i style="width:var(--sp-5)"></i> sp-5 16</span><span><i style="width:var(--sp-6)"></i> sp-6 24</span>
+    <span><i style="width:var(--sp-7)"></i> sp-7 32</span>
+    <div class="row"><span class="pill">r-pill</span><span class="card" style="margin:0;border-radius:var(--r-sm)">r-sm</span><span class="card" style="margin:0">r-md / card</span></div></div></section>
+
+  <section><h3>Buttons</h3><div class="demo">
+    <button>Default</button><button class="primary">Primary</button><button class="danger">Delete</button>
+    <button class="small">Small</button><button class="icon">↶</button><button disabled>Disabled</button></div></section>
+
+  <section><h3>Fields</h3><div class="demo" style="display:block;max-width:420px">
+    <label class="field"><span>Text</span><input value="PLAY ALL"></label>
+    <label class="field"><span>Select</span><select><option>Play all titles</option></select></label>
+    <div class="grid2"><label class="field"><span>X</span><input type="number" value="120"></label><label class="field"><span>Colour</span><input type="color" value="#ffd400"></label></div>
+    <label><input type="checkbox" checked> Run on selection</label></div></section>
+
+  <section><h3>Panels and tabs</h3>
+    <div class="mock">
+      <div class="panel"><header class="panel-head"><div class="tabs"><button class="tab active">Project</button><button class="tab">Library</button></div></header>
+        <div class="panel-body"><div class="nav-item active">main</div><div class="nav-item">chapters <span class="tag">generated</span></div></div></div>
+      <div class="panel center"><header class="panel-head"><span class="kind-dot kind-menu"></span><span>Menu</span><span class="crumb">main</span></header><div class="panel-body"></div></div>
+      <div class="panel"><header class="panel-head"><span class="title">Properties</span></header>
+        <div class="panel-body"><div class="layer-group">Buttons (2)</div><div class="layer-row selected"><span class="ico">◉</span><span class="nm">PLAY ALL</span><span class="to">playall</span></div><div class="layer-row"><span class="ico">◉</span><span class="nm">CHAPTERS</span></div></div></div>
+    </div></section>
+
+  <section><h3>Workspaces</h3><div class="demo"><nav class="workspaces" style="margin:0"><button class="active">Author</button><button>Flowchart</button><button>Preview</button><button>Build</button></nav></div></section>
+
+  <section><h3>Timeline</h3><div class="demo" style="display:block;padding:0;overflow:hidden">
+    <div class="tl" style="width:100%"><div class="tl-row"><span class="tl-label">Chapters</span><div class="tl-track tl-lane"><div class="tl-chapter first" style="left:0"><span>1</span></div><div class="tl-chapter" style="left:40%"><span>2 Middle</span></div></div></div>
+      <div class="tl-row"><span class="tl-label">Audio 1</span><div class="tl-track tl-lane"><div class="tl-clip audio" style="left:0;width:90%">movie.mp4</div></div></div>
+      <div class="tl-row"><span class="tl-label">Subtitles 1</span><div class="tl-track tl-lane"><div class="tl-clip sub" style="left:12%;width:15%">Hello</div><div class="tl-clip sub" style="left:50%;width:20%">Second line</div></div></div></div></div></section>
+
+  <section><h3>Status</h3><div class="demo"><span style="color:var(--ok)">✓ No issues</span><span style="color:var(--warn)">Tools missing</span><span style="color:var(--err)">⚠ 2 issues</span>
+    <ul class="issues"><li class="warning"><span class="path">menu:lost</span> cannot be reached</li></ul></div></section>
+</div>
+<script src="styleguide.js"></script>
+</body>
+</html>

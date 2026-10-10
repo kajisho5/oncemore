@@ -515,3 +515,24 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
 * Text layers are imported as their rendered pixels (the text itself is not
   editable here); vector shapes and smart objects likewise.
 
+## 35. The workspace and the design system
+
+* The app keeps the panel layout that disc authoring and video editing
+  people already know (project on the left, editor with a timeline in the
+  middle, properties and layers on the right, workspaces in the top bar), but
+  its look is our own: colours, icons, wording and artwork are not taken from
+  any product. docs/DESIGN.md is the reference.
+* Tokens are CSS custom properties in one file; components only use them.
+  Tests fail on an undefined variable, a raw hex colour in the component
+  stylesheet, a colour token missing from the light theme or the style guide,
+  and on English / Japanese key lists that differ.
+* Still no build step and no front-end dependencies: plain HTML, CSS and one
+  script, so the Mac app, the browser app and a future in-browser version
+  share the same files.
+* Panel sizes and the theme are stored in localStorage (wrapped so private
+  windows keep working); everything that belongs to the disc stays in the
+  project file.
+* The timeline is a view of the title, not a second editor: dragging a
+  chapter mark writes the same chapter list as the chapter table, snapped to
+  frames, and subtitle clips come from the same cue API as the cue editor.
+

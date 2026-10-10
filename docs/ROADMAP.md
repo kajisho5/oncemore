@@ -53,6 +53,13 @@ browser) and lands only with green CI.
 - [x] Layered PSD menus using the common layer-name convention (button layer
   groups, highlight layers, thumbnail placeholders)
 
+**P7 — The workspace** (done)
+- [x] Design system: tokens (colour, type, spacing, shape, motion), dark and
+  light themes, a style guide page, checks that keep components on the tokens
+- [x] Panel workspace: Project / Library, editor with a Timeline (picture,
+  chapters you drag, audio and subtitle tracks), Properties / Layers,
+  workspaces in the top bar, resizable and remembered panels
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

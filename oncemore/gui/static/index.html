@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>oncemore</title>
+<link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
@@ -11,17 +12,40 @@
   <div class="brand"><span class="logo">◉</span> oncemore</div>
   <div id="disc-name" class="disc-name"></div>
   <div id="save-state" class="save-state"></div>
+  <nav id="workspaces" class="workspaces" aria-label="Workspace"></nav>
   <div class="spacer"></div>
   <button id="btn-undo" class="icon" title="Undo (⌘Z)">↶</button>
   <button id="btn-redo" class="icon" title="Redo (⇧⌘Z)">↷</button>
   <button id="btn-check" data-i18n="check">Check</button>
   <button id="btn-build" class="primary" data-i18n="build">Build</button>
+  <button id="btn-theme" class="icon" title="Light / dark">◐</button>
   <button id="btn-lang" class="icon" title="Language">文A</button>
 </header>
-<div id="layout">
-  <nav id="sidebar"></nav>
-  <main id="main"></main>
-  <aside id="inspector"></aside>
+<div id="layout" class="workspace">
+  <section id="p-left" class="panel">
+    <header class="panel-head" id="left-tabs"></header>
+    <nav id="sidebar" class="panel-body"></nav>
+    <div id="library" class="panel-body" hidden></div>
+  </section>
+  <div class="splitter v" data-split="left" title="Drag to resize"></div>
+  <section id="p-center" class="panel center">
+    <header class="panel-head" id="center-head"></header>
+    <main id="main" class="panel-body"></main>
+    <div class="splitter h" data-split="timeline" id="tl-splitter" hidden></div>
+    <section id="p-timeline" class="tl-panel" hidden>
+      <header class="panel-head" id="tl-head"></header>
+      <div id="tl" class="panel-body"></div>
+    </section>
+  </section>
+  <div class="splitter v" data-split="right" title="Drag to resize"></div>
+  <section id="p-right" class="panel">
+    <header class="panel-head" id="right-head"></header>
+    <aside id="inspector" class="panel-body"></aside>
+    <section id="p-layers" hidden>
+      <header class="panel-head" id="layers-head"></header>
+      <div id="layers" class="panel-body"></div>
+    </section>
+  </section>
 </div>
 <footer id="statusbar"></footer>
 <div id="drop-overlay" hidden><div data-i18n="drop_here">Drop files to add them to the project</div></div>
