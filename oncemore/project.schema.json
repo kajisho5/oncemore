@@ -624,7 +624,21 @@
         },
         "highlight_image": {
           "type": "string",
-          "description": "A picture whose opaque pixels are this button's highlight, placed at x/y (sized like the image button, or at its own size scaled to the 720-wide grid with `width`)."
+          "description": "A picture whose opaque pixels are this button's highlight, placed at x/y (sized like the image button, or at its own size scaled to the 720-wide grid with `width`). Without label and image the button is just this highlight over the background (e.g. imported from a layered Photoshop file)."
+        },
+        "thumbnail": {
+          "type": "object",
+          "required": ["x", "y", "w", "h"],
+          "additionalProperties": false,
+          "description": "A picture of the button's title / chapter (its action must be title:... or chapter:...), drawn into this rectangle of the menu.",
+          "properties": {
+            "x": {"type": "integer", "minimum": 0, "maximum": 719},
+            "y": {"type": "integer", "minimum": 0, "maximum": 575},
+            "w": {"type": "integer", "minimum": 8, "maximum": 720},
+            "h": {"type": "integer", "minimum": 8, "maximum": 576},
+            "time": {"$ref": "#/$defs/time", "description": "Frame to show (default: one second into the chapter)."},
+            "animated": {"type": "boolean", "default": false, "description": "Play the chapter in a motion menu."}
+          }
         }
       },
       "anyOf": [
@@ -636,6 +650,11 @@
         {
           "required": [
             "image"
+          ]
+        },
+        {
+          "required": [
+            "highlight_image"
           ]
         }
       ]
@@ -657,6 +676,10 @@
             "null"
           ],
           "description": "Still image (PNG/JPEG...). Scaled to fit the disc aspect."
+        },
+        "psd": {
+          "type": "string",
+          "description": "The layered Photoshop file this menu was imported from (kept so it can be imported again after editing)."
         },
         "background_color": {
           "$ref": "#/$defs/color",

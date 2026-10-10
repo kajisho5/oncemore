@@ -544,6 +544,7 @@ class _Builder:
         for i, t in enumerate(d["titles"]):
             titles.append(self.title(i, t))
         self.unique([t.id for t in titles], "titles")
+        self._titles = {t.id: t for t in titles}
 
         menus = []
         for i, m in enumerate(d.get("menus", [])):
@@ -705,6 +706,9 @@ class _Builder:
                           **self.style(f"{where}.buttons[{j}]", b),
                           width=b.get("width"), highlight=b.get("highlight", "frame"))
                    for j, b in enumerate(m["buttons"])]
+        for j, (b, spec) in enumerate(zip(buttons, m["buttons"])):
+            if "thumbnail" in spec:
+                b.thumb = self.thumbnail(f"{where}.buttons[{j}].thumbnail", b, spec["thumbnail"])
         texts = [Text(text=t["text"], x=t["x"], y=t["y"], size=t.get("size", size),
                       color=t.get("color", tcolor), **self.style(f"{where}.texts[{j}]", t))
                  for j, t in enumerate(m.get("texts", []))]
@@ -748,6 +752,29 @@ class _Builder:
             select_color=m.get("select_color", DEFAULT_SELECT),
             texts=texts, buttons=buttons,
         )
+
+    def thumbnail(self, where, button, spec):
+        """A button's own thumbnail: a frame of the title / chapter it plays."""
+        kind, tid, num = parse_action(button.action)
+        title = self._titles.get(tid) if kind in ("title", "chapter") else None
+        if title is None:
+            self.err(where, "a thumbnail needs a title:... or chapter:... action")
+            return None
+        chapter = (num or 1) - 1
+        if chapter >= len(title.chapters):
+            return None                       # (the action itself is reported)
+        start = title.chapters[chapter]
+        if "time" in spec:
+            try:
+                time = parse_time(spec["time"])
+            except ValueError as e:
+                self.err(f"{where}.time", str(e))
+                time = start
+        else:
+            nxt = title.chapters[chapter + 1] if chapter + 1 < len(title.chapters) else start + 2
+            time = start + min(1.0, (nxt - start) / 2)
+        return Thumb(title.id, time, spec["x"], spec["y"], spec["w"], spec["h"],
+                     animated=bool(spec.get("animated")))
 
     def slideshow(self, where, spec):
         slides = [slideshow.Slide(self.file(f"{where}.slideshow.slides[{j}].image", s["image"]),

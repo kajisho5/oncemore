@@ -55,6 +55,7 @@ MEDIA_EXT = {
     "image": {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp"},
     "subtitle": {".srt", ".vtt", ".ass", ".ssa"},
     "font": {".ttf", ".otf", ".ttc"},
+    "design": {".psd", ".psb"},
 }
 SKIP_DIRS = {"output", ".work", "__pycache__", "node_modules"}
 
@@ -627,6 +628,24 @@ class Handler(BaseHTTPRequestHandler):
         if menu is None:
             raise ValueError(f"no menu {body.get('menu')!r}")
         self.json(self._sim_menu(project, menu, images=True))
+
+    def api_post_import_psd(self, q):
+        """A menu from a layered Photoshop file in the project (not saved:
+        the page adds it to the project, so it can be undone)."""
+        from .. import psdmenu
+        body = self.body_json()
+        full = self.app.resolve(body.get("path"))
+        if media_kind(full) != "design":
+            raise PermissionError("not a Photoshop file")
+        if not os.path.isfile(full):
+            raise FileNotFoundError(full)
+        mid = body.get("menu") or ""
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,40}", mid):
+            raise ValueError("bad menu id")
+        data = body.get("project") or self.app.load()
+        menu, notes = psdmenu.import_psd(full, data, mid,
+                                         os.path.join(self.app.dir, "media", "psd"), self.app.dir)
+        self.json({"menu": menu, "notes": notes, "media": self.app.media()})
 
     def api_get_templates(self, q):
         self.json({"templates": [{"id": k, **v} for k, v in templates.TEMPLATES.items()]})

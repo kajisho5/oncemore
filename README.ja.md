@@ -147,6 +147,7 @@ oncemore build <project> -o out/               # out/VIDEO_TS（と out/AUDIO_TS
 oncemore iso <project> -o out.iso [--iso-tool auto|hdiutil|genisoimage|mkisofs|xorriso]
 oncemore preview-menu <project> --menu main -o main.png [--button id] [--state highlight|select|normal] [--outline]
 oncemore simulate <project> --keys down,enter,menu   # リモコン操作を再現（エンコードなし）
+oncemore import-psd <project> design.psd --menu main [--first-play]   # Photoshop からメニューを作成
 oncemore gui [<dir>] [--port N] [--no-browser] # オーサリングアプリ
 oncemore doctor                                # 外部ツールの有無・バージョン・ISO バックエンド
 ```
@@ -291,6 +292,27 @@ oncemore doctor                                # 外部ツールの有無・バ�
 **画像ボタン**：`image`（画像。透過 PNG がおすすめ）を指定するとラベルの代わりに画像を `x`/`y` を左上として
 表示します（このとき `label` は省略可）。`width` は 720 幅の座標での幅（既定は画像の元の幅。高さは縦横比に従う）、
 `highlight` は `frame`（既定。周りに枠）か `shape`（画像の不透明部分をハイライト色で表示）。
+
+### Photoshop からのメニュー
+
+レイヤー付きの `.psd` / `.psb`（RGB、8 / 16 bit）でメニューをデザインし、**メニュー → ＋追加 → Photoshop から読み込み**
+（または `oncemore import-psd`）で取り込めます。レイヤー名は DVD メニューで昔から使われている接頭辞です。
+
+| レイヤー名 | 意味 |
+|---|---|
+| `(+) Play Movie` | ボタンになる**グループ**。名前が id になり、リンク先の推測にも使います |
+| ボタン内の `(=1) …` | ハイライト（`(=2)`、`(=3)` も可。ここでの DVD ハイライトは 1 色なので統合します） |
+| ボタン内の `(%) …` | タイトル／チャプターのサムネイルを置く位置 |
+| それ以外の表示中のレイヤー | アートワーク（背景に統合） |
+
+* `(=n)` と `(%)` のレイヤーを非表示にして保存すると、ファイル自身の統合画像をそのまま背景に使います
+  （レイヤー効果も含めて正確。「互換性を優先」で保存してください）。表示されている場合はレイヤーから通常合成で作り直します。
+* `(=1)` レイヤーの無いボタンは、ボタン自体の絵の形で光ります。
+* *Play*、*Play all*、*Scene 3*、タイトル名、メニュー id、*Audio 2*、*Subtitles off* などの名前は自動でリンクします。それ以外は確認してください。
+* 720 × 480（576）のデザインは DVD のピクセル、854 × 480 や 1024 × 576 は正方形ピクセルとして読みます。どちらも描いた位置に収まります。
+* ファイルを編集した後は**読み込み直す**で、画像を更新しつつボタンのリンク先とメニューの設定を残します。
+
+取り込んだボタンは `highlight_image` だけを持つ普通のボタンです（`thumbnail` の矩形はタイトル／チャプターのボタンならどれにも付けられます）。
 
 ### プレイリスト
 
