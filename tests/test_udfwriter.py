@@ -426,7 +426,10 @@ class TestStructure(_TmpCase):
         os.makedirs(os.path.join(self.src, "AUDIO_TS"))
         content = {
             "README.TXT": b"fictional readme\n",
-            "readme.txt": b"lower-case twin\n",
+            # two names that become the same ISO 9660 name (not case twins:
+            # macOS file systems usually ignore case)
+            "Read me.txt": b"first\n",
+            "read-me.txt": b"second\n",
             "Extras/Behind the scenes (long name).mpeg": b"x" * 5000,
             "Extras/photos/Café Ünïcode.jpg": b"j" * 3000,
             "Extras/photos/写真ギャラリー.png": b"p" * 100,
@@ -458,7 +461,8 @@ class TestStructure(_TmpCase):
                 self.assertEqual(size, len(data))
                 if data:
                     self.assertEqual(self.data[sector * SECTOR:sector * SECTOR + size], data)
-        self.assertEqual(st["iso_names"]["/readme.txt"], "/README_1.TXT;1")
+        self.assertEqual(st["iso_names"]["/Read me.txt"], "/READ_ME.TXT;1")
+        self.assertEqual(st["iso_names"]["/read-me.txt"], "/READ_M_1.TXT;1")
         self.assertEqual(st["iso_names"]["/Extras/photos/写真ギャラリー.png"],
                          "/EXTRAS/PHOTOS/_.PNG;1")
         # DVD-ROM data comes after VIDEO_TS
