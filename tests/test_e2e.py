@@ -1033,7 +1033,7 @@ class TestScanModes(unittest.TestCase):
         make("film.mp4", "testsrc2=s=1280x720:r=24000/1001:d=6", None, ["-c:v", "libx264"])
         make("i1080.ts", "testsrc2=s=1920x1080:r=60000/1001:d=6",
              "interlace=scan=tff,setfield=tff",
-             ["-c:v", "mpeg2video", "-b:v", "12M", "-flags", "+ilme+ildct", "-top", "1"])
+             ["-c:v", "mpeg2video", "-b:v", "12M", "-flags", "+ilme+ildct"])
         make("p60.mp4", "testsrc2=s=1280x720:r=60000/1001:d=6", None, ["-c:v", "libx264"])
         cls.path = os.path.join(proj, "project.oncemore.json")
         with open(cls.path) as f:

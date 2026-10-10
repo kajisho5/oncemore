@@ -376,7 +376,9 @@ def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
              # fixed GOP grid so chapter key frames can be planned (see keyframe_plan)
              "-g", str(gop_limits(fps)[0]), "-sc_threshold", "1000000000"]
     if mode == "interlaced":
-        video += ["-flags", "+ilme+ildct", "-top", "1", "-alternate_scan", "1"]
+        # top field first comes from the frames (setfield=tff in the filter);
+        # ffmpeg 7+ no longer has the -top option
+        video += ["-flags", "+ilme+ildct", "-alternate_scan", "1"]
     elif mode == "pulldown":
         video += ["-r", f"{fps[0]}/{fps[1]}"]
     if keyframes:
