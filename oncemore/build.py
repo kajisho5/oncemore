@@ -162,7 +162,7 @@ def build_iso(project, out_iso, reporter, fast=False, keep_work=False, iso_tool=
     info = iso.make_iso(disc_dir, out_iso, project.disc.label, iso_tool,
                         log=os.path.join(work, "logs", "iso.log"), reporter=reporter)
     result.update({"iso": info["path"], "iso_bytes": info["bytes"], "iso_tool": info["tool"],
-                   "iso_udf": info["udf"]})
+                   "iso_udf": info["udf"], "volume_names": info["volume_names"]})
     result["warnings"] = result["warnings"] + info["warnings"]
     result.pop("work_dir", None)
     if info["bytes"] > project.disc.capacity:

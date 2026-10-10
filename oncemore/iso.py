@@ -15,7 +15,7 @@ a UDF + ISO 9660 "bridge" layout. Backends, in `auto` order:
 import os
 import shutil
 
-from . import tools
+from . import tools, udfinfo
 from .errors import OncemoreError
 
 XORRISO_WARNING = (
@@ -88,5 +88,12 @@ def make_iso(dvd_dir, out_iso, label, tool="auto", log=None, reporter=None):
                 break
     if not os.path.isfile(out_iso):
         raise OncemoreError(f"{name} did not produce {out_iso}")
+    names = udfinfo.volume_names(out_iso)
+    if name != "xorriso" and names["udf_volume"] != label:
+        msg = (f"{name} wrote UDF volume name {names['udf_volume']!r} instead of {label!r}; "
+               "players show the UDF name as the disc title")
+        warnings.append(msg)
+        if reporter:
+            reporter.warn(msg)
     return {"tool": name, "path": out_iso, "bytes": os.path.getsize(out_iso),
-            "udf": name != "xorriso", "warnings": warnings}
+            "udf": name != "xorriso", "volume_names": names, "warnings": warnings}
