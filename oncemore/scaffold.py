@@ -38,7 +38,7 @@ def sample_project(standard="NTSC", aspect="16:9"):
                 "source": "media/sample_a.mp4",
                 "chapters": SAMPLE_A_CHAPTERS,
                 "audio": {"codec": "ac3", "bitrate": "192k"},
-                "end_action": "title:t2",
+                "end_action": "menu:main",
                 "auto_chapter_menu": {"id": "chapters", "back": "menu:main"},
             },
             {
@@ -57,7 +57,7 @@ def sample_project(standard="NTSC", aspect="16:9"):
                 "audio": None,
                 "texts": [{"text": "SAMPLE DISC", "x": 120, "y": 90, "size": 56}],
                 "buttons": [
-                    {"id": "play", "label": "PLAY ALL", "x": 120, "y": 220, "action": "title:t1"},
+                    {"id": "play", "label": "PLAY ALL", "x": 120, "y": 220, "action": "playall"},
                     {"id": "ch", "label": "CHAPTERS", "x": 120, "y": 280, "action": "menu:chapters"},
                     {"id": "b", "label": "SAMPLE TITLE B", "x": 120, "y": 340, "action": "title:t2"},
                 ],

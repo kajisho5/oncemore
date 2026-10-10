@@ -89,7 +89,8 @@ natural loop.
 
 ## 9. Stereo audio, silent track when missing
 
-All titles are down-mixed to 2 channels at 48 kHz (AC-3 or 16-bit LPCM).
+Titles are down-mixed to 2 channels at 48 kHz (AC-3 or 16-bit LPCM) unless
+they ask for 5.1 (see 23).
 Sources without audio get a silent track so every title has the same stream
 layout. Menus always carry AC-3 (silence if no music).
 
@@ -241,5 +242,29 @@ only the frame/file endpoints accept.
 
 The editor draws menus with HTML for instant dragging; text metrics differ
 slightly from drawtext, so "Exact preview" renders the real menu on the
-server (same code as the build) and shows the true button hit areas. A native
-.app wrapper (WKWebView) is the next step.
+server (same code as the build) and shows the true button hit areas.
+Oncemore.app wraps the same page in a WKWebView with a bundled Python.
+
+## 22. "Play all" is a register flag, not a title chain
+
+Before, the sample's PLAY ALL button started title 1 whose `end_action` was
+`title:t2`, so title 1 could never be played on its own and return to the
+menu. `playall` sets GPRM g2 = 1 and starts the first title; every title's
+`<post>` begins with `if (g2 == 1) jump <next title>` (next in project order,
+across titlesets through the jumppad), the last title clears g2 and then runs
+its own `end_action`. Title and chapter buttons clear g2, so a single play
+after a play-all ends normally. The commands are only emitted when some button
+or `first_play` uses `playall`, so other discs' IFOs are unchanged. Pressing
+Menu during play-all and resuming keeps the flag, as players expect.
+
+## 23. 5.1 is opt-in and always re-encoded
+
+`audio.channels: 6` encodes 5.1 AC-3 (default 448k). It is opt-in because a
+stereo source would only be up-mixed to the front speakers (oncemore warns),
+and LPCM 5.1 is refused (DVD allows it, but 4.6 Mbit/s of audio leaves little
+for video). DVD fixes the audio format per stream per titleset, so the
+channel count joins aspect and codec in the titleset grouping (20). Source
+AC-3 is re-encoded rather than passed through: pass-through would need the
+audio to start exactly with the video and match the title length, which the
+pad-and-cut audio graph guarantees for re-encoded audio only; at 448k the
+generation loss is small.

@@ -228,13 +228,15 @@ LPCM_FRAME_FILTER = ("aresample=48000,aformat=sample_fmts=s16:channel_layouts=st
                      "asetnsamples=n=80:p=0")
 
 
-def audio_args(codec, bitrate, framing=True):
+def audio_args(codec, bitrate, framing=True, channels=2):
     """Encoder options. `framing=False` when the LPCM framing filter is
-    already part of a -filter_complex chain (-af cannot be combined)."""
+    already part of a -filter_complex chain (-af cannot be combined).
+    channels=6 encodes 5.1 AC-3; fewer source channels are up-mixed by
+    ffmpeg's default matrix (front channels only)."""
     if codec == "lpcm":
         return ["-c:a", "pcm_s16be", "-ar", "48000", "-ac", "2"] + \
             (["-af", LPCM_FRAME_FILTER] if framing else [])
-    return ["-c:a", "ac3", "-b:a", str(bitrate), "-ar", "48000", "-ac", "2"]
+    return ["-c:a", "ac3", "-b:a", str(bitrate), "-ar", "48000", "-ac", str(channels)]
 
 
 def audio_graph(title, probes):
@@ -259,7 +261,8 @@ def audio_graph(title, probes):
         if tr.stream < have:
             chain = f"[{idx}:a:{tr.stream}]aresample=48000,apad"
         else:
-            chain = "anullsrc=channel_layout=stereo:sample_rate=48000"
+            layout = "5.1" if title.audio_channels == 6 else "stereo"
+            chain = f"anullsrc=channel_layout={layout}:sample_rate=48000"
         if title.audio_codec == "lpcm":
             chain += "," + LPCM_FRAME_FILTER
         chains.append(f"{chain}[a{k}]")
@@ -305,7 +308,7 @@ def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
                    cwd=work, what=f"ffmpeg (title {title.id}, pass 1)")
         video += ["-pass", "2", "-passlogfile", passlog]
     run_ffmpeg(inputs + video + amap + audio_args(title.audio_codec, title.audio_bitrate,
-                                                  framing=False)
+                                                  framing=False, channels=title.audio_channels)
                + ["-t", f"{duration:.3f}", out_path],
                duration, os.path.join(logdir, f"title-{title.id}.log"), prog(passes - 1),
                cwd=work, what=f"ffmpeg (title {title.id})")

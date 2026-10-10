@@ -114,7 +114,11 @@ class TestProject(unittest.TestCase):
         self.assertEqual([m.id for m in p.menus], ["main", "chapters"])
         self.assertEqual([m.number for m in p.menus], [1, 2])
         self.assertEqual(p.titles[0].chapters, [0.0, 8.0, 16.0])
-        self.assertEqual(p.titles[0].end_action, "title:t2")
+        self.assertEqual(p.titles[0].end_action, "menu:main")
+        self.assertEqual(p.menu("main").buttons[0].action, "playall")
+        self.assertTrue(p.uses_playall)
+        self.assertEqual(p.playall_next(p.titles[0]), p.titles[1])
+        self.assertIsNone(p.playall_next(p.titles[1]))
         self.assertEqual(p.titles[1].end_action, "menu:main")
         ch = p.menu("chapters")
         self.assertTrue(ch.generated)
@@ -273,6 +277,19 @@ class TestProject(unittest.TestCase):
         self.assertIn("audio stream 1 is 'ja' in another title", msg)
         self.assertIn("6 lpcm tracks need 9.22 Mbit/s", msg)
         self.assertIn("no subtitle stream 3", msg)
+
+    def test_surround_and_playall_validation(self):
+        d = copy.deepcopy(self.data)
+        d["titles"][1]["audio"] = {"codec": "ac3", "channels": 4}
+        self.assertIn("titles[1].audio.channels: must be one of 2, 6", self.errors(d))
+        d["titles"][1]["audio"] = {"codec": "lpcm", "channels": 6}
+        self.assertIn("5.1 needs AC-3", self.errors(d))
+        d = copy.deepcopy(self.data)
+        d["disc"]["first_play"] = "playall"
+        d["titles"][1]["audio"] = {"codec": "ac3", "channels": 6, "bitrate": "192k"}
+        p = build(d)
+        self.assertEqual(p.disc.first_play, "playall")
+        self.assertTrue(any("low for 5.1" in w for w in p.warnings))
 
     def test_subtitle_style_defaults(self):
         self.assertEqual(build(self.data).disc.subtitle_style["size"], 30)
