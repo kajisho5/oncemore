@@ -90,7 +90,8 @@ def summary(project, infos, plan):
                     "duration": round(infos[t.id]["duration"], 3),
                     "input": f"{infos[t.id]['width']}x{infos[t.id]['height']}"
                              f"@{float(infos[t.id]['fps'] or 0):.3f}",
-                    "chapters": t.chapters, "audio": t.audio_codec,
+                    "chapters": t.chapters, "audio": t.audio_codec, "aspect": t.aspect,
+                    "titleset": t.titleset, "global_number": t.global_number,
                     "audio_bps": t.audio_bps, "end_action": t.end_action,
                     "audio_tracks": [{"source": a.source, "stream": a.stream, "lang": a.lang}
                                      for a in t.audio_tracks],
@@ -161,7 +162,8 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None):
         reporter.step("encode", f"Encoding title '{t.id}' ({infos[t.id]['duration']:.1f}s, "
                       f"{'1-pass' if fast else '2-pass'})", item=t.id)
         out = os.path.join(work, "titles", f"{t.id}.mpg")
-        encode.encode_title(t, infos[t.id], project.disc, vbps, out, work, two_pass=not fast,
+        encode.encode_title(t, infos[t.id], project.disc_for(t), vbps, out, work,
+                            two_pass=not fast,
                             on_progress=lambda f, tid=t.id: reporter.progress("encode", f, tid),
                             probes=plan["_probes"])
         if t.audio_codec == "lpcm":

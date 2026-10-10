@@ -6,6 +6,7 @@ auto-generated chapter menus expanded into ordinary Menu objects. Everything
 downstream (encoding, menus, authoring) only sees the normalised model.
 """
 
+import dataclasses
 import json
 import math
 import os
@@ -232,6 +233,9 @@ class Title:
     number: int = 0  # 1-based title number on the disc
     audio_tracks: list = field(default_factory=list)
     subtitles: list = field(default_factory=list)
+    aspect: str = None       # display aspect of this title (default: the disc's)
+    titleset: int = 1        # DVD titleset (VTS) holding this title
+    global_number: int = 0   # title number as players show it (VMGM order)
 
     @property
     def track_bps(self):
@@ -303,6 +307,17 @@ class Project:
 
     def title(self, tid):
         return next((t for t in self.titles if t.id == tid), None)
+
+    def titleset_titles(self, n):
+        return sorted((t for t in self.titles if t.titleset == n), key=lambda t: t.number)
+
+    @property
+    def titleset_count(self):
+        return max(t.titleset for t in self.titles)
+
+    def disc_for(self, title):
+        """The disc settings with this title's aspect ratio (for encoding)."""
+        return dataclasses.replace(self.disc, aspect=title.aspect)
 
     def menu(self, mid):
         return next((m for m in self.menus if m.id == mid), None)
@@ -458,8 +473,23 @@ class _Builder:
             menus.sort(key=lambda m: 0 if m.id == fid else 1)
         for n, m in enumerate(menus, 1):
             m.number = n
-        for n, t in enumerate(titles, 1):
-            t.number = n
+        # DVD keeps one video/audio format per titleset: group titles by
+        # (aspect, audio codec); the first title's group is titleset 1, which
+        # also holds the menus.
+        groups = []
+        for t in titles:
+            t.aspect = t.aspect or disc.aspect
+            key = (t.aspect, t.audio_codec)
+            if key not in groups:
+                groups.append(key)
+            t.titleset = groups.index(key) + 1
+        offset = 0
+        for ts in range(1, len(groups) + 1):
+            members = [t for t in titles if t.titleset == ts]
+            for n, t in enumerate(members, 1):
+                t.number = n
+                t.global_number = offset + n
+            offset += len(members)
 
         project = Project(self.path, self.base, disc, titles, menus, self.warnings)
         self.check_refs(project, user_menu_ids)
@@ -512,6 +542,7 @@ class _Builder:
             id=t["id"], name=t.get("name", t["id"]), source=source,
             chapters=chapters, audio_codec=codec, audio_bitrate=bitrate,
             end_action=t.get("end_action", "stop"), audio_tracks=tracks, subtitles=subs,
+            aspect=t.get("aspect"),
         )
         if title.audio_bps > 8_800_000:
             self.err(f"{where}.audio_tracks",
@@ -649,7 +680,4 @@ class _Builder:
                         self.err(f"titles[{i}].{attr}[{j}].lang",
                                  f"{kind} stream {j + 1} is {seen[j]!r} in another title; "
                                  "stream languages are shared by all titles on the disc")
-        codecs = {t.audio_codec for t in project.titles}
-        if len(codecs) > 1:
-            self.err("titles", "all titles must use the same audio codec in this version "
-                               "(they share one DVD titleset); found " + ", ".join(sorted(codecs)))
+

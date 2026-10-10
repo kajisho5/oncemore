@@ -164,6 +164,7 @@ oncemore doctor                                # 外部ツールの有無・バ�
 | `audio.codec` | `ac3` \| `lpcm` | `ac3` |
 | `audio.bitrate` | AC-3 のみ、64k〜448k | `192k` |
 | `end_action` | `menu:<id>` \| `title:<id>` \| `stop` | first_play のメニュー、無ければ `stop` |
+| `aspect` | このタイトルの `4:3` \| `16:9` | `disc.aspect` |
 | `audio.lang` | 音声（1 トラック時）の ISO 639-1 言語コード | なし |
 | `audio_tracks` | 1〜8 個の `{source?, stream?, lang?}`：複数音声（下記） | `source` の音声 1 本 |
 | `subtitles` | 32 個までの `{file, lang?, default?}` SRT ファイル（下記） | なし |
@@ -247,6 +248,11 @@ dvdauthor XML ─dvdauthor─▶ VIDEO_TS ─hdiutil / genisoimage─▶ disc.is
 * **メニュー**はすべて 1 つの titleset に置き、ボタンからはメニュー・タイトル・チャプターへ直接ジャンプします。
   タイトルからはその titleset のルートメニューしか呼べないため、別のメニューへ戻るときは
   GPRM `g1` に行き先番号を入れてルートメニュー経由で振り分けます。
+* **titleset**：DVD は映像・音声の形式を titleset 単位で持つため、タイトルを（アスペクト比, 音声コーデック）で
+  自動的にグループ分けします。16:9 AC-3 のタイトルに 4:3 LPCM のタイトルを混ぜれば、後者は titleset 2 に入ります。
+  メニューは titleset 1 に置き、titleset をまたぐジャンプは dvdauthor の jumppad、別 titleset のタイトルから
+  メニューへの復帰は VMGM のトップメニュー経由です（その titleset について dvdauthor が
+  「creating a dummy menu」と出しますが想定どおりです）。
 * **ハイライト**は自前のエンコーダ（`zlib`＋`struct`）で書いた 2bit インデックス PNG を spumux に渡しています。
 
 ## 動作確認
@@ -276,8 +282,8 @@ DVD ナビゲーションライブラリ）でメニューのボタンを実際�
 * モーションメニューは動画 1 本のループのみ（アニメーションするボタンや遷移効果はなし）。
 * 音声はステレオのみ（ダウンミックス）。字幕は SRT のみ、ディスク全体で 1 スタイル、
   下中央固定（字幕ごとの位置・色指定はなし）。
-* 全タイトルが 1 つの titleset に入るため、音声コーデックは全タイトル共通（すべて AC-3 か
-  すべて LPCM）、アスペクト比もディスクで 1 種類。
+* 音声・字幕の n 番目のストリームの言語はディスク全体で 1 つ。メニューのアスペクト比は
+  1 種類（`disc.aspect`）で、タイトルは個別に指定できます。
 * フレームレート変換は単純な間引き／複製（テレシネ／逆テレシネなし）。インターレース素材は
   デインターレースしてプログレッシブで出力。
 * `end_action` の連鎖以外の「全部再生して戻る」ロジックはなし。

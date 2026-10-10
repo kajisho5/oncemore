@@ -178,13 +178,24 @@ class TestProject(unittest.TestCase):
         self.assertIn("no title with id 'zz'", msg)
         self.assertIn("no button 'ghost'", msg)
 
-    def test_duplicate_ids_and_mixed_audio(self):
+    def test_duplicate_ids(self):
         d = copy.deepcopy(self.data)
         d["titles"][1]["id"] = "t1"
-        d["titles"][1]["audio"] = {"codec": "lpcm"}
-        msg = self.errors(d)
-        self.assertIn("duplicate id 't1'", msg)
-        self.assertIn("same audio codec", msg)
+        self.assertIn("duplicate id 't1'", self.errors(d))
+
+    def test_titlesets_by_aspect_and_codec(self):
+        d = copy.deepcopy(self.data)
+        d["titles"].append({"id": "t3", "source": "c.mp4", "aspect": "4:3"})
+        d["titles"].append({"id": "t4", "source": "d.mp4", "audio": {"codec": "lpcm"}})
+        d["titles"].append({"id": "t5", "source": "e.mp4"})
+        p = build(d)
+        got = [(t.id, t.titleset, t.number, t.global_number, t.aspect) for t in p.titles]
+        self.assertEqual(got, [("t1", 1, 1, 1, "16:9"), ("t2", 1, 2, 2, "16:9"),
+                               ("t3", 2, 1, 4, "4:3"), ("t4", 3, 1, 5, "16:9"),
+                               ("t5", 1, 3, 3, "16:9")])
+        self.assertEqual(p.titleset_count, 3)
+        self.assertEqual(p.disc_for(p.title("t3")).aspect, "4:3")
+        self.assertEqual(p.disc.aspect, "16:9")
 
     def test_chapter_order_and_range(self):
         d = copy.deepcopy(self.data)

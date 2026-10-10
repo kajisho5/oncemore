@@ -313,9 +313,13 @@ def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
 
 
 def extract_thumbnail(source, info, disc, time, size, out_path, log):
-    """Grab one frame at `time`, formatted like the encoded title, scaled to size."""
+    """Grab one frame at `time`, formatted like the encoded title (`disc` =
+    the title's settings), and fit it into a `size` box of square pixels."""
     t = max(0.0, min(time, (info.get("duration") or time + 1) - 0.2))
-    vf = fit_filter(info, disc, fps=False) + f",scale={size[0]}:{size[1]},setsar=1"
+    w, h = size
+    vf = (fit_filter(info, disc, fps=False) +
+          f",scale=iw*sar:ih,setsar=1,scale={w}:{h}:force_original_aspect_ratio=decrease,"
+          f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1")
     tools.run([tools.find("ffmpeg"), "-hide_banner", "-nostdin", "-y", "-ss", f"{t:.3f}",
                "-i", source, "-frames:v", "1", "-vf", vf, out_path], log=log,
               what="ffmpeg (thumbnail)")

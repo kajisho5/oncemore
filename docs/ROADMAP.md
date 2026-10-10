@@ -27,12 +27,12 @@ Done:
 * Multiple audio tracks with language tags (other files or other streams)
 * Menu buttons that switch audio / subtitle streams (`audio:<n>`, `subtitle:<n|off>`)
 * Motion menus (video background, its sound or separate music)
+* Several titlesets: titles with another aspect ratio or audio codec on one disc
 
 Still to do:
 
 * 5.1 AC-3 pass-through (today everything is down-mixed to stereo)
 * Menu transitions, animated buttons
-* Several titlesets (mixed aspect ratios / audio formats on one disc)
 * "Play all" playlists and resume-aware returns
 * Per-cue subtitle position/colour, ASS input
 

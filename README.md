@@ -168,6 +168,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `audio.codec` | `ac3` \| `lpcm` | `ac3` |
 | `audio.bitrate` | AC-3 only, 64k–448k | `192k` |
 | `end_action` | `menu:<id>` \| `title:<id>` \| `stop` | first-play menu, else `stop` |
+| `aspect` | `4:3` \| `16:9` for this title | `disc.aspect` |
 | `audio.lang` | ISO 639-1 code of the (single) audio track | none |
 | `audio_tracks` | 1–8 `{source?, stream?, lang?}`: several audio streams (below) | one track from `source` |
 | `subtitles` | up to 32 `{file, lang?, default?}` SRT files (below) | none |
@@ -256,6 +257,12 @@ dvdauthor XML ─dvdauthor─▶ VIDEO_TS ─hdiutil / genisoimage─▶ disc.is
 * **Menus** all live in one titleset; buttons jump straight to menus, titles and
   chapters. A title can only *call* its titleset's root menu, so returning to
   another menu goes through the root menu with the target number in GPRM `g1`.
+* **Titlesets**: DVD stores one video/audio format per titleset, so titles are
+  grouped by (aspect, audio codec) automatically; a 4:3 LPCM title next to 16:9
+  AC-3 ones simply lands in titleset 2. Menus stay in titleset 1, jumps across
+  titlesets use dvdauthor jumppads, and a title in another titleset returns to
+  a menu through the VMGM top menu (dvdauthor then notes "creating a dummy
+  menu" for that titleset, which is expected).
 * **Highlights** are 2-bit indexed PNGs written by oncemore's own encoder
   (`zlib` + `struct`), handed to spumux.
 
@@ -288,8 +295,8 @@ By hand:
 * Motion menus loop one video; there are no animated buttons or transitions.
 * Stereo audio only (sources are down-mixed). Subtitles: SRT only, one style
   per disc, bottom-centred; no positioning or colours per cue.
-* All titles share one titleset, so they must use the same audio codec
-  (all AC-3 or all LPCM) and the disc has one aspect ratio.
+* Audio/subtitle stream *n* has one language for the whole disc. Menus have
+  one aspect ratio (`disc.aspect`); titles may differ.
 * Frame-rate conversion is plain frame dropping/duplication (no telecine/IVTC);
   interlaced sources are deinterlaced and the output is progressive.
 * No "play all then return" logic beyond `end_action` chains.

@@ -366,7 +366,8 @@ class MenuBuilder:
             info = self._probe(title.source)
             size = (int(round(t.w * self.sx / 2)) * 2, t.h)
             path = os.path.join(self.work, f"{menu.id}.{b.id}.thumb.png")
-            encode.extract_thumbnail(title.source, info, self.disc, t.time, size, path,
+            encode.extract_thumbnail(title.source, info, self.project.disc_for(title), t.time,
+                                     size, path,
                                      os.path.join(self.logs, f"thumb-{menu.id}-{b.id}.log"))
             out.append((path, round(t.x * self.sx), t.y))
         return out

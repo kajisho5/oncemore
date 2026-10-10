@@ -341,6 +341,13 @@
               }
             }
           }
+        },
+        "aspect": {
+          "enum": [
+            "4:3",
+            "16:9"
+          ],
+          "description": "Display aspect of this title (default: disc.aspect). Titles with a different aspect or audio codec go into their own DVD titleset automatically."
         }
       }
     },

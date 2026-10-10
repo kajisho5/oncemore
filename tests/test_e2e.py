@@ -286,6 +286,68 @@ class TestPalLpcmBuild(unittest.TestCase):
 
 
 @unittest.skipUnless(TOOLS_OK, SKIP_REASON)
+class TestMixedTitlesets(unittest.TestCase):
+    """A 16:9 AC-3 title and a 4:3 LPCM title on one disc: two titlesets,
+    menus in the first, jumps and returns across them."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-e2e-mixed-")
+        rc, _, err = run_cli("init", "mixed", cwd=cls.tmp)
+        assert rc == 0, err
+        path = os.path.join(cls.tmp, "mixed", "project.oncemore.json")
+        with open(path) as f:
+            data = json.load(f)
+        b = data["titles"][1]
+        b.update({"aspect": "4:3", "audio": {"codec": "lpcm"}, "chapters": [0, 6],
+                  "end_action": "menu:chapters_b",
+                  "auto_chapter_menu": {"id": "chapters_b", "back": "menu:main"}})
+        data["menus"][0]["buttons"].append(
+            {"id": "cb", "label": "B CHAPTERS", "x": 120, "y": 400, "action": "menu:chapters_b"})
+        with open(path, "w") as f:
+            json.dump(data, f)
+        cls.iso = os.path.join(cls.tmp, "mixed.iso")
+        rc, out, err = run_cli("--json", "iso", path, "-o", cls.iso, "--fast", cwd=cls.tmp)
+        assert rc == 0, err + out
+        cls.result = json_lines(out)[-1]
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def test_two_titlesets(self):
+        files = iso_list(self.iso)
+        for name in ("VTS_01_0.IFO", "VTS_01_1.VOB", "VTS_02_0.IFO", "VTS_02_1.VOB"):
+            self.assertIn(f"/VIDEO_TS/{name}", files)
+        self.assertEqual([(t["titleset"], t["aspect"], t["audio"]) for t in self.result["titles"]],
+                         [(1, "16:9", "ac3"), (2, "4:3", "lpcm")])
+        vob = iso_extract(self.iso, "/VIDEO_TS/VTS_02_1.VOB", os.path.join(self.tmp, "b.vob"))
+        streams = ffprobe_streams(vob)
+        v = next(s for s in streams if s["codec_type"] == "video")
+        a = next(s for s in streams if s["codec_type"] == "audio")
+        self.assertEqual(v["display_aspect_ratio"], "4:3")
+        self.assertEqual(a["codec_name"], "pcm_dvd")
+
+    @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
+    def test_navigation_across_titlesets(self):
+        with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
+            self.assertEqual(d.num_titles(), 2)
+            self.assertEqual(d.wait_menu(), 1)
+            self.assertEqual(d.button_count(), 4)
+            d.activate(4)                                    # B CHAPTERS (menu 3)
+            self.assertEqual(d.wait_menu(), 3)
+            d.activate(2)                                    # chapter 2 of the 4:3 title
+            self.assertEqual(d.wait_title(), (2, 2))
+            # end_action menu:chapters_b from titleset 2, routed through VMGM
+            self.assertEqual(d.play_to_end_of_title(), ("menu", 3))
+            d.activate(3)                                    # BACK
+            self.assertEqual(d.wait_menu(), 1)
+            d.activate(1)                                    # PLAY ALL: t1 -> t2 across titlesets
+            self.assertEqual(d.wait_title(), (1, 1))
+            self.assertEqual(d.play_to_end_of_title(), ("title", (2, 1)))
+
+
+@unittest.skipUnless(TOOLS_OK, SKIP_REASON)
 class TestTracksSubtitlesMotionMenu(unittest.TestCase):
     """Two audio tracks, two subtitle languages (Japanese on by default),
     stream-switch buttons and a motion menu, written as an ISO."""

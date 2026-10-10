@@ -135,6 +135,27 @@ class TestAuthorXml(unittest.TestCase):
         self.assertIn('<button name="so">subtitle = 0;</button>', x)
         self.assertIn("<fpc>subtitle = 65; g1 = 0; jump titleset 1 menu entry root;</fpc>", x)
 
+    def test_multiple_titlesets(self):
+        d = sample_project()
+        d["titles"][1].update({"aspect": "4:3", "audio": {"codec": "lpcm"},
+                               "end_action": "menu:chapters"})
+        d["titles"][0]["end_action"] = "title:t2"
+        d["menus"][0]["buttons"].append({"id": "b2", "label": "B2", "x": 400, "y": 220,
+                                         "action": "chapter:t2:1"})
+        p = build_project(d, "/v/project.oncemore.json", check_files=False)
+        x = author.build_xml(p, {"main": "m", "chapters": "c"}, {"t1": "a", "t2": "b"}, "/o")
+        self.assertIn('<dvdauthor dest="/o" jumppad="yes">', x)
+        self.assertEqual(x.count("<titleset>"), 2)
+        self.assertIn('<button name="b">jump titleset 2 title 1;</button>', x)
+        self.assertIn('<button name="b2">jump titleset 2 title 1 chapter 1;</button>', x)
+        self.assertIn("<post>jump titleset 2 title 1;</post>", x)                  # t1 -> t2
+        self.assertIn("<post>g1 = 2; call vmgm menu entry title;</post>", x)       # t2 -> menu 2
+        self.assertIn('<pgc entry="title"><pre>jump titleset 1 menu entry root;</pre></pgc>', x)
+        self.assertIn('<video format="ntsc" aspect="4:3"/>', x)
+        self.assertIn('<audio format="pcm"', x)
+        import xml.dom.minidom
+        xml.dom.minidom.parseString(x)
+
     def test_audio_graph(self):
         d = sample_project()
         d["titles"][0]["audio_tracks"] = [{}, {"source": "c.wav", "stream": 1}, {"stream": 3}]
