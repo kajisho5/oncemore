@@ -422,7 +422,7 @@ button.icon { padding: 0 6px; min-width: 22px; }
 input, textarea { background: var(--c-field); color: var(--c-text-field); border: 1px solid var(--c-field-border); border-radius: var(--r-field); padding: 1px 4px;
                   font-size: var(--fs-sm); box-shadow: var(--field-shadow); }
 input[readonly] { background: var(--c-bg-4); color: var(--c-text); }
-input[type=checkbox], input[type=radio] { accent-color: var(--c-bg-5); }
+input[type=checkbox], input[type=radio] { accent-color: var(--c-ui); }
 input[type=range] { box-shadow: none; padding: 0; background: transparent; accent-color: var(--c-text-2); }
 input[type=color] { background: var(--c-bg-2); padding: 1px; height: 20px; }
 select { background: var(--raised); color: var(--c-text); border: 1px solid var(--c-bg-0); border-radius: var(--r-sm);
