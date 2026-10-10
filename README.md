@@ -247,6 +247,7 @@ sources — nothing large lives in this repository.
 oncemore init <dir> [--standard NTSC|PAL] [--aspect 16:9|4:3] [--force]
 oncemore validate <project> [--no-media]       # schema + references + media + size estimate
 oncemore build <project> -o out/               # writes out/VIDEO_TS (and out/AUDIO_TS)
+oncemore build <project> -o out/ --format bluray  # writes out/BDMV (Blu-ray, HD)
 oncemore iso <project> -o out.iso [--iso-tool auto|builtin|hdiutil|genisoimage|mkisofs|xorriso]
 oncemore preview-menu <project> --menu main -o main.png [--button id] [--state highlight|select|normal] [--outline]
 oncemore simulate <project> --keys down,enter,menu   # press remote keys, no encoding
@@ -331,6 +332,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `font` | path or `null` | auto: Hiragino (macOS) → Noto Sans CJK → DejaVu Sans |
 | `video_bitrate` | `"auto"` or bitrate (`"6M"`, `5500000`), 1–8 Mbit/s | `auto` |
 | `rom_files` | files / folders put next to VIDEO_TS (DVD-ROM content for computers) | none |
+| `bluray.target` | `BD25` \| `BD50`: the disc size when the project is built as a Blu-ray | `BD25` |
 | `subtitle_style` | `{size, color, outline, outline_width, margin}` for all subtitles | 30 px (PAL 36), white, black outline 3 px, 36 px (PAL 43) from the bottom |
 
 **titles[]** (1–99)
@@ -547,6 +549,27 @@ so lettering is never stretched on 16:9 discs. A button's hit area is computed
 from where its label is actually drawn; up/down/left/right moves are computed
 from the button positions (with wrap-around within a row/column).
 
+### Blu-ray
+
+The same project builds as a Blu-ray: `oncemore build <project> -o out/
+--format bluray`, or Format: Blu-ray in the app's Build panel. oncemore
+writes the whole BDMV folder itself:
+
+* every title in HD (1920×1080, H.264 with x264's Blu-ray settings; film at
+  23.976p, NTSC video as 29.97 and PAL as 25 frames per second in a 1080i
+  stream), with its audio tracks (AC-3 or LPCM) and their languages;
+* chapters on frames made key frames, so they start exactly there;
+* first play, each title's end action when it starts another title, the
+  project's playlists (chapter ranges included) and Play All as Blu-ray
+  playlists, and the Top Menu key starting `disc.title_key`;
+* `disc.bluray.target` (`BD25` or `BD50`) caps the video rate so the
+  titles always fit.
+
+Menus and subtitles are not on Blu-ray discs yet (the build says so). The
+tests read every Blu-ray back with libbluray, the library VLC, mpv and Kodi
+play Blu-ray with: titles, lengths, chapters, streams, and first play
+through the title end actions.
+
 ## How it works
 
 ```
@@ -640,6 +663,9 @@ to ignore it, and delete the folder to reclaim the space.
   DVDs and genisoimage keep the UDF volume descriptor, and hdiutil puts it
   elsewhere. The UDF and ISO 9660 volume names themselves are correct
   (checked by the tests); playback is unaffected.
+* Blu-ray: a BDMV folder only, no menus or subtitles yet; a disc image
+  (UDF 2.50) is the next step. 4:3 titles are pillarboxed in the 16:9 HD
+  frame.
 * No copy protection (by design, permanently).
 
 ## License

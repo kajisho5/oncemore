@@ -221,6 +221,7 @@ class Disc:
     subtitle_style: dict = None
     title_key: str = None      # target of the remote's Title key (None = first menu)
     rom_files: list = field(default_factory=list)   # DVD-ROM content next to VIDEO_TS
+    bluray_target: str = "BD25"   # disc size when building a Blu-ray
 
     @property
     def width(self):
@@ -580,6 +581,7 @@ class _Builder:
                        for j, r in enumerate(dd.get("rom_files", []))],
             font=self.file("disc.font", dd["font"]) if dd.get("font") else None,
             video_bitrate=None if vb == "auto" else parse_bitrate(vb),
+            bluray_target=dd.get("bluray", {}).get("target", "BD25"),
         )
         for j, r in enumerate(disc.rom_files):
             if os.path.basename(r.rstrip(os.sep)).upper() in ("VIDEO_TS", "AUDIO_TS"):

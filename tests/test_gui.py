@@ -190,6 +190,9 @@ class TestGuiApi(unittest.TestCase):
         self.assertNotEqual(pv2["buttons"][0]["rect"], pv["buttons"][0]["rect"])
         status, v = self.s.call("/api/validate", "POST")
         self.assertTrue(v["valid"])
+        # a Blu-ray is a BDMV folder (no image yet)
+        status, err = self.s.call("/api/build", "POST", {"format": "bluray", "kind": "iso"})
+        self.assertEqual(status, 400, err)
         status, job = self.s.call("/api/build", "POST", {"kind": "iso", "fast": True})
         self.assertEqual(status, 200)
         self.assertEqual(self.s.call("/api/build", "POST", {"kind": "iso"})[0], 422)  # busy

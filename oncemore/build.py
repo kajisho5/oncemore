@@ -8,17 +8,18 @@ import os
 import shutil
 import tempfile
 
-from . import author, clips, encode, iso, lpcmfix, slideshow, subtitles, tools
+from . import author, bluray, clips, encode, iso, lpcmfix, slideshow, subtitles, tools
 from . import menu as menu_module
 from .errors import OncemoreError, ProjectError
 from .menu import (MenuBuilder, check_element_fonts, display_width, find_font, link_font,
                    menu_seconds, menu_text)
 
 
-def inspect(project, reporter=None, prepare=True):
+def inspect(project, reporter=None, prepare=True, bd=False):
     """Probe every source and plan the bitrate. Used by validate and build.
     With prepare=False slideshows that are not rendered yet are planned from
-    their settings instead of being rendered (for a quick status)."""
+    their settings instead of being rendered (for a quick status). bd: plan
+    for a Blu-ray instead of a DVD."""
     tools.require(["ffprobe"])
     issues = []
     infos = {}
@@ -80,7 +81,7 @@ def inspect(project, reporter=None, prepare=True):
             cues[(t.id, j)] = subtitles.load_subtitles(sub.file)
             if not cues[(t.id, j)]:
                 warnings.append(f"{where}.subtitles[{j}]: {os.path.basename(sub.file)} has no cues")
-        if t.subtitles:
+        if t.subtitles and not bd:
             need = subtitles.palette_size([(sub.color, cues[(t.id, j)])
                                            for j, sub in enumerate(t.subtitles)],
                                           project.disc.subtitle_style)
@@ -131,9 +132,14 @@ def inspect(project, reporter=None, prepare=True):
     if project.menus or cues:
         font = find_font(project.disc.font, text)
     check_element_fonts(project)
-    plan = encode.plan_bitrate([(infos[t.id]["duration"], t.audio_bps, t.video_bitrate)
-                                for t in project.titles],
-                               project.disc.capacity, menu_total, project.disc.video_bitrate)
+    if bd:
+        plan = bluray.plan([(infos[t.id]["duration"], t.audio_bps) for t in project.titles],
+                           bluray.CAPACITY[project.disc.bluray_target])
+        plan.update(video_bps=plan["max_bps"], per_title=[plan["max_bps"]] * len(project.titles))
+    else:
+        plan = encode.plan_bitrate([(infos[t.id]["duration"], t.audio_bps, t.video_bitrate)
+                                    for t in project.titles],
+                                   project.disc.capacity, menu_total, project.disc.video_bitrate)
     plan["font"] = font
     plan["warnings"] = warnings + plan["warnings"]
     plan["_probes"] = probes
@@ -233,7 +239,7 @@ def _code_signature():
     """The encoding code itself is part of every key: a new oncemore that
     encodes differently never reuses old results."""
     h = hashlib.sha256()
-    for mod in (encode, menu_module, lpcmfix):
+    for mod in (encode, menu_module, lpcmfix, bluray):
         with open(mod.__file__, "rb") as f:
             h.update(f.read())
     return h.hexdigest()[:16]
@@ -452,6 +458,72 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None, ca
                    "files": sorted(os.listdir(os.path.join(out_dir, "VIDEO_TS")))})
     with open(os.path.join(work, "build.json"), "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2, ensure_ascii=False)
+    if keep_work:
+        result["work_dir"] = work
+    else:
+        shutil.rmtree(work, ignore_errors=True)
+    return result
+
+
+def build_bluray(project, out_dir, reporter, fast=False, keep_work=False, work=None, cache=True):
+    """Write a Blu-ray BDMV folder (and CERTIFICATE) into out_dir: every title
+    in HD with its chapters, the project's playlists and "play all", first
+    play and the titles' end actions. Menus and subtitles are DVD-only for
+    now (DECISIONS §53)."""
+    tools.require(["ffmpeg", "ffprobe"])
+    out_dir = os.path.abspath(out_dir)
+    work = work or os.path.join(out_dir, ".work")
+    os.makedirs(os.path.join(work, "logs"), exist_ok=True)
+    reporter.step("probe", "Checking sources")
+    infos, plan = inspect(project, reporter, bd=True)
+    warnings = project.warnings + plan["warnings"]
+    if project.menus:
+        warnings.append("menus are not on Blu-ray discs yet: the disc plays its titles "
+                        "(first play, then each title's end action)")
+    if any(t.subtitles for t in project.titles):
+        warnings.append("subtitles are not on Blu-ray discs yet")
+    plan["warnings"] = warnings
+    for w in warnings:
+        reporter.warn(w)
+    capacity = bluray.CAPACITY[project.disc.bluray_target]
+    reporter.info(f"    video up to {plan['max_bps'] / 1e6:.1f} Mbit/s, at most "
+                  f"{plan['estimated_bytes'] / 2**30:.2f} of {capacity / 2**30:.2f} GiB "
+                  f"({project.disc.bluray_target})")
+    cache = encode_cache_dir(project) if cache else None
+    os.makedirs(os.path.join(work, "titles"), exist_ok=True)
+    clips = {}
+    for t in project.titles:
+        out = os.path.join(work, "titles", f"{t.id}.m2ts")
+        key = _cache_key("bluray-title", {
+            "title": title_cache_key(project, t, infos[t.id], plan["max_bps"], fast)})
+        if _cache_get(cache, key, out):
+            reporter.step("encode", f"Title '{t.id}' unchanged (cached)", item=t.id)
+        else:
+            reporter.step("encode", f"Encoding title '{t.id}' in HD "
+                          f"({infos[t.id]['duration']:.1f}s)", item=t.id)
+            bluray.encode_title(t, infos[t.id], project.disc, plan["max_bps"], out, work,
+                                fast=fast, probes=plan["_probes"],
+                                on_progress=lambda f, tid=t.id: reporter.progress("encode", f, tid))
+            _cache_put(cache, key, out)
+        clips[t.id] = out
+    reporter.step("author", "Writing BDMV")
+    for sub in ("BDMV", "CERTIFICATE"):
+        p = os.path.join(out_dir, sub)
+        if os.path.isdir(p):
+            shutil.rmtree(p)
+    disc = bluray.write_bdmv(project, clips, out_dir)
+    rom = copy_rom_files(project, out_dir)
+    size = sum(os.path.getsize(os.path.join(r, f))
+               for r, _, fs in os.walk(os.path.join(out_dir, "BDMV")) for f in fs)
+    if size > capacity:
+        raise OncemoreError(f"BDMV is {size / 2**30:.2f} GiB, larger than "
+                            f"{project.disc.bluray_target} ({capacity / 2**30:.2f} GiB)",
+                            hint="Use BD50 or shorter titles.")
+    result = summary(project, infos, plan)
+    result["disc"]["format"] = "bluray"
+    result["disc"]["target"] = project.disc.bluray_target
+    result.update({"bdmv": os.path.join(out_dir, "BDMV"), "bytes": size + rom,
+                   "bd_titles": disc["titles"], "playlists": disc["playlists"]})
     if keep_work:
         result["work_dir"] = work
     else:

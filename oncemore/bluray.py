@@ -1,0 +1,555 @@
+"""Blu-ray output: a BDMV folder of HD titles with chapters (DECISIONS §53).
+
+ffmpeg encodes every title (H.264 with x264's Blu-ray settings, AC-3 or
+LPCM sound) straight into a BDAV transport stream (.m2ts). The files a
+player navigates by are written here: index.bdmv (first play, the titles),
+MovieObject.bdmv (the commands that play each title and say what follows
+it), one playlist (.mpls) per title with its chapter marks, and the clip
+information (.clpi) with the entry-point map players seek with.
+
+The layouts follow the BD-ROM format as libbluray reads it; the tests read
+every disc back with libbluray.
+"""
+
+import dataclasses
+import math
+import os
+import shutil
+import struct
+
+from . import encode
+from .errors import OncemoreError, ProjectError
+from .project import title_fps
+
+CAPACITY = {"BD25": 25_025_314_816, "BD50": 50_050_629_632}
+MAX_VIDEO_BPS = 40_000_000     # Blu-ray primary video limit
+MIN_VIDEO_BPS = 4_000_000      # below this an HD picture falls apart
+VBV_BUFFER = 30_000_000        # coded picture buffer at level 4.1
+DISC_SAFETY = 0.03             # transport-stream overhead and some free space
+TS_RATE = 48_000_000 // 8      # ts_recording_rate: the 48 Mbit/s maximum, in bytes/s
+
+VIDEO_PID = 0x1011
+AUDIO_PID = 0x1100             # + track number
+PMT_PID = 0x0100
+VERSION = b"0200"
+
+WIDTH, HEIGHT = 1920, 1080
+
+# frame rate -> (video_format, frame_rate) codes; 25 and 29.97 fps are coded
+# as progressive frames in an interlaced (1080i) stream, as the format has
+# no 1080p at those rates
+FORMATS = {
+    (24000, 1001): (6, 1),     # 1080p 23.976
+    (25, 1): (4, 3),           # 1080i 25
+    (30000, 1001): (4, 4),     # 1080i 29.97
+}
+CODING_H264, CODING_LPCM, CODING_AC3 = 0x1B, 0x80, 0x81
+
+# ISO 639-1 (the project's codes) -> ISO 639-2/B (the disc's)
+LANGS = {
+    "ar": "ara", "bg": "bul", "ca": "cat", "cs": "cze", "da": "dan", "de": "ger",
+    "el": "gre", "en": "eng", "es": "spa", "et": "est", "fa": "per", "fi": "fin",
+    "fr": "fre", "he": "heb", "hi": "hin", "hr": "hrv", "hu": "hun", "id": "ind",
+    "is": "ice", "it": "ita", "ja": "jpn", "ko": "kor", "lt": "lit", "lv": "lav",
+    "ms": "may", "nl": "dut", "no": "nor", "pl": "pol", "pt": "por", "ro": "rum",
+    "ru": "rus", "sk": "slo", "sl": "slv", "sr": "srp", "sv": "swe", "th": "tha",
+    "tr": "tur", "uk": "ukr", "vi": "vie", "zh": "chi",
+}
+
+
+def lang3(code):
+    return LANGS.get((code or "").lower(), "und")
+
+
+@dataclasses.dataclass
+class HDFrame:
+    """Stands in for the Disc when fitting pictures: the 16:9 HD frame."""
+    standard: str
+    fps: tuple
+    width: int = WIDTH
+    height: int = HEIGHT
+    aspect: str = "16:9"
+    matrix: str = "bt709"
+
+    @property
+    def dar(self):
+        return 16 / 9
+
+
+# --------------------------------------------------------------------------
+# planning and encoding
+# --------------------------------------------------------------------------
+
+def plan(items, capacity):
+    """Highest video rate the titles may peak at so that they fit.
+
+    items: (duration, audio bps) per title. Pictures are encoded at a
+    constant quality and capped at this rate, so the disc is never
+    overfilled. Returns {"max_bps", "estimated_bytes", "capacity", "warnings"}."""
+    total = sum(d for d, _ in items)
+    if total <= 0:
+        raise ProjectError("titles have zero total duration")
+    usable = capacity * (1 - DISC_SAFETY) * 8 - sum(d * a for d, a in items)
+    fit = usable / total
+    if fit < MIN_VIDEO_BPS:
+        raise ProjectError(f"content does not fit: {total / 60:.1f} min would need a video "
+                           f"bitrate of {max(fit, 0) / 1e6:.2f} Mbit/s (minimum "
+                           f"{MIN_VIDEO_BPS / 1e6:.0f}). Use BD50 or shorter titles.")
+    peak = int(min(MAX_VIDEO_BPS, fit))
+    est = sum(d * (peak + a) for d, a in items) / 8 * (1 + DISC_SAFETY)
+    return {"max_bps": peak, "estimated_bytes": int(min(est, capacity)), "capacity": capacity,
+            "total_seconds": total, "warnings": []}
+
+
+def audio_codec_args(title, k):
+    """Encoder options for audio output stream k of a title."""
+    if title.audio_passthrough:
+        return [f"-c:a:{k}", "copy"]
+    if title.audio_codec == "lpcm":
+        return [f"-c:a:{k}", "pcm_bluray", f"-sample_fmt:a:{k}", "s16", f"-ar:a:{k}", "48000",
+                f"-ac:a:{k}", "2"]
+    return [f"-c:a:{k}", "ac3", f"-b:a:{k}", str(title.audio_bitrate), f"-ar:a:{k}", "48000",
+            f"-ac:a:{k}", str(title.audio_channels)]
+
+
+def key_times(chapters, fps):
+    """Chapter starts snapped to frames: the pictures to make key frames."""
+    num, den = fps
+    frames = sorted({math.ceil(t * num / den - 1e-6) for t in chapters if t > 0})
+    return [f * den / num for f in frames]
+
+
+def video_args(title, disc, max_bps, fast):
+    fps = title_fps(title, disc)
+    if fps not in FORMATS:
+        raise OncemoreError(f"title {title.id!r}: {fps[0]}/{fps[1]} fps has no Blu-ray format")
+    gop = round(fps[0] / fps[1])            # at most one second between key frames
+    x264 = (f"bluray-compat=1:slices=4:aud=1:nal-hrd=vbr:keyint={gop}:min-keyint=1:"
+            "force-cfr=1")
+    if FORMATS[fps][0] == 4:
+        x264 += ":fake-interlaced=1:pic-struct=1"
+    args = ["-c:v", "libx264", "-preset", "ultrafast" if fast else "medium",
+            "-crf", "24" if fast else "19", "-profile:v", "high", "-level", "4.1",
+            "-maxrate", str(max_bps), "-bufsize", str(VBV_BUFFER), "-x264-params", x264,
+            "-r", f"{fps[0]}/{fps[1]}", "-pix_fmt", "yuv420p", "-aspect", "16:9",
+            "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
+            "-forced-idr", "1"]
+    keys = key_times(title.chapters, fps)
+    if keys:
+        args += ["-force_key_frames", ",".join(f"{t:.6f}" for t in keys)]
+    return args
+
+
+def encode_title(title, info, disc, max_bps, out_path, work, fast=False, on_progress=None,
+                 probes=None):
+    """Encode one title to a Blu-ray transport stream (.m2ts)."""
+    if not info.get("has_video"):
+        raise OncemoreError(f"title {title.id!r}: {title.source} has no video stream")
+    duration = info["duration"]
+    hd = HDFrame(disc.standard, disc.fps)
+    # film stays at 23.976; everything else becomes progressive frames
+    mode = "pulldown" if title.video_mode == "pulldown" else "progressive"
+    probes = dict(probes or {})
+    probes.setdefault(title.source, info)
+    # (the DVD LPCM framing does not apply: pcm_bluray frames itself)
+    plain = dataclasses.replace(title, audio_codec="ac3")
+    if title.clips:
+        for c in title.clips:
+            probes.setdefault(c.source, encode.probe(c.source))
+        inputs, graph, labels = encode.clip_graph(plain, probes, hd, mode)
+        maps = ["-filter_complex", graph]
+        for lab in labels:
+            maps += ["-map", lab]
+        tracks = 1
+    else:
+        extra, agraph, alabels = encode.audio_graph(plain, probes)
+        inputs = ["-i", title.source] + extra
+        vf = encode.fit_filter(info, hd, mode=mode, ivtc=encode.is_ivtc(title))
+        if title.audio_passthrough:
+            sources = [title.source] + [extra[i + 1] for i in range(0, len(extra), 2)]
+            maps = ["-map", "0:v:0", "-vf", vf]
+            for tr in title.audio_tracks:
+                maps += ["-map", f"{sources.index(tr.source)}:a:{tr.stream}"]
+        else:
+            maps = ["-filter_complex", f"[0:v:0]{vf}[v];{agraph}", "-map", "[v]"]
+            for lab in alabels:
+                maps += ["-map", lab]
+        tracks = len(title.audio_tracks)
+    acodec = []
+    for k in range(tracks):
+        acodec += audio_codec_args(title, k)
+    pids = ["-streamid", f"0:{VIDEO_PID}"]
+    for k in range(tracks):
+        pids += ["-streamid", f"{k + 1}:{AUDIO_PID + k}"]
+    encode.run_ffmpeg(inputs + maps + video_args(title, disc, max_bps, fast) + acodec + pids +
+                      ["-t", f"{duration:.3f}", "-f", "mpegts", "-mpegts_m2ts_mode", "1",
+                       "-mpegts_pmt_start_pid", str(PMT_PID), out_path],
+                      duration, os.path.join(work, "logs", f"title-{title.id}-bd.log"),
+                      on_progress, cwd=work, what=f"ffmpeg (title {title.id})")
+    return out_path
+
+
+# --------------------------------------------------------------------------
+# reading the transport stream back
+# --------------------------------------------------------------------------
+
+@dataclasses.dataclass
+class ClipScan:
+    packets: int          # 192-byte source packets
+    first_pts: int        # 90 kHz, first picture shown
+    end_pts: int          # 90 kHz, end of the last picture
+    pcr_pid: int
+    entries: list         # [(pts, spn, size in bytes)] of the key frames, in order
+
+
+def _pts(b, i):
+    return (((b[i] >> 1) & 7) << 30 | b[i + 1] << 22 | (b[i + 2] >> 1) << 15 |
+            b[i + 3] << 7 | b[i + 4] >> 1)
+
+
+def scan_m2ts(path, video_pid=VIDEO_PID):
+    """Where the key frames of a .m2ts are (for the entry-point map) and the
+    span of its pictures. Every picture is one PES packet (ffmpeg); key
+    frames carry the random-access flag."""
+    entries = []
+    pts_all = []
+    pcr_pid = None
+    spn = 0
+    with open(path, "rb") as f:
+        while True:
+            buf = f.read(192 * 8192)
+            if not buf:
+                break
+            if len(buf) % 192:
+                raise OncemoreError(f"{path} is not a BDAV stream (length is not 192 × n)")
+            for off in range(0, len(buf), 192):
+                p = off + 4
+                b1 = buf[p + 1]
+                if not b1 & 0x40:
+                    continue
+                if buf[p] != 0x47:
+                    raise OncemoreError(f"{path}: lost sync at packet {spn + off // 192}")
+                pid = (b1 & 0x1F) << 8 | buf[p + 2]
+                if pid != video_pid:
+                    continue
+                afc = buf[p + 3] >> 4 & 3
+                q = p + 4
+                rai = False
+                if afc & 2:
+                    alen = buf[q]
+                    if alen:
+                        rai = bool(buf[q + 1] & 0x40)
+                        if buf[q + 1] & 0x10:
+                            pcr_pid = pid
+                    q += 1 + alen
+                if not afc & 1 or buf[q:q + 3] != b"\0\0\1" or not buf[q + 7] & 0x80:
+                    continue
+                pts = _pts(buf, q + 9)
+                n = spn + off // 192
+                if entries and entries[-1][2] is None:
+                    entries[-1][2] = (n - entries[-1][1]) * 192
+                pts_all.append(pts)
+                if rai:
+                    entries.append([pts, n, None])
+            spn += len(buf) // 192
+    if not pts_all or not entries:
+        raise OncemoreError(f"{path}: no pictures with key frames found")
+    if entries[-1][2] is None:
+        entries[-1][2] = (spn - entries[-1][1]) * 192
+    ordered = sorted(pts_all)
+    step = ordered[1] - ordered[0] if len(ordered) > 1 else 3003
+    return ClipScan(spn, ordered[0], ordered[-1] + step, pcr_pid or video_pid,
+                    [tuple(e) for e in entries])
+
+
+# --------------------------------------------------------------------------
+# the navigation files
+# --------------------------------------------------------------------------
+
+def _u8(v):
+    return struct.pack(">B", v)
+
+
+def _u16(v):
+    return struct.pack(">H", v)
+
+
+def _u32(v):
+    return struct.pack(">I", v)
+
+
+def _pad(data, n):
+    return data + b"\0" * (-len(data) % n)
+
+
+def index_bdmv(title_objects, first_play, top_menu, video_format, frame_rate):
+    """title_objects: the movie object of every title (title 1 first)."""
+    app = _u32(34) + bytes([0, video_format << 4 | frame_rate]) + bytes(32)
+
+    def hdmv(obj, playback_type):
+        # playback_type 0 = movie, 1 = interactive
+        return _u16(playback_type << 14) + _u16(obj) + _u32(0)
+
+    body = _u32(1 << 30) + hdmv(first_play, 1) + _u32(1 << 30) + hdmv(top_menu, 1)
+    body += _u16(len(title_objects))
+    for obj in title_objects:
+        body += _u32(1 << 30) + hdmv(obj, 0)     # HDMV title, access permitted
+    index_start = 40 + len(app)
+    return b"INDX" + VERSION + _u32(index_start) + _u32(0) + bytes(24) + app + \
+        _u32(len(body)) + body
+
+
+def _cmd(b0, b1, dst=0, src=0):
+    return bytes([b0, b1, 0, 0]) + _u32(dst) + _u32(src)
+
+
+def play_pl(playlist):
+    """Play PlayList <playlist> (an immediate number)."""
+    return _cmd(0x22, 0x80, playlist)
+
+
+def jump_title(title):
+    """Jump Title <title>: 1..N, 0 = top menu."""
+    return _cmd(0x21, 0x81, title)
+
+
+def movie_objects(objects):
+    """objects: lists of 12-byte navigation commands."""
+    data = b""
+    for cmds in objects:
+        # resume_intention_flag set: a menu called during playback can resume it
+        data += _u16(1 << 15) + _u16(len(cmds)) + b"".join(cmds)
+    body = _u32(0) + _u16(len(objects)) + data
+    return b"MOBJ" + VERSION + _u32(0) + bytes(28) + _u32(len(body)) + body
+
+
+def _video_attr(video_format, frame_rate):
+    return bytes([CODING_H264, video_format << 4 | frame_rate, 0, 0, 0])
+
+
+def _audio_attr(track):
+    coding, channels, lang = track
+    fmt = 6 if channels > 2 else 3
+    return bytes([coding, fmt << 4 | 1]) + lang.encode("ascii")
+
+
+def mpls(items, marks):
+    """A playlist. items: [(clip name, in, out, video_format, frame_rate,
+    audio)] played one after the other, times in 45 kHz on each clip's time
+    line, audio [(coding, channels, lang3)]; marks: chapter marks as
+    (item index, time)."""
+    app = _u32(14) + bytes([0, 1]) + _u16(0) + bytes(8) + _u16(0)
+    body = b""
+    for clip, in_time, out_time, video_format, frame_rate, audio in items:
+        stn = _u16(0) + bytes([1, len(audio), 0, 0, 0, 0, 0, 0]) + bytes(4)
+        entry = _u8(1) + _u16(VIDEO_PID) + bytes(6)
+        stn += _u8(len(entry)) + entry + _u8(5) + _video_attr(video_format, frame_rate)
+        for k, tr in enumerate(audio):
+            entry = _u8(1) + _u16(AUDIO_PID + k) + bytes(6)
+            stn += _u8(len(entry)) + entry + _u8(5) + _audio_attr(tr)
+        # connection_condition 1: the clips are not seamless; STC id 0
+        item = clip.encode("ascii") + b"M2TS" + _u16(1) + _u8(0) + _u32(in_time) + \
+            _u32(out_time) + bytes(8) + _u8(0) + _u8(0) + _u16(0) + _u16(len(stn)) + stn
+        body += _u16(len(item)) + item
+    playlist = _u16(0) + _u16(len(items)) + _u16(0) + body
+    playlist = _u32(len(playlist)) + playlist
+    mark = _u16(len(marks))
+    for ref, t in marks:
+        mark += _u8(0) + _u8(1) + _u16(ref) + _u32(t) + _u16(0xFFFF) + _u32(0)
+    mark = _u32(len(mark)) + mark
+    list_pos = 40 + len(app)
+    mark_pos = list_pos + len(playlist)
+    return b"MPLS" + VERSION + _u32(list_pos) + _u32(mark_pos) + _u32(0) + bytes(20) + app + \
+        playlist + mark
+
+
+def ep_map(entries):
+    """EP_map() of the video stream: a coarse entry whenever the upper PTS or
+    packet-number bits change, a fine entry per key frame."""
+    coarse, fine = [], []
+    last = None
+    for i, (pts, spn, size) in enumerate(entries):
+        key = (pts >> 19, spn & 0xFFFE0000)
+        if key != last:
+            coarse.append((i, pts >> 19 & 0x3FFF, spn))
+            last = key
+        # I_end_position_offset: how many bytes the key picture takes, in steps
+        end = next((k for k, lim in enumerate((131072, 262144, 393216, 589824, 917504,
+                                               1310720), 1) if size < lim), 7)
+        fine.append(end << 28 | (pts >> 9 & 0x7FF) << 17 | spn & 0x1FFFF)
+    table = b"".join(_u32(ref << 14 | cpts) + _u32(cspn) for ref, cpts, cspn in coarse)
+    one = _u32(4 + len(table)) + table + b"".join(_u32(v) for v in fine)
+    # stream_PID, 10 reserved bits + EP_stream_type 1 (video), the coarse and
+    # fine counts (16 + 18 bits), then where the stream's map starts
+    counts = 1 << 34 | len(coarse) << 18 | len(fine)
+    head_len = 2 + 2 + 6 + 4        # (the address counts from the start of EP_map)
+    head = _u8(0) + _u8(1) + _u16(VIDEO_PID) + counts.to_bytes(6, "big") + _u32(head_len)
+    return head + one
+
+
+def clpi(scan, video_format, frame_rate, audio):
+    """Clip information of one .m2ts: its streams, time span and EP map.
+    audio: [(coding, channels, lang3)]."""
+    ts_type = bytes([0x80]) + b"HDMV" + bytes(9) + bytes(16)
+    info = _u16(0) + _u8(1) + _u8(1) + _u32(0) + _u32(TS_RATE) + _u32(scan.packets) + \
+        bytes(128) + _u16(len(ts_type)) + ts_type
+    info = _u32(len(info)) + info
+    start, end = scan.first_pts // 2, scan.end_pts // 2
+    seq = _u8(0) + _u8(1) + _u32(0) + _u8(1) + _u8(0) + _u16(scan.pcr_pid) + _u32(0) + \
+        _u32(start) + _u32(end)
+    seq = _u32(len(seq)) + seq
+    isrc = b"0" * 12
+    streams = _u16(VIDEO_PID)
+    coding = bytes([CODING_H264, video_format << 4 | frame_rate, 3 << 4, 0, 0]) + isrc + bytes(4)
+    streams += _u8(len(coding)) + coding
+    for k, tr in enumerate(audio):
+        coding = _audio_attr(tr) + isrc + bytes(4)
+        streams += _u16(AUDIO_PID + k) + _u8(len(coding)) + coding
+    prog = _u8(0) + _u8(1) + _u32(0) + _u16(PMT_PID) + _u8(1 + len(audio)) + _u8(0) + streams
+    prog = _u32(len(prog)) + prog
+    cpi = _u16(1) + ep_map(scan.entries)          # 12 reserved bits, CPI_type 1 (EP map)
+    cpi = _u32(len(cpi)) + cpi
+    parts = [info, seq, prog, cpi, _u32(0)]       # (the last one: no clip marks)
+    pos, offsets, body = 40, [], b""
+    for part in parts:
+        offsets.append(pos)
+        part = _pad(part, 4)
+        body += part
+        pos += len(part)
+    return b"HDMV" + VERSION + b"".join(_u32(o) for o in offsets[1:]) + _u32(0) + \
+        bytes(12) + body
+
+
+# --------------------------------------------------------------------------
+# the disc
+# --------------------------------------------------------------------------
+
+DIRS = ["BDMV/PLAYLIST", "BDMV/CLIPINF", "BDMV/STREAM", "BDMV/AUXDATA", "BDMV/BDJO",
+        "BDMV/JAR", "BDMV/META", "BDMV/BACKUP/PLAYLIST", "BDMV/BACKUP/CLIPINF",
+        "BDMV/BACKUP/BDJO", "CERTIFICATE/BACKUP"]
+
+
+@dataclasses.dataclass
+class Piece:
+    """An encoded title as the playlists see it."""
+    clip: str             # clip name, e.g. "00001"
+    video_format: int
+    frame_rate: int
+    audio: list           # [(coding, channels, lang3)]
+    marks: list           # chapter starts, 45 kHz on the clip's time line
+    end: int              # end of the clip, 45 kHz
+
+    def item(self, first=1, last=None):
+        """PlayItem covering chapters first..last (1-based, inclusive)."""
+        start = self.marks[first - 1]
+        stop = self.marks[last] if last and last < len(self.marks) else self.end
+        return (self.clip, start, stop, self.video_format, self.frame_rate, self.audio)
+
+
+def disc_titles(project):
+    """The Blu-ray titles in order: one per project title, one per project
+    playlist, then "play all" when something starts it. Returns
+    [(kind, id or None, end action)] and {action: title number}."""
+    out = [("title", t.id, t.end_action) for t in project.titles]
+    out += [("playlist", p.id, p.end_action) for p in project.playlists]
+    if project.uses_playall:
+        out.append(("playall", None, project.titles[-1].end_action))
+    numbers = {}
+    for n, (kind, ident, _) in enumerate(out, 1):
+        numbers[f"{kind}:{ident}" if ident else kind] = n
+    return out, numbers
+
+
+def playlist_items(project, kind, ident, pieces):
+    """(items, marks) of one Blu-ray title's playlist."""
+    if kind == "title":
+        parts = [(pieces[ident], 1, None)]
+    elif kind == "playlist":
+        parts = [(pieces[it.title_id], it.first, it.last)
+                 for it in project.playlist(ident).items]
+    else:
+        parts = [(pieces[t.id], 1, None) for t in project.titles]
+    items, marks = [], []
+    for k, (piece, first, last) in enumerate(parts):
+        item = piece.item(first, last)
+        items.append(item)
+        marks += [(k, m) for m in piece.marks if item[1] <= m < item[2]]
+    return items, marks
+
+
+def navigation(project):
+    """Movie objects: object k plays Blu-ray title k+1 and then does what
+    its end action says; only titles, playlists and "play all" can follow
+    on a disc without menus, anything else stops. Then first play, which
+    starts disc.first_play (the first title when that is a menu), and the
+    top menu key, which starts disc.title_key the same way.
+    Returns (objects, first play object, top menu object)."""
+    titles, numbers = disc_titles(project)
+    objects = []
+    for n, (_, _, end) in enumerate(titles, 1):
+        cmds = [play_pl(n)]
+        if end in numbers:
+            cmds.append(jump_title(numbers[end]))
+        objects.append(cmds)
+    objects.append([jump_title(numbers.get(project.disc.first_play, 1))])
+    objects.append([jump_title(numbers.get(project.disc.title_key or "", 1))])
+    return objects, len(objects) - 2, len(objects) - 1
+
+
+def audio_streams(title):
+    if title.audio_codec == "lpcm" and not title.audio_passthrough:
+        coding, channels = CODING_LPCM, 2
+    else:
+        coding, channels = CODING_AC3, title.audio_channels
+    n = 1 if title.clips else len(title.audio_tracks)
+    return [(coding, channels, lang3(title.audio_tracks[k].lang if title.audio_tracks else None))
+            for k in range(n)]
+
+
+def _write(out_dir, rel, data):
+    for base in ("BDMV", os.path.join("BDMV", "BACKUP")):
+        with open(os.path.join(out_dir, base, rel), "wb") as f:
+            f.write(data)
+
+
+def write_bdmv(project, clips, out_dir):
+    """Write the BDMV folder. clips: {title id: encoded .m2ts}; the streams
+    are moved into BDMV/STREAM."""
+    for d in DIRS:
+        os.makedirs(os.path.join(out_dir, d), exist_ok=True)
+    pieces = {}
+    for n, t in enumerate(project.titles, 1):
+        name = f"{n:05d}"
+        scan = scan_m2ts(clips[t.id])
+        video_format, frame_rate = FORMATS[title_fps(t, project.disc)]
+        audio = audio_streams(t)
+        pieces[t.id] = Piece(name, video_format, frame_rate, audio,
+                             chapter_marks(t, scan), scan.end_pts // 2)
+        _write(out_dir, os.path.join("CLIPINF", f"{name}.clpi"),
+               clpi(scan, video_format, frame_rate, audio))
+        dest = os.path.join(out_dir, "BDMV", "STREAM", f"{name}.m2ts")
+        if os.path.abspath(clips[t.id]) != os.path.abspath(dest):
+            shutil.move(clips[t.id], dest)
+    titles, _ = disc_titles(project)
+    for n, (kind, ident, _) in enumerate(titles, 1):
+        items, marks = playlist_items(project, kind, ident, pieces)
+        _write(out_dir, os.path.join("PLAYLIST", f"{n:05d}.mpls"), mpls(items, marks))
+    objects, first, top = navigation(project)
+    first_piece = pieces[project.titles[0].id]
+    _write(out_dir, "index.bdmv", index_bdmv(list(range(len(titles))), first, top,
+                                             first_piece.video_format, first_piece.frame_rate))
+    _write(out_dir, "MovieObject.bdmv", movie_objects(objects))
+    return {"titles": len(titles), "playlists": [f"{n:05d}.mpls" for n in range(1, len(titles) + 1)]}
+
+
+def chapter_marks(title, scan):
+    """Chapter marks (45 kHz): every chapter on the key frame made for it,
+    the first one at the start of the clip."""
+    marks = [scan.first_pts // 2]
+    keys = [pts for pts, _, _ in scan.entries]
+    for t in sorted(c for c in title.chapters if c > 0):
+        want = scan.first_pts + round(t * 90000)
+        near = min(keys, key=lambda k: abs(k - want))
+        if near // 2 > marks[-1]:
+            marks.append(near // 2)
+    return marks
