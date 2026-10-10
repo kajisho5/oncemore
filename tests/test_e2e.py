@@ -423,7 +423,9 @@ class TestTracksSubtitlesMotionMenu(unittest.TestCase):
                            {"id": "s2", "label": "ENGLISH SUBTITLES", "x": 100, "y": 240,
                             "action": "subtitle:2"},
                            {"id": "off", "label": "SUBTITLES OFF", "x": 100, "y": 300,
-                            "action": "subtitle:off"}]}],
+                            "action": "subtitle:off"},
+                           {"id": "plain", "label": "PLAY, ORIGINAL SOUND ONLY", "x": 100,
+                            "y": 360, "action": "title:t1", "audio": 1, "subtitle": 0}]}],
         }
         cls.project = os.path.join(cls.tmp, "proj", "project.oncemore.json")
         with open(cls.project, "w", encoding="utf-8") as f:
@@ -464,7 +466,7 @@ class TestTracksSubtitlesMotionMenu(unittest.TestCase):
     def test_stream_selection(self):
         with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
             self.assertEqual(d.wait_menu(), 1)
-            self.assertEqual(d.button_count(), 4)
+            self.assertEqual(d.button_count(), 5)
             d.activate(1)
             self.assertEqual(d.wait_title(), (1, 1))
             self.assertEqual([d.audio_lang(0), d.audio_lang(1)], ["ja", "en"])
@@ -482,6 +484,12 @@ class TestTracksSubtitlesMotionMenu(unittest.TestCase):
             d.activate(4)                                         # SUBTITLES OFF
             d.activate(1)
             d.wait_title()
+            self.assertFalse(d.active_subtitle()[1])
+            d.play_to_end_of_title()
+            d.activate(3)                                         # English subtitles on
+            d.activate(5)    # PLAY, ORIGINAL SOUND ONLY: audio 1 (commentary before), subtitles off
+            self.assertEqual(d.wait_title(), (1, 1))
+            self.assertEqual(d.active_audio(), 0)
             self.assertFalse(d.active_subtitle()[1])
 
 

@@ -618,6 +618,18 @@
           "default": false,
           "description": "Run the action as soon as the button is selected (no Enter needed)."
         },
+        "audio": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8,
+          "description": "Audio stream (1-based) to switch to when the button is used, along with its action (e.g. play the film with the commentary)."
+        },
+        "subtitle": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32,
+          "description": "Subtitle stream (1-based) to show when the button is used, along with its action; 0 = subtitles off."
+        },
         "override": {
           "type": "string",
           "pattern": "^(menu:[A-Za-z0-9_-]{1,40}|title:[A-Za-z0-9_-]{1,40}|stop)$",

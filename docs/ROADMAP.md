@@ -150,6 +150,10 @@ browser) and lands only with green CI.
   instead of the title's own end action, for that play only; drawn in the
   flowchart, checked against libdvdnav
 
+**P25 — Streams with links** (done)
+- [x] A button can switch the audio and subtitle streams along with its
+  link ("play with commentary", "subtitles off and play")
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 
