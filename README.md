@@ -346,7 +346,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `video_bitrate` | this title's own video bitrate; the other titles share the rest | shared |
 | `scan` | `auto` \| `progressive` \| `interlaced` \| `pulldown` (NTSC film) \| `ivtc` (NTSC: film already telecined to 29.97i — its film frames are recovered and stored with soft pulldown): how the picture is stored, see Known limitations | `auto` |
 | `audio.channels` | `2` (stereo, sources are down-mixed) \| `6` (5.1, AC-3 only) | `2` |
-| `end_action` | `menu:<id>` \| `title:<id>` \| `stop` | first-play menu, else `stop` |
+| `end_action` | `menu:<id>` \| `title:<id>` \| `lastmenu` (back to the menu shown last) \| `stop` | first-play menu, else `stop` |
 | `remote_menu` | menu the remote's Menu key opens during this title | first menu |
 | `aspect` | `4:3` \| `16:9` for this title | `disc.aspect` |
 | `audio.lang` | ISO 639-1 code of the (single) audio track | none |
@@ -449,7 +449,7 @@ Imported buttons are ordinary buttons with only a `highlight_image` (and a
 "playlists": [{
   "id": "best", "name": "Best scenes",
   "items": ["t1:2", "t2:2-3", "t1"],   // a chapter, a chapter range, a whole title
-  "end_action": "menu:main"            // menu:<id> | title:<id> | stop (default)
+  "end_action": "menu:main"            // menu:<id> | title:<id> | lastmenu | stop (default)
 }]
 ```
 

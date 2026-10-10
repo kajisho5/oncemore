@@ -303,7 +303,7 @@ oncemore doctor                                # 外部ツールの有無・バ�
 | `scan` | `auto` \| `progressive` \| `interlaced` \| `pulldown`（NTSC のフィルム）\| `ivtc`（NTSC：29.97i にテレシネ済みのフィルム。逆テレシネでフィルムのコマに戻し、ソフトプルダウンで収録）：映像の収録方式。「既知の制限」参照 | `auto` |
 | `video_bitrate` | このタイトル専用の映像ビットレート。残りを他のタイトルで分け合う | 共有 |
 | `audio.channels` | `2`（ステレオ。素材はダウンミックス）\| `6`（5.1ch、AC-3 のみ） | `2` |
-| `end_action` | `menu:<id>` \| `title:<id>` \| `stop` | first_play のメニュー、無ければ `stop` |
+| `end_action` | `menu:<id>` \| `title:<id>` \| `lastmenu`（直前に表示したメニューへ戻る） \| `stop` | first_play のメニュー、無ければ `stop` |
 | `remote_menu` | このタイトルの再生中にリモコンのメニューキーで開くメニュー | 最初のメニュー |
 | `aspect` | このタイトルの `4:3` \| `16:9` | `disc.aspect` |
 | `audio.lang` | 音声（1 トラック時）の ISO 639-1 言語コード | なし |

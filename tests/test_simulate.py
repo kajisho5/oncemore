@@ -38,7 +38,7 @@ def project(data):
 def rich_project():
     """Two titlesets, a playlist across them, play all, remote keys, a
     remembered menu, an auto button, an intro that times out, stream buttons,
-    a resume button, an end-action override."""
+    a resume button, end-action overrides (one back to the last menu)."""
     d = sample_project()
     t1, t2 = d["titles"]
     t1["remote_menu"] = "chapters"
@@ -51,7 +51,9 @@ def rich_project():
         {"id": "best", "label": "BEST OF", "x": 470, "y": 220, "action": "playlist:best"},
         {"id": "setup", "label": "SETUP", "x": 470, "y": 280, "action": "menu:setup"},
         {"id": "b2", "label": "B THEN SETUP", "x": 470, "y": 340, "action": "title:t2",
-         "override": "menu:setup"}]
+         "override": "menu:setup"},
+        {"id": "b3", "label": "CH 2 THEN BACK", "x": 470, "y": 400, "action": "chapter:t1:2",
+         "override": "lastmenu"}]
     d["menus"].append({"id": "setup", "remember_button": False, "buttons": [
         {"id": "a1", "label": "AUDIO 1", "x": 100, "y": 150, "action": "audio:1"},
         {"id": "off", "label": "SUBTITLES OFF", "x": 100, "y": 210, "action": "subtitle:off"},
@@ -106,7 +108,7 @@ class TestSimulator(unittest.TestCase):
             self.sim.press(s, "play")
             seen.append(self.sim.view(s))
         self.assertEqual(seen, [("title", 1, 2), ("title", 2, 2), ("title", 2, 3),
-                                ("title", 1, 1), ("menu", "setup", 5)])   # SPRM 8 kept
+                                ("title", 1, 1), ("menu", "setup", 1)])   # no pre: button 1
 
     def test_play_all_and_end_actions(self):
         s = self.keys("select:all", "enter")
@@ -147,6 +149,19 @@ class TestSimulator(unittest.TestCase):
         self.assertEqual(self.sim.view(s), ("title", 1, 1))   # its own end action
         s = self.keys("select:b2", "enter", "menu", "select:all", "enter", "end")
         self.assertEqual(self.sim.view(s), ("title", 2, 1))   # play all cleared it
+
+    def test_last_menu(self):
+        s = self.keys("select:b3", "enter")
+        self.assertEqual(self.sim.view(s), ("title", 1, 2))
+        self.sim.press(s, "end")
+        self.assertEqual(s["menu"], "main")          # the menu it was started from
+        s = self.keys("select:b3", "enter", "menu", "select:back", "enter")
+        self.assertEqual((s["menu"], s["last_menu"]), ("main", "main"))
+        s = self.keys("select:b3", "enter", "menu")  # t1's Menu key: the chapters menu
+        self.assertEqual(s["last_menu"], "chapters")
+        self.sim.press(s, "title")                   # -> intro, which times out to main
+        self.sim.press(s, "timeout")
+        self.assertEqual(s["last_menu"], "main")
 
     def test_resume(self):
         s = self.keys("select:setup", "enter", "select:res", "enter")

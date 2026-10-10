@@ -35,6 +35,7 @@ const I18N = {
     new_menu: "New menu", blank_menu: "Blank", template_hint: "Start from a layout; everything stays editable.",
     motion_bg: "Motion background", animated_thumbs: "Thumbnails play the chapter",
     set_audio: "Set audio", set_subtitle: "Set subtitles", no_change: "No change",
+    last_menu: "Return to the last menu",
     override: "Then (override)", override_none: "The title's own end action",
     override_hint: "Where to go when the title this button plays ends, instead of its own end action (only when started from this button).",
     thumb_section: "Thumbnail", thumb_on: "Show a picture of the linked title / chapter",
@@ -215,6 +216,7 @@ const I18N = {
     new_menu: "新しいメニュー", blank_menu: "白紙", template_hint: "レイアウトから始められます。あとから全部編集できます。",
     motion_bg: "動く背景", animated_thumbs: "サムネイルでチャプターを再生",
     set_audio: "音声を切替", set_subtitle: "字幕を切替", no_change: "変更しない",
+    last_menu: "直前のメニューに戻る",
     override: "終了後（上書き）", override_none: "タイトル自身の終了時アクション",
     override_hint: "このボタンで再生したタイトルが終わったときの行き先。タイトル自身の終了時アクションの代わりに使われます（このボタンから再生したときだけ）。",
     thumb_section: "サムネイル", thumb_on: "リンク先のタイトル／チャプターの絵を表示",
@@ -523,8 +525,9 @@ function uniqueId(prefix, existing) {
   while (existing.includes(`${prefix}${n}`)) n++;
   return `${prefix}${n}`;
 }
-function actionOptions({ forButton = true, allowStop = true, includeChapters = forButton, allowPlayAll = forButton } = {}) {
+function actionOptions({ forButton = true, allowStop = true, includeChapters = forButton, allowPlayAll = forButton, allowLast = false } = {}) {
   const p = P(), opts = [];
+  if (allowLast && (p.menus || []).length) opts.push(["lastmenu", t("last_menu")]);
   for (const id of allMenuIds()) opts.push([`menu:${id}`, t("menu_item", { m: id })]);
   if (allowPlayAll && (p.titles || []).length) opts.push(["playall", t("playall")]);
   if (allowPlayAll) for (const pl of p.playlists || []) opts.push([`playlist:${pl.id}`, t("playlist_item", { p: pl.name || pl.id })]);
@@ -1382,7 +1385,7 @@ async function renderFlow(m) {
   const height = (unused.size ? spareY + RH : PAD + usedRows * RH) + PAD;
   const level = {};
   r.notes.forEach((x) => { if (x.level === "warning" || !level[x.path]) level[x.path] = x.level; });
-  const label = (n) => ({ first_play: t("fp"), title_key: t("title_key_node"), stop: t("stop_node"), playall: t("play_all") }[n.kind] || n.label);
+  const label = (n) => ({ first_play: t("fp"), title_key: t("title_key_node"), stop: t("stop_node"), playall: t("play_all"), last_menu: t("last_menu") }[n.kind] || n.label);
   const sub = (n) => n.kind === "menu" ? `${t("menu")} · ${n.buttons}` : n.kind === "title" ? `${t("title")} ${n.number} · ${n.chapters} ch` : n.kind === "playlist" ? `${t("playlist")} · ${n.items}` : "";
   const thumb = (n) => {
     const [kind, ...rest] = n.id.split(":"), id = rest.join(":");
@@ -1562,7 +1565,7 @@ function renderTitleInspector(el) {
   if (!ti) { el.innerHTML = ""; return; }
   const audio = ti.audio || {};
   const cm = ti.auto_chapter_menu;
-  const ends = actionOptions({ forButton: false, includeChapters: false });
+  const ends = actionOptions({ forButton: false, includeChapters: false, allowLast: true });
   const langs = [["", "—"], ["ja", "日本語 (ja)"], ["en", "English (en)"], ["fr", "Français (fr)"], ["de", "Deutsch (de)"], ["es", "Español (es)"], ["zh", "中文 (zh)"], ["ko", "한국어 (ko)"]];
   const subs = ti.subtitles || [], tracks = ti.audio_tracks || [];
   el.innerHTML = `<h2>${t("prop_title")}</h2>
@@ -1754,7 +1757,7 @@ function renderPlaylist(m) {
   const pl = curPlaylist();
   if (!pl) return select("disc");
   const titles = P().titles || [];
-  const ends = actionOptions({ forButton: false, includeChapters: false, allowPlayAll: false });
+  const ends = actionOptions({ forButton: false, includeChapters: false, allowPlayAll: false, allowLast: true });
   m.innerHTML = `<div class="card" style="max-width:760px"><h2>${esc(pl.name || pl.id)}</h2>
     <label class="field"><span>${t("name")}</span><input data-k="name" value="${esc(pl.name || "")}"></label>
     <h3>${t("items")}</h3>
@@ -2228,7 +2231,7 @@ function renderMenuInspector(el) {
     el.innerHTML = `<h2>${sel.kind === "button" ? t("button") : t("text")}</h2>
       ${sel.kind === "button" ? `<label class="field"><span>${t("text")}</span><input data-k="label" value="${esc(it.label)}"></label>
         <label class="field"><span>${t("action")} ${whipHtml("action")}</span>${selectHtml("action", actionOptions(), it.action)}</label>
-        ${/^(title|chapter):/.test(it.action || "") ? `<label class="field"><span>${t("override")}</span>${selectHtml("override", [["__none__", t("override_none")], ...actionOptions({ forButton: false, includeChapters: false, allowPlayAll: false })], it.override || "__none__")}<div class="hint">${esc(t("override_hint"))}</div></label>` : ""}
+        ${/^(title|chapter):/.test(it.action || "") ? `<label class="field"><span>${t("override")}</span>${selectHtml("override", [["__none__", t("override_none")], ...actionOptions({ forButton: false, includeChapters: false, allowPlayAll: false, allowLast: true })], it.override || "__none__")}<div class="hint">${esc(t("override_hint"))}</div></label>` : ""}
         ${streamsHtml(it)}
         <label class="field"><span></span><label><input type="checkbox" data-k="auto_activate" ${it.auto_activate ? "checked" : ""}> ${t("auto_activate")}</label></label>
         <label class="field" data-nobind><span>${t("image")}</span>${selectHtml("image", [["__none__", t("none")], ...mediaOf("image").map((x) => [x, x])], it.image || "__none__")}

@@ -154,6 +154,10 @@ browser) and lands only with green CI.
 - [x] A button can switch the audio and subtitle streams along with its
   link ("play with commentary", "subtitles off and play")
 
+**P26 — Return to the last menu** (done)
+- [x] `lastmenu` end action for titles, playlists and overrides: back to
+  the menu the viewer came from
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

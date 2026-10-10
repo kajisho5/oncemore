@@ -32,6 +32,8 @@ def _target(action, project=None):
         return STOP, None
     if kind == "playall":
         return "playall", None
+    if kind == "lastmenu":
+        return "lastmenu", None
     if kind == "chapter":
         return node_id("title", target), f"ch {num}"
     return node_id(kind, target), None
@@ -95,6 +97,8 @@ def build(project):
         edge(nid, pl.end_action, "end")
     if any(e["to"] == STOP for e in edges):
         nodes.append({"id": STOP, "kind": "stop", "label": "Stop"})
+    if any(e["to"] == "lastmenu" for e in edges):
+        nodes.append({"id": "lastmenu", "kind": "last_menu", "label": "Last menu"})
     _layout(nodes, edges)
     return {"nodes": nodes, "edges": edges}
 
