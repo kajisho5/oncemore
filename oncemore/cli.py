@@ -1,0 +1,206 @@
+"""Command-line interface."""
+
+import argparse
+import os
+import shutil
+import sys
+import tempfile
+
+from . import __version__, build, scaffold, tools
+from .errors import OncemoreError, ProjectError
+from .project import PROJECT_FILENAME, load_project
+from .report import Reporter
+
+
+def _gib(n):
+    return f"{n / 2**30:.2f} GiB"
+
+
+def cmd_doctor(args, rep):
+    from .menu import drawtext_probe
+
+    info = tools.doctor()
+    info["drawtext_render"] = drawtext_probe()
+    ok = all(r["path"] for r in info["tools"] if r["required"]) and info["iso_tool"] is not None
+    drawtext = next((r.get("drawtext") for r in info["tools"] if r["name"] == "ffmpeg"), None)
+    ok = ok and bool(drawtext) and info["drawtext_render"]["ok"]
+    if info["iso_tool"] and not info["iso_udf"]:
+        ok = False
+    lines = [f"oncemore {__version__}  python {info['python']}  {info['platform']}", ""]
+    for r in info["tools"]:
+        mark = "ok " if r["path"] else ("-- " if not r["required"] else "!! ")
+        extra = ""
+        if r["name"] == "ffmpeg" and r["path"]:
+            extra = "  drawtext: " + ("yes" if r.get("drawtext") else "NO (menu text needs it)")
+        where = r["path"] or ("not found" + ("" if r["required"] else " (optional)"))
+        lines.append(f"  {mark}{r['name']:<12} {r['version'] or '':<14} {where}{extra}")
+    dr = info["drawtext_render"]
+    lines.append("")
+    lines.append("  drawtext test render: " + ("ok" if dr["ok"] else "FAILED - " + dr["detail"]))
+    if dr.get("font"):
+        lines.append(f"  default menu font: {dr['font']}")
+    udf = "UDF + ISO 9660" if info["iso_udf"] else "ISO 9660 only - not playable as an image"
+    lines.append(f"  ISO backend: {info['iso_tool'] or 'none'}" + (f" ({udf})" if info["iso_tool"] else ""))
+    if not ok:
+        lines.append("")
+        lines.append(f"  Install missing tools with:  {tools.install_hint()}")
+    rep.result({"ready": ok, **info}, "\n".join(lines))
+    return 0 if ok else 3
+
+
+def cmd_init(args, rep):
+    res = scaffold.init(args.dir, standard=args.standard, aspect=args.aspect, force=args.force,
+                        reporter=rep)
+    rel = os.path.relpath(res["project"])
+    if rel.startswith(".."):
+        rel = res["project"]
+    rep.result(res, f"Created {rel}\n\nNext:\n  oncemore iso {rel} -o "
+                    f"{os.path.basename(os.path.abspath(args.dir)) or 'disc'}.iso")
+    return 0
+
+
+def cmd_validate(args, rep):
+    project = load_project(args.project, check_files=not args.no_media)
+    if args.no_media:
+        data = {"valid": True, "media_checked": False, "warnings": project.warnings,
+                "titles": [t.id for t in project.titles], "menus": [m.id for m in project.menus]}
+        for w in project.warnings:
+            rep.warn(w)
+        rep.result(data, "Project is valid (media not checked).")
+        return 0
+    infos, plan = build.inspect(project, rep)
+    s = build.summary(project, infos, plan)
+    s.update({"valid": True, "media_checked": True})
+    for w in s["warnings"]:
+        rep.warn(w)
+    lines = [f"Project OK: {project.disc.label} ({project.disc.standard} {project.disc.aspect}, "
+             f"{project.disc.target})", ""]
+    for t in s["titles"]:
+        lines.append(f"  title {t['number']} {t['id']:<10} {t['duration']:8.1f}s  "
+                     f"{len(t['chapters'])} chapter(s)  {t['audio']}  -> {t['end_action']}")
+    for m in s["menus"]:
+        gen = " (generated)" if m["generated"] else ""
+        lines.append(f"  menu  {m['number']} {m['id']:<10} {len(m['buttons'])} button(s){gen}")
+    lines += ["", f"  video bitrate: {s['video_bps'] / 1e6:.2f} Mbit/s average",
+              f"  estimated size: {_gib(s['estimated_bytes'])} of {_gib(s['capacity_bytes'])}"]
+    rep.result(s, "\n".join(lines))
+    return 0
+
+
+def cmd_build(args, rep):
+    project = load_project(args.project)
+    res = build.build(project, args.output, rep, fast=args.fast, keep_work=args.keep_work)
+    rep.result(res, f"VIDEO_TS written to {res['video_ts']} ({_gib(res['bytes'])})")
+    return 0
+
+
+def cmd_iso(args, rep):
+    project = load_project(args.project)
+    res = build.build_iso(project, args.output, rep, fast=args.fast, keep_work=args.keep_work,
+                          iso_tool=args.iso_tool, build_dir=args.build_dir)
+    rep.result(res, f"ISO written to {res['iso']} ({_gib(res['iso_bytes'])}, {res['iso_tool']})")
+    return 0
+
+
+def cmd_preview(args, rep):
+    from .menu import MenuBuilder
+
+    project = load_project(args.project)
+    tools.require(["ffmpeg", "ffprobe"], need_drawtext=True)
+    menu_id = args.menu or (project.root_menu.id if project.root_menu else None)
+    menu = project.menu(menu_id) if menu_id else None
+    if menu is None:
+        ids = ", ".join(m.id for m in project.menus) or "none"
+        raise OncemoreError(f"no menu {menu_id!r} (menus: {ids})")
+    work = tempfile.mkdtemp(prefix="oncemore-preview-")
+    try:
+        res = MenuBuilder(project, work, rep).preview(menu, args.output, button=args.button,
+                                                      state=args.state, outline=args.outline)
+    finally:
+        if args.keep_work:
+            rep.info(f"work files kept in {work}")
+        else:
+            shutil.rmtree(work, ignore_errors=True)
+    rep.result(res, f"Preview of menu '{menu.id}' written to {res['path']}")
+    return 0
+
+
+def make_parser():
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
+                        help="machine-readable JSON Lines output on stdout")
+    common.add_argument("-v", "--verbose", action="store_true", default=argparse.SUPPRESS)
+
+    p = argparse.ArgumentParser(
+        prog="oncemore", parents=[common],
+        description="DVD-Video authoring: menus, chapters, ISO - once more.")
+    p.add_argument("--version", action="version", version=f"oncemore {__version__}")
+    sub = p.add_subparsers(dest="command", metavar="<command>")
+    sub.required = True
+
+    s = sub.add_parser("init", parents=[common], help="create a sample project")
+    s.add_argument("dir")
+    s.add_argument("--standard", choices=["NTSC", "PAL"], default="NTSC")
+    s.add_argument("--aspect", choices=["16:9", "4:3"], default="16:9")
+    s.add_argument("--force", action="store_true", help="overwrite an existing project file")
+    s.set_defaults(func=cmd_init)
+
+    proj_help = f"project file or directory containing {PROJECT_FILENAME}"
+    s = sub.add_parser("validate", parents=[common], help="check project, media and size")
+    s.add_argument("project", help=proj_help)
+    s.add_argument("--no-media", action="store_true", help="only check the JSON (no file checks, no ffprobe)")
+    s.set_defaults(func=cmd_validate)
+
+    def build_opts(sp):
+        sp.add_argument("--fast", action="store_true", help="1-pass encoding (default: 2-pass)")
+        sp.add_argument("--keep-work", action="store_true",
+                        help="keep intermediate files (.work/) after success")
+
+    s = sub.add_parser("build", parents=[common], help="author VIDEO_TS into a directory")
+    s.add_argument("project", help=proj_help)
+    s.add_argument("-o", "--output", required=True, help="output directory")
+    build_opts(s)
+    s.set_defaults(func=cmd_build)
+
+    s = sub.add_parser("iso", parents=[common], help="build and write an ISO image")
+    s.add_argument("project", help=proj_help)
+    s.add_argument("-o", "--output", required=True, help="output .iso file")
+    s.add_argument("--iso-tool", default="auto",
+                   choices=["auto", "xorriso", "hdiutil", "genisoimage", "mkisofs"])
+    s.add_argument("--build-dir", help="where to author VIDEO_TS (default: next to the ISO)")
+    build_opts(s)
+    s.set_defaults(func=cmd_iso)
+
+    s = sub.add_parser("preview-menu", parents=[common], help="render a menu to PNG")
+    s.add_argument("project", help=proj_help)
+    s.add_argument("--menu", help="menu id (default: the first-play/root menu)")
+    s.add_argument("-o", "--output", required=True, help="output .png")
+    s.add_argument("--button", help="button to show highlighted (default: first)")
+    s.add_argument("--state", choices=["highlight", "select", "normal"], default="highlight")
+    s.add_argument("--outline", action="store_true", help="draw every button's hit area")
+    s.add_argument("--keep-work", action="store_true")
+    s.set_defaults(func=cmd_preview)
+
+    s = sub.add_parser("doctor", parents=[common], help="check external tools")
+    s.set_defaults(func=cmd_doctor)
+    return p
+
+
+def main(argv=None):
+    args = make_parser().parse_args(argv)
+    rep = Reporter(json_mode=getattr(args, "json", False), verbose=getattr(args, "verbose", False))
+    try:
+        return args.func(args, rep)
+    except ProjectError as e:
+        rep.error(e.message, e.hint, issues=e.issues)
+        return e.exit_code
+    except OncemoreError as e:
+        rep.error(e.message, e.hint, **e.details)
+        return e.exit_code
+    except KeyboardInterrupt:
+        rep.error("interrupted")
+        return 130
+
+
+if __name__ == "__main__":
+    sys.exit(main())

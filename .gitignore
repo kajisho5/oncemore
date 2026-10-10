@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.venv/
+# outputs of `oncemore init/build/iso` while experimenting
+*.iso
+.*.oncemore-build/
+demo/
+out/
+examples/*/media/

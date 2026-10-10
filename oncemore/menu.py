@@ -1,0 +1,488 @@
+"""Still menus: background + burned-in labels (ffmpeg drawtext), button
+highlights as 2-bit subpictures (spumux), and preview images.
+
+Coordinates in the project are DVD storage pixels (720 x 480/576). DVD pixels
+are not square, so we draw everything on a square-pixel "display" canvas
+(e.g. 854x480 for NTSC 16:9) and squeeze it to 720 wide at the end. That keeps
+text and thumbnails correctly proportioned on screen.
+
+Button rectangles come from where the label pixels actually land: each label
+is rendered alone with the same filter chain, read back as raw 8-bit gray and
+scanned for its bounding box and glyph mask.
+"""
+
+import glob
+import os
+import shutil
+import struct
+import subprocess
+import unicodedata
+from dataclasses import dataclass, field
+from xml.sax.saxutils import quoteattr
+
+from . import encode, fontcheck, navigation, png4, tools
+from .errors import OncemoreError, ProjectError, ToolFailedError
+
+# Font search order. Japanese-capable fonts first so labels can be Japanese.
+_MAC_FONT_DIRS = ("/System/Library/Fonts", "/Library/Fonts",
+                  os.path.expanduser("~/Library/Fonts"))
+_MAC_FONT_NAMES = (
+    "ヒラギノ角ゴシック W6.ttc", "ヒラギノ角ゴシック W5.ttc", "ヒラギノ角ゴシック W4.ttc",
+    "ヒラギノ角ゴシック W3.ttc", "Hiragino Sans GB.ttc", "ヒラギノ丸ゴ ProN W4.ttc",
+)
+_NOTO_GLOBS = (
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/noto-cjk/NotoSansCJK-Bold.ttc",
+    "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Bold.ttc",
+    "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/**/NotoSansCJK*-Bold.tt[cf]",
+    "/usr/share/fonts/**/NotoSansCJK*.tt[cf]",
+    "/usr/share/fonts/**/NotoSansJP-*.[ot]tf",
+    os.path.expanduser("~/Library/Fonts/NotoSansCJK*.tt[cf]"),
+    os.path.expanduser("~/Library/Fonts/NotoSansJP*.[ot]tf"),
+    "/opt/homebrew/share/fonts/**/NotoSansCJK*.tt[cf]",
+)
+_FALLBACK_GLOBS = (
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/**/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/**/DejaVuSans.ttf",
+    "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+    "/System/Library/Fonts/Helvetica.ttc",
+)
+
+
+def _font_candidates():
+    """Auto-detection order, as paths (may contain duplicates)."""
+    for d in _MAC_FONT_DIRS:
+        try:
+            names = {unicodedata.normalize("NFC", n): n for n in os.listdir(d)}
+        except OSError:
+            continue
+        for want in _MAC_FONT_NAMES:
+            real = names.get(unicodedata.normalize("NFC", want))
+            if real:
+                yield os.path.join(d, real)
+    for pattern in _NOTO_GLOBS + _FALLBACK_GLOBS:
+        yield from sorted(glob.glob(pattern, recursive=True))
+    fc = shutil.which("fc-match")
+    if fc:
+        for q in ("Noto Sans CJK JP:bold", "sans-serif:bold"):
+            try:
+                p = subprocess.run([fc, "-f", "%{file}", q], capture_output=True, text=True,
+                                   timeout=20).stdout.strip()
+            except (OSError, subprocess.SubprocessError):
+                p = ""
+            if p and os.path.isfile(p):
+                yield p
+
+
+def _missing(path, text):
+    """Characters of `text` the font lacks; None if the font cannot be inspected."""
+    try:
+        return fontcheck.missing(path, text)
+    except (OSError, fontcheck.FontError, struct.error):
+        return None
+
+
+def _quote_chars(chars, limit=12):
+    shown = " ".join(chars[:limit])
+    return shown + (f" (+{len(chars) - limit} more)" if len(chars) > limit else "")
+
+
+def find_font(explicit=None, text=""):
+    """Path of the font used for menu text.
+
+    drawtext has no glyph fallback (missing characters become empty boxes and
+    ffmpeg still succeeds), so the chosen font must cover every character of
+    `text`. An explicit font that does not is an error; auto-detection picks
+    the first candidate that covers everything.
+    """
+    explicit = explicit or (os.environ.get("ONCEMORE_FONT") or None)
+    if explicit:
+        if not os.path.isfile(explicit):
+            raise OncemoreError(f"font not found: {explicit}")
+        lack = _missing(explicit, text)
+        if lack:
+            raise OncemoreError(
+                f"font {explicit} has no glyphs for: {_quote_chars(lack)}",
+                hint="drawtext would draw them as empty boxes. Choose a font that covers "
+                     "these characters (disc.font or ONCEMORE_FONT).")
+        return explicit
+    seen = set()
+    best = None  # (number of missing chars, path)
+    for path in _font_candidates():
+        if path in seen:
+            continue
+        seen.add(path)
+        lack = _missing(path, text)
+        if lack == []:
+            return path
+        if lack is not None and (best is None or len(lack) < len(best[0])):
+            best = (lack, path)
+    if best is None:
+        raise OncemoreError("no usable font found for menu text",
+                            hint="Set disc.font in the project, or ONCEMORE_FONT, to a "
+                                 ".ttf/.otf/.ttc file.")
+    raise OncemoreError(
+        f"no installed font can draw: {_quote_chars(best[0])} (closest: {best[1]})",
+        hint="Install a font that covers them (for Japanese: Noto Sans CJK, e.g. "
+             "'sudo apt-get install fonts-noto-cjk') or set disc.font. Emoji are not "
+             "supported by drawtext.")
+
+
+def drawtext_probe():
+    """Render one frame with drawtext for real. Some builds list the filter
+    in `-filters` but cannot draw (no font backend, or a crash)."""
+    ffmpeg = tools.find("ffmpeg")
+    if not ffmpeg or not tools.has_drawtext():
+        return {"ok": False, "detail": "drawtext filter not available"}
+    try:
+        font = find_font(text="Ag")
+    except OncemoreError as e:
+        return {"ok": False, "detail": e.message}
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix="oncemore-doctor-") as d:
+        link = os.path.join(d, "font" + (os.path.splitext(font)[1] or ".ttf"))
+        try:
+            os.symlink(font, link)
+        except OSError:
+            shutil.copyfile(font, link)
+        with open(os.path.join(d, "t.txt"), "w") as f:
+            f.write("Ag")
+        cmd = [ffmpeg, "-hide_banner", "-nostdin", "-v", "error", "-f", "lavfi", "-i",
+               "color=c=black:s=64x32:d=1", "-vf",
+               f"drawtext=fontfile={os.path.basename(link)}:textfile=t.txt:fontsize=24:"
+               "fontcolor=white:x=2:y=2,format=gray", "-frames:v", "1", "-f", "rawvideo",
+               "pipe:1"]
+        try:
+            p = subprocess.run(cmd, cwd=d, capture_output=True, timeout=60)
+        except (OSError, subprocess.SubprocessError) as e:
+            return {"ok": False, "detail": str(e), "font": font}
+    if p.returncode != 0 or not any(b > 128 for b in p.stdout):
+        return {"ok": False, "font": font,
+                "detail": tools.tail(p.stderr.decode("utf-8", "replace"), 3) or "nothing drawn"}
+    return {"ok": True, "font": font}
+
+
+def menu_text(project):
+    """All text drawn on the project's menus."""
+    parts = []
+    for m in project.menus:
+        parts += [t.text for t in m.texts] + [b.label for b in m.buttons]
+    return "".join(parts)
+
+
+# --------------------------------------------------------------------------
+
+@dataclass
+class ButtonGeom:
+    id: str
+    rect: tuple            # (x0, y0, x1, y1) storage pixels, y0/y1 even
+    shape: list            # list of Mask objects + rects drawn in highlight colour
+    action: str
+    nav: dict = field(default_factory=dict)
+
+
+@dataclass
+class MenuAssets:
+    menu_id: str
+    base_png: str
+    highlight_png: str
+    select_png: str
+    buttons: list          # ButtonGeom in DVD button order
+    spumux_xml: str = None
+    mpg: str = None
+
+
+def display_width(disc):
+    """Square-pixel width of the frame (854 for NTSC 16:9, 640 for NTSC 4:3, ...)."""
+    return int(round(disc.height * disc.dar / 2.0)) * 2
+
+
+def _hex(color):
+    r, g, b, a = png4.parse_color(color)
+    return f"0x{r:02X}{g:02X}{b:02X}@{a / 255:.3f}"
+
+
+class MenuBuilder:
+    def __init__(self, project, work, reporter=None):
+        self.project = project
+        self.disc = project.disc
+        self.work = os.path.join(work, "menus")
+        self.logs = os.path.join(work, "logs")
+        os.makedirs(self.work, exist_ok=True)
+        self.reporter = reporter
+        self.ffmpeg = tools.find("ffmpeg")
+        self.dw = display_width(self.disc)
+        self.sx = self.dw / self.disc.width  # storage -> display x factor
+        self._font_link = None
+        self._probe_cache = {}
+
+    # -- font ------------------------------------------------------------------
+    def font(self):
+        """Font copied/linked into the work dir under an ASCII name, so the
+        filter graph never has to escape spaces or Japanese characters."""
+        if self._font_link is None:
+            src = find_font(self.disc.font, menu_text(self.project))
+            ext = os.path.splitext(src)[1].lower() or ".ttf"
+            link = os.path.join(self.work, "font" + ext)
+            if os.path.lexists(link):
+                os.remove(link)
+            try:
+                os.symlink(src, link)
+            except OSError:
+                shutil.copyfile(src, link)
+            self._font_link = os.path.basename(link)
+            self.font_source = src
+        return self._font_link
+
+    def _textfile(self, name, text):
+        path = os.path.join(self.work, name)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text)
+        return name
+
+    def _drawtext(self, textfile, x, y, size, color):
+        # x/y are storage pixels; the canvas is display pixels
+        return (f"drawtext=fontfile={self.font()}:textfile={textfile}:expansion=none:"
+                f"fontsize={size}:fontcolor={_hex(color)}:x={round(x * self.sx)}:y={y}")
+
+    def _squeeze(self):
+        return f"scale={self.disc.width}:{self.disc.height}:flags=lanczos,setsar=1"
+
+    # -- measuring ---------------------------------------------------------------
+    def measure(self, menu_id, button):
+        """Render one label alone; return its glyph Mask (storage pixels)."""
+        tf = self._textfile(f"{menu_id}.{button.id}.label.txt", button.label)
+        W, H = self.disc.width, self.disc.height
+        vf = (self._drawtext(tf, button.x, button.y, button.size, "#FFFFFF") + ","
+              + self._squeeze() + ",format=gray")
+        cmd = [self.ffmpeg, "-hide_banner", "-nostdin", "-v", "error", "-f", "lavfi", "-i",
+               f"color=c=black:s={self.dw}x{H}:r=1:d=1", "-vf", vf, "-frames:v", "1",
+               "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1"]
+        p = subprocess.run(cmd, cwd=self.work, capture_output=True)
+        if p.returncode != 0 or len(p.stdout) < W * H:
+            raise ToolFailedError("ffmpeg could not render menu text",
+                                  details={"output": tools.tail(p.stderr.decode("utf-8", "replace"))})
+        mask = png4.Mask.from_gray(p.stdout[:W * H], W, H, threshold=110)
+        if mask.bbox() is None:
+            raise ProjectError(f"menu {menu_id!r}: label of button {button.id!r} is empty "
+                               "or entirely off-screen")
+        return mask
+
+    # -- geometry ----------------------------------------------------------------
+    def layout(self, menu):
+        W, H = self.disc.width, self.disc.height
+        geoms = []
+        for b in menu.buttons:
+            mask = self.measure(menu.id, b)
+            x0, y0, x1, y1 = mask.bbox()
+            shapes = [mask]
+            if b.thumb:
+                t = b.thumb
+                frame = (t.x - 4, t.y - 4, t.x + t.w + 4, t.y + t.h + 4)
+                shapes.append(("frame", frame))
+                x0, y0 = min(x0, frame[0]), min(y0, frame[1])
+                x1, y1 = max(x1, frame[2]), max(y1, frame[3])
+            else:
+                ul = (x0, y1 + 3, x1, y1 + 6)
+                shapes.append(("fill", ul))
+                y1 = ul[3]
+            x0, y0 = max(0, x0 - 6), max(0, y0 - 4)
+            x1, y1 = min(W - 1, x1 + 6), min(H - 2, y1 + 4)
+            y0 -= y0 % 2
+            y1 += y1 % 2
+            geoms.append(ButtonGeom(b.id, (x0, y0, x1, y1), shapes, b.action))
+        for i, a in enumerate(geoms):
+            for b in geoms[i + 1:]:
+                if a.rect[0] < b.rect[2] and b.rect[0] < a.rect[2] and \
+                        a.rect[1] < b.rect[3] and b.rect[1] < a.rect[3]:
+                    raise ProjectError(
+                        f"menu {menu.id!r}: buttons {a.id!r} and {b.id!r} overlap "
+                        f"({a.rect} vs {b.rect}); move them apart")
+        nav = navigation.compute([(g.id, g.rect, b.nav) for g, b in zip(geoms, menu.buttons)])
+        for g in geoms:
+            g.nav = nav[g.id]
+        return geoms
+
+    def highlight_canvas(self, geoms, only=None, outline=False):
+        c = png4.Canvas(self.disc.width, self.disc.height)
+        for g in geoms:
+            if only is not None and g.id != only:
+                continue
+            for s in g.shape:
+                if isinstance(s, png4.Mask):
+                    c.blit_mask(s, 1)
+                elif s[0] == "fill":
+                    c.fill_rect(*s[1], 1)
+                elif s[0] == "frame":
+                    c.stroke_rect(*s[1], 1, width=3)
+            if outline:
+                c.stroke_rect(g.rect[0], g.rect[1], g.rect[2] + 1, g.rect[3] + 1, 2, width=1)
+        return c
+
+    # -- rendering ---------------------------------------------------------------
+    def _probe(self, path):
+        if path not in self._probe_cache:
+            self._probe_cache[path] = encode.probe(path)
+        return self._probe_cache[path]
+
+    def thumbnails(self, menu):
+        out = []
+        for b in menu.buttons:
+            if not b.thumb:
+                continue
+            t = b.thumb
+            title = self.project.title(t.title_id)
+            info = self._probe(title.source)
+            size = (int(round(t.w * self.sx / 2)) * 2, t.h)
+            path = os.path.join(self.work, f"{menu.id}.{b.id}.thumb.png")
+            encode.extract_thumbnail(title.source, info, self.disc, t.time, size, path,
+                                     os.path.join(self.logs, f"thumb-{menu.id}-{b.id}.log"))
+            out.append((path, round(t.x * self.sx), t.y))
+        return out
+
+    def render_base(self, menu):
+        """menu background + thumbnails + text -> <id>.base.png (720 x H)."""
+        H = self.disc.height
+        inputs = []
+        if menu.background:
+            inputs += ["-i", menu.background]
+            bg = (f"[0:v]scale={self.dw}:{H}:force_original_aspect_ratio=decrease,"
+                  f"pad={self.dw}:{H}:(ow-iw)/2:(oh-ih)/2:color={_hex(menu.background_color)},"
+                  f"setsar=1,format=rgb24")
+        else:
+            inputs += ["-f", "lavfi", "-i", f"color=c={_hex(menu.background_color)}:s={self.dw}x{H}:d=1"]
+            bg = "[0:v]format=rgb24"
+        chains = [bg + "[bg0]"]
+        cur = "bg0"
+        for i, (path, x, y) in enumerate(self.thumbnails(menu), 1):
+            inputs += ["-i", path]
+            chains.append(f"[{cur}][{i}:v]overlay={x}:{y}[bg{i}]")
+            cur = f"bg{i}"
+        draws = []
+        for i, t in enumerate(menu.texts):
+            tf = self._textfile(f"{menu.id}.text{i}.txt", t.text)
+            draws.append(self._drawtext(tf, t.x, t.y, t.size, t.color))
+        for b in menu.buttons:
+            tf = self._textfile(f"{menu.id}.{b.id}.label.txt", b.label)
+            draws.append(self._drawtext(tf, b.x, b.y, b.size, b.color))
+        chains.append(f"[{cur}]" + ",".join(draws + [self._squeeze()]) + "[out]")
+        out = os.path.join(self.work, f"{menu.id}.base.png")
+        tools.run([self.ffmpeg, "-hide_banner", "-nostdin", "-y"] + inputs +
+                  ["-filter_complex", ";".join(chains), "-map", "[out]", "-frames:v", "1",
+                   "-update", "1", out],
+                  cwd=self.work, log=os.path.join(self.logs, f"menu-{menu.id}-base.log"),
+                  what=f"ffmpeg (menu {menu.id} background)")
+        return out
+
+    def prepare(self, menu):
+        """Everything needed to preview or encode `menu`."""
+        geoms = self.layout(menu)
+        base = self.render_base(menu)
+        canvas = self.highlight_canvas(geoms)
+        hl = os.path.join(self.work, f"{menu.id}.highlight.png")
+        sel = os.path.join(self.work, f"{menu.id}.select.png")
+        png4.write_indexed_png(hl, canvas, [(0, 0, 0, 0), png4.parse_color(menu.highlight_color)])
+        png4.write_indexed_png(sel, canvas, [(0, 0, 0, 0), png4.parse_color(menu.select_color)])
+        return MenuAssets(menu.id, base, hl, sel, geoms)
+
+    def spumux_xml(self, assets):
+        lines = [f'<subpictures format="{self.disc.standard}">', "  <stream>",
+                 f'    <spu start="00:00:00.00" force="yes" '
+                 f'highlight={quoteattr(os.path.basename(assets.highlight_png))} '
+                 f'select={quoteattr(os.path.basename(assets.select_png))}>']
+        for g in assets.buttons:
+            x0, y0, x1, y1 = g.rect
+            nav = " ".join(f'{d}={quoteattr(g.nav[d])}' for d in navigation.DIRECTIONS)
+            lines.append(f'      <button name={quoteattr(g.id)} x0="{x0}" y0="{y0}" '
+                         f'x1="{x1}" y1="{y1}" {nav}/>')
+        lines += ["    </spu>", "  </stream>", "</subpictures>", ""]
+        path = os.path.join(self.work, f"{assets.menu_id}.spumux.xml")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+        return path
+
+    def menu_duration(self, menu):
+        if menu.duration:
+            return float(menu.duration)
+        if menu.audio:
+            d = self._probe(menu.audio).get("duration")
+            if d:
+                return min(max(d, 1.0), 600.0)
+        return 5.0
+
+    def encode(self, menu, assets, on_progress=None):
+        """Encode the still menu (looping length) and mux the button subpicture."""
+        dur = self.menu_duration(menu)
+        num, den = self.disc.fps
+        target = "ntsc-dvd" if self.disc.standard == "NTSC" else "pal-dvd"
+        args = ["-loop", "1", "-framerate", f"{num}/{den}", "-t", f"{dur:.3f}",
+                "-i", os.path.basename(assets.base_png)]
+        if menu.audio:
+            args += ["-t", f"{dur:.3f}", "-i", menu.audio]
+        else:
+            args += ["-f", "lavfi", "-t", f"{dur:.3f}", "-i",
+                     "anullsrc=channel_layout=stereo:sample_rate=48000"]
+        a, b = self.disc.aspect.split(":")
+        args += ["-map", "0:v:0", "-map", "1:a:0",
+                 "-vf", f"scale=out_color_matrix=bt601:out_range=tv,format=yuv420p,setdar={a}/{b}",
+                 "-target", target, "-aspect", self.disc.aspect,
+                 "-b:v", str(encode.MENU_VIDEO_BPS), "-maxrate", "8000000", "-bufsize", "1835008"]
+        args += encode._color_args(self.disc)
+        args += encode.audio_args("ac3", 192_000) + ["-t", f"{dur:.3f}"]
+        raw = os.path.join(self.work, f"{menu.id}.raw.mpg")
+        encode.run_ffmpeg(args + [os.path.basename(raw)], dur,
+                          os.path.join(self.logs, f"menu-{menu.id}.log"), on_progress,
+                          cwd=self.work, what=f"ffmpeg (menu {menu.id})")
+        xml = self.spumux_xml(assets)
+        out = os.path.join(self.work, f"{menu.id}.mpg")
+        tools.require(["spumux"])
+        with open(raw, "rb") as fin, open(out, "wb") as fout:
+            tools.run([tools.find("spumux"), "-s", "0", os.path.basename(xml)], cwd=self.work,
+                      env={"VIDEO_FORMAT": self.disc.standard}, stdin=fin, stdout=fout,
+                      log=os.path.join(self.logs, f"spumux-{menu.id}.log"),
+                      what=f"spumux (menu {menu.id})")
+        os.remove(raw)
+        assets.spumux_xml = xml
+        assets.mpg = out
+        return out
+
+    # -- preview -----------------------------------------------------------------
+    def preview(self, menu, out_png, button=None, state="highlight", outline=False):
+        """Write a square-pixel PNG of the menu as a viewer would see it."""
+        assets = self.prepare(menu)
+        ids = [g.id for g in assets.buttons]
+        if button is None:
+            button = ids[0]
+        if button not in ids:
+            raise OncemoreError(f"menu {menu.id!r} has no button {button!r} "
+                                f"(buttons: {', '.join(ids)})")
+        color = {"highlight": menu.highlight_color, "select": menu.select_color}.get(state)
+        canvas = self.highlight_canvas(assets.buttons, only=None if outline else button,
+                                       outline=outline)
+        if state == "normal" or color is None:
+            # drop the highlight shapes, keep outlines (index 2) if requested
+            canvas.pixels = bytearray(2 if p == 2 else 0 for p in canvas.pixels)
+        elif outline:
+            only = self.highlight_canvas(assets.buttons, only=button)
+            canvas.pixels = bytearray(1 if o == 1 else (2 if p == 2 else 0)
+                                      for p, o in zip(canvas.pixels, only.pixels))
+        overlay = os.path.join(self.work, f"{menu.id}.preview-overlay.png")
+        png4.write_indexed_png(overlay, canvas, [(0, 0, 0, 0),
+                                                 png4.parse_color(color or "#000000"),
+                                                 (0, 255, 255, 255)])
+        H = self.disc.height
+        flt = (f"[0:v][1:v]overlay=0:0,scale={self.dw}:{H}:flags=lanczos,setsar=1[out]")
+        os.makedirs(os.path.dirname(os.path.abspath(out_png)) or ".", exist_ok=True)
+        tools.run([self.ffmpeg, "-hide_banner", "-nostdin", "-y", "-i", assets.base_png,
+                   "-i", overlay, "-filter_complex", flt, "-map", "[out]", "-frames:v", "1",
+                   "-update", "1", os.path.abspath(out_png)],
+                  log=os.path.join(self.logs, f"preview-{menu.id}.log"),
+                  what="ffmpeg (preview)")
+        return {"menu": menu.id, "button": button, "state": state, "path": os.path.abspath(out_png),
+                "buttons": [{"id": g.id, "rect": list(g.rect), "action": g.action, "nav": g.nav}
+                            for g in assets.buttons],
+                "size": [self.dw, H]}
