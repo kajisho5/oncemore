@@ -136,6 +136,9 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   frame or by its shape). Use an image or a video as the background. **Exact preview**
   renders the menu exactly as the disc will show it, with button hit areas.
 * ▲/▼ in the right-hand panel change the order of titles and menus.
+* **Colour set** (menu Properties): Normal (buttons while not selected,
+  optional), Highlight and Activated colours, each with an opacity; previews
+  and the simulator show them as the player will.
 * **Chapters at intervals** (Timeline menu): a chapter every *n* minutes or
   seconds, replacing the chapters there are or adding to them.
 * **Replace asset** (File menu, or right-click a file): every use of one file
@@ -344,7 +347,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 `_2`, `_3`…), `title` (heading), `back` (action of the BACK button, default:
 the first-play menu), `label_format` (default `"Chapter {n}"`), `back_label`,
 `prev_label`, `next_label`, `background`, `background_color`, `text_color`,
-`highlight_color`, `select_color`, `audio`, `duration`, `background_video` (a
+`highlight_color`, `select_color`, `normal_color`, `audio`, `duration`, `background_video` (a
 motion chapter menu) and `animated_thumbnails` (with a motion background, the
 thumbnails play their chapter). Six chapters per page, with PREV/NEXT buttons
 when there are more.
@@ -365,7 +368,8 @@ when there are more.
 | `default_button` | button id highlighted when the menu opens | the first |
 | `remember_button` | coming back highlights the button used last (menus 1–7) | `true` |
 | `font_size`, `text_color` | defaults for texts/buttons | `32`, `#FFFFFF` |
-| `highlight_color`, `select_color` | button colours | `#FFD400`, `#FF5A00` |
+| `highlight_color`, `select_color` | button colours when selected / activated; `#RRGGBBAA` for translucent (a DVD has 16 levels of opacity) | `#FFD400`, `#FF5A00` |
+| `normal_color` | colour of the buttons' highlight shapes while not selected (the colour set's Normal state); none when absent | — |
 | `texts[]` | `{text, x, y, size?, color?}` decorative text, plus the text style keys below | `[]` |
 | `shapes[]` | `{x, y, w, h, color}` filled rectangles (bars, panels; `#RRGGBBAA` for translucent) drawn under texts and buttons | `[]` |
 

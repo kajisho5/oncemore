@@ -240,6 +240,7 @@ class MenuAssets:
     buttons: list          # ButtonGeom in DVD button order
     spumux_xml: str = None
     mpg: str = None
+    normal_png: str = None  # the buttons while not selected (menu.normal_color)
 
 
 def display_width(disc):
@@ -468,21 +469,40 @@ class MenuBuilder:
             g.nav = nav[g.id]
         return geoms
 
-    def highlight_canvas(self, geoms, only=None, outline=False):
+    def highlight_canvas(self, geoms, only=None, outline=False, index_of=None):
+        """The buttons' shapes on a canvas, in palette index 1 (or
+        index_of(geom); 0 leaves a button out)."""
         c = png4.Canvas(self.disc.width, self.disc.height)
         for g in geoms:
             if only is not None and g.id != only:
                 continue
-            for s in g.shape:
+            idx = index_of(g) if index_of else 1
+            for s in g.shape if idx else ():
                 if isinstance(s, png4.Mask):
-                    c.blit_mask(s, 1)
+                    c.blit_mask(s, idx)
                 elif s[0] == "fill":
-                    c.fill_rect(*s[1], 1)
+                    c.fill_rect(*s[1], idx)
                 elif s[0] == "frame":
-                    c.stroke_rect(*s[1], 1, width=3)
+                    c.stroke_rect(*s[1], idx, width=3)
             if outline:
                 c.stroke_rect(g.rect[0], g.rect[1], g.rect[2] + 1, g.rect[3] + 1, 2, width=1)
         return c
+
+    def state_canvas(self, menu, geoms, state, button=None, every=False, outline=False):
+        """What the subpicture shows: index 1 = the button(s) in `state`
+        (highlight / select), 3 = the other buttons in the normal colour (when
+        the menu has one), 2 = outlines. state "normal": every button in the
+        normal colour; "none": no subpicture at all."""
+        active = set()
+        if state in ("highlight", "select"):
+            active = {g.id for g in geoms} if every else {button}
+        show_normal = bool(menu.normal_color) and state != "none"
+        return self.highlight_canvas(geoms, outline=outline,
+                                     index_of=lambda g: 1 if g.id in active else (3 if show_normal else 0))
+
+    def state_palette(self, menu, color):
+        return [(0, 0, 0, 0), png4.parse_color(color or "#00000000"), (0, 255, 255, 255),
+                png4.parse_color(menu.normal_color or "#00000000")]
 
     # -- rendering ---------------------------------------------------------------
     def _probe(self, path):
@@ -607,12 +627,20 @@ class MenuBuilder:
         sel = os.path.join(self.work, f"{menu.id}.select.png")
         png4.write_indexed_png(hl, canvas, [(0, 0, 0, 0), png4.parse_color(menu.highlight_color)])
         png4.write_indexed_png(sel, canvas, [(0, 0, 0, 0), png4.parse_color(menu.select_color)])
-        return MenuAssets(menu.id, base, hl, sel, geoms)
+        normal = None
+        if menu.normal_color:
+            # the same shapes in the "normal" colour: the subpicture shown on
+            # every button that is not selected (a DVD player swaps in the
+            # highlight / select colours inside the selected button)
+            normal = os.path.join(self.work, f"{menu.id}.normal.png")
+            png4.write_indexed_png(normal, canvas, [(0, 0, 0, 0), png4.parse_color(menu.normal_color)])
+        return MenuAssets(menu.id, base, hl, sel, geoms, normal_png=normal)
 
     def spumux_xml(self, assets):
         lines = [f'<subpictures format="{self.disc.standard}">', "  <stream>",
                  f'    <spu start="00:00:00.00" force="yes" '
-                 f'highlight={quoteattr(os.path.basename(assets.highlight_png))} '
+                 + (f'image={quoteattr(os.path.basename(assets.normal_png))} ' if assets.normal_png else "")
+                 + f'highlight={quoteattr(os.path.basename(assets.highlight_png))} '
                  f'select={quoteattr(os.path.basename(assets.select_png))}>']
         for g in assets.buttons:
             x0, y0, x1, y1 = g.rect
@@ -691,21 +719,10 @@ class MenuBuilder:
         if button not in ids:
             raise OncemoreError(f"menu {menu.id!r} has no button {button!r} "
                                 f"(buttons: {', '.join(ids)})")
+        canvas = self.state_canvas(menu, assets.buttons, state, button, every=every, outline=outline)
         color = {"highlight": menu.highlight_color, "select": menu.select_color}.get(state)
-        canvas = self.highlight_canvas(assets.buttons,
-                                       only=None if (outline or every) else button,
-                                       outline=outline)
-        if state == "normal" or color is None:
-            # drop the highlight shapes, keep outlines (index 2) if requested
-            canvas.pixels = bytearray(2 if p == 2 else 0 for p in canvas.pixels)
-        elif outline and not every:
-            only = self.highlight_canvas(assets.buttons, only=button)
-            canvas.pixels = bytearray(1 if o == 1 else (2 if p == 2 else 0)
-                                      for p, o in zip(canvas.pixels, only.pixels))
         overlay = os.path.join(self.work, f"{menu.id}.preview-overlay.png")
-        png4.write_indexed_png(overlay, canvas, [(0, 0, 0, 0),
-                                                 png4.parse_color(color or "#000000"),
-                                                 (0, 255, 255, 255)])
+        png4.write_indexed_png(overlay, canvas, self.state_palette(menu, color))
         H = self.disc.height
         flt = (f"[0:v][1:v]overlay=0:0,scale={self.dw}:{H}:flags=lanczos,setsar=1[out]")
         os.makedirs(os.path.dirname(os.path.abspath(out_png)) or ".", exist_ok=True)

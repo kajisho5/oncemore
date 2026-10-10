@@ -159,6 +159,9 @@ const I18N = {
     ci_preview: "{n} chapters on {d}.", ra_what: "Replace", ra_with: "With", ra_uses: "Used {n} time(s) in the project.", ra_missing: "missing",
     ra_hint: "Every use in the project then points to the new file: titles, clips, audio and subtitle tracks, menu backgrounds, buttons, slideshows, music.",
     ra_none: "The project uses no files yet.", psd_changed: "The Photoshop file of this menu has changed.", open_failed: "This system has no program to open the file with.",
+    colour_set: "Colour set", cs_normal: "Normal", opacity: "Opacity",
+    cs_normal_hint: "Show the buttons' highlight shapes in this colour while they are not selected",
+    cs_hint: "The colours of the buttons' highlight shapes: Normal (while not selected; optional), Highlight (selected) and Activated (pressed). A DVD player has 16 levels of opacity.",
     skin: "Skin", skin_modern: "Modern", skin_classic: "Classic", skin_hint: "Classic: the look of the classic disc authoring apps (mid-grey panels, light fields, amber timecode). The layout is the same.",
   },
   ja: {
@@ -317,6 +320,9 @@ const I18N = {
     ci_preview: "{d} の中にチャプターが {n} 個になります。", ra_what: "置き換えるファイル", ra_with: "新しいファイル", ra_uses: "プロジェクト内で {n} か所で使われています。", ra_missing: "見つかりません",
     ra_hint: "プロジェクト内のすべての使用箇所（タイトル、クリップ、音声・字幕トラック、メニューの背景、ボタン、スライドショー、BGM）が新しいファイルを指すようになります。",
     ra_none: "プロジェクトはまだファイルを使っていません。", psd_changed: "このメニューの Photoshop ファイルが変更されました。", open_failed: "このシステムにはファイルを開くプログラムがありません。",
+    colour_set: "カラーセット", cs_normal: "通常時の色", opacity: "不透明度",
+    cs_normal_hint: "選択されていないボタンのハイライト形状をこの色で表示します",
+    cs_hint: "ボタンのハイライト形状の色：通常時（選択されていないとき・任意）、選択中、決定時。DVD プレーヤーの不透明度は 16 段階です。",
     skin: "スキン", skin_modern: "モダン", skin_classic: "クラシック", skin_hint: "クラシック：昔ながらのディスクオーサリングアプリの見た目（中間グレーのパネル、明るい入力欄、琥珀色のタイムコード）。配置は同じです。",
   },
 };
@@ -1925,6 +1931,42 @@ function renderMenu(m) {
   stage.classList.toggle("tool-zoom", tool === "zoom");
   checkOverlaps(stage, menu, scale, sx);
 }
+// The menu's colour set: the buttons' subpicture colours in the three states
+// a player shows (Normal = not selected, optional; Selected; Activated), each
+// with an opacity (a DVD has 16 levels). Stored as #RRGGBB or #RRGGBBAA.
+const COLOUR_SET = [["normal_color", "cs_normal", null], ["highlight_color", "highlight", "#FFD400"], ["select_color", "select_color", "#FF5A00"]];
+const splitColour = (v, def) => {
+  const s = String(v || def || "#FFFFFF").replace("#", "");
+  return { rgb: "#" + s.slice(0, 6).toLowerCase(), pct: s.length === 8 ? Math.round(parseInt(s.slice(6), 16) / 255 * 100) : 100 };
+};
+const joinColour = (rgb, pct) => rgb.toUpperCase() + (pct >= 100 ? "" : Math.round(pct / 100 * 255).toString(16).padStart(2, "0").toUpperCase());
+function colourSetHtml(menu) {
+  return `<h3>${t("colour_set")}</h3>${COLOUR_SET.map(([k, l, def]) => {
+    const on = def || menu[k], c = splitColour(menu[k], def || "#FFFFFF66");
+    return `<label class="field" data-nobind><span>${t(l)}</span><div class="row cset">
+      ${def ? "" : `<input type="checkbox" class="shrink" data-cs-on="${k}" ${menu[k] ? "checked" : ""} title="${esc(t("cs_normal_hint"))}">`}
+      <input type="color" class="shrink" data-cs="${k}" value="${c.rgb}" ${on ? "" : "disabled"}>
+      <input type="range" min="0" max="100" step="1" data-cs-a="${k}" value="${c.pct}" ${on ? "" : "disabled"} title="${esc(t("opacity"))}">
+      <span class="shrink pct mono" data-cs-p="${k}">${c.pct}%</span></div></label>`;
+  }).join("")}<div class="hint">${esc(t("cs_hint"))}</div>`;
+}
+function bindColourSet(root, menu) {
+  const write = (k) => {
+    const on = root.querySelector(`[data-cs-on="${k}"]`);
+    const rgb = root.querySelector(`[data-cs="${k}"]`).value, pct = Number(root.querySelector(`[data-cs-a="${k}"]`).value);
+    commit((p) => {
+      const mm = p.menus.find((x) => x.id === menu.id);
+      if (on && !on.checked) delete mm[k]; else mm[k] = joinColour(rgb, pct);
+    });
+    S.preview = null; renderMain();
+  };
+  root.querySelectorAll("[data-cs]").forEach((x) => (x.onchange = () => write(x.dataset.cs)));
+  root.querySelectorAll("[data-cs-a]").forEach((x) => {
+    x.oninput = () => { root.querySelector(`[data-cs-p="${x.dataset.csA}"]`).textContent = `${x.value}%`; };
+    x.onchange = () => write(x.dataset.csA);
+  });
+  root.querySelectorAll("[data-cs-on]").forEach((x) => (x.onchange = () => write(x.dataset.csOn)));
+}
 // new button / rectangle on the open menu (Tools panel)
 function addMenuButton() {
   const menu = curMenu();
@@ -2174,12 +2216,11 @@ function renderMenuInspector(el) {
     <div class="grid2">
       <label class="field"><span>${t("background_color")}</span><input type="color" data-k="background_color" value="${esc(menu.background_color || "#000000")}"></label>
       <label class="field"><span>${t("text_color")}</span><input type="color" data-k="text_color" value="${esc(menu.text_color || "#ffffff")}"></label>
-      <label class="field"><span>${t("highlight")}</span><input type="color" data-k="highlight_color" value="${esc(menu.highlight_color || "#ffd400")}"></label>
-      <label class="field"><span>${t("select_color")}</span><input type="color" data-k="select_color" value="${esc(menu.select_color || "#ff5a00")}"></label>
       <label class="field"><span>${t("font_size")}</span><input type="number" data-k="font_size" min="8" max="200" value="${menu.font_size || ""}" placeholder="32"></label>
       <label class="field"><span>${t("duration")}</span><input type="number" data-k="duration" min="1" max="600" value="${menu.duration || ""}" placeholder="${t("auto")}"></label>
     </div>
     <label class="field"><span>${t("music")}</span>${selectHtml("audio", [...none, ...mediaOf("audio").map((x) => [x, x])], menu.audio || "__none__")}</label>
+    ${colourSetHtml(menu)}
     <h3>${t("playback")}</h3>
     <div class="grid2">
       <label class="field"><span>${t("loop")}</span>${selectHtml("loop", [["forever", t("loop_forever")], ...[1, 2, 3, 5, 10].map((n) => [String(n), t("loop_n", { n })])], String(menu.loop || "forever"))}</label>
@@ -2201,6 +2242,7 @@ function renderMenuInspector(el) {
   });
   if ($("#psd-again")) $("#psd-again").onclick = () => { S.psdChanged = null; importPsd(menu.psd, menu.id); };
   if ($("#psd-edit")) $("#psd-edit").onclick = editPsd;
+  bindColourSet(el, menu);
   $("#remember-btn").onchange = (e) => commit((p) => { const mm = find(p); if (e.target.checked) delete mm.remember_button; else mm.remember_button = false; });
   bindOrder(el, "menus", menu.id);
   $("#menu-id").onchange = (e) => {

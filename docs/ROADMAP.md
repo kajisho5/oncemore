@@ -113,6 +113,11 @@ browser) and lands only with green CI.
   everywhere it is used); File > Project settings; Window menu items for
   every panel; Edit menu in Photoshop with a notice when the file is saved
 
+**P16 — Menu colour sets** (done)
+- [x] Normal / Highlight / Activated colours with opacity (16 DVD levels);
+  the Normal state is the subpicture's display image, shown on every button
+  that is not selected; previews and the simulator compose it as a player does
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

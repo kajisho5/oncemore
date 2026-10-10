@@ -125,6 +125,8 @@ oncemore gui my-disc          # ブラウザで http://127.0.0.1:…/ が開き�
   （「画像」。ハイライトは枠か画像の形）。背景には画像か動画を使えます。
   **実レンダリング確認**で、ディスクで実際に表示される見た目とボタンの当たり判定を確認できます。
 * タイトルやメニューの順番は右パネルの ▲/▼ で変えられます。
+* **カラーセット**（メニューのプロパティ）：通常時（選択されていないボタン・任意）、選択中、決定時の色と、それぞれの不透明度。
+  プレビューとシミュレータでもプレーヤーと同じように表示します。
 * **一定間隔でチャプター**（タイムラインメニュー）：*n* 分／秒ごとにチャプターを置きます（今のチャプターを置き換えるか、追加するか）。
 * **アセットを置き換え**（ファイルメニュー、またはファイルを右クリック）：プロジェクト内で使われているファイルを別のファイルに
   まとめて差し替えます。見つからなくなったファイルの付け直しもこれで行います（見つからないファイルが先頭に並び、問題一覧からも開けます）。
@@ -305,7 +307,7 @@ oncemore doctor                                # 外部ツールの有無・バ�
 `auto_chapter_menu` のオブジェクト：`id`（既定 `chapters_<タイトルid>`、2 ページ目以降は
 `_2`、`_3`…）、`title`（見出し）、`back`（BACK ボタンのアクション。既定は first_play のメニュー）、
 `label_format`（既定 `"Chapter {n}"`）、`back_label`、`prev_label`、`next_label`、
-`background`、`background_color`、`text_color`、`highlight_color`、`select_color`、
+`background`、`background_color`、`text_color`、`highlight_color`、`select_color`、`normal_color`、
 `audio`、`duration`、`background_video`（動くチャプターメニュー）、`animated_thumbnails`
 （動く背景のとき、サムネイルでそのチャプターを再生）。1 ページ 6 チャプターで、超えると PREV/NEXT ボタンが付きます。
 
@@ -325,7 +327,8 @@ oncemore doctor                                # 外部ツールの有無・バ�
 | `default_button` | メニューを開いたときに選ばれているボタンの id | 先頭 |
 | `remember_button` | 戻ってきたとき前に使ったボタンを選ぶ（メニュー 1〜7） | `true` |
 | `font_size`、`text_color` | テキスト・ボタンの既定値 | `32`、`#FFFFFF` |
-| `highlight_color`、`select_color` | ボタンの色 | `#FFD400`、`#FF5A00` |
+| `highlight_color`、`select_color` | 選択中／決定時のボタンの色。`#RRGGBBAA` で半透明（DVD の不透明度は 16 段階） | `#FFD400`、`#FF5A00` |
+| `normal_color` | 選択されていないボタンのハイライト形状の色（カラーセットの通常時）。無指定なら表示しない | — |
 | `texts[]` | `{text, x, y, size?, color?}` 装飾テキスト（下の文字スタイルも指定可） | `[]` |
 | `shapes[]` | `{x, y, w, h, color}` 塗りつぶしの四角形（帯やパネル。`#RRGGBBAA` で半透明）。テキストとボタンの下に描画 | `[]` |
 

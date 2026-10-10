@@ -231,6 +231,9 @@
         "select_color": {
           "$ref": "#/$defs/color"
         },
+        "normal_color": {
+          "$ref": "#/$defs/color"
+        },
         "text_color": {
           "$ref": "#/$defs/color"
         },
@@ -762,6 +765,9 @@
           "$ref": "#/$defs/color"
         },
         "select_color": {
+          "$ref": "#/$defs/color"
+        },
+        "normal_color": {
           "$ref": "#/$defs/color"
         },
         "texts": {

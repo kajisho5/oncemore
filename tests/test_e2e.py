@@ -15,7 +15,7 @@ import unittest
 from oncemore import tools
 from oncemore.project import CAPACITY
 
-from .helpers import have, json_lines, run_cli
+from .helpers import have, json_lines, read_rgba_png, run_cli
 
 try:
     from . import dvdnav_sim
@@ -209,6 +209,9 @@ class TestPalLpcmBuild(unittest.TestCase):
         for t in data["titles"]:
             t["audio"] = {"codec": "lpcm"}
         data["disc"]["label"] = "Sample PAL disc"
+        # colour set: buttons shown in white at ~40% when not selected, a 75% highlight
+        data["menus"][0]["normal_color"] = "#FFFFFF60"
+        data["menus"][0]["highlight_color"] = "#FFD400C0"
         with open(path, "w") as f:
             json.dump(data, f)
         cls.out = os.path.join(cls.tmp, "out")
@@ -271,6 +274,20 @@ class TestPalLpcmBuild(unittest.TestCase):
         avg = [sum(px[i::3]) / (len(px) // 3) for i in range(3)]
         for got, want in zip(avg, (0x10, 0x18, 0x20)):  # DEFAULT_BG #101820
             self.assertAlmostEqual(got, want, delta=6, msg=f"decoded {avg}")
+
+    @unittest.skipUnless(have("spuunmux"), "spuunmux not installed")
+    def test_menu_colour_set_on_disc(self):
+        """The normal colour is the subpicture's display image; the colours'
+        alpha becomes the DVD contrast (16 levels)."""
+        d = os.path.join(self.tmp, "spu")
+        os.makedirs(d, exist_ok=True)
+        subprocess.run(["spuunmux", "-s", "0", os.path.join(self.out, ".work", "menus", "main.mpg")],
+                       cwd=d, capture_output=True, check=True, env={**os.environ, "VIDEO_FORMAT": "PAL"})
+        def colours(name):
+            return {p for p in read_rgba_png(os.path.join(d, name))[2] if p[3]}
+        self.assertEqual(colours("sub00000.png"), {(255, 255, 255, 0x60 // 16 * 17)})
+        self.assertEqual({p[3] for p in colours("sub00000h.png")}, {0xC0 // 16 * 17})
+        self.assertEqual({p[3] for p in colours("sub00000s.png")}, {255})
 
     def test_validate_reports_plan(self):
         rc, out, err = run_cli("--json", "validate", self.project)
