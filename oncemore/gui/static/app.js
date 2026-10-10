@@ -102,7 +102,7 @@ const I18N = {
     add_button: "+ Button", add_text: "+ Text", exact_preview: "Exact preview", hide_preview: "Hide preview",
     safe_area: "Safe area", button: "Button", text: "Text", action: "Action", size: "Size", color: "Colour",
     nav: "Remote navigation", nav_auto: "auto", none: "None", stop: "Stop",
-    playall: "Play all titles", channels: "Channels", stereo: "Stereo", surround: "5.1 surround",
+    playall: "Play all titles", resume: "Resume (the title the Menu key left)", channels: "Channels", stereo: "Stereo", surround: "5.1 surround",
     generated_menu: "This menu is generated from the chapters of “{t}”. Change it in that title's settings.",
     go_to_title: "Open title",
     build_iso: "Disc image (.iso)", build_folder: "VIDEO_TS folder", fast: "Fast (1-pass) encoding",
@@ -274,7 +274,7 @@ const I18N = {
     add_button: "＋ボタン", add_text: "＋テキスト", exact_preview: "実レンダリング確認", hide_preview: "確認を閉じる",
     safe_area: "セーフエリア", button: "ボタン", text: "テキスト", action: "リンク先", size: "サイズ", color: "色",
     nav: "リモコンの移動先", nav_auto: "自動", none: "なし", stop: "停止",
-    playall: "全タイトルを連続再生", channels: "チャンネル", stereo: "ステレオ", surround: "5.1ch サラウンド",
+    playall: "全タイトルを連続再生", resume: "再生再開（メニューキーで中断したタイトル）", channels: "チャンネル", stereo: "ステレオ", surround: "5.1ch サラウンド",
     generated_menu: "このメニューは「{t}」のチャプターから自動生成されます。変更はそのタイトルの設定で行います。",
     go_to_title: "タイトルを開く",
     build_iso: "ディスクイメージ（.iso）", build_folder: "VIDEO_TS フォルダ", fast: "高速（1パス）エンコード",
@@ -517,6 +517,7 @@ function actionOptions({ forButton = true, allowStop = true, includeChapters = f
     if (includeChapters) chaptersOf(ti).forEach((_, i) =>
       opts.push([`chapter:${ti.id}:${i + 1}`, t("chapter_item", { t: ti.name || ti.id, n: i + 1 })]));
   }
+  if (forButton && (p.titles || []).length) opts.push(["resume", t("resume")]);
   if (forButton) {
     const na = Math.max(1, ...(p.titles || []).map((x) => (x.audio_tracks || []).length));
     const ns = Math.max(0, ...(p.titles || []).map((x) => (x.subtitles || []).length));

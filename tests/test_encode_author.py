@@ -190,6 +190,39 @@ class TestAuthorXml(unittest.TestCase):
         self.assertIn("no menu with id 'missing'", msg)
         self.assertIn("titles[0].remote_menu", msg)
 
+    def test_resume(self):
+        d = sample_project()
+        d["menus"][0]["buttons"].append({"id": "res", "label": "RESUME", "x": 470, "y": 220,
+                                         "action": "resume"})
+        p = build_project(d, "/v/project.oncemore.json", check_files=False)
+        self.assertTrue(p.uses_resume)
+        self.assertEqual(author.resume_reg(p), "g12")    # no playlists: g12 is free
+        x = author.build_xml(p, {"main": "m", "chapters": "c"}, {"t1": "a", "t2": "b"}, "/o")
+        self.assertIn('<button name="res">g5 = button; '
+                      'if (g12 == 1) { resume; } g2 = 0; jump title 1;</button>', x)
+        self.assertEqual(x.count("<pre>g12 = 1;</pre>"), 2)          # every title
+        self.assertIn('<post>g12 = 0; g2 = 0; g1 = 1; call menu entry root;</post>', x)
+        # playlists take g0 and g12: the next free one
+        d["playlists"] = [{"id": "pl", "items": ["t1"]}]
+        self.assertEqual(author.resume_reg(build_project(d, "/v/p.json", check_files=False)),
+                         "g11")
+        # only menu buttons can resume
+        d["titles"][0]["end_action"] = "resume"
+        with self.assertRaises(ProjectError) as cm:
+            build_project(d, "/v/project.oncemore.json", check_files=False)
+        self.assertIn("titles[0].end_action", json.dumps(cm.exception.issues))
+        # every register taken: playlists, play all, Menu key, a loop, 7 remembering menus
+        d["titles"][0]["end_action"] = "menu:main"
+        d["titles"][0]["remote_menu"] = "main"
+        d["menus"][0]["loop"] = 2
+        for k in range(5):
+            d["menus"].append({"id": f"m{k}", "buttons": [
+                {"id": "x", "label": "X", "x": 100, "y": 100, "action": "menu:main"}]})
+        with self.assertRaises(ProjectError) as cm:
+            build_project(d, "/v/project.oncemore.json", check_files=False)
+        self.assertIn("a resume button needs one free player register",
+                      json.dumps(cm.exception.issues))
+
     def p2_project(self):
         d = sample_project()
         d["titles"][1].update({"aspect": "4:3", "audio": {"codec": "lpcm"}, "chapters": [0, 4, 8]})

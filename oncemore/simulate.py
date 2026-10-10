@@ -20,6 +20,9 @@ requests):
   menu_key    menu the Menu key opens during the current title (g3)
   remember    {menu id: last button used} for menus that remember it
   loops       times the current menu has played (g4)
+  resume      {"title", "chapter", "button"} the Menu / Title key left, for resume
+              buttons (the player's resume information; None once the
+              title ended, as the resume flag register says)
   log         what happened on the last key, for the app to show
 """
 
@@ -69,7 +72,7 @@ class Simulator:
     def start(self):
         s = {"domain": "stopped", "menu": None, "button": 1, "title": None, "chapter": 0,
              "audio": 1, "subtitle": 0, "playall": 0, "playlist": 0, "item_end": 0,
-             "menu_key": None, "remember": {}, "loops": 0, "log": []}
+             "menu_key": None, "remember": {}, "loops": 0, "resume": None, "log": []}
         sub = author.default_subtitle(self.p)
         if sub is not None:
             s["subtitle"] = sub + 1
@@ -147,6 +150,18 @@ class Simulator:
         elif kind == "title":
             self.single(s)
             self.play(s, target)
+        elif kind == "resume":
+            r = s.get("resume")
+            if r:
+                # the player's resume: no <pre>, so the Menu key target the
+                # root menu cleared stays cleared; the button register (SPRM 8)
+                # comes back as it was
+                s.update(domain="title", menu=None, title=r["title"], chapter=r["chapter"],
+                         button=r["button"], loops=0)
+                self.note(s, f"resume title {r['title']} chapter {r['chapter']}")
+            else:
+                self.single(s)
+                self.play(s, self.p.titles[0].id)
         elif kind == "chapter":
             self.single(s)
             self.play(s, target, num)
@@ -172,6 +187,7 @@ class Simulator:
     def post(self, s):
         """The title has ended: playlist, then play all, then its end action."""
         t = self.p.title(s["title"])
+        s["resume"] = None
         for state, pl, i, it in self.states:
             if it.title_id != t.id or s["playlist"] != state:
                 continue
@@ -219,6 +235,8 @@ class Simulator:
             raise SimError(f"unknown key {key!r}")
         if s["domain"] == "stopped":
             return s
+        if s["domain"] == "title" and key in ("menu", "title") and self.p.menus:
+            s["resume"] = {"title": s["title"], "chapter": s["chapter"], "button": s["button"]}
         if key == "title":
             if self.p.menus:
                 self.title_key(s)

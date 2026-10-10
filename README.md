@@ -394,13 +394,15 @@ light up when it is selected, instead of the automatic highlight.
 **buttons[]**: `id`, `label`, `x`, `y` (top-left of the label), `action`,
 `auto_activate` (run as soon as the button is selected),
 (`menu:<id>` \| `title:<id>` \| `chapter:<title id>:<n>` \| `playall` \| `audio:<n>` \|
-`subtitle:<n>` \| `subtitle:off` \| `stop`), optional `size`, `color`, and `nav`
+`subtitle:<n>` \| `subtitle:off` \| `resume` \| `stop`), optional `size`, `color`, and `nav`
 (`{"up": id, "down": id, "left": id, "right": id}`) to override the automatic
 navigation. `audio:<n>` / `subtitle:<n>` (1-based) select a stream and stay on
 the menu, so a "setup" menu is just a few of these buttons plus a BACK button.
 `playall` plays every title in project order and then follows the last title's
 `end_action`; a title started on its own (by a title or chapter button) still
-ends with its own `end_action`.
+ends with its own `end_action`. `resume` continues the title the remote's Menu
+or Title key interrupted, where it was left; when there is nothing to resume
+(at the start of the disc, or after the title ended) it plays the first title.
 **Image buttons**: `image` (a picture, transparent PNG works best) replaces the
 label (then optional), drawn with its top-left at `x`/`y`; `width` on the
 720-wide grid (default: the picture's own width; the height follows its

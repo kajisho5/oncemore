@@ -30,6 +30,12 @@ g13-g15 are dvdauthor's scratch registers (multi-statement buttons and
 expressions), so they stay untouched. A multi-statement button that does not
 jump falls through into the next button's code in dvdauthor's dispatcher, so
 only buttons that leave the menu get the "remember" prefix.
+A resume button (`resume`, only when one is used) takes the first register
+nobody else uses (`resume_reg`) as a flag: 1 while a title is playing (its
+<pre>), 0 once it ended (its <post>). The button resumes the title the
+Menu / Title key left (the player's resume information) when the flag is
+1, and otherwise plays the first title from the start, since a player has
+nothing to resume at the start of the disc or after a title ended.
 The VMGM title menu is what the Title / Top Menu key opens: g1 == 0 there
 means the key was pressed (routes always set g1), so `disc.title_key` applies.
 
@@ -60,6 +66,25 @@ def button_reg(menu):
     """Register remembering the last button of `menu`, or None."""
     if menu.remember_button and menu.number <= 7:
         return f"g{4 + menu.number}"
+    return None
+
+
+def resume_reg(project):
+    """Register flagging "a title was interrupted" for resume buttons:
+    the first one this project leaves free, or None."""
+    used = {NAV_REG}
+    if project.uses_playlists:
+        used |= {STATE_REG, ITEM_END_REG}
+    if project.uses_playall:
+        used.add(PLAYALL_REG)
+    if project.uses_remote_menu:
+        used.add(MENUKEY_REG)
+    if any(m.loop is not None for m in project.menus):
+        used.add(LOOP_REG)
+    used |= {button_reg(m) for m in project.menus} - {None}
+    for n in (12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 0):
+        if f"g{n}" not in used:
+            return f"g{n}"
     return None
 
 
@@ -166,6 +191,9 @@ def _menu_domain_command(project, action):
     if kind == "playall":
         reset = f"{STATE_REG} = 0; {ITEM_END_REG} = 0; " if project.uses_playlists else ""
         return f"{reset}{PLAYALL_REG} = 1; jump {_title_ref(project, project.titles[0].id, 1)};"
+    if kind == "resume":
+        first = f"{single}jump {_title_ref(project, project.titles[0].id, 1)};"
+        return f"if ({resume_reg(project)} == 1) {{ resume; }} {first}"
     if kind == "title":
         return f"{single}jump {_title_ref(project, target, 1)};"
     if kind == "chapter":
@@ -191,7 +219,10 @@ def end_command(project, action, title=None):
     """<post> of `title` (default: one in titleset 1)."""
     lists = playlist_dispatch(project, title) if title is not None else ""
     rest = _post_rest(project, action, title)
-    return f"{lists} {rest}" if lists else rest
+    rest = f"{lists} {rest}" if lists else rest
+    if title is not None and project.uses_resume:
+        rest = f"{resume_reg(project)} = 0; {rest}"   # ended: nothing to resume
+    return rest
 
 
 def _post_rest(project, action, title):
@@ -237,11 +268,15 @@ def first_play_command(project):
 
 
 def title_pre(project, title):
-    """<pre> of a title: remember which menu the Menu key should open."""
-    if not project.uses_remote_menu:
-        return None
-    n = _menu_number(project, title.remote_menu) if title.remote_menu else 1
-    return f"{MENUKEY_REG} = {n};"
+    """<pre> of a title: remember which menu the Menu key should open, and
+    that there is something to resume."""
+    cmds = []
+    if project.uses_remote_menu:
+        n = _menu_number(project, title.remote_menu) if title.remote_menu else 1
+        cmds.append(f"{MENUKEY_REG} = {n};")
+    if project.uses_resume:
+        cmds.append(f"{resume_reg(project)} = 1;")
+    return " ".join(cmds) or None
 
 
 def vmgm_title_command(project):

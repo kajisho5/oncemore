@@ -743,3 +743,22 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   look at many frames, and getting it wrong on real video would drop
   frames. `scan: ivtc` is NTSC only.
 
+## 48. Resume buttons
+
+* A player keeps resume information when the Menu or Title key leaves a
+  title (and when a title's own `call` returns to a menu); the RSM command
+  goes back to it. With none, players differ (libdvdnav stops), and after
+  a title ended RSM would replay its last cell, so a `resume` button checks
+  a flag first: 1 from a title's `<pre>`, 0 in its `<post>`. Every way from
+  a title into a menu either stores fresh resume information (the keys) or
+  runs the `<post>` (the flag is 0), so flag 1 always means "the title the
+  keys left".
+* With nothing to resume the button plays the first title, like a Play
+  button; that is what the viewer wants at the start of the disc.
+* The flag takes the first register the disc does not already use (g12,
+  then down), so discs without a resume button are unchanged. Only a disc
+  using every one (playlists, play all, Menu-key targets, a loop count and
+  seven remembering menus) has none left; that is reported.
+* A resumed title does not run its `<pre>`, so its Menu key opens the
+  first menu rather than its own `remote_menu`. The simulator does the same.
+

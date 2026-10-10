@@ -192,8 +192,9 @@ def normalize_label(label):
 def parse_action(s):
     """'menu:x' -> ('menu', 'x', None); 'chapter:t:2' -> ('chapter', 't', 2); 'stop';
     'audio:2' -> ('audio', None, 2); 'subtitle:off' -> ('subtitle', None, 0);
-    'playall' -> ('playall', None, None); 'playlist:p' -> ('playlist', 'p', None)."""
-    if s in ("stop", "playall"):
+    'playall' -> ('playall', None, None); 'playlist:p' -> ('playlist', 'p', None);
+    'resume' -> ('resume', None, None)."""
+    if s in ("stop", "playall", "resume"):
         return (s, None, None)
     kind, _, rest = s.partition(":")
     if kind == "chapter":
@@ -448,6 +449,10 @@ class Project:
             [b.action for m in self.menus for b in m.buttons] + \
             [m.end_action for m in self.menus if m.loop is not None]
         return "playall" in actions
+
+    @property
+    def uses_resume(self):
+        return any(b.action == "resume" for m in self.menus for b in m.buttons)
 
     def playall_next(self, title):
         """Title after `title` in "Play all" order (project order), or None."""
@@ -956,9 +961,11 @@ class _Builder:
         return out
 
     def check_refs(self, project, user_menu_ids):
-        def check(where, action, allow_chapter=True):
+        def check(where, action, allow_chapter=True, allow_resume=False):
             kind, target, num = parse_action(action)
-            if kind == "menu" and project.menu(target) is None:
+            if kind == "resume" and not allow_resume:
+                self.err(where, "resume is only for menu buttons")
+            elif kind == "menu" and project.menu(target) is None:
                 self.err(where, f"no menu with id {target!r}")
             elif kind == "audio" and num > len(project.audio_langs):
                 self.err(where, f"no audio stream {num} (titles have "
@@ -991,7 +998,7 @@ class _Builder:
             where = f"menus[{user_menu_ids.index(m.id)}]" if m.id in user_menu_ids and not m.generated \
                 else f"menu {m.id!r}"
             for j, b in enumerate(m.buttons):
-                check(f"{where}.buttons[{j}].action", b.action)
+                check(f"{where}.buttons[{j}].action", b.action, allow_resume=True)
             if m.loop is not None:
                 check(f"{where}.end_action", m.end_action)
         for i, pl in enumerate(project.playlists):
@@ -1011,6 +1018,12 @@ class _Builder:
                              "of them")
                 elif it.last == n:
                     it.last = None          # to the end: the title's own end
+        if project.uses_resume and project.titles:
+            from . import author
+            if author.resume_reg(project) is None:
+                self.err("menus", "a resume button needs one free player register, and "
+                                  "this disc uses them all (fewer menus that remember "
+                                  "their last button would free one)")
         for kind, attr in (("audio", "audio_tracks"), ("subtitle", "subtitles")):
             seen = {}
             for i, t in enumerate(project.titles):
