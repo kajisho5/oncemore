@@ -289,7 +289,7 @@ class Title:
     audio_passthrough: bool = False   # copy AC-3 from the sources
     chapter_names: list = field(default_factory=list)    # per chapter, or None
     chapter_posters: list = field(default_factory=list)  # thumbnail time per chapter, or None
-    scan: str = "auto"       # "auto" | "progressive" | "interlaced" | "pulldown"
+    scan: str = "auto"       # "auto" | "progressive" | "interlaced" | "pulldown" | "ivtc"
     clips: list = field(default_factory=list)   # Clip, when made of several videos
     clip_chapters: bool = False   # a chapter at every clip (set once clip lengths are known)
     video_mode: str = None   # what `scan` resolved to for the source (set by build.inspect)
@@ -733,7 +733,7 @@ class _Builder:
             aspect=t.get("aspect"),
             scan=t.get("scan", "auto"),
         )
-        if title.scan == "pulldown" and self._disc.standard != "NTSC":
+        if title.scan in ("pulldown", "ivtc") and self._disc.standard != "NTSC":
             self.err(f"{where}.scan", "3:2 pulldown is for NTSC discs (PAL plays film at 25 fps)")
         if title.video_bitrate is not None and not 1_000_000 <= title.video_bitrate <= 8_000_000:
             self.err(f"{where}.video_bitrate", "must be between 1M and 8M")

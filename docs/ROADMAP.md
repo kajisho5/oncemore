@@ -127,6 +127,10 @@ browser) and lands only with green CI.
 - [x] Automatic versions of the project file (.oncemore-backup, every five
   minutes at most, the last 30) and File > Revert to a saved version
 
+**P19 — Inverse telecine** (done)
+- [x] `scan: ivtc` for film already telecined to 29.97i: field matching and
+  decimation back to 23.976 film frames, stored with soft 3:2 pulldown
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 
@@ -194,4 +198,3 @@ First menu-less BDMV (titles + chapters), then IGS menus.
 * Replace dvdauthor with a built-in IFO/VOB writer.
 * Built-in UDF 1.02 + ISO 9660 bridge writer, so no external ISO tool is
   needed on any platform (xorriso cannot write UDF; see DECISIONS.md).
-* Inverse telecine for film that was already telecined to 29.97i.

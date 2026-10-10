@@ -292,6 +292,7 @@ def title_cache_key(project, title, info, vbps, fast):
         "tracks": [(_file_sig(tr.source), tr.stream) for tr in title.audio_tracks],
         "disc": [disc.standard, disc.aspect, disc.width, disc.height],
         "chapters": title.chapters, "vbps": vbps, "fast": fast, "scan": title.video_mode,
+        "ivtc": encode.is_ivtc(title),
         "audio": [title.audio_codec, title.audio_bitrate, title.audio_channels,
                   title.audio_passthrough]})
 

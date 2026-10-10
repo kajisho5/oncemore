@@ -344,7 +344,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `audio.bitrate` | AC-3 only, 64k–448k | `192k` (`448k` for 5.1) |
 | `audio.passthrough` | copy 48 kHz AC-3 from the sources unchanged (channels must match) | `false` |
 | `video_bitrate` | this title's own video bitrate; the other titles share the rest | shared |
-| `scan` | `auto` \| `progressive` \| `interlaced` \| `pulldown` (NTSC film): how the picture is stored, see Known limitations | `auto` |
+| `scan` | `auto` \| `progressive` \| `interlaced` \| `pulldown` (NTSC film) \| `ivtc` (NTSC: film already telecined to 29.97i — its film frames are recovered and stored with soft pulldown): how the picture is stored, see Known limitations | `auto` |
 | `audio.channels` | `2` (stereo, sources are down-mixed) \| `6` (5.1, AC-3 only) | `2` |
 | `end_action` | `menu:<id>` \| `title:<id>` \| `stop` | first-play menu, else `stop` |
 | `remote_menu` | menu the remote's Menu key opens during this title | first menu |
@@ -608,8 +608,9 @@ to ignore it, and delete the folder to reclaim the space.
 * Frame rates: 23.976p film on NTSC gets soft 3:2 pulldown; interlaced
   sources at the disc's rate and 59.94p / 50p sources are stored as fields
   (`scan`). Other rates (e.g. 25 fps on NTSC, 24 / 23.976 on PAL) are
-  converted by dropping or repeating frames; there is no inverse telecine of
-  already-telecined 29.97i film.
+  converted by dropping or repeating frames. Film that was already telecined
+  to 29.97i is not detected by itself: choose `scan: ivtc` (Picture:
+  Telecined film) to recover its film frames.
 * `xorriso` cannot write UDF; images made with it are ISO 9660 only and are
   **not** opened by libdvdread-based players (VLC, mpv) or most DVD players.
   It is only used when chosen with `--iso-tool xorriso`, with a warning.

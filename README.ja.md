@@ -300,7 +300,7 @@ oncemore doctor                                # 外部ツールの有無・バ�
 | `audio.codec` | `ac3` \| `lpcm` | `ac3` |
 | `audio.bitrate` | AC-3 のみ、64k〜448k | `192k`（5.1ch は `448k`） |
 | `audio.passthrough` | 48kHz の AC-3 素材をそのままコピー（チャンネル数は素材と同じに） | `false` |
-| `scan` | `auto` \| `progressive` \| `interlaced` \| `pulldown`（NTSC のフィルム）：映像の収録方式。「既知の制限」参照 | `auto` |
+| `scan` | `auto` \| `progressive` \| `interlaced` \| `pulldown`（NTSC のフィルム）\| `ivtc`（NTSC：29.97i にテレシネ済みのフィルム。逆テレシネでフィルムのコマに戻し、ソフトプルダウンで収録）：映像の収録方式。「既知の制限」参照 | `auto` |
 | `video_bitrate` | このタイトル専用の映像ビットレート。残りを他のタイトルで分け合う | 共有 |
 | `audio.channels` | `2`（ステレオ。素材はダウンミックス）\| `6`（5.1ch、AC-3 のみ） | `2` |
 | `end_action` | `menu:<id>` \| `title:<id>` \| `stop` | first_play のメニュー、無ければ `stop` |
@@ -537,7 +537,8 @@ DVD ナビゲーションライブラリ）でメニューのボタンを実際�
 * フレームレート：NTSC では 23.976p のフィルム素材をソフト 3:2 プルダウンで収録し、ディスクと同じレートの
   インターレース素材と 59.94p / 50p の素材はフィールドとして収録します（`scan`）。それ以外のレート
   （NTSC に 25fps、PAL に 24 / 23.976fps など）はフレームの間引き／複製で変換します。
-  すでにテレシネされた 29.97i のフィルム素材の逆テレシネはしません。
+  すでに 29.97i にテレシネされたフィルム素材は自動では判別しないので、`scan: ivtc`（走査方式：テレシネ済みフィルム）を
+  選ぶとフィルムのコマに戻して収録します。
 * `xorriso` は UDF を書けないため、xorriso で作った ISO は ISO 9660 のみとなり、
   libdvdread 系プレーヤー（VLC、mpv）や多くの DVD プレーヤーで **開けません**。
   `--iso-tool xorriso` を指定したときだけ使い、警告を出します。

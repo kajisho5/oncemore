@@ -125,6 +125,8 @@ def video_mode(title, info, disc):
     "pulldown" (23.976 fps film flagged for 3:2 pulldown), from the title's
     `scan` setting and its source (see DECISIONS §32)."""
     want = getattr(title, "scan", "auto") or "auto"
+    if want == "ivtc":
+        return "pulldown"              # film recovered from telecined video (fit_filter)
     if want != "auto":
         return want
     num, den = disc.fps
@@ -140,13 +142,20 @@ def video_mode(title, info, disc):
     return "progressive"
 
 
-def fit_filter(info, disc, pad_color="black", fps=True, mode="progressive"):
+def is_ivtc(title):
+    return getattr(title, "scan", None) == "ivtc"
+
+
+def fit_filter(info, disc, pad_color="black", fps=True, mode="progressive", ivtc=False):
     """ffmpeg -vf chain that converts `info` (from probe) to the disc format.
 
     mode "interlaced" works on fields: the source is split into one picture
     per field (bwdif send_field) or taken at the field rate, scaled, and
     woven back into top-field-first frames. mode "pulldown" keeps 23.976
-    film frames (the pulldown flags are set after encoding)."""
+    film frames (the pulldown flags are set after encoding). ivtc: the
+    source is film that was telecined to 29.97i; its film frames are put
+    back together (field matching, then the duplicate in every five frames
+    dropped) instead of being deinterlaced."""
     w, h, px, py = fit_geometry(info["width"], info["height"], info.get("sar", 1),
                                 disc.width, disc.height, disc.dar)
     num, den = disc.fps
@@ -155,6 +164,10 @@ def fit_filter(info, disc, pad_color="black", fps=True, mode="progressive"):
         if info.get("interlaced"):
             parts.append("bwdif=mode=send_field")
         parts.append(f"fps={2 * num}/{den}")
+    elif ivtc:
+        parts += ["fieldmatch=order=auto:combmatch=full", "yadif=deint=interlaced", "decimate"]
+        if fps:
+            parts.append(f"fps={FILM_FPS[0]}/{FILM_FPS[1]}")
     else:
         if info.get("interlaced"):
             parts.append("bwdif")
@@ -362,7 +375,7 @@ def clip_graph(title, probes, disc, mode, video=True, audio=True):
         if video:
             # exactly the clip's frames: a short file is held on its last one
             frames = round(dur * num / den)
-            chains.append(f"[{k}:v:0]setpts=PTS-STARTPTS,{fit_filter(info, disc, mode=mode)},"
+            chains.append(f"[{k}:v:0]setpts=PTS-STARTPTS,{fit_filter(info, disc, mode=mode, ivtc=is_ivtc(title))},"
                           f"tpad=stop_mode=clone:stop_duration=1,trim=end_frame={frames},"
                           f"setpts=PTS-STARTPTS,format=yuv420p[v{k}]")
             pieces.append(f"[v{k}]")
@@ -414,7 +427,7 @@ def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
             amap += ["-map", lab]
         acodec = audio_args(title.audio_codec, title.audio_bitrate, framing=False,
                             channels=title.audio_channels)
-    video = ["-map", "0:v:0", "-vf", fit_filter(info, disc, mode=mode)] + \
+    video = ["-map", "0:v:0", "-vf", fit_filter(info, disc, mode=mode, ivtc=is_ivtc(title))] + \
         _video_args(title, disc, video_bps, target, mode)
     passlog = os.path.join(work, f"{title.id}-pass")
     logdir = os.path.join(work, "logs")
