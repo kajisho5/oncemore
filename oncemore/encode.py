@@ -9,7 +9,8 @@ from fractions import Fraction
 
 from . import tools
 from .errors import OncemoreError, ProjectError, ToolFailedError
-from .project import chapter_points, gop_limits
+from . import pulldown
+from .project import FILM_FPS, chapter_points, gop_limits, title_fps
 
 # Upper limits we allow ourselves (DVD-Video allows 9.8 Mbit/s video and
 # 10.08 Mbit/s total; staying below leaves headroom for players).
@@ -119,19 +120,54 @@ def fit_geometry(src_w, src_h, src_sar, width, height, dar):
     return w, h, ((width - w) // 4) * 2, ((height - h) // 4) * 2
 
 
-def fit_filter(info, disc, pad_color="black", fps=True):
-    """ffmpeg -vf chain that converts `info` (from probe) to the disc format."""
+def video_mode(title, info, disc):
+    """How a title's picture is stored: "progressive", "interlaced" or
+    "pulldown" (23.976 fps film flagged for 3:2 pulldown), from the title's
+    `scan` setting and its source (see DECISIONS §32)."""
+    want = getattr(title, "scan", "auto") or "auto"
+    if want != "auto":
+        return want
+    num, den = disc.fps
+    rate, src = num / den, float(info.get("fps") or 0)
+    if info.get("interlaced"):
+        # (some files report the field rate instead of the frame rate)
+        same = abs(src - rate) < 0.05 or abs(src - 2 * rate) < 0.1
+        return "interlaced" if same else "progressive"
+    if disc.standard == "NTSC" and abs(src - FILM_FPS[0] / FILM_FPS[1]) < 0.01:
+        return "pulldown"
+    if abs(src - 2 * rate) < 0.1:
+        return "interlaced"            # 59.94p / 50p: keep the motion as fields
+    return "progressive"
+
+
+def fit_filter(info, disc, pad_color="black", fps=True, mode="progressive"):
+    """ffmpeg -vf chain that converts `info` (from probe) to the disc format.
+
+    mode "interlaced" works on fields: the source is split into one picture
+    per field (bwdif send_field) or taken at the field rate, scaled, and
+    woven back into top-field-first frames. mode "pulldown" keeps 23.976
+    film frames (the pulldown flags are set after encoding)."""
     w, h, px, py = fit_geometry(info["width"], info["height"], info.get("sar", 1),
                                 disc.width, disc.height, disc.dar)
+    num, den = disc.fps
     parts = []
-    if info.get("interlaced"):
-        parts.append("bwdif")
-    if fps:
-        num, den = disc.fps
-        parts.append(f"fps={num}/{den}")
+    if mode == "interlaced":
+        if info.get("interlaced"):
+            parts.append("bwdif=mode=send_field")
+        parts.append(f"fps={2 * num}/{den}")
+    else:
+        if info.get("interlaced"):
+            parts.append("bwdif")
+        if fps:
+            n, d = FILM_FPS if mode == "pulldown" else (num, den)
+            parts.append(f"fps={n}/{d}")
     parts.append(f"scale={w}:{h}:flags=bicubic:out_color_matrix=bt601:out_range=tv")
     if (w, h) != (disc.width, disc.height):
         parts.append(f"pad={disc.width}:{disc.height}:{px}:{py}:color={pad_color}")
+    if mode == "interlaced":
+        # a vertical low-pass against twitter only when the picture was resized
+        lowpass = "complex" if (info["width"], info["height"]) != (w, h) else "off"
+        parts.append(f"interlace=scan=tff:lowpass={lowpass},setfield=tff")
     a, b = disc.aspect.split(":")
     parts.append(f"setdar={a}/{b}")
     return ",".join(parts)
@@ -330,13 +366,21 @@ def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
             amap += ["-map", lab]
         acodec = audio_args(title.audio_codec, title.audio_bitrate, framing=False,
                             channels=title.audio_channels)
-    keys, _ = chapter_points(title.chapters, disc.fps)
+    mode = getattr(title, "video_mode", None) or "progressive"
+    fps = title_fps(title, disc)
+    keys, _ = chapter_points(title.chapters, fps)
     keyframes = ",".join(f"{t:.6f}" for t in keys)
-    video = ["-map", "0:v:0", "-vf", fit_filter(info, disc), "-target", target,
+    video = ["-map", "0:v:0", "-vf", fit_filter(info, disc, mode=mode), "-target", target,
              "-aspect", disc.aspect, "-b:v", str(video_bps),
              "-maxrate", str(peak_bitrate(title.audio_bps)), "-bufsize", "1835008",
              # fixed GOP grid so chapter key frames can be planned (see keyframe_plan)
-             "-g", str(gop_limits(disc.fps)[0]), "-sc_threshold", "1000000000"]
+             "-g", str(gop_limits(fps)[0]), "-sc_threshold", "1000000000"]
+    if mode == "interlaced":
+        # top field first comes from the frames (setfield=tff in the filter);
+        # ffmpeg 7+ no longer has the -top option
+        video += ["-flags", "+ilme+ildct", "-alternate_scan", "1"]
+    elif mode == "pulldown":
+        video += ["-r", f"{fps[0]}/{fps[1]}"]
     if keyframes:
         video += ["-force_key_frames", keyframes]
     video += _color_args(disc)
@@ -353,6 +397,22 @@ def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
                    duration, os.path.join(logdir, f"title-{title.id}-pass1.log"), prog(0),
                    cwd=work, what=f"ffmpeg (title {title.id}, pass 1)")
         video += ["-pass", "2", "-passlogfile", passlog]
+    if mode == "pulldown":
+        # film frames go to an elementary stream, get their pulldown flags,
+        # and are then muxed with the audio unchanged
+        m2v = os.path.join(work, f"{title.id}.m2v")
+        run_ffmpeg(inputs + video + ["-an", "-t", f"{duration:.3f}", "-f", "mpeg2video", m2v],
+                   duration, os.path.join(logdir, f"title-{title.id}.log"), prog(passes - 1),
+                   cwd=work, what=f"ffmpeg (title {title.id})")
+        pulldown.patch_file(m2v)
+        n = 1 + len(extra) // 2
+        run_ffmpeg(inputs + ["-fflags", "+genpts", "-i", m2v, "-map", f"{n}:v:0", "-c:v", "copy"]
+                   + amap + acodec + ["-f", "dvd", "-muxrate", "10080000", "-packetsize", "2048",
+                                      "-t", f"{duration:.3f}", out_path],
+                   duration, os.path.join(logdir, f"title-{title.id}-mux.log"), None,
+                   cwd=work, what=f"ffmpeg (title {title.id}, mux)")
+        os.remove(m2v)
+        return out_path
     run_ffmpeg(inputs + video + amap + acodec + ["-t", f"{duration:.3f}", out_path],
                duration, os.path.join(logdir, f"title-{title.id}.log"), prog(passes - 1),
                cwd=work, what=f"ffmpeg (title {title.id})")

@@ -334,6 +334,13 @@ class TestGuiBrowser(unittest.TestCase):
             self.wait_saved(page)
             t = self.project()["titles"][0]
             self.assertEqual((t["video_bitrate"], t["audio"]["passthrough"]), ("4M", True))
+            # film with 3:2 pulldown, then back to automatic
+            page.select_option("#inspector select[data-k=scan]", "pulldown")
+            self.wait_saved(page)
+            self.assertEqual(self.project()["titles"][0]["scan"], "pulldown")
+            page.select_option("#inspector select[data-k=scan]", "__none__")
+            self.wait_saved(page)
+            self.assertNotIn("scan", self.project()["titles"][0])
             # DVD-ROM content on the disc page
             page.click(".nav-item[data-view=disc]")
             page.fill("#rom-files", "extras/\nREADME.txt")

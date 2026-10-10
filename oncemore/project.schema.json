@@ -435,6 +435,11 @@
         "video_bitrate": {
           "$ref": "#/$defs/bitrate",
           "description": "This title's own average video bitrate (1-8 Mbit/s); the other titles share what is left on the disc."
+        },
+        "scan": {
+          "enum": ["auto", "progressive", "interlaced", "pulldown"],
+          "default": "auto",
+          "description": "How the picture is stored. auto: interlaced sources at the disc's frame rate and 50p / 59.94p sources stay interlaced (every field kept), 23.976p film on NTSC gets soft 3:2 pulldown, everything else is progressive. progressive: deinterlace and convert the frame rate. interlaced / pulldown force that mode."
         }
       },
       "anyOf": [
