@@ -112,7 +112,8 @@ class TestDefaultSample(unittest.TestCase):
         self.assertIn(b"CD001", vrs)  # ISO 9660 primary descriptor
         self.assertIn(b"NSR02", vrs)  # UDF 1.02 descriptor
         self.assertEqual(vrs[1:6], b"CD001")
-        self.assertEqual(vrs[40:72].decode("ascii").strip(), "SAMPLE_DISC")  # PVD volume id
+        # PVD volume id; genisoimage pads with spaces, hdiutil with NULs
+        self.assertEqual(vrs[40:72].decode("ascii").rstrip(" \x00"), "SAMPLE_DISC")
 
     def test_title_vob_streams(self):
         vob = iso_extract(self.iso, "/VIDEO_TS/VTS_01_1.VOB", os.path.join(self.tmp, "t.vob"))
