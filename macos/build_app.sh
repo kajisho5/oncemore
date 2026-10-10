@@ -78,8 +78,9 @@ if [ -z "${NO_PYTHON:-}" ]; then
   # trim what a DVD tool never uses (~40 MB)
   rm -rf "$PYLIB"/test "$PYLIB"/idlelib "$PYLIB"/tkinter "$PYLIB"/turtledemo \
          "$PYLIB"/ensurepip "$PYLIB"/lib2to3 "$PYLIB"/pydoc_data \
-         "$APP/Contents/Resources/python/lib"/tcl* "$APP/Contents/Resources/python/lib"/tk* \
-         "$APP/Contents/Resources/python/lib"/itcl* "$APP/Contents/Resources/python/share"
+         "$PYLIB"/lib-dynload/_tkinter.* \
+         "$APP/Contents/Resources/python/lib"/{tcl,tk,itcl,thread,libtcl,libtk}* \
+         "$APP/Contents/Resources/python/share"
   find "$APP/Contents/Resources/python" -name '__pycache__' -prune -exec rm -rf {} +
   "$APP/Contents/Resources/python/bin/python3" -c "import sys, ssl, zlib, json; print(sys.version)"
 fi

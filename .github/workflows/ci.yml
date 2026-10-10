@@ -56,6 +56,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # CFBundleVersion = commit count
       - name: External tools for the smoke test
         run: brew install ffmpeg-full dvdauthor
       - name: Build Oncemore.app
