@@ -4,22 +4,37 @@
   "title": "oncemore project",
   "description": "Input file for the oncemore DVD-Video authoring tool (project.oncemore.json).",
   "type": "object",
-  "required": ["version", "disc", "titles"],
+  "required": [
+    "version",
+    "disc",
+    "titles"
+  ],
   "additionalProperties": false,
   "properties": {
-    "$schema": { "type": "string" },
-    "version": { "const": 1, "description": "Project format version." },
-    "disc": { "$ref": "#/$defs/disc" },
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "const": 1,
+      "description": "Project format version."
+    },
+    "disc": {
+      "$ref": "#/$defs/disc"
+    },
     "titles": {
       "type": "array",
       "minItems": 1,
       "maxItems": 99,
-      "items": { "$ref": "#/$defs/title" }
+      "items": {
+        "$ref": "#/$defs/title"
+      }
     },
     "menus": {
       "type": "array",
       "maxItems": 99,
-      "items": { "$ref": "#/$defs/menu" }
+      "items": {
+        "$ref": "#/$defs/menu"
+      }
     }
   },
   "$defs": {
@@ -35,21 +50,33 @@
     "time": {
       "description": "Seconds as a number, or \"HH:MM:SS[.mmm]\", \"MM:SS[.mmm]\", \"SS[.mmm]\".",
       "anyOf": [
-        { "type": "number", "minimum": 0 },
-        { "type": "string", "pattern": "^([0-9]+:){0,2}[0-9]+(\\.[0-9]+)?$" }
+        {
+          "type": "number",
+          "minimum": 0
+        },
+        {
+          "type": "string",
+          "pattern": "^([0-9]+:){0,2}[0-9]+(\\.[0-9]+)?$"
+        }
       ]
     },
     "bitrate": {
       "description": "Bits per second as an integer, or a string such as \"192k\" or \"5.5M\".",
       "anyOf": [
-        { "type": "integer", "minimum": 1 },
-        { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?[kKmM]?$" }
+        {
+          "type": "integer",
+          "minimum": 1
+        },
+        {
+          "type": "string",
+          "pattern": "^[0-9]+(\\.[0-9]+)?[kKmM]?$"
+        }
       ]
     },
     "action": {
       "type": "string",
-      "description": "menu:<id> | title:<id> | chapter:<title id>:<n> (1-based) | stop",
-      "pattern": "^(menu:[A-Za-z0-9_-]{1,40}|title:[A-Za-z0-9_-]{1,40}|chapter:[A-Za-z0-9_-]{1,40}:[1-9][0-9]*|stop)$"
+      "description": "menu:<id> | title:<id> | chapter:<title id>:<n> (1-based) | audio:<n> | subtitle:<n> | subtitle:off | stop",
+      "pattern": "^(menu:[A-Za-z0-9_-]{1,40}|title:[A-Za-z0-9_-]{1,40}|chapter:[A-Za-z0-9_-]{1,40}:[1-9][0-9]*|audio:[1-8]|subtitle:([1-9]|[12][0-9]|3[0-2]|off)|stop)$"
     },
     "target": {
       "type": "string",
@@ -58,7 +85,11 @@
     },
     "disc": {
       "type": "object",
-      "required": ["label", "standard", "aspect"],
+      "required": [
+        "label",
+        "standard",
+        "aspect"
+      ],
       "additionalProperties": false,
       "properties": {
         "label": {
@@ -66,20 +97,76 @@
           "minLength": 1,
           "description": "ISO volume label. Normalised to A-Z 0-9 _ and at most 32 characters."
         },
-        "standard": { "enum": ["NTSC", "PAL"] },
-        "aspect": { "enum": ["4:3", "16:9"] },
-        "target": { "enum": ["DVD5", "DVD9"], "default": "DVD5" },
+        "standard": {
+          "enum": [
+            "NTSC",
+            "PAL"
+          ]
+        },
+        "aspect": {
+          "enum": [
+            "4:3",
+            "16:9"
+          ]
+        },
+        "target": {
+          "enum": [
+            "DVD5",
+            "DVD9"
+          ],
+          "default": "DVD5"
+        },
         "first_play": {
           "$ref": "#/$defs/target",
           "description": "What starts when the disc is inserted. Default: first menu, or first title if there are no menus."
         },
         "font": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "Font file for menu text. null = auto-detect (Hiragino on macOS, then Noto Sans CJK, then DejaVu Sans)."
         },
         "video_bitrate": {
           "description": "\"auto\" (fit the disc, default) or a fixed average video bitrate.",
-          "anyOf": [ { "const": "auto" }, { "$ref": "#/$defs/bitrate" } ]
+          "anyOf": [
+            {
+              "const": "auto"
+            },
+            {
+              "$ref": "#/$defs/bitrate"
+            }
+          ]
+        },
+        "subtitle_style": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Look of burned subtitle bitmaps (all subtitle tracks).",
+          "properties": {
+            "size": {
+              "type": "integer",
+              "minimum": 12,
+              "maximum": 80,
+              "description": "Font size in pixels. Default 30 (NTSC) / 36 (PAL)."
+            },
+            "color": {
+              "$ref": "#/$defs/color"
+            },
+            "outline": {
+              "$ref": "#/$defs/color"
+            },
+            "outline_width": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 8
+            },
+            "margin": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 200,
+              "description": "Distance of the last line from the bottom."
+            }
+          }
         }
       }
     },
@@ -87,42 +174,107 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "id": { "$ref": "#/$defs/id", "description": "Menu id. Default: chapters_<title id>. Extra pages get _2, _3, ..." },
-        "title": { "type": "string", "description": "Heading text. Default: the title name." },
-        "back": { "$ref": "#/$defs/action", "description": "Action of the BACK button. Default: the first menu." },
-        "background": { "type": ["string", "null"] },
-        "background_color": { "$ref": "#/$defs/color" },
-        "label_format": { "type": "string", "description": "Label under each thumbnail; {n} is the chapter number. Default: \"Chapter {n}\"." },
-        "back_label": { "type": "string" },
-        "prev_label": { "type": "string" },
-        "next_label": { "type": "string" },
-        "highlight_color": { "$ref": "#/$defs/color" },
-        "select_color": { "$ref": "#/$defs/color" },
-        "text_color": { "$ref": "#/$defs/color" },
-        "audio": { "type": ["string", "null"] },
-        "duration": { "type": "number", "minimum": 1, "maximum": 600 }
+        "id": {
+          "$ref": "#/$defs/id",
+          "description": "Menu id. Default: chapters_<title id>. Extra pages get _2, _3, ..."
+        },
+        "title": {
+          "type": "string",
+          "description": "Heading text. Default: the title name."
+        },
+        "back": {
+          "$ref": "#/$defs/action",
+          "description": "Action of the BACK button. Default: the first menu."
+        },
+        "background": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "background_color": {
+          "$ref": "#/$defs/color"
+        },
+        "label_format": {
+          "type": "string",
+          "description": "Label under each thumbnail; {n} is the chapter number. Default: \"Chapter {n}\"."
+        },
+        "back_label": {
+          "type": "string"
+        },
+        "prev_label": {
+          "type": "string"
+        },
+        "next_label": {
+          "type": "string"
+        },
+        "highlight_color": {
+          "$ref": "#/$defs/color"
+        },
+        "select_color": {
+          "$ref": "#/$defs/color"
+        },
+        "text_color": {
+          "$ref": "#/$defs/color"
+        },
+        "audio": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "duration": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 600
+        }
       }
     },
     "title": {
       "type": "object",
-      "required": ["id", "source"],
+      "required": [
+        "id",
+        "source"
+      ],
       "additionalProperties": false,
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "name": { "type": "string", "description": "Human-readable name (used in chapter menus)." },
-        "source": { "type": "string", "description": "Video file, relative to the project file." },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable name (used in chapter menus)."
+        },
+        "source": {
+          "type": "string",
+          "description": "Video file, relative to the project file."
+        },
         "chapters": {
           "type": "array",
           "maxItems": 99,
-          "items": { "$ref": "#/$defs/time" },
+          "items": {
+            "$ref": "#/$defs/time"
+          },
           "description": "Chapter start times. 0 is added automatically if missing."
         },
         "audio": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "codec": { "enum": ["ac3", "lpcm"], "default": "ac3" },
-            "bitrate": { "$ref": "#/$defs/bitrate", "description": "AC-3 only. Default 192k." }
+            "codec": {
+              "enum": [
+                "ac3",
+                "lpcm"
+              ],
+              "default": "ac3"
+            },
+            "bitrate": {
+              "$ref": "#/$defs/bitrate",
+              "description": "AC-3 only. Default 192k."
+            },
+            "lang": {
+              "$ref": "#/$defs/lang"
+            }
           }
         },
         "end_action": {
@@ -132,69 +284,240 @@
         },
         "auto_chapter_menu": {
           "description": "Generate a chapter-selection menu with thumbnails for this title.",
-          "anyOf": [ { "type": "boolean" }, { "$ref": "#/$defs/chapter_menu" } ]
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/$defs/chapter_menu"
+            }
+          ]
+        },
+        "audio_tracks": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "description": "Audio streams of this title (replaces the single default track). codec/bitrate come from `audio`.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "source": {
+                "type": "string",
+                "description": "File to take the audio from. Default: the title source."
+              },
+              "stream": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 31,
+                "description": "Index among that file's audio streams. Default 0."
+              },
+              "lang": {
+                "$ref": "#/$defs/lang"
+              }
+            }
+          }
+        },
+        "subtitles": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "required": [
+              "file"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "file": {
+                "type": "string",
+                "description": "SubRip (.srt) file."
+              },
+              "lang": {
+                "$ref": "#/$defs/lang"
+              },
+              "default": {
+                "type": "boolean",
+                "description": "Show this track when the title starts."
+              }
+            }
+          }
         }
       }
     },
     "text": {
       "type": "object",
-      "required": ["text", "x", "y"],
+      "required": [
+        "text",
+        "x",
+        "y"
+      ],
       "additionalProperties": false,
       "properties": {
-        "text": { "type": "string", "minLength": 1 },
-        "x": { "type": "integer", "minimum": 0, "maximum": 719 },
-        "y": { "type": "integer", "minimum": 0, "maximum": 575 },
-        "size": { "type": "integer", "minimum": 8, "maximum": 200 },
-        "color": { "$ref": "#/$defs/color" }
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "x": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 719
+        },
+        "y": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 575
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 200
+        },
+        "color": {
+          "$ref": "#/$defs/color"
+        }
       }
     },
     "nav": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "up": { "$ref": "#/$defs/id" },
-        "down": { "$ref": "#/$defs/id" },
-        "left": { "$ref": "#/$defs/id" },
-        "right": { "$ref": "#/$defs/id" }
+        "up": {
+          "$ref": "#/$defs/id"
+        },
+        "down": {
+          "$ref": "#/$defs/id"
+        },
+        "left": {
+          "$ref": "#/$defs/id"
+        },
+        "right": {
+          "$ref": "#/$defs/id"
+        }
       }
     },
     "button": {
       "type": "object",
-      "required": ["id", "label", "x", "y", "action"],
+      "required": [
+        "id",
+        "label",
+        "x",
+        "y",
+        "action"
+      ],
       "additionalProperties": false,
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "label": { "type": "string", "minLength": 1 },
-        "x": { "type": "integer", "minimum": 0, "maximum": 719, "description": "Left edge of the label, in menu pixels (720 wide)." },
-        "y": { "type": "integer", "minimum": 0, "maximum": 575, "description": "Top edge of the label (480 high for NTSC, 576 for PAL)." },
-        "action": { "$ref": "#/$defs/action" },
-        "size": { "type": "integer", "minimum": 8, "maximum": 200 },
-        "color": { "$ref": "#/$defs/color" },
-        "nav": { "$ref": "#/$defs/nav", "description": "Override automatic up/down/left/right navigation (button ids)." }
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "x": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 719,
+          "description": "Left edge of the label, in menu pixels (720 wide)."
+        },
+        "y": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 575,
+          "description": "Top edge of the label (480 high for NTSC, 576 for PAL)."
+        },
+        "action": {
+          "$ref": "#/$defs/action"
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 200
+        },
+        "color": {
+          "$ref": "#/$defs/color"
+        },
+        "nav": {
+          "$ref": "#/$defs/nav",
+          "description": "Override automatic up/down/left/right navigation (button ids)."
+        }
       }
     },
     "menu": {
       "type": "object",
-      "required": ["id", "buttons"],
+      "required": [
+        "id",
+        "buttons"
+      ],
       "additionalProperties": false,
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "background": { "type": ["string", "null"], "description": "Still image (PNG/JPEG...). Scaled to fit the disc aspect." },
-        "background_color": { "$ref": "#/$defs/color", "description": "Used when background is null, and for letterbox bars." },
-        "audio": { "type": ["string", "null"], "description": "Optional looping background music." },
-        "duration": { "type": "number", "minimum": 1, "maximum": 600, "description": "Loop length in seconds. Default 5, or the music length." },
-        "font_size": { "type": "integer", "minimum": 8, "maximum": 200 },
-        "text_color": { "$ref": "#/$defs/color" },
-        "highlight_color": { "$ref": "#/$defs/color" },
-        "select_color": { "$ref": "#/$defs/color" },
-        "texts": { "type": "array", "items": { "$ref": "#/$defs/text" } },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "background": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Still image (PNG/JPEG...). Scaled to fit the disc aspect."
+        },
+        "background_color": {
+          "$ref": "#/$defs/color",
+          "description": "Used when background is null, and for letterbox bars."
+        },
+        "audio": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Optional looping background music."
+        },
+        "duration": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 600,
+          "description": "Loop length in seconds. Default 5, or the music length."
+        },
+        "font_size": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 200
+        },
+        "text_color": {
+          "$ref": "#/$defs/color"
+        },
+        "highlight_color": {
+          "$ref": "#/$defs/color"
+        },
+        "select_color": {
+          "$ref": "#/$defs/color"
+        },
+        "texts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          }
+        },
         "buttons": {
           "type": "array",
           "minItems": 1,
           "maxItems": 36,
-          "items": { "$ref": "#/$defs/button" }
+          "items": {
+            "$ref": "#/$defs/button"
+          }
+        },
+        "background_video": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Video file for a motion menu (takes precedence over background). Its own audio is used when `audio` is not set."
         }
       }
+    },
+    "lang": {
+      "type": "string",
+      "pattern": "^[a-z]{2}$",
+      "description": "ISO 639-1 language code, e.g. en, ja."
     }
   }
 }

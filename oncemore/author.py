@@ -39,7 +39,21 @@ def button_command(project, action):
         return f"jump title {_title_number(project, target)};"
     if kind == "chapter":
         return f"jump title {_title_number(project, target)} chapter {num};"
+    if kind == "audio":
+        return f"audio = {num - 1};"
+    if kind == "subtitle":
+        # SPRM2: stream number in bits 0-5, bit 6 = display on
+        return "subtitle = 0;" if num == 0 else f"subtitle = {64 + num - 1};"
     return "exit;"
+
+
+def default_subtitle(project):
+    """0-based subtitle stream to show from the start, or None."""
+    for t in project.titles:
+        for j, sub in enumerate(t.subtitles):
+            if sub.default:
+                return j
+    return None
 
 
 def end_command(project, action):
@@ -55,10 +69,12 @@ def end_command(project, action):
 
 def first_play_command(project):
     kind, target, _ = parse_action(project.disc.first_play)
+    sub = default_subtitle(project)
+    pre = f"subtitle = {64 + sub}; " if sub is not None else ""
     if kind == "menu":
         n = _menu_number(project, target)
-        return f"{NAV_REG} = {n if n != 1 else 0}; jump titleset 1 menu entry root;"
-    return f"jump title {_title_number(project, target)};"
+        return f"{pre}{NAV_REG} = {n if n != 1 else 0}; jump titleset 1 menu entry root;"
+    return f"{pre}jump title {_title_number(project, target)};"
 
 
 def video_tag(disc):
@@ -66,10 +82,18 @@ def video_tag(disc):
     return f'<video format="{disc.standard.lower()}" aspect="{disc.aspect}"{ws}/>'
 
 
-def audio_tag(title):
-    if title.audio_codec == "lpcm":
-        return '<audio format="pcm" quant="16bps" samplerate="48khz" channels="2"/>'
-    return '<audio format="ac3" channels="2"/>'
+def audio_tags(project):
+    """One <audio> per stream index used by any title."""
+    codec = project.titles[0].audio_codec
+    base = ('format="pcm" quant="16bps" samplerate="48khz" channels="2"' if codec == "lpcm"
+            else 'format="ac3" channels="2"')
+    langs = project.audio_langs or [None]
+    return [f'<audio {base}' + (f' lang="{lang}"' if lang else "") + "/>" for lang in langs]
+
+
+def subpicture_tags(project):
+    return [f'<subpicture lang="{lang}"/>' if lang else "<subpicture/>"
+            for lang in project.subtitle_langs]
 
 
 def chapters_attr(chapters, fps):
@@ -103,7 +127,8 @@ def build_xml(project, menu_files, title_files, dest):
             x.append("        <post>jump cell 1;</post>")
             x.append("      </pgc>")
         x.append("    </menus>")
-    x += ["    <titles>", f"      {video_tag(disc)}", f"      {audio_tag(project.titles[0])}"]
+    x += ["    <titles>", f"      {video_tag(disc)}"]
+    x += [f"      {tag}" for tag in audio_tags(project) + subpicture_tags(project)]
     for t in project.titles:
         x.append("      <pgc>")
         x.append(f"        <vob file={quoteattr(title_files[t.id])} "

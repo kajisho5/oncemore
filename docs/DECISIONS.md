@@ -141,3 +141,40 @@ Three apply here and were acted on:
   SD BT.601 output this should be a no-op, but rather than rely on reasoning
   the E2E suite decodes a solid menu background and checks the colour, so the
   macOS job (Homebrew ffmpeg 9.x) measures it.
+
+## 15. The empty disc title with hdiutil images is libdvdnav's, not the ISO's
+
+macOS CI showed libdvdnav logging an empty "DVD Title" for hdiutil images.
+Reading the image back (`udfinfo.py`) shows the UDF Primary Volume Descriptor
+and the ISO 9660 descriptor both carry the label. libdvdnav's `dvd_read_name`
+(src/vm/vm.c) reads the title raw from sector 32, where physical DVDs and
+genisoimage place the UDF Main Volume Descriptor Sequence; hdiutil places it
+elsewhere. Only the title *metadata* in libdvdnav players is affected, so
+oncemore leaves hdiutil as the macOS default and documents it. `iso` still
+warns if the UDF volume name ever differs from the label.
+
+## 16. Subtitles are rendered by oncemore, not by spumux's text mode
+
+spumux can render text subtitles itself, but with its own font handling and
+no outline control. Drawing each cue with the same drawtext pipeline as the
+menus gives the same font (with the cmap coverage check, so Japanese never
+turns into boxes), a proper outline, and correct proportions on 16:9 discs.
+The RGBA result is reduced to transparent / fill / outline / anti-alias,
+cropped, and placed with spumux `xoffset`/`yoffset`. Cues are rendered in
+parallel (about 80 ms each).
+
+## 17. Stream defaults are disc-wide and set once at first play
+
+DVD subtitle/audio selection lives in SPRM 1/2, shared by every title. Setting
+it in each title's `<pre>` would override what the viewer picked in a setup
+menu, so a `"default": true` subtitle is switched on once in the first-play
+program instead. Stream languages are per titleset, hence per disc here, and
+`validate` rejects titles that disagree.
+
+## 18. Motion menus reuse the still-menu graph
+
+The menu drawing graph (background → thumbnails → drawtext → squeeze) is
+shared: for a still menu it renders one PNG which is then looped, for a motion
+menu the same graph runs over every frame of the video (converted to the disc
+frame rate, last frame held if `duration` is longer). Highlights are the same
+spumux subpicture, so navigation is unchanged.

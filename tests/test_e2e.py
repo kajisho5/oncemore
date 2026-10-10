@@ -278,5 +278,112 @@ class TestPalLpcmBuild(unittest.TestCase):
         self.assertIn("no menu 'nope'", err)
 
 
+@unittest.skipUnless(TOOLS_OK, SKIP_REASON)
+class TestTracksSubtitlesMotionMenu(unittest.TestCase):
+    """Two audio tracks, two subtitle languages (Japanese on by default),
+    stream-switch buttons and a motion menu, written as an ISO."""
+
+    SRT_JA = ("1\n00:00:01,000 --> 00:00:03,000\n日本語の字幕です\n\n"
+              "2\n00:00:04,000 --> 00:00:06,000\n二行目の\nテストです\n")
+    SRT_EN = "1\n00:00:01,500 --> 00:00:05,000\nDemo subtitle in English\n"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-e2e-tracks-")
+        media = os.path.join(cls.tmp, "proj", "media")
+        os.makedirs(media)
+
+        def ff(*args):
+            subprocess.run(["ffmpeg", "-v", "error", "-y"] + list(args), check=True)
+        ff("-f", "lavfi", "-i", "testsrc2=s=1280x720:r=30000/1001:d=8", "-f", "lavfi", "-i",
+           "sine=f=440:d=8", "-c:v", "mpeg4", "-c:a", "aac", "-shortest",
+           os.path.join(media, "main.mp4"))
+        ff("-f", "lavfi", "-i", "sine=f=880:d=6", "-c:a", "pcm_s16le",
+           os.path.join(media, "commentary.wav"))
+        ff("-f", "lavfi", "-i", "mandelbrot=s=640x360:r=25", "-t", "3", "-c:v", "mpeg4",
+           os.path.join(media, "loop.mp4"))
+        for name, text in (("ja.srt", cls.SRT_JA), ("en.srt", cls.SRT_EN)):
+            with open(os.path.join(media, name), "w", encoding="utf-8") as f:
+                f.write(text)
+        project = {
+            "version": 1,
+            "disc": {"label": "SAMPLE_TRACKS", "standard": "NTSC", "aspect": "16:9"},
+            "titles": [{"id": "t1", "name": "Sample Tracks", "source": "media/main.mp4",
+                        "audio_tracks": [{"lang": "ja"},
+                                         {"source": "media/commentary.wav", "lang": "en"}],
+                        "subtitles": [{"file": "media/ja.srt", "lang": "ja", "default": True},
+                                      {"file": "media/en.srt", "lang": "en"}]}],
+            "menus": [{"id": "main", "background_video": "media/loop.mp4",
+                       "texts": [{"text": "サンプル", "x": 100, "y": 40, "size": 40}],
+                       "buttons": [
+                           {"id": "play", "label": "PLAY", "x": 100, "y": 120,
+                            "action": "title:t1"},
+                           {"id": "a2", "label": "COMMENTARY", "x": 100, "y": 180,
+                            "action": "audio:2"},
+                           {"id": "s2", "label": "ENGLISH SUBTITLES", "x": 100, "y": 240,
+                            "action": "subtitle:2"},
+                           {"id": "off", "label": "SUBTITLES OFF", "x": 100, "y": 300,
+                            "action": "subtitle:off"}]}],
+        }
+        cls.project = os.path.join(cls.tmp, "proj", "project.oncemore.json")
+        with open(cls.project, "w", encoding="utf-8") as f:
+            json.dump(project, f, ensure_ascii=False)
+        cls.iso = os.path.join(cls.tmp, "tracks.iso")
+        rc, out, err = run_cli("--json", "iso", cls.project, "-o", cls.iso, "--fast",
+                               cwd=cls.tmp)
+        assert rc == 0, err + out
+        cls.result = json_lines(out)[-1]
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def test_title_streams(self):
+        vob = iso_extract(self.iso, "/VIDEO_TS/VTS_01_1.VOB", os.path.join(self.tmp, "t.vob"))
+        codecs = [s["codec_name"] for s in ffprobe_streams(vob)]
+        self.assertEqual(codecs.count("ac3"), 2)
+        self.assertEqual(codecs.count("dvd_subtitle"), 2)
+        t = self.result["titles"][0]
+        self.assertEqual([a["lang"] for a in t["audio_tracks"]], ["ja", "en"])
+        self.assertEqual([s["cues"] for s in t["subtitles"]], [2, 1])
+        self.assertEqual(t["audio_bps"], 2 * 192_000)
+
+    def test_motion_menu_moves(self):
+        vob = iso_extract(self.iso, "/VIDEO_TS/VTS_01_0.VOB", os.path.join(self.tmp, "m.vob"))
+        frames = []
+        for n in (0, 45):
+            p = subprocess.run(["ffmpeg", "-v", "error", "-i", vob, "-vf",
+                                f"select=eq(n\\,{n}),scale=64:36,format=gray",
+                                "-frames:v", "1", "-f", "rawvideo", "pipe:1"],
+                               capture_output=True, check=True)
+            frames.append(p.stdout)
+        diff = sum(abs(a - b) for a, b in zip(*frames)) / len(frames[0])
+        self.assertGreater(diff, 2.0, "menu background did not change between frames")
+
+    @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
+    def test_stream_selection(self):
+        with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
+            self.assertEqual(d.wait_menu(), 1)
+            self.assertEqual(d.button_count(), 4)
+            d.activate(1)
+            self.assertEqual(d.wait_title(), (1, 1))
+            self.assertEqual([d.audio_lang(0), d.audio_lang(1)], ["ja", "en"])
+            self.assertEqual([d.subtitle_lang(0), d.subtitle_lang(1)], ["ja", "en"])
+            self.assertEqual(d.active_audio(), 0)
+            self.assertEqual(d.active_subtitle(), (0, True))     # Japanese, on by default
+            self.assertEqual(d.play_to_end_of_title(), ("menu", 1))
+            d.activate(2)                                         # COMMENTARY
+            d.activate(3)                                         # ENGLISH SUBTITLES
+            d.activate(1)
+            d.wait_title()
+            self.assertEqual(d.active_audio(), 1)
+            self.assertEqual(d.active_subtitle(), (1, True))
+            d.play_to_end_of_title()
+            d.activate(4)                                         # SUBTITLES OFF
+            d.activate(1)
+            d.wait_title()
+            self.assertFalse(d.active_subtitle()[1])
+
+
 if __name__ == "__main__":
     unittest.main()

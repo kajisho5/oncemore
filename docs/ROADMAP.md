@@ -21,11 +21,20 @@ one-click "Make ISO".
 
 ## Phase 3 — richer discs
 
-* Subtitles: SRT → spumux subpictures, several languages
-* Multiple audio tracks (languages, commentary), 5.1 AC-3 pass-through
-* Video backgrounds and motion menus, menu transitions
+Done:
+
+* Subtitles: SRT → 4-colour subpictures via spumux, several languages, default-on track
+* Multiple audio tracks with language tags (other files or other streams)
+* Menu buttons that switch audio / subtitle streams (`audio:<n>`, `subtitle:<n|off>`)
+* Motion menus (video background, its sound or separate music)
+
+Still to do:
+
+* 5.1 AC-3 pass-through (today everything is down-mixed to stereo)
+* Menu transitions, animated buttons
 * Several titlesets (mixed aspect ratios / audio formats on one disc)
 * "Play all" playlists and resume-aware returns
+* Per-cue subtitle position/colour, ASS input
 
 ## Phase 4 — web version
 

@@ -156,13 +156,16 @@ def normalize_label(label):
 
 
 def parse_action(s):
-    """'menu:x' -> ('menu', 'x', None); 'chapter:t:2' -> ('chapter', 't', 2); 'stop'."""
+    """'menu:x' -> ('menu', 'x', None); 'chapter:t:2' -> ('chapter', 't', 2); 'stop';
+    'audio:2' -> ('audio', None, 2); 'subtitle:off' -> ('subtitle', None, 0)."""
     if s == "stop":
         return ("stop", None, None)
     kind, _, rest = s.partition(":")
     if kind == "chapter":
         tid, _, n = rest.rpartition(":")
         return ("chapter", tid, int(n))
+    if kind in ("audio", "subtitle"):
+        return (kind, None, 0 if rest == "off" else int(rest))
     return (kind, rest, None)
 
 
@@ -179,6 +182,7 @@ class Disc:
     first_play: str
     font: str = None
     video_bitrate: int = None  # None = auto
+    subtitle_style: dict = None
 
     @property
     def width(self):
@@ -203,6 +207,20 @@ class Disc:
 
 
 @dataclass
+class AudioTrack:
+    source: str          # file to take the audio from (default: the title source)
+    stream: int = 0      # index among that file's audio streams
+    lang: str = None     # ISO 639-1 code
+
+
+@dataclass
+class SubtitleTrack:
+    file: str
+    lang: str = None
+    default: bool = False
+
+
+@dataclass
 class Title:
     id: str
     name: str
@@ -212,11 +230,18 @@ class Title:
     audio_bitrate: int = 192_000
     end_action: str = "stop"
     number: int = 0  # 1-based title number on the disc
+    audio_tracks: list = field(default_factory=list)
+    subtitles: list = field(default_factory=list)
+
+    @property
+    def track_bps(self):
+        # LPCM 48 kHz / 16 bit / stereo
+        return 1_536_000 if self.audio_codec == "lpcm" else self.audio_bitrate
 
     @property
     def audio_bps(self):
-        # LPCM 48 kHz / 16 bit / stereo
-        return 1_536_000 if self.audio_codec == "lpcm" else self.audio_bitrate
+        """All audio tracks together."""
+        return self.track_bps * max(1, len(self.audio_tracks))
 
 
 @dataclass
@@ -264,6 +289,7 @@ class Menu:
     buttons: list
     generated: bool = False
     number: int = 0  # 1-based menu PGC number inside the titleset
+    background_video: str = None
 
 
 @dataclass
@@ -284,6 +310,26 @@ class Project:
     @property
     def root_menu(self):
         return self.menus[0] if self.menus else None
+
+    @property
+    def audio_langs(self):
+        """Language of each audio stream index across the titleset."""
+        return _stream_langs([t.audio_tracks for t in self.titles])
+
+    @property
+    def subtitle_langs(self):
+        return _stream_langs([t.subtitles for t in self.titles])
+
+
+def _stream_langs(per_title):
+    out = []
+    for tracks in per_title:
+        for i, tr in enumerate(tracks):
+            if i >= len(out):
+                out.append(tr.lang)
+            elif out[i] is None:
+                out[i] = tr.lang
+    return out
 
 
 # --------------------------------------------------------------------------
@@ -366,6 +412,11 @@ class _Builder:
             font=self.file("disc.font", dd["font"]) if dd.get("font") else None,
             video_bitrate=None if vb == "auto" else parse_bitrate(vb),
         )
+        k = STANDARDS[disc.standard][1] / 480
+        style = {"size": round(30 * k), "color": "#FFFFFF", "outline": "#000000",
+                 "outline_width": 3, "margin": round(36 * k)}
+        style.update(dd.get("subtitle_style", {}))
+        disc.subtitle_style = style
         if disc.video_bitrate is not None and not 1_000_000 <= disc.video_bitrate <= 8_000_000:
             self.err("disc.video_bitrate", "must be between 1M and 8M")
 
@@ -443,12 +494,30 @@ class _Builder:
             self.err(f"{where}.audio.bitrate", "AC-3 bitrate must be between 64k and 448k")
         if codec == "lpcm" and "bitrate" in audio:
             self.warnings.append(f"{where}.audio.bitrate is ignored for lpcm (fixed 1536k)")
-        return Title(
-            id=t["id"], name=t.get("name", t["id"]),
-            source=self.file(f"{where}.source", t["source"]),
+        source = self.file(f"{where}.source", t["source"])
+        if "audio_tracks" in t:
+            tracks = [AudioTrack(
+                source=self.file(f"{where}.audio_tracks[{j}].source", a["source"])
+                if a.get("source") else source,
+                stream=a.get("stream", 0), lang=a.get("lang"))
+                for j, a in enumerate(t["audio_tracks"])]
+        else:
+            tracks = [AudioTrack(source=source, stream=0, lang=audio.get("lang"))]
+        subs = [SubtitleTrack(file=self.file(f"{where}.subtitles[{j}].file", sub["file"]),
+                              lang=sub.get("lang"), default=bool(sub.get("default")))
+                for j, sub in enumerate(t.get("subtitles", []))]
+        if sum(1 for sub in subs if sub.default) > 1:
+            self.err(f"{where}.subtitles", "only one subtitle track can be the default")
+        title = Title(
+            id=t["id"], name=t.get("name", t["id"]), source=source,
             chapters=chapters, audio_codec=codec, audio_bitrate=bitrate,
-            end_action=t.get("end_action", "stop"),
+            end_action=t.get("end_action", "stop"), audio_tracks=tracks, subtitles=subs,
         )
+        if title.audio_bps > 8_800_000:
+            self.err(f"{where}.audio_tracks",
+                     f"{len(tracks)} {codec} tracks need {title.audio_bps / 1e6:.2f} Mbit/s; "
+                     "DVD allows 9.8 Mbit/s in total and video needs at least 1")
+        return title
 
     def menu(self, i, m, disc):
         where = f"menus[{i}]"
@@ -474,6 +543,7 @@ class _Builder:
                     self.err(f"{where}.buttons[{j}].nav.{k}", f"no button {v!r} in this menu")
         return Menu(
             id=m["id"],
+            background_video=self.file(f"{where}.background_video", m.get("background_video")),
             background=self.file(f"{where}.background", m.get("background")),
             background_color=m.get("background_color", "#000000"),
             audio=self.file(f"{where}.audio", m.get("audio")),
@@ -547,6 +617,12 @@ class _Builder:
             kind, target, num = parse_action(action)
             if kind == "menu" and project.menu(target) is None:
                 self.err(where, f"no menu with id {target!r}")
+            elif kind == "audio" and num > len(project.audio_langs):
+                self.err(where, f"no audio stream {num} (titles have "
+                                f"{len(project.audio_langs)})")
+            elif kind == "subtitle" and num > len(project.subtitle_langs):
+                self.err(where, f"no subtitle stream {num} (titles have "
+                                f"{len(project.subtitle_langs)})")
             elif kind in ("title", "chapter"):
                 t = project.title(target)
                 if t is None:
@@ -565,6 +641,14 @@ class _Builder:
                 else f"menu {m.id!r}"
             for j, b in enumerate(m.buttons):
                 check(f"{where}.buttons[{j}].action", b.action)
+        for kind, attr in (("audio", "audio_tracks"), ("subtitle", "subtitles")):
+            seen = {}
+            for i, t in enumerate(project.titles):
+                for j, tr in enumerate(getattr(t, attr)):
+                    if tr.lang and seen.setdefault(j, tr.lang) != tr.lang:
+                        self.err(f"titles[{i}].{attr}[{j}].lang",
+                                 f"{kind} stream {j + 1} is {seen[j]!r} in another title; "
+                                 "stream languages are shared by all titles on the disc")
         codecs = {t.audio_codec for t in project.titles}
         if len(codecs) > 1:
             self.err("titles", "all titles must use the same audio codec in this version "

@@ -4,9 +4,9 @@ import json
 import os
 import shutil
 
-from . import author, encode, iso, tools
+from . import author, encode, iso, subtitles, tools
 from .errors import OncemoreError, ProjectError
-from .menu import MenuBuilder
+from .menu import MenuBuilder, display_width, find_font, link_font, menu_seconds, menu_text
 
 
 def inspect(project, reporter=None):
@@ -14,46 +14,70 @@ def inspect(project, reporter=None):
     tools.require(["ffprobe"])
     issues = []
     infos = {}
+    probes = {}
+    cues = {}
+    warnings = []
+
+    def probe(path):
+        if path not in probes:
+            probes[path] = encode.probe(path)
+        return probes[path]
+
     for i, t in enumerate(project.titles):
-        info = encode.probe(t.source)
+        info = probe(t.source)
         infos[t.id] = info
         where = f"titles[{i}]"
+        for j, tr in enumerate(t.audio_tracks):
+            have = probe(tr.source).get("audio_streams", 0)
+            if tr.stream >= have and not (tr.source == t.source and tr.stream == 0):
+                issues.append({"path": f"{where}.audio_tracks[{j}]",
+                               "message": f"{os.path.basename(tr.source)} has {have} audio "
+                                          f"stream(s); stream {tr.stream} does not exist"})
+        for j, sub in enumerate(t.subtitles):
+            cues[(t.id, j)] = subtitles.load_srt(sub.file)
+            if not cues[(t.id, j)]:
+                warnings.append(f"{where}.subtitles[{j}]: {os.path.basename(sub.file)} has no cues")
         if not info.get("has_video"):
             issues.append({"path": f"{where}.source", "message": "no video stream"})
             continue
         if not info.get("duration"):
             issues.append({"path": f"{where}.source", "message": "cannot determine duration"})
             continue
+        for j in range(len(t.subtitles)):
+            late = [c for c in cues[(t.id, j)] if c.start >= info["duration"]]
+            if late:
+                warnings.append(f"{where}.subtitles[{j}]: {len(late)} cue(s) start after the "
+                                "end of the video and will not show")
         for j, c in enumerate(t.chapters):
             if c >= info["duration"]:
                 issues.append({"path": f"{where}.chapters[{j}]",
                                "message": f"chapter at {c:.3f}s is beyond the end "
                                           f"({info['duration']:.3f}s)"})
-    menu_files = []
     for i, m in enumerate(project.menus):
-        for what, path in (("background", m.background), ("audio", m.audio)):
-            if path:
-                info = encode.probe(path)
-                if what == "audio" and not info.get("has_audio"):
-                    issues.append({"path": f"menu {m.id!r}.audio", "message": "no audio stream"})
-                menu_files.append(path)
+        for what, path in (("background", m.background), ("audio", m.audio),
+                           ("background_video", m.background_video)):
+            if not path:
+                continue
+            info = probe(path)
+            if what == "audio" and not info.get("has_audio"):
+                issues.append({"path": f"menu {m.id!r}.audio", "message": "no audio stream"})
+            if what == "background_video" and not (info.get("has_video") and info.get("duration")):
+                issues.append({"path": f"menu {m.id!r}.background_video",
+                               "message": "not a video with a known duration"})
     if issues:
         raise ProjectError("media check failed", issues)
-    menu_seconds = 0.0
-    for m in project.menus:
-        if m.duration:
-            menu_seconds += m.duration
-        elif m.audio:
-            menu_seconds += min(encode.probe(m.audio).get("duration") or 5.0, 600.0)
-        else:
-            menu_seconds += 5.0
+    menu_total = sum(menu_seconds(m, probe) for m in project.menus)
     font = None
-    if project.menus:
-        from .menu import find_font, menu_text
-        font = find_font(project.disc.font, menu_text(project))
+    text = menu_text(project) + "".join("".join(line for c in cs for line in c.lines)
+                                        for cs in cues.values())
+    if project.menus or cues:
+        font = find_font(project.disc.font, text)
     plan = encode.plan_bitrate([(infos[t.id]["duration"], t.audio_bps) for t in project.titles],
-                               project.disc.capacity, menu_seconds, project.disc.video_bitrate)
+                               project.disc.capacity, menu_total, project.disc.video_bitrate)
     plan["font"] = font
+    plan["warnings"] = warnings + plan["warnings"]
+    plan["_probes"] = probes
+    plan["_cues"] = cues
     return infos, plan
 
 
@@ -67,7 +91,12 @@ def summary(project, infos, plan):
                     "input": f"{infos[t.id]['width']}x{infos[t.id]['height']}"
                              f"@{float(infos[t.id]['fps'] or 0):.3f}",
                     "chapters": t.chapters, "audio": t.audio_codec,
-                    "audio_bps": t.audio_bps, "end_action": t.end_action}
+                    "audio_bps": t.audio_bps, "end_action": t.end_action,
+                    "audio_tracks": [{"source": a.source, "stream": a.stream, "lang": a.lang}
+                                     for a in t.audio_tracks],
+                    "subtitles": [{"file": u.file, "lang": u.lang, "default": u.default,
+                                   "cues": len(plan.get("_cues", {}).get((t.id, j), []))}
+                                  for j, u in enumerate(t.subtitles)]}
                    for t in project.titles],
         "menus": [{"id": m.id, "number": m.number, "generated": m.generated,
                    "buttons": [{"id": b.id, "label": b.label, "action": b.action}
@@ -82,9 +111,27 @@ def summary(project, infos, plan):
     }
 
 
+def add_subtitles(project, title, mpg, plan, work, reporter):
+    """Render the title's SRT tracks and mux them in as subpicture streams."""
+    subdir = os.path.join(work, "subs", title.id)
+    os.makedirs(subdir, exist_ok=True)
+    renderer = subtitles.SubtitleRenderer(project.disc, subdir, link_font(plan["font"], subdir),
+                                          display_width(project.disc),
+                                          project.disc.subtitle_style)
+    xmls = []
+    for j, sub in enumerate(title.subtitles):
+        cues = plan["_cues"][(title.id, j)]
+        reporter.step("subtitles", f"Rendering {len(cues)} subtitle(s) for '{title.id}' "
+                      f"(stream {j + 1}{', ' + sub.lang if sub.lang else ''})", item=title.id)
+        xmls.append(renderer.stream_xml(cues, sub.lang or "xx", j))
+    return subtitles.mux_streams(mpg, xmls, subdir, project.disc.standard,
+                                 os.path.join(work, "logs", f"spumux-{title.id}"))
+
+
 def build(project, out_dir, reporter, fast=False, keep_work=False, work=None):
     """Author VIDEO_TS into out_dir. Returns a result dict."""
-    tools.require(list(tools.REQUIRED), need_drawtext=bool(project.menus))
+    tools.require(list(tools.REQUIRED),
+                  need_drawtext=bool(project.menus) or any(t.subtitles for t in project.titles))
     out_dir = os.path.abspath(out_dir)
     work = work or os.path.join(out_dir, ".work")
     os.makedirs(work, exist_ok=True)
@@ -100,7 +147,7 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None):
 
     menu_files = {}
     if project.menus:
-        mb = MenuBuilder(project, work, reporter)
+        mb = MenuBuilder(project, work, reporter, font=plan["font"])
         reporter.info(f"    menu font: {mb.font() and mb.font_source}")
         for m in project.menus:
             reporter.step("menu", f"Rendering menu '{m.id}'", item=m.id)
@@ -115,7 +162,10 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None):
                       f"{'1-pass' if fast else '2-pass'})", item=t.id)
         out = os.path.join(work, "titles", f"{t.id}.mpg")
         encode.encode_title(t, infos[t.id], project.disc, vbps, out, work, two_pass=not fast,
-                            on_progress=lambda f, tid=t.id: reporter.progress("encode", f, tid))
+                            on_progress=lambda f, tid=t.id: reporter.progress("encode", f, tid),
+                            probes=plan["_probes"])
+        if t.subtitles:
+            out = add_subtitles(project, t, out, plan, work, reporter)
         title_files[t.id] = out
 
     reporter.step("author", "Authoring VIDEO_TS (dvdauthor)")

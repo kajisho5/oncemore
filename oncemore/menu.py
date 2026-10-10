@@ -166,6 +166,32 @@ def drawtext_probe():
     return {"ok": True, "font": font}
 
 
+def link_font(src, directory):
+    """Make `src` available as font.<ext> inside `directory`; return that name."""
+    ext = os.path.splitext(src)[1].lower() or ".ttf"
+    link = os.path.join(directory, "font" + ext)
+    if os.path.lexists(link):
+        os.remove(link)
+    try:
+        os.symlink(src, link)
+    except OSError:
+        shutil.copyfile(src, link)
+    return os.path.basename(link)
+
+
+def menu_seconds(menu, probe):
+    """Loop length of a menu: explicit, else the video / music length (1-600 s),
+    else 5 s. `probe` is a callable path -> probe dict."""
+    if menu.duration:
+        return float(menu.duration)
+    for path in (menu.background_video, menu.audio):
+        if path:
+            d = probe(path).get("duration")
+            if d:
+                return min(max(d, 1.0), 600.0)
+    return 5.0
+
+
 def menu_text(project):
     """All text drawn on the project's menus."""
     parts = []
@@ -207,8 +233,9 @@ def _hex(color):
 
 
 class MenuBuilder:
-    def __init__(self, project, work, reporter=None):
+    def __init__(self, project, work, reporter=None, font=None):
         self.project = project
+        self.font_path = font
         self.disc = project.disc
         self.work = os.path.join(work, "menus")
         self.logs = os.path.join(work, "logs")
@@ -225,7 +252,7 @@ class MenuBuilder:
         """Font copied/linked into the work dir under an ASCII name, so the
         filter graph never has to escape spaces or Japanese characters."""
         if self._font_link is None:
-            src = find_font(self.disc.font, menu_text(self.project))
+            src = self.font_path or find_font(self.disc.font, menu_text(self.project))
             ext = os.path.splitext(src)[1].lower() or ".ttf"
             link = os.path.join(self.work, "font" + ext)
             if os.path.lexists(link):
@@ -344,11 +371,25 @@ class MenuBuilder:
             out.append((path, round(t.x * self.sx), t.y))
         return out
 
-    def render_base(self, menu):
-        """menu background + thumbnails + text -> <id>.base.png (720 x H)."""
+    def compose(self, menu):
+        """ffmpeg inputs + filter_complex drawing the menu, ending in [out].
+
+        Input 0 is the background: a still image, a colour, or (motion menu)
+        a video converted to the disc frame rate. Thumbnails are single
+        images; overlay keeps showing their last frame, so the same graph
+        works for one frame or a whole video.
+        """
         H = self.disc.height
         inputs = []
-        if menu.background:
+        if menu.background_video:
+            num, den = self.disc.fps
+            inputs += ["-i", menu.background_video]
+            # tpad: hold the last frame if `duration` is longer than the video
+            bg = (f"[0:v]fps={num}/{den},tpad=stop=-1:stop_mode=clone,"
+                  f"scale={self.dw}:{H}:force_original_aspect_ratio=decrease,"
+                  f"pad={self.dw}:{H}:(ow-iw)/2:(oh-ih)/2:color={_hex(menu.background_color)},"
+                  f"setsar=1,format=rgb24")
+        elif menu.background:
             inputs += ["-i", menu.background]
             bg = (f"[0:v]scale={self.dw}:{H}:force_original_aspect_ratio=decrease,"
                   f"pad={self.dw}:{H}:(ow-iw)/2:(oh-ih)/2:color={_hex(menu.background_color)},"
@@ -370,9 +411,14 @@ class MenuBuilder:
             tf = self._textfile(f"{menu.id}.{b.id}.label.txt", b.label)
             draws.append(self._drawtext(tf, b.x, b.y, b.size, b.color))
         chains.append(f"[{cur}]" + ",".join(draws + [self._squeeze()]) + "[out]")
+        return inputs, ";".join(chains)
+
+    def render_base(self, menu):
+        """First frame of the menu -> <id>.base.png (720 x H)."""
+        inputs, graph = self.compose(menu)
         out = os.path.join(self.work, f"{menu.id}.base.png")
         tools.run([self.ffmpeg, "-hide_banner", "-nostdin", "-y"] + inputs +
-                  ["-filter_complex", ";".join(chains), "-map", "[out]", "-frames:v", "1",
+                  ["-filter_complex", graph, "-map", "[out]", "-frames:v", "1",
                    "-update", "1", out],
                   cwd=self.work, log=os.path.join(self.logs, f"menu-{menu.id}-base.log"),
                   what=f"ffmpeg (menu {menu.id} background)")
@@ -406,31 +452,36 @@ class MenuBuilder:
         return path
 
     def menu_duration(self, menu):
-        if menu.duration:
-            return float(menu.duration)
-        if menu.audio:
-            d = self._probe(menu.audio).get("duration")
-            if d:
-                return min(max(d, 1.0), 600.0)
-        return 5.0
+        return menu_seconds(menu, self._probe)
 
     def encode(self, menu, assets, on_progress=None):
         """Encode the still menu (looping length) and mux the button subpicture."""
         dur = self.menu_duration(menu)
         num, den = self.disc.fps
         target = "ntsc-dvd" if self.disc.standard == "NTSC" else "pal-dvd"
-        args = ["-loop", "1", "-framerate", f"{num}/{den}", "-t", f"{dur:.3f}",
-                "-i", os.path.basename(assets.base_png)]
-        if menu.audio:
-            args += ["-t", f"{dur:.3f}", "-i", menu.audio]
-        else:
-            args += ["-f", "lavfi", "-t", f"{dur:.3f}", "-i",
-                     "anullsrc=channel_layout=stereo:sample_rate=48000"]
         a, b = self.disc.aspect.split(":")
-        args += ["-map", "0:v:0", "-map", "1:a:0",
-                 "-vf", f"scale=out_color_matrix=bt601:out_range=tv,format=yuv420p,setdar={a}/{b}",
+        finish = f"scale=out_color_matrix=bt601:out_range=tv,format=yuv420p,setdar={a}/{b}"
+        if menu.background_video:
+            # motion menu: draw the menu onto every frame of the video
+            inputs, graph = self.compose(menu)
+            args = inputs
+            n = len([x for x in inputs if x == "-i"])
+            graph = graph.replace("[out]", "[menu]") + f";[menu]{finish}[v]"
+            vmap, vbps = "[v]", encode.MOTION_MENU_VIDEO_BPS
+        else:
+            args = ["-loop", "1", "-framerate", f"{num}/{den}", "-t", f"{dur:.3f}",
+                    "-i", os.path.basename(assets.base_png)]
+            n, graph, vmap, vbps = 1, f"[0:v]{finish}[v]", "[v]", encode.MENU_VIDEO_BPS
+        if menu.audio:
+            args += ["-i", menu.audio]
+            graph += f";[{n}:a:0]aresample=48000,apad[a]"
+        elif menu.background_video and self._probe(menu.background_video).get("has_audio"):
+            graph += ";[0:a:0]aresample=48000,apad[a]"
+        else:
+            graph += ";anullsrc=channel_layout=stereo:sample_rate=48000[a]"
+        args += ["-filter_complex", graph, "-map", vmap, "-map", "[a]",
                  "-target", target, "-aspect", self.disc.aspect,
-                 "-b:v", str(encode.MENU_VIDEO_BPS), "-maxrate", "8000000", "-bufsize", "1835008"]
+                 "-b:v", str(vbps), "-maxrate", "8000000", "-bufsize", "1835008"]
         args += encode._color_args(self.disc)
         args += encode.audio_args("ac3", 192_000) + ["-t", f"{dur:.3f}"]
         raw = os.path.join(self.work, f"{menu.id}.raw.mpg")
