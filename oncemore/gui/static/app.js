@@ -947,7 +947,7 @@ async function renderFlow(m) {
   m.innerHTML = `<div class="card"><h2>${t("flowchart")}</h2><div id="flow" class="flow"><span class="hint">…</span></div><div id="flow-notes"></div></div>`;
   let r;
   try { r = await api("/api/graph", { method: "POST", body: { project: S.project } }); }
-  catch (e) { $("#flow").innerHTML = `<div class="hint">${esc(e.message)}</div>`; return; }
+  catch (e) { const f = $("#flow"); if (f) f.innerHTML = `<div class="hint">${esc(e.message)}</div>`; return; }
   if (S.sel.view !== "flow") return;
   const { nodes, edges } = r.graph;
   const W = 170, H = 46, CW = 230, RH = 70, PAD = 20;
@@ -2182,14 +2182,33 @@ const editing = () => (["title", "menu", "playlist"].includes(S.sel.view) && (P(
 function deleteItem(kind, id) {
   const x = (P()[LISTS[kind]] || []).find((y) => y.id === id);
   if (!x || !confirm(t("confirm_delete", { x: x.name || x.id }))) return;
+  // what pointed at it (and at a title's generated chapter menus) stops instead
+  const gone = new Set([`${kind}:${id}`, ...(kind === "title" ? generatedMenus().filter((g) => g.title === id).map((g) => `menu:${g.id}`) : [])]);
   commit((p) => {
     p[LISTS[kind]] = p[LISTS[kind]].filter((y) => y.id !== id);
-    if (kind === "playlist") {
-      if (!p.playlists.length) delete p.playlists;
-      for (const mm of p.menus || []) for (const b of mm.buttons || []) if (b.action === `playlist:${id}`) b.action = "stop";
-    }
+    if (kind === "playlist" && !p.playlists.length) delete p.playlists;
+    dropRefs(p, gone, kind === "title" ? id : null);
   });
   select("disc");
+}
+function dropRefs(p, gone, titleId) {
+  const dead = (a) => !!a && (gone.has(a) || (titleId && a.startsWith(`chapter:${titleId}:`)));
+  if (dead(p.disc.first_play)) delete p.disc.first_play;
+  if (dead(p.disc.title_key)) delete p.disc.title_key;
+  for (const ti of p.titles || []) {
+    if (dead(ti.end_action)) ti.end_action = "stop";
+    if (ti.auto_chapter_menu && typeof ti.auto_chapter_menu === "object" && dead(ti.auto_chapter_menu.back)) delete ti.auto_chapter_menu.back;
+  }
+  for (const m of p.menus || []) {
+    for (const b of m.buttons || []) if (dead(b.action)) b.action = "stop";
+    if (dead(m.end_action)) m.end_action = "stop";
+  }
+  for (const pl of p.playlists || []) {
+    if (dead(pl.end_action)) pl.end_action = "stop";
+    if (titleId) pl.items = pl.items.filter((it) => it !== titleId && !it.startsWith(titleId + ":"));
+  }
+  if (p.playlists) p.playlists = p.playlists.filter((pl) => pl.items.length);
+  if (p.playlists && !p.playlists.length) delete p.playlists;
 }
 function duplicateItem(kind, id) {
   const list = P()[LISTS[kind]] || [], i = list.findIndex((y) => y.id === id);

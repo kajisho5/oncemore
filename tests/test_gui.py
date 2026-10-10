@@ -481,6 +481,9 @@ class TestGuiBrowser(unittest.TestCase):
             page.click(".nav-item[data-view=title][data-id=t2_copy1]", button="right")
             page.click(".popup button.danger:has-text('Delete')")
             self.poll(lambda: len(self.project()["titles"]) == 2)
+            # nothing points at the deleted title any more
+            self.assertNotIn("first_play", self.project()["disc"])
+            self.assertTrue(self.s.app.check(self.project())["valid"])
             page.click(".nav-item[data-view=title][data-id=t1]", button="right")
             self.assertTrue(page.locator(".popup button:has-text('Move up')").is_disabled())
             page.keyboard.press("Escape")
