@@ -26,41 +26,47 @@ _CANDIDATES = ("libbluray.so.2", "libbluray.so", "libbluray.2.dylib", "libbluray
 u8, u16, u32, u64 = ctypes.c_uint8, ctypes.c_uint16, ctypes.c_uint32, ctypes.c_uint64
 
 
-class StreamInfo(ctypes.Structure):
-    _fields_ = [("coding_type", u8), ("format", u8), ("rate", u8), ("char_code", u8),
-                ("lang", ctypes.c_char * 4), ("pid", u16), ("aspect", u8), ("subpath_id", u8)]
+def structs(v15):
+    """The title-info structs; libbluray 1.5 added fields to several of them."""
 
+    class StreamInfo(ctypes.Structure):
+        _fields_ = [("coding_type", u8), ("format", u8), ("rate", u8), ("char_code", u8),
+                    ("lang", ctypes.c_char * 4), ("pid", u16), ("aspect", u8),
+                    ("subpath_id", u8)] + \
+            ([("dynamic_range_type", u8), ("color_space", u8), ("cr_flag", u8),
+              ("hdr_plus_flag", u8)] if v15 else [])
 
-class ClipInfo(ctypes.Structure):
-    _fields_ = [("pkt_count", u32), ("still_mode", u8), ("still_time", u16),
-                ("video_stream_count", u8), ("audio_stream_count", u8),
-                ("pg_stream_count", u8), ("ig_stream_count", u8),
-                ("sec_audio_stream_count", u8), ("sec_video_stream_count", u8),
-                ("video_streams", ctypes.POINTER(StreamInfo)),
-                ("audio_streams", ctypes.POINTER(StreamInfo)),
-                ("pg_streams", ctypes.POINTER(StreamInfo)),
-                ("ig_streams", ctypes.POINTER(StreamInfo)),
-                ("sec_audio_streams", ctypes.POINTER(StreamInfo)),
-                ("sec_video_streams", ctypes.POINTER(StreamInfo)),
-                ("start_time", u64), ("in_time", u64), ("out_time", u64),
-                ("clip_id", ctypes.c_char * 6)]
+    SP = ctypes.POINTER(StreamInfo)
 
+    class ClipInfo(ctypes.Structure):
+        _fields_ = [("pkt_count", u32), ("still_mode", u8), ("still_time", u16),
+                    ("video_stream_count", u8), ("audio_stream_count", u8),
+                    ("pg_stream_count", u8), ("ig_stream_count", u8),
+                    ("sec_audio_stream_count", u8), ("sec_video_stream_count", u8)] + \
+            ([("dv_stream_count", u8)] if v15 else []) + \
+            [("video_streams", SP), ("audio_streams", SP), ("pg_streams", SP),
+             ("ig_streams", SP), ("sec_audio_streams", SP), ("sec_video_streams", SP)] + \
+            ([("dv_streams", SP)] if v15 else []) + \
+            [("start_time", u64), ("in_time", u64), ("out_time", u64),
+             ("clip_id", ctypes.c_char * 6)]
 
-class Chapter(ctypes.Structure):
-    _fields_ = [("idx", u32), ("start", u64), ("duration", u64), ("offset", u64),
-                ("clip_ref", ctypes.c_uint)]
+    class Chapter(ctypes.Structure):
+        _fields_ = [("idx", u32), ("start", u64), ("duration", u64), ("offset", u64),
+                    ("clip_ref", ctypes.c_uint)] + \
+            ([("chapter_name", ctypes.c_char_p)] if v15 else [])
 
+    class Mark(ctypes.Structure):
+        _fields_ = [("idx", u32), ("type", ctypes.c_int), ("start", u64), ("duration", u64),
+                    ("offset", u64), ("clip_ref", ctypes.c_uint)]
 
-class Mark(ctypes.Structure):
-    _fields_ = [("idx", u32), ("type", ctypes.c_int), ("start", u64), ("duration", u64),
-                ("offset", u64), ("clip_ref", ctypes.c_uint)]
+    class TitleInfo(ctypes.Structure):
+        _fields_ = [("idx", u32), ("playlist", u32), ("duration", u64), ("clip_count", u32),
+                    ("angle_count", u8), ("chapter_count", u32), ("mark_count", u32),
+                    ("clips", ctypes.POINTER(ClipInfo)), ("chapters", ctypes.POINTER(Chapter)),
+                    ("marks", ctypes.POINTER(Mark)), ("mvc_base_view_r_flag", u8)] + \
+            ([("sdr_conversion_notification_flag", u8)] if v15 else [])
 
-
-class TitleInfo(ctypes.Structure):
-    _fields_ = [("idx", u32), ("playlist", u32), ("duration", u64), ("clip_count", u32),
-                ("angle_count", u8), ("chapter_count", u32), ("mark_count", u32),
-                ("clips", ctypes.POINTER(ClipInfo)), ("chapters", ctypes.POINTER(Chapter)),
-                ("marks", ctypes.POINTER(Mark)), ("mvc_base_view_r_flag", u8)]
+    return TitleInfo
 
 
 class Title(ctypes.Structure):
@@ -91,6 +97,9 @@ def load_library():
         except OSError:
             continue
         P = ctypes.c_void_p
+        version = [ctypes.c_int() for _ in range(3)]
+        lib.bd_get_version(*(ctypes.byref(v) for v in version))
+        TitleInfo = structs(tuple(v.value for v in version) >= (1, 5, 0))
         lib.bd_open.restype, lib.bd_open.argtypes = P, [ctypes.c_char_p, ctypes.c_char_p]
         lib.bd_close.argtypes = [P]
         lib.bd_get_disc_info.restype = ctypes.POINTER(DiscInfo)
