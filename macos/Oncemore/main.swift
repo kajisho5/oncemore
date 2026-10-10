@@ -346,6 +346,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
             cmd("Replace Asset…", "replace_asset"),
             .separator(),
             cmd("Project Settings…", "project_settings"),
+            cmd("Revert to a Saved Version…", "revert_backup"),
             .separator(),
             cmd("Transcode This Title Now", "transcode_title"),
             cmd("Transcode All Titles Now", "transcode_all"),

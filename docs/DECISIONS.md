@@ -719,3 +719,13 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   of the same name, renaming otherwise) and turns links to things the
   project lacks into "stop", so the new menu is valid at once.
 
+## 46. Project backups
+
+* The app saves half a second after every edit, so a mistake is saved at
+  once; Undo covers the session, backups cover the rest. The server keeps
+  the file a save is about to replace, at most every five minutes, the last
+  30 (`.oncemore-backup/`, hidden from the media list), and never fails a
+  save because a backup could not be written.
+* Reverting happens in the page, as one more edit (Undo brings the current
+  project back), not on the server.
+

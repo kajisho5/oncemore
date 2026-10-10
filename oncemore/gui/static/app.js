@@ -163,6 +163,9 @@ const I18N = {
     cs_normal_hint: "Show the buttons' highlight shapes in this colour while they are not selected",
     cs_hint: "The colours of the buttons' highlight shapes: Normal (while not selected; optional), Highlight (selected) and Activated (pressed). A DVD player has 16 levels of opacity.",
     layer_hide: "Hide (not on the disc)", layer_show: "Show",
+    cmd_revert_backup: "Revert to a saved version…", revert: "Revert", no_backups: "No earlier versions yet.",
+    backups_hint: "oncemore keeps the project as it was before your changes, at most every {m} minutes (the last 30, in .oncemore-backup next to the project). Reverting is one more edit: Undo brings you back.",
+    backup_counts: "{t} titles, {m} menus", confirm_revert: "Replace the project with this version? (Undo brings the current one back.)",
     cmd_save_template: "Save menu as template…", cmd_chapter_index: "Create chapter index…", lib_my_templates: "My templates",
     utpl_use: "New menu from this template", utpl_none: "Menu > Save menu as template keeps a menu here, with its pictures, for every project.",
     utpl_hint: "The menu and copies of the files it uses (backgrounds, pictures, fonts, music) are kept in your template library, so any project can start a menu from it.",
@@ -330,6 +333,9 @@ const I18N = {
     cs_normal_hint: "選択されていないボタンのハイライト形状をこの色で表示します",
     cs_hint: "ボタンのハイライト形状の色：通常時（選択されていないとき・任意）、選択中、決定時。DVD プレーヤーの不透明度は 16 段階です。",
     layer_hide: "非表示にする（ディスクに入れない）", layer_show: "表示する",
+    cmd_revert_backup: "保存済みの版に戻す…", revert: "戻す", no_backups: "まだ以前の版はありません。",
+    backups_hint: "oncemore は変更前のプロジェクトを最大 {m} 分ごとに保存しています（直近 30 版、プロジェクトの隣の .oncemore-backup）。戻すのも 1 つの編集なので、取り消すで今の状態に戻れます。",
+    backup_counts: "タイトル {t}・メニュー {m}", confirm_revert: "プロジェクトをこの版に置き換えますか？（取り消すで今の状態に戻せます）",
     cmd_save_template: "メニューをテンプレートとして保存…", cmd_chapter_index: "チャプターインデックスを作成…", lib_my_templates: "マイテンプレート",
     utpl_use: "このテンプレートから新しいメニュー", utpl_none: "メニュー > メニューをテンプレートとして保存 で、画像ごとメニューをここに保存し、どのプロジェクトでも使えます。",
     utpl_hint: "メニューと、使っているファイル（背景・画像・フォント・BGM）のコピーをテンプレートライブラリに保存します。どのプロジェクトからでもこのメニューを元に作れます。",
@@ -3116,6 +3122,7 @@ const COMMANDS = {
   ws_flow: { key: "alt+shift+2", run: WS("flow"), when: hasProject },
   ws_sim: { key: "alt+shift+3", run: WS("sim"), when: hasProject },
   ws_build: { key: "alt+shift+4", run: WS("build"), when: hasProject },
+  revert_backup: { run: backupsBox, when: hasProject },
   save_template: { run: saveTemplateBox, when: () => S.sel.view === "menu" && !!curMenu() },
   chapter_index: { run: chapterIndexBox, when: () => hasProject() && (P().titles || []).length > 0 },
   chapters_interval: { run: chaptersAtIntervals, when: () => S.sel.view === "title" && !!curTitle() && !curTitle().slideshow && titleLength(curTitle()) > 0 },
@@ -3139,7 +3146,7 @@ const COMMANDS = {
 };
 // in the order disc authoring people know: File, Edit, Object, Menu, Timeline, View, Window, Help
 const MENUBAR = [
-  ["m_file", ["import_files", "import_psd", "replace_asset", "-", "project_settings", "-", "transcode_title", "transcode_all", "-", "preview", "check", "build", "-", "reveal"]],
+  ["m_file", ["import_files", "import_psd", "replace_asset", "-", "project_settings", "revert_backup", "-", "transcode_title", "transcode_all", "-", "preview", "check", "build", "-", "reveal"]],
   ["m_edit", ["undo", "redo", "-", "duplicate", "delete", "-", "edit_psd", "-", "preferences"]],
   ["m_object", ["align_left", "align_hcenter", "align_right", "align_top", "align_vcenter", "align_bottom", "-", "distribute_h", "distribute_v", "-", "bring_front", "send_back", "-", "convert"]],
   ["m_menu", ["new_menu", "chapter_index", "-", "save_template", "-", "set_link", "-", "tool_select", "tool_text", "tool_zoom"]],
@@ -3149,6 +3156,31 @@ const MENUBAR = [
     "win_properties", "win_layers", "win_library", "-", "theme", "language"]],
   ["m_help", ["shortcuts", "about"]],
 ];
+// File > Revert to a saved version: the server keeps the project file as it
+// was before a save, every few minutes (.oncemore-backup/); going back is one
+// more edit, so Undo returns to where you were
+async function backupsBox() {
+  let r;
+  try { r = await api("/api/backups"); } catch (e) { alert(e.message); return; }
+  const when = (s) => new Date(s * 1000).toLocaleString(LANG === "ja" ? "ja-JP" : "en-GB", { dateStyle: "medium", timeStyle: "short" });
+  openModal(`<h2>${t("cmd_revert_backup")}</h2><div class="hint">${esc(t("backups_hint", { m: Math.round(r.every / 60) }))}</div>
+    ${r.backups.length ? `<table class="shortcuts backups">${r.backups.map((b) => `<tr><td>${esc(when(b.time))}</td>
+      <td class="hint">${esc(t("backup_counts", { t: b.titles, m: b.menus }))}</td><td class="mono">${esc(fmtBytes(b.bytes))}</td>
+      <td><button class="small" data-backup="${esc(b.name)}">${t("revert")}</button></td></tr>`).join("")}</table>`
+      : `<p class="hint">${esc(t("no_backups"))}</p>`}`);
+  document.querySelectorAll("[data-backup]").forEach((b) => (b.onclick = async () => {
+    if (!confirm(t("confirm_revert"))) return;
+    try {
+      const { project } = await api("/api/backup?" + new URLSearchParams({ name: b.dataset.backup }));
+      S.undo.push(JSON.stringify(S.project)); S.redo = [];
+      S.project = project; S.preview = null; S.probes = {};
+      closeModal(); scheduleSave();
+      const first = P().menus?.[0];
+      select(first ? "menu" : "disc", first?.id);
+      refreshEncodeStatus();
+    } catch (err) { alert(err.message); }
+  }));
+}
 // Menu > Save menu as template: the menu and copies of its files go to the
 // template library (for every project); the Library lists them
 function saveTemplateBox() {

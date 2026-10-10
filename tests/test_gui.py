@@ -90,6 +90,33 @@ class TestGuiApi(unittest.TestCase):
         self.assertEqual(self.s.call("/api/file?path=project.oncemore.json")[0], 403)
         self.assertEqual(self.s.call("/", token=False)[0], 200)            # static page
 
+    def test_backups(self):
+        app = self.s.app
+        self.assertEqual(self.s.call("/api/backups")[1]["backups"], [])
+        self.s.call("/api/new", "POST", {"label": "first"})
+        with open(app.path) as f:
+            data = json.load(f)
+        app.save(dict(data, disc=dict(data["disc"], label="SECOND")))     # keeps "first"
+        app.save(dict(data, disc=dict(data["disc"], label="THIRD")))      # too soon: no new one
+        names = [b["name"] for b in self.s.call("/api/backups")[1]["backups"]]
+        self.assertEqual(len(names), 1)
+        status, r = self.s.call("/api/backup?name=" + names[0])
+        self.assertEqual((status, r["project"]["disc"]["label"]), (200, "first"))
+        for bad in ("../project.oncemore.json", "x.json", ""):
+            self.assertEqual(self.s.call("/api/backup?name=" + bad)[0], 400, bad)
+        # only the newest are kept
+        backups = os.path.join(self.dir, ".oncemore-backup")
+        for k in range(5):
+            with open(os.path.join(backups, f"project-20200101-00000{k}.json"), "w") as f:
+                json.dump(data, f)
+            os.utime(os.path.join(backups, f"project-20200101-00000{k}.json"), (1e9 + k, 1e9 + k))
+        app.BACKUP_KEEP = 3
+        self.assertIsNotNone(app.backup(force=True))
+        self.assertEqual(len(os.listdir(backups)), 3)
+        self.assertNotIn("project-20200101-000000.json", os.listdir(backups))
+        # the media list does not show them
+        self.assertFalse(any(m["path"].startswith(".oncemore-backup") for m in app.media()))
+
     def test_open_and_stat(self):
         os.makedirs(os.path.join(self.dir, "media"))
         path = os.path.join(self.dir, "media", "menu.psd")
@@ -1329,6 +1356,18 @@ class TestGuiBrowser(unittest.TestCase):
             page.evaluate("window.oncemoreCommand('win_build')")
             page.locator("#sidebar #start").wait_for()
             page.evaluate("window.oncemoreCommand('win_project')")
+            # File > Revert to a saved version: the oldest is the project before these
+            # edits (the missing file is back); Undo returns to the current one
+            page.evaluate("window.oncemoreCommand('revert_backup')")
+            page.locator("[data-backup]").first.wait_for()
+            page.on("dialog", lambda d: d.accept())
+            page.locator("[data-backup]").last.click()
+            self.poll(lambda: self.project()["titles"][1]["source"] == "media/gone.mp4")
+            page.locator("#modal").wait_for(state="hidden")
+            page.click(".nav-item[data-view=menu][data-id=main]")
+            page.keyboard.press("Control+z")
+            self.poll(lambda: self.project()["titles"][1]["source"] == "media/sample_b.mp4")
+            self.wait_saved(page)
             # the colour set: a 50% highlight, then a normal colour (40% white by default)
             page.click(".nav-item[data-view=menu][data-id=main]")
             page.locator("#inspector [data-cs-a=highlight_color]").wait_for(timeout=60000)
