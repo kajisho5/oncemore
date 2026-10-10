@@ -627,3 +627,25 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   slideshows that were not rendered yet count as not transcoded.
 * The transcode uses the same 1- / 2-pass choice as the build; a 2-pass
   build does not reuse a 1-pass transcode.
+
+## 41. Working the way disc authoring people work
+
+* The name says it: oncemore brings back the tool many Mac users authored
+  DVDs with. Its operating model was checked against that product's own
+  published help (panel layout, tools, viewer controls, linking, shortcuts),
+  and the app follows it where the model is a convention people know:
+  menu bar order, a tools strip with selection / text / zoom, a viewer bar
+  under the menu with safe area, routing and the normal / selected /
+  activated highlight views, red outlines for overlapping buttons, a pick
+  whip next to links, linking by dragging in the flowchart with unused items
+  in their own row, and the same keys (V T Z, `*` for a chapter, PgUp / PgDn,
+  ⇧Space preview, number keys and Home in preview, ⌘L, ⌥⇧ + number for
+  workspaces).
+* What is not taken: names, icons, artwork, screenshots, wording or files.
+  The look stays ours (docs/DESIGN.md); a test keeps product names out of the
+  app and the design docs.
+* Shortcuts that browsers keep (⌘1–9, ⌘T, ⌘W …) are avoided; single-key
+  shortcuts only act when no text field has the focus; ⇧Space is not a
+  native menu key equivalent so it never takes the key from text fields.
+* Overlapping buttons are still an error at build time; the editor asks the
+  layout to collect them instead, so they can be shown while you fix them.

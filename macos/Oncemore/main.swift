@@ -336,6 +336,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
             return item
         }
         func own(_ item: NSMenuItem) -> NSMenuItem { item.target = self; return item }
+        // the order disc authoring people know: File, Edit, Object, Menu, Timeline, Window, Help
         _ = add("File", [
             own(mi("New Project…", #selector(newProject(_:)), "n")),
             own(mi("Open Project…", #selector(openProject(_:)), "o")),
@@ -343,6 +344,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
             cmd("Import Files…", "import_files", "i"),
             cmd("Import Photoshop Design…", "import_psd"),
             .separator(),
+            cmd("Transcode This Title Now", "transcode_title"),
+            cmd("Transcode All Titles Now", "transcode_all"),
+            .separator(),
+            cmd("Preview", "preview"),        // (⇧Space in the page; not here, it would take the key from text fields)
             cmd("Check Project", "check"),
             cmd("Build Disc…", "build", "b"),
             .separator(),
@@ -363,30 +368,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
             cmd("Duplicate", "duplicate", "d"),
             cmd("Delete", "delete"),
         ])
-        _ = add("Disc", [
-            cmd("New Slideshow", "new_slideshow"),
+        _ = add("Object", [
+            cmd("Align Left Edges", "align_left"),
+            cmd("Align Horizontal Centres", "align_hcenter"),
+            cmd("Align Right Edges", "align_right"),
+            cmd("Align Top Edges", "align_top"),
+            cmd("Align Vertical Centres", "align_vcenter"),
+            cmd("Align Bottom Edges", "align_bottom"),
+            .separator(),
+            cmd("Distribute Horizontally", "distribute_h"),
+            cmd("Distribute Vertically", "distribute_v"),
+            .separator(),
+            cmd("Bring to Front", "bring_front", "]", [.command, .shift]),
+            cmd("Send to Back", "send_back", "[", [.command, .shift]),
+            .separator(),
+            cmd("Convert Text ⇄ Button", "convert"),
+        ])
+        _ = add("Menu", [
             cmd("New Menu…", "new_menu"),
+            .separator(),
+            cmd("Set Link…", "set_link", "l"),
+            cmd("Show Button Routing", "routing"),
+            cmd("Show Safe Area", "safe_area"),
+            .separator(),
+            cmd("Selection Tool", "tool_select"),
+            cmd("Text Tool", "tool_text"),
+            cmd("Zoom Tool", "tool_zoom"),
+        ])
+        _ = add("Timeline", [
+            cmd("New Title from a Video…", "new_timeline"),
+            cmd("New Slideshow", "new_slideshow"),
             cmd("New Playlist", "new_playlist"),
             .separator(),
             cmd("Add Chapter at Playhead", "add_chapter"),
+            cmd("Previous Chapter", "prev_chapter"),
+            cmd("Next Chapter", "next_chapter"),
             cmd("Play / Pause", "play"),
-            .separator(),
-            cmd("Transcode This Title Now", "transcode_title"),
-            cmd("Transcode All Titles Now", "transcode_all"),
         ])
-        _ = add("View", [
-            cmd("Author", "ws_author", "1", .option),
-            cmd("Flowchart", "ws_flow", "2", .option),
-            cmd("Preview (Remote Control)", "ws_sim", "3", .option),
-            cmd("Build", "ws_build", "4", .option),
+        let windowMenu = add("Window", [
+            cmd("Author", "ws_author", "1", [.option, .shift]),
+            cmd("Flowchart", "ws_flow", "2", [.option, .shift]),
+            cmd("Preview (Remote Control)", "ws_sim", "3", [.option, .shift]),
+            cmd("Build", "ws_build", "4", [.option, .shift]),
             .separator(),
             cmd("Light / Dark Theme", "theme"),
             cmd("English / 日本語", "language"),
-            .separator(),
             own(mi("Reload", #selector(reloadPage(_:)), "r")),
             mi("Enter Full Screen", #selector(NSWindow.toggleFullScreen(_:)), "f", [.command, .control]),
-        ])
-        let windowMenu = add("Window", [
+            .separator(),
             mi("Minimize", #selector(NSWindow.performMiniaturize(_:)), "m"),
             mi("Zoom", #selector(NSWindow.performZoom(_:)), ""),
         ])

@@ -612,7 +612,12 @@ class Handler(BaseHTTPRequestHandler):
             clips.apply_all(project, encode.probe)       # chapters of titles made of clips
         except OncemoreError:
             pass
-        self.json({"graph": graph.build(project), "notes": graph.check(project)})
+        g = graph.build(project)
+        seen = graph.reachable(g)
+        # (unused elements go to the bottom of the flowchart)
+        unused = [n["id"] for n in g["nodes"] if n["kind"] in ("menu", "title", "playlist")
+                  and n["id"] not in seen]
+        self.json({"graph": g, "notes": graph.check(project), "unused": unused})
 
     def _sim_menu(self, project, menu, images=False):
         """Layout (and with `images`, the picture without highlights plus one
@@ -631,9 +636,11 @@ class Handler(BaseHTTPRequestHandler):
         work = tempfile.mkdtemp(prefix="oncemore-sim-")
         try:
             mb = MenuBuilder(project, work)
-            geoms = mb.layout(menu)
+            overlaps = []
+            geoms = mb.layout(menu, overlaps)
             out = {"buttons": [{"id": g.id, "rect": list(g.rect), "nav": g.nav, "auto": g.auto,
                                 "action": g.action} for g in geoms],
+                   "overlaps": overlaps,
                    "size": [mb.dw, project.disc.height],
                    "storage": [project.disc.width, project.disc.height]}
             if images:
@@ -673,6 +680,9 @@ class Handler(BaseHTTPRequestHandler):
         state = body.get("state")
         if not state:
             state = sim.start()
+            if body.get("from_menu"):            # preview from the menu being edited
+                state["log"] = []
+                sim.enter_menu(state, body["from_menu"])
         elif body.get("key"):
             try:
                 sim.press(state, body["key"])
@@ -811,7 +821,7 @@ class Handler(BaseHTTPRequestHandler):
             out = os.path.join(work, "preview.png")
             res = MenuBuilder(project, work).preview(
                 menu, out, button=body.get("button"), state=body.get("state", "highlight"),
-                outline=bool(body.get("outline")))
+                outline=bool(body.get("outline")), every=bool(body.get("every")))
             with open(out, "rb") as f:
                 res["image"] = "data:image/png;base64," + base64.b64encode(f.read()).decode()
         finally:

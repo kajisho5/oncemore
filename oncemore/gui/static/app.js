@@ -52,6 +52,19 @@ const I18N = {
     link_hint: "Drag a title, menu or playlist from the project panel onto a button to link it, or onto the menu to add a button for it.",
     cmd_transcode_title: "Transcode this title now", cmd_transcode_all: "Transcode all titles now",
     transcoding: "Transcoding", transcoded: "Transcoded: the build will reuse it", not_transcoded: "Not transcoded yet (encoded when the disc is built)",
+    m_object: "Object", m_menu: "Menu", m_timeline: "Timeline", m_window: "Window",
+    cmd_preview: "Preview", cmd_set_link: "Set link…", cmd_routing: "Show button routing", cmd_safe_area: "Show safe area",
+    cmd_tool_select: "Selection tool", cmd_tool_text: "Text tool", cmd_tool_zoom: "Zoom tool", cmd_zoom_in: "Zoom in", cmd_zoom_out: "Zoom out",
+    cmd_align_left: "Align left edges", cmd_align_hcenter: "Align horizontal centres", cmd_align_right: "Align right edges",
+    cmd_align_top: "Align top edges", cmd_align_vcenter: "Align vertical centres", cmd_align_bottom: "Align bottom edges",
+    cmd_distribute_h: "Distribute horizontally", cmd_distribute_v: "Distribute vertically", cmd_bring_front: "Bring to front", cmd_send_back: "Send to back",
+    cmd_convert: "Convert text ⇄ button", cmd_new_timeline: "New title from a video…", cmd_prev_chapter: "Previous chapter", cmd_next_chapter: "Next chapter",
+    new_timeline_hint: "Choose the video the title plays.", tools: "Tools", tool_select: "Selection", tool_text: "Text: click where the text goes", tool_zoom: "Zoom: click to zoom in, Alt-click to zoom out",
+    zoom_fit: "Fit", zoom_hint: "Zoom (+ / −)", safe_hint: "Action-safe and title-safe areas: TVs may cut off the edges",
+    subpictures: "Highlights:", subpictures_hint: "Show every button as it looks when not selected, selected or activated (the exact disc picture)",
+    sp_normal: "Normal", sp_selected: "Selected", sp_activated: "Activated", overlap_hint: "This button's area overlaps another button: the remote may not reach one of them",
+    whip_hint: "Drag to a title, menu or playlist (project panel or flowchart) to link it", flow_link_hint: "Drag from an item to another to link it: first play, end actions, a button of a menu.",
+    pick_button: "Which button links there?", unused: "Not used",
     m_file: "File", m_edit: "Edit", m_disc: "Disc", m_view: "View", m_help: "Help",
     cmd_import_files: "Import files…", cmd_import_psd: "Import Photoshop design…", cmd_check: "Check project",
     cmd_build: "Build disc…", cmd_reveal: "Show project folder", cmd_undo: "Undo", cmd_redo: "Redo",
@@ -175,6 +188,19 @@ const I18N = {
     link_hint: "プロジェクトパネルのタイトル・メニュー・プレイリストをボタンにドラッグするとリンク、メニューの空いた所にドラッグするとそのボタンを追加します。",
     cmd_transcode_title: "このタイトルを今すぐトランスコード", cmd_transcode_all: "すべてのタイトルを今すぐトランスコード",
     transcoding: "トランスコード中", transcoded: "トランスコード済み（書き出し時に再利用）", not_transcoded: "未トランスコード（書き出し時にエンコード）",
+    m_object: "オブジェクト", m_menu: "メニュー", m_timeline: "タイムライン", m_window: "ウィンドウ",
+    cmd_preview: "プレビュー", cmd_set_link: "リンクを設定…", cmd_routing: "ボタンのルーティングを表示", cmd_safe_area: "セーフエリアを表示",
+    cmd_tool_select: "選択ツール", cmd_tool_text: "テキストツール", cmd_tool_zoom: "ズームツール", cmd_zoom_in: "ズームイン", cmd_zoom_out: "ズームアウト",
+    cmd_align_left: "左端揃え", cmd_align_hcenter: "左右中央揃え", cmd_align_right: "右端揃え",
+    cmd_align_top: "上端揃え", cmd_align_vcenter: "上下中央揃え", cmd_align_bottom: "下端揃え",
+    cmd_distribute_h: "左右に等間隔", cmd_distribute_v: "上下に等間隔", cmd_bring_front: "最前面へ", cmd_send_back: "最背面へ",
+    cmd_convert: "テキスト ⇄ ボタンに変換", cmd_new_timeline: "動画から新規タイトル…", cmd_prev_chapter: "前のチャプター", cmd_next_chapter: "次のチャプター",
+    new_timeline_hint: "タイトルで再生する動画を選んでください。", tools: "ツール", tool_select: "選択", tool_text: "テキスト：置きたい場所をクリック", tool_zoom: "ズーム：クリックで拡大、Alt+クリックで縮小",
+    zoom_fit: "全体", zoom_hint: "表示倍率（+ / −）", safe_hint: "アクションセーフ／タイトルセーフ：テレビでは端が切れることがあります",
+    subpictures: "ハイライト：", subpictures_hint: "全ボタンを通常・選択中・決定時の見え方で表示（ディスクと同じ画）",
+    sp_normal: "通常", sp_selected: "選択中", sp_activated: "決定時", overlap_hint: "このボタンの範囲が他のボタンと重なっています：リモコンでどちらかに移れないことがあります",
+    whip_hint: "タイトル・メニュー・プレイリスト（プロジェクトパネルかフローチャート）までドラッグしてリンク", flow_link_hint: "項目から別の項目へドラッグしてリンク：最初の再生、終了時の動作、メニューのボタン。",
+    pick_button: "どのボタンからリンクしますか？", unused: "未使用",
     m_file: "ファイル", m_edit: "編集", m_disc: "ディスク", m_view: "表示", m_help: "ヘルプ",
     cmd_import_files: "ファイルを読み込む…", cmd_import_psd: "Photoshop デザインを読み込む…", cmd_check: "プロジェクトをチェック",
     cmd_build: "ディスクを書き出す…", cmd_reveal: "プロジェクトのフォルダを表示", cmd_undo: "取り消す", cmd_redo: "やり直す",
@@ -705,7 +731,7 @@ function renderDisc(m) {
       <label class="field"><span>${t("target")}</span>${selectHtml("target", [["DVD5", "DVD-5 (4.7 GB)"], ["DVD9", "DVD-9 (8.5 GB)"]], d.target || "DVD5")}</label>
       <label class="field"><span>${t("video_bitrate")}</span>${selectHtml("video_bitrate", [["auto", t("auto")], ["4M", "4 Mbit/s"], ["5M", "5 Mbit/s"], ["6M", "6 Mbit/s"], ["7M", "7 Mbit/s"], ["8M", "8 Mbit/s"]], d.video_bitrate || "auto")}</label>
     </div>
-    <label class="field"><span>${t("first_play")}</span>${selectHtml("first_play", [["__none__", t("auto")], ...fp], d.first_play || "__none__")}</label>
+    <label class="field"><span>${t("first_play")} ${whipHtml("first_play")}</span>${selectHtml("first_play", [["__none__", t("auto")], ...fp], d.first_play || "__none__")}</label>
     <label class="field"><span>${t("title_key")}</span>${selectHtml("title_key", [["__none__", t("first_menu")], ...fp], d.title_key || "__none__")}</label>
     <label class="field" data-nobind><span>${t("rom_files")}</span><textarea id="rom-files" rows="3" placeholder="extras/">${esc((d.rom_files || []).join("\n"))}</textarea><div class="hint">${esc(t("rom_hint"))}</div></label>
   </div>`;
@@ -991,7 +1017,7 @@ function renderSlideshow(m, ti) {
 
 // ---------------------------------------------------------------- flowchart
 async function renderFlow(m) {
-  m.innerHTML = `<div class="card"><h2>${t("flowchart")}</h2><div id="flow" class="flow"><span class="hint">…</span></div><div id="flow-notes"></div></div>`;
+  m.innerHTML = `<div class="card"><h2>${t("flowchart")}</h2><div class="hint">${esc(t("flow_link_hint"))}</div><div id="flow" class="flow"><span class="hint">…</span></div><div id="flow-notes"></div></div>`;
   let r;
   try { r = await api("/api/graph", { method: "POST", body: { project: S.project } }); }
   catch (e) { const f = $("#flow"); if (f) f.innerHTML = `<div class="hint">${esc(e.message)}</div>`; return; }
@@ -999,9 +1025,15 @@ async function renderFlow(m) {
   const { nodes, edges } = r.graph;
   const W = 170, H = 46, CW = 230, RH = 70, PAD = 20;
   const pos = {};
-  nodes.forEach((n) => (pos[n.id] = { x: PAD + n.col * CW, y: PAD + n.row * RH }));
-  const width = PAD * 2 + (Math.max(...nodes.map((n) => n.col)) + 1) * CW;
-  const height = PAD * 2 + (Math.max(...nodes.map((n) => n.row)) + 1) * RH;
+  // items nothing leads to go in their own row at the bottom, as unused
+  const unused = new Set(r.unused || []);
+  const used = nodes.filter((n) => !unused.has(n.id));
+  used.forEach((n) => (pos[n.id] = { x: PAD + n.col * CW, y: PAD + n.row * RH }));
+  const usedRows = used.length ? Math.max(...used.map((n) => n.row)) + 1 : 0;
+  const spareY = PAD + usedRows * RH + (unused.size ? 40 : 0);
+  nodes.filter((n) => unused.has(n.id)).forEach((n, k) => (pos[n.id] = { x: PAD + k * CW, y: spareY }));
+  const width = PAD * 2 + Math.max(...used.map((n) => n.col + 1), unused.size, 1) * CW;
+  const height = (unused.size ? spareY + RH : PAD + usedRows * RH) + PAD;
   const level = {};
   r.notes.forEach((x) => { if (x.level === "warning" || !level[x.path]) level[x.path] = x.level; });
   const label = (n) => ({ first_play: t("fp"), title_key: t("title_key_node"), stop: t("stop_node"), playall: t("play_all") }[n.kind] || n.label);
@@ -1027,16 +1059,49 @@ async function renderFlow(m) {
   const svg = `<svg class="flow-svg" width="${width}" height="${height + 40}" viewBox="0 0 ${width} ${height + 40}">
     <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrowhead"/></marker></defs>
     ${edges.map((e, k) => `<path class="edge ${e.kind}" d="${path(e, k)}" marker-end="url(#arr)"><title>${esc(e.from)} → ${esc(e.to)}${e.label ? " (" + esc(e.label) + ")" : ""}</title></path>`).join("")}
-    ${nodes.map((n) => `<g class="node ${n.kind} ${level[n.id] || ""}" data-node="${esc(n.id)}" transform="translate(${pos[n.id].x},${pos[n.id].y})">
+    ${unused.size ? `<line class="unused-line" x1="${PAD}" x2="${width - PAD}" y1="${spareY - 26}" y2="${spareY - 26}"/><text class="unused-label" x="${PAD}" y="${spareY - 8}">${esc(t("unused"))}</text>` : ""}
+    ${nodes.map((n) => `<g class="node ${n.kind} ${level[n.id] || ""} ${unused.has(n.id) ? "unused" : ""}" data-node="${esc(n.id)}" transform="translate(${pos[n.id].x},${pos[n.id].y})">
       <rect width="${W}" height="${H}" rx="8"/><text x="10" y="19" class="nl">${esc(label(n).slice(0, 22))}</text><text x="10" y="35" class="ns">${esc(sub(n))}</text></g>`).join("")}
   </svg>`;
   $("#flow").innerHTML = svg;
   $("#flow-notes").innerHTML = r.notes.length ? `<ul class="issues">${r.notes.map((x) => `<li class="${x.level}"><span class="path" data-node="${esc(x.path)}">${esc(x.path)}</span> ${esc(x.message)}</li>`).join("")}</ul>` : `<div class="hint ok">✓ ${esc(t("nav_ok"))}</div>`;
-  m.querySelectorAll("[data-node]").forEach((g) => (g.onclick = () => {
-    const [kind, ...rest] = g.dataset.node.split(":"), id = rest.join(":");
+  const open = (node) => {
+    const [kind, ...rest] = node.split(":"), id = rest.join(":");
     if (kind === "menu" || kind === "title" || kind === "playlist") select(kind, id);
     else if (kind === "fp" || kind === "title_key") select("disc");
-  }));
+  };
+  m.querySelectorAll("#flow-notes [data-node]").forEach((g) => (g.onclick = () => open(g.dataset.node)));
+  // click opens an item; dragging from it to another item links them
+  m.querySelectorAll("#flow g.node[data-node]").forEach((g) => {
+    g.onpointerdown = (ev) => {
+      ev.preventDefault();                        // (no text selection while dragging)
+      const x0 = ev.clientX, y0 = ev.clientY, src = g.dataset.node;
+      const move = (e) => {
+        if (Math.hypot(e.clientX - x0, e.clientY - y0) < 6) return;
+        window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
+        startWhip(e, (action) => flowLink(src, action, e), g);
+      };
+      const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); open(src); };
+      window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+    };
+  });
+}
+
+// a link made in the flowchart: from first play, the Title key, a title's or
+// playlist's end, or a menu button (asked) to the dropped item
+function flowLink(src, action, ev) {
+  const [kind, ...rest] = src.split(":"), id = rest.join(":");
+  if (src === action) return;
+  if (kind === "fp") return commit((p) => { p.disc.first_play = action; });
+  if (kind === "title_key") return commit((p) => { p.disc.title_key = action; });
+  if (kind === "title") return commit((p) => { p.titles.find((x) => x.id === id).end_action = action; });
+  if (kind === "playlist") return commit((p) => { p.playlists.find((x) => x.id === id).end_action = action; });
+  if (kind === "menu") {
+    const menu = (P().menus || []).find((x) => x.id === id);
+    if (!menu || action === `menu:${id}`) return;
+    openPopup(ev.clientX, ev.clientY, [{ label: t("pick_button"), disabled: true, run: () => {} }, "-",
+      ...menu.buttons.map((b, i) => ({ label: `${i + 1}. ${b.label || b.id} → ${linkLabel(action)}`, run: () => commit((p) => { p.menus.find((x) => x.id === id).buttons[i].action = action; }) }))]);
+  }
 }
 
 // ---------------------------------------------------------------- disc simulator
@@ -1044,6 +1109,7 @@ const SIM_KEYS = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRig
 async function simCall(key) {
   const body = { project: S.project };
   if (key && S.sim) { body.state = S.sim.state; body.key = key; }
+  else if (S.simFrom) { body.from_menu = S.simFrom; S.simFrom = null; }
   try { S.sim = await api("/api/sim", { method: "POST", body }); S.simError = null; }
   catch (e) { S.simError = e.message; }
   if (S.sel.view === "sim") renderSimScreen();
@@ -1065,11 +1131,15 @@ async function renderSim(m) {
     <div class="sim-status" id="sim-status"></div></div>`;
   m.querySelectorAll("[data-key]").forEach((b) => (b.onclick = () => simCall(b.dataset.key)));
   $("#sim-restart").onclick = () => { S.sim = null; simCall(); };
-  $("#sim-screen").onkeydown = (e) => {
-    const k = SIM_KEYS[e.key] || SIM_KEYS[e.key.toLowerCase?.()];
+  $("#sim-screen").onkeydown = async (e) => {
+    // as on a player's remote: 1-9 press that button, Home the Title key,
+    // Insert the Menu key, End plays to the end
+    if (/^[1-9]$/.test(e.key) && S.sim?.state?.domain === "menu") { e.preventDefault(); await simCall("select:" + e.key); simCall("enter"); return; }
+    const k = { Home: "title", Insert: "menu", End: "end" }[e.key] || SIM_KEYS[e.key] || SIM_KEYS[e.key.toLowerCase?.()];
     if (k) { e.preventDefault(); simCall(k); }
   };
-  if (!S.sim || S.simProject !== JSON.stringify(S.project)) { S.simProject = JSON.stringify(S.project); S.sim = null; S.simMenus = {}; await simCall(); }
+  if (S.simFrom) { S.simProject = JSON.stringify(S.project); S.sim = null; S.simMenus = {}; await simCall(); }
+  else if (!S.sim || S.simProject !== JSON.stringify(S.project)) { S.simProject = JSON.stringify(S.project); S.sim = null; S.simMenus = {}; await simCall(); }
   else renderSimScreen();
   $("#sim-screen").focus();
 }
@@ -1126,7 +1196,7 @@ function renderTitleInspector(el) {
       : `<label class="field"><span>${t("source")}</span>${selectHtml("source", mediaOf("video").map((v) => [v, v]), ti.source)}</label>`}
     <label class="field"><span>${t("aspect")}</span>${selectHtml("aspect", [["__none__", `${t("auto")} (${P().disc.aspect})`], ["16:9", "16:9"], ["4:3", "4:3"]], ti.aspect || "__none__")}</label>
     <label class="field"><span>${t("scan")}</span>${selectHtml("scan", [["__none__", t("scan_auto")], ["progressive", t("scan_progressive")], ["interlaced", t("scan_interlaced")], ...(P().disc.standard === "NTSC" ? [["pulldown", t("scan_pulldown")]] : [])], ti.scan || "__none__")}<div class="hint">${esc(t("scan_hint"))}</div></label>
-    <label class="field"><span>${t("end_action")}</span>${selectHtml("end_action", [["__none__", t("auto")], ...ends], ti.end_action || "__none__")}</label>
+    <label class="field"><span>${t("end_action")} ${whipHtml("end_action")}</span>${selectHtml("end_action", [["__none__", t("auto")], ...ends], ti.end_action || "__none__")}</label>
     <label class="field"><span>${t("menu_key")}</span>${selectHtml("remote_menu", [["__none__", t("first_menu")], ...allMenuIds().map((id) => [id, t("menu_item", { m: id })])], ti.remote_menu || "__none__")}</label>
     <h3>${t("audio")}</h3>
     <div class="grid2">
@@ -1351,8 +1421,9 @@ function renderMenu(m) {
   const gen = generatedMenus().find((g) => g.id === S.sel.id);
   if (!menu && !gen) return select("disc");
   const H = discH(), DW = displayW();
-  const avail = Math.max(320, Math.min(m.clientWidth - 40, 1000));
-  const scale = avail / DW, sx = DW / 720;
+  const avail = Math.max(320, Math.min(m.clientWidth - 96, 1000));
+  // zoom: fit the viewer, or a fixed size (100% = the menu as a TV shows it)
+  const scale = S.menuZoom ? S.menuZoom : avail / DW, sx = DW / 720;
   const w = Math.round(DW * scale), h = Math.round(H * scale);
   if (gen) {
     const ti = P().titles.find((x) => x.id === gen.title);
@@ -1390,13 +1461,20 @@ function renderMenu(m) {
     if (sh.length) st += `text-shadow:${sh.join(",")};`;
     return st;
   };
-  m.innerHTML = `<div class="stage-tools">
-      <button id="add-btn">${t("add_button")}</button><button id="add-text">${t("add_text")}</button><button id="add-shape">${t("add_shape")}</button>
-      <label class="shrink" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="safe" ${S.showSafe ? "checked" : ""}> ${t("safe_area")}</label>
-      <label class="shrink" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="snap" ${S.snap === false ? "" : "checked"}> ${t("snap")}</label>
-      <label class="shrink" style="display:flex;gap:4px;align-items:center" title="${esc(t("routing_hint"))}"><input type="checkbox" id="routing" ${S.showRouting ? "checked" : ""}> ${t("routing")}</label>
-      <button id="exact" class="${S.preview ? "" : "primary"}">${S.preview ? t("hide_preview") : t("exact_preview")}</button>
+  const tool = S.tool || "select";
+  const zoomSel = selectHtml("zoom", [["fit", t("zoom_fit")], ["0.5", "50%"], ["1", "100%"], ["1.5", "150%"], ["2", "200%"], ["3", "300%"]], S.menuZoom ? String(S.menuZoom) : "fit", 'id="zoom" class="shrink" title="' + esc(t("zoom_hint")) + '"');
+  m.innerHTML = `<div class="menu-viewer">
+    <div class="tools" role="toolbar" aria-label="${esc(t("tools"))}">
+      <button data-tool="select" class="${tool === "select" ? "on" : ""}" title="${esc(t("tool_select"))} (V)">↖</button>
+      <button data-tool="text" id="add-text" class="${tool === "text" ? "on" : ""}" title="${esc(t("tool_text"))} (T)">T</button>
+      <button data-tool="zoom" class="${tool === "zoom" ? "on" : ""}" title="${esc(t("tool_zoom"))} (Z)">⌕</button>
+      <span class="sep"></span>
+      <button id="add-btn" title="${esc(t("add_button"))}">▭</button>
+      <button id="add-shape" title="${esc(t("add_shape"))}">■</button>
+      <span class="sep"></span>
+      <button id="tool-preview" title="${esc(t("cmd_preview"))} (⇧Space)">▶</button>
     </div>
+    <div class="viewer-main">
     ${S.sels.length > 1 ? `<div class="stage-tools align-tools">${t("align")}:
       ${[["left", "⇤"], ["hcenter", "↔"], ["right", "⇥"], ["top", "⤒"], ["vcenter", "↕"], ["bottom", "⤓"]].map(([k, i]) => `<button class="small" data-align="${k}" title="${esc(t("align_" + k))}">${i}</button>`).join("")}
       ${S.sels.length > 2 ? `<button class="small" data-distribute="h" title="${esc(t("distribute_h"))}">⇹</button><button class="small" data-distribute="v" title="${esc(t("distribute_v"))}">⇳</button>` : ""}
@@ -1412,8 +1490,18 @@ function renderMenu(m) {
             : esc(e.label)}</div>`).join("")}
       <div class="guide gx" hidden></div><div class="guide gy" hidden></div>
     </div></div>
-    <div class="hint" style="text-align:center;margin-top:8px">${w}×${h} · 720×${H} DVD px · ${esc(P().disc.aspect)} · ${esc(t("stage_keys"))}</div>
-    <div class="hint" style="text-align:center">${esc(t("link_hint"))}</div>`;
+    <div class="viewer-bar">
+      ${zoomSel}
+      <label title="${esc(t("safe_hint"))}"><input type="checkbox" id="safe" ${S.showSafe ? "checked" : ""}> ${t("safe_area")}</label>
+      <label title="${esc(t("routing_hint"))}"><input type="checkbox" id="routing" ${S.showRouting ? "checked" : ""}> ${t("routing")}</label>
+      <label><input type="checkbox" id="snap" ${S.snap === false ? "" : "checked"}> ${t("snap")}</label>
+      <span class="seg" title="${esc(t("subpictures_hint"))}"><span class="seg-label">${t("subpictures")}</span>${[["normal", "sp_normal"], ["highlight", "sp_selected"], ["select", "sp_activated"]].map(([k, l]) => `<button class="small ${S.spView === k ? "on" : ""}" data-sp="${k}">${t(l)}</button>`).join("")}</span>
+      <span class="spacer"></span>
+      <button id="exact" class="small ${S.preview && !S.spView ? "" : "primary"}">${S.preview && !S.spView ? t("hide_preview") : t("exact_preview")}</button>
+    </div>
+    <div class="hint" style="text-align:center;margin-top:6px">${w}×${h} · 720×${H} DVD px · ${esc(P().disc.aspect)} · ${esc(t("stage_keys"))}</div>
+    <div class="hint" style="text-align:center">${esc(t("link_hint"))}</div>
+    </div></div>`;
   const stage = $("#stage");
   const nodeOf = (k) => stage.querySelector(`.el[data-kind="${k.kind}"][data-i="${k.i}"]`);
   // element boxes on the 720-wide grid (texts measured from the page)
@@ -1488,7 +1576,28 @@ function renderMenu(m) {
       node.addEventListener("pointermove", move); node.addEventListener("pointerup", up);
     });
   });
-  stage.addEventListener("pointerdown", (ev) => { if (ev.target === stage || ev.target.classList.contains("bg")) { S.element = null; S.sels = []; renderMain(); renderInspector(); } });
+  stage.addEventListener("pointerdown", (ev) => {
+    const empty = ev.target === stage || ev.target.classList.contains("bg");
+    const r = stage.getBoundingClientRect();
+    const px = Math.round((ev.clientX - r.left) / scale / sx), py = Math.round((ev.clientY - r.top) / scale);
+    if ((S.tool || "select") === "zoom") {
+      const steps = [0.5, 1, 1.5, 2, 3], cur = S.menuZoom || scale;
+      S.menuZoom = ev.altKey ? (steps.filter((z) => z < cur - 0.01).pop() || 0.5) : (steps.find((z) => z > cur + 0.01) || 3);
+      renderMain();
+      return;
+    }
+    if (S.tool === "text" && empty) {
+      S.tool = "select";                    // one text per click, as with a text tool
+      commit((p) => {
+        const mm = p.menus.find((x) => x.id === menu.id);
+        (mm.texts = mm.texts || []).push({ text: "TEXT", x: Math.max(0, Math.min(700, px)), y: Math.max(0, Math.min(H - 20, py)) });
+        S.element = { kind: "text", i: mm.texts.length - 1 }; S.sels = [S.element];
+      });
+      setTimeout(() => { const f = $("#inspector [data-k=text]"); if (f) { f.focus(); f.select?.(); } }, 0);
+      return;
+    }
+    if (empty) { S.element = null; S.sels = []; renderMain(); renderInspector(); }
+  });
   // align / distribute the selection
   const arrange = (fn) => commit((p) => {
     const mm = p.menus.find((x) => x.id === menu.id);
@@ -1528,18 +1637,25 @@ function renderMenu(m) {
     mm.buttons.push({ id, label: "BUTTON", x: last ? last.x : 80, y: last ? Math.min(H - 40, last.y + 60) : 200, action: "stop" });
     S.element = { kind: "button", i: mm.buttons.length - 1 }; S.sels = [S.element];
   });
-  $("#add-text").onclick = () => commit((p) => {
-    const mm = p.menus.find((x) => x.id === menu.id);
-    (mm.texts = mm.texts || []).push({ text: "TEXT", x: 80, y: 40 });
-    S.element = { kind: "text", i: mm.texts.length - 1 }; S.sels = [S.element];
-  });
+  m.querySelectorAll("[data-tool]").forEach((b) => (b.onclick = () => setTool(b.dataset.tool)));
+  $("#tool-preview").onclick = () => runCommand("preview");
+  $("#zoom").onchange = (e) => { S.menuZoom = e.target.value === "fit" ? null : Number(e.target.value); renderMain(); };
+  m.querySelectorAll("[data-sp]").forEach((b) => (b.onclick = () => {
+    if (S.spView === b.dataset.sp) { S.spView = null; S.preview = null; renderMain(); return; }
+    S.spView = b.dataset.sp; S.preview = null;
+    requestPreview(menu.id, null, false, { every: true, state: b.dataset.sp });
+    renderMain();
+  }));
   $("#add-shape").onclick = () => commit((p) => {
     const mm = p.menus.find((x) => x.id === menu.id);
     (mm.shapes = mm.shapes || []).push({ x: 60, y: Math.round(H * 0.7), w: 600, h: 60, color: "#00000080" });
     S.element = { kind: "shape", i: mm.shapes.length - 1 }; S.sels = [S.element];
   });
-  $("#exact").onclick = () => { if (S.preview) { S.preview = null; renderMain(); } else requestPreview(menu.id, S.element && S.element.kind === "button" ? menu.buttons[S.element.i].id : null); };
+  $("#exact").onclick = () => { S.spView = null; if (S.preview) { S.preview = null; renderMain(); } else requestPreview(menu.id, S.element && S.element.kind === "button" ? menu.buttons[S.element.i].id : null); };
   if (S.preview && S.previewFor === menu.id) drawPreview();
+  stage.classList.toggle("tool-text", tool === "text");
+  stage.classList.toggle("tool-zoom", tool === "zoom");
+  checkOverlaps(stage, menu, scale, sx);
 }
 // keyboard editing on the menu stage: arrows nudge (Shift: 10 px), Delete,
 // Cmd/Ctrl+D duplicate, Cmd/Ctrl+C / V copy and paste
@@ -1626,11 +1742,11 @@ function cssColor(c) {
   const n = parseInt(m[1], 16), a = m[2] ? parseInt(m[2], 16) / 255 : 1;
   return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a.toFixed(3)})`;
 }
-async function requestPreview(menuId, button, generated = false) {
+async function requestPreview(menuId, button, generated = false, opts = null) {
   const stage = $("#stage");
   if (stage) stage.style.opacity = 0.6;
   try {
-    const r = await api("/api/preview", { method: "POST", body: { project: S.project, menu: menuId, button, outline: true } });
+    const r = await api("/api/preview", { method: "POST", body: { project: S.project, menu: menuId, button, ...(opts || { outline: true }) } });
     S.preview = r; S.previewFor = menuId;
     drawPreview(generated);
   } catch (e) {
@@ -1644,7 +1760,7 @@ function drawPreview() {
   const img = document.createElement("img");
   img.className = "exact"; img.src = S.preview.image; img.alt = "";
   stage.appendChild(img);
-  const ex = $("#exact"); if (ex) { ex.textContent = t("hide_preview"); ex.classList.remove("primary"); }
+  const ex = $("#exact"); if (ex && !S.spView) { ex.textContent = t("hide_preview"); ex.classList.remove("primary"); }
 }
 
 function renderMenuInspector(el) {
@@ -1690,7 +1806,7 @@ function renderMenuInspector(el) {
     const isImage = sel.kind === "button" && it.image;
     el.innerHTML = `<h2>${sel.kind === "button" ? t("button") : t("text")}</h2>
       ${sel.kind === "button" ? `<label class="field"><span>${t("text")}</span><input data-k="label" value="${esc(it.label)}"></label>
-        <label class="field"><span>${t("action")}</span>${selectHtml("action", actionOptions(), it.action)}</label>
+        <label class="field"><span>${t("action")} ${whipHtml("action")}</span>${selectHtml("action", actionOptions(), it.action)}</label>
         <label class="field"><span></span><label><input type="checkbox" data-k="auto_activate" ${it.auto_activate ? "checked" : ""}> ${t("auto_activate")}</label></label>
         <label class="field" data-nobind><span>${t("image")}</span>${selectHtml("image", [["__none__", t("none")], ...mediaOf("image").map((x) => [x, x])], it.image || "__none__")}
           <div class="hint">${esc(t("image_hint"))}</div></label>`
@@ -2225,6 +2341,118 @@ async function boot() {
   S.sel = first ? { view: "menu", id: first.id } : { view: "disc" };
   renderAll();
 }
+// ---------------------------------------------------------------- tools (menu viewer)
+// Selection (V) selects and moves, Text (T) places a text where you click,
+// Zoom (Z) zooms in (Alt / Option: out).
+function setTool(tool) {
+  S.tool = tool;
+  if (S.sel.view === "menu") renderMain();
+}
+// buttons whose areas overlap cannot both be reached reliably: outlined in red
+// (areas measured by the server exactly as the build lays them out)
+async function checkOverlaps(stage, menu, scale, sx) {
+  S.routing = S.routing || {};
+  const k = JSON.stringify([menu, P().disc.standard, P().disc.aspect]);
+  clearTimeout(S.overlapTimer);
+  S.overlapTimer = setTimeout(async () => {
+    if (!S.routing[k]) {
+      try { S.routing[k] = await api("/api/routing", { method: "POST", body: { project: S.project, menu: menu.id } }); }
+      catch (e) { return; }
+    }
+    if (!document.body.contains(stage)) return;
+    stage.querySelectorAll(".overlap").forEach((n) => n.remove());
+    const b = S.routing[k].buttons;
+    const hit = new Set();
+    for (let i = 0; i < b.length; i++) for (let j = i + 1; j < b.length; j++) {
+      const [a0, a1, a2, a3] = b[i].rect, [b0, b1, b2, b3] = b[j].rect;
+      if (a0 < b2 && b0 < a2 && a1 < b3 && b1 < a3) { hit.add(i); hit.add(j); }
+    }
+    for (const i of hit) {
+      const [x0, y0, x1, y1] = b[i].rect, d = document.createElement("div");
+      d.className = "overlap"; d.dataset.button = b[i].id; d.title = t("overlap_hint");
+      Object.assign(d.style, { left: `${x0 * sx * scale}px`, top: `${y0 * scale}px`, width: `${(x1 - x0) * sx * scale}px`, height: `${(y1 - y0) * scale}px` });
+      stage.appendChild(d);
+    }
+  }, S.routing[k] ? 0 : 500);
+}
+// The pick whip: drag from the ◎ next to a link in Properties to a title, menu
+// or playlist (project panel or flowchart) to set that link.
+function startWhip(ev, apply, origin) {
+  ev.preventDefault();
+  const from = origin.getBoundingClientRect();
+  const x0 = from.left + from.width / 2, y0 = from.top + from.height / 2;
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "whip-line");
+  svg.innerHTML = `<line x1="${x0}" y1="${y0}" x2="${x0}" y2="${y0}"/><circle cx="${x0}" cy="${y0}" r="4"/>`;
+  document.body.appendChild(svg);
+  const line = svg.querySelector("line"), dot = svg.querySelector("circle");
+  const targetAt = (x, y) => {
+    const el = document.elementFromPoint(x, y);
+    const nav = el?.closest?.(".nav-item[data-view]");
+    if (nav && LISTS[nav.dataset.view]) return { el: nav, action: `${nav.dataset.view}:${nav.dataset.id}` };
+    const node = el?.closest?.("[data-node]");
+    if (node) {
+      const id = node.dataset.node;
+      if (id === "playall" || id === "stop") return { el: node, action: id };
+      if (/^(title|menu|playlist):/.test(id)) return { el: node, action: id };
+    }
+    return null;
+  };
+  let cur = null;
+  const move = (e) => {
+    line.setAttribute("x2", e.clientX); line.setAttribute("y2", e.clientY);
+    dot.setAttribute("cx", e.clientX); dot.setAttribute("cy", e.clientY);
+    // near the edge of the flowchart or the project panel: scroll it
+    const sc = document.elementFromPoint(e.clientX, e.clientY)?.closest?.("#flow, #sidebar");
+    if (sc) {
+      const r = sc.getBoundingClientRect();
+      if (e.clientX > r.right - 24) sc.scrollLeft += 16; else if (e.clientX < r.left + 24) sc.scrollLeft -= 16;
+      if (e.clientY > r.bottom - 24) sc.scrollTop += 16; else if (e.clientY < r.top + 24) sc.scrollTop -= 16;
+    }
+    const tg = targetAt(e.clientX, e.clientY);
+    if (cur?.el !== tg?.el) { cur?.el.classList.remove("whip-target"); tg?.el.classList.add("whip-target"); }
+    cur = tg;
+  };
+  const up = () => {
+    window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
+    svg.remove(); cur?.el.classList.remove("whip-target");
+    if (cur) apply(cur.action);
+  };
+  window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+}
+const whipHtml = (key) => `<span class="whip" data-whip="${key}" title="${esc(t("whip_hint"))}" role="button" tabindex="-1">◎</span>`;
+// Object menu: stacking order and converting texts and buttons
+function arrangeElement(where) {
+  const menu = curMenu(), k = S.element;
+  if (!menu || !k) return;
+  commit((p) => {
+    const mm = p.menus.find((x) => x.id === menu.id), l = elementList(mm, k.kind), [it] = l.splice(k.i, 1);
+    if (where === "front") l.push(it); else l.unshift(it);
+    S.element = { kind: k.kind, i: where === "front" ? l.length - 1 : 0 }; S.sels = [S.element];
+  });
+}
+function convertElement() {
+  const menu = curMenu(), k = S.element;
+  if (!menu || !k || k.kind === "shape") return;
+  commit((p) => {
+    const mm = p.menus.find((x) => x.id === menu.id);
+    if (k.kind === "text") {
+      const [tx] = mm.texts.splice(k.i, 1), { text, ...rest } = tx;
+      mm.buttons.push({ ...rest, id: uniqueId("button", mm.buttons.map((b) => b.id)), label: text, action: "stop" });
+      S.element = { kind: "button", i: mm.buttons.length - 1 };
+    } else {
+      const b = mm.buttons[k.i];
+      if (mm.buttons.length <= 1 || !b.label) return;           // a menu keeps one button
+      mm.buttons.splice(k.i, 1);
+      const { id, label, action, nav, auto_activate, image, highlight_image, thumbnail, width, ...rest } = b;
+      (mm.texts = mm.texts || []).push({ ...rest, text: label });
+      S.element = { kind: "text", i: mm.texts.length - 1 };
+    }
+    S.sels = [S.element];
+  });
+}
+const alignCmd = (k) => ({ run: () => $(`[data-align="${k}"]`)?.click(), when: () => !!$(`[data-align="${k}"]`) });
+
 // ---------------------------------------------------------------- routing and linking
 // The remote's arrow keys between the buttons, as the disc will have them
 // (computed by the server from the real layout; set ones solid, automatic
@@ -2427,24 +2655,62 @@ const COMMANDS = {
   new_slideshow: { run: () => addSlideshow(), when: hasProject },
   new_menu: { run: () => addMenu(), when: hasProject },
   new_playlist: { run: () => addPlaylist(), when: () => hasProject() && (P().titles || []).length > 0 },
-  add_chapter: { key: "m", run: () => $("#add-ch")?.click(), when: () => S.sel.view === "title" && !!$("#add-ch") },
+  add_chapter: { key: "*", run: () => $("#add-ch")?.click(), when: () => S.sel.view === "title" && !!$("#add-ch") },
+  prev_chapter: { key: "pageup", run: () => jumpChapter(-1), when: () => S.sel.view === "title" && !!S.titleSeek },
+  next_chapter: { key: "pagedown", run: () => jumpChapter(1), when: () => S.sel.view === "title" && !!S.titleSeek },
+  new_timeline: { run: () => newTitleFromMedia(), when: () => hasProject() && mediaOf("video").length > 0 },
+  preview: { key: "shift+space", run: () => { S.simFrom = S.sel.view === "menu" && curMenu() ? S.sel.id : null; select("sim"); }, when: () => hasProject() && (P().titles || []).length > 0 },
+  set_link: { key: "mod+l", run: () => $("#inspector select[data-k=action]")?.focus(), when: () => S.sel.view === "menu" && S.element?.kind === "button" },
+  routing: { run: () => { S.showRouting = !S.showRouting; renderMain(); }, when: () => S.sel.view === "menu" && !!curMenu() },
+  safe_area: { run: () => { S.showSafe = !S.showSafe; renderMain(); }, when: () => S.sel.view === "menu" && !!curMenu() },
+  tool_select: { key: "v", run: () => setTool("select"), when: () => S.sel.view === "menu" && !!curMenu() },
+  tool_text: { key: "t", run: () => setTool("text"), when: () => S.sel.view === "menu" && !!curMenu() },
+  tool_zoom: { key: "z", run: () => setTool("zoom"), when: () => S.sel.view === "menu" && !!curMenu() },
+  zoom_in: { key: "+", run: () => zoomMenu(1), when: () => S.sel.view === "menu" && !!curMenu() },
+  zoom_out: { key: "-", run: () => zoomMenu(-1), when: () => S.sel.view === "menu" && !!curMenu() },
+  align_left: alignCmd("left"), align_hcenter: alignCmd("hcenter"), align_right: alignCmd("right"),
+  align_top: alignCmd("top"), align_vcenter: alignCmd("vcenter"), align_bottom: alignCmd("bottom"),
+  distribute_h: { run: () => $('[data-distribute="h"]')?.click(), when: () => !!$('[data-distribute="h"]') },
+  distribute_v: { run: () => $('[data-distribute="v"]')?.click(), when: () => !!$('[data-distribute="v"]') },
+  bring_front: { key: "mod+shift+]", run: () => arrangeElement("front"), when: () => hasElements() && (S.sels?.length || 1) === 1 },
+  send_back: { key: "mod+shift+[", run: () => arrangeElement("back"), when: () => hasElements() && (S.sels?.length || 1) === 1 },
+  convert: { run: convertElement, when: () => hasElements() && (S.sels?.length || 1) === 1 && S.element?.kind !== "shape" },
   play: { key: "space", run: () => $("#play")?.click(), when: () => S.sel.view === "title" && !!$("#play") },
-  ws_author: { key: "alt+1", run: WS("author"), when: hasProject },
-  ws_flow: { key: "alt+2", run: WS("flow"), when: hasProject },
-  ws_sim: { key: "alt+3", run: WS("sim"), when: hasProject },
-  ws_build: { key: "alt+4", run: WS("build"), when: hasProject },
+  ws_author: { key: "alt+shift+1", run: WS("author"), when: hasProject },
+  ws_flow: { key: "alt+shift+2", run: WS("flow"), when: hasProject },
+  ws_sim: { key: "alt+shift+3", run: WS("sim"), when: hasProject },
+  ws_build: { key: "alt+shift+4", run: WS("build"), when: hasProject },
   theme: { run: () => $("#btn-theme").click() },
   language: { run: () => $("#btn-lang").click() },
   shortcuts: { key: "?", run: shortcutsSheet },
   about: { run: aboutBox },
 };
+// in the order disc authoring people know: File, Edit, Object, Menu, Timeline, Window, Help
 const MENUBAR = [
-  ["m_file", ["import_files", "import_psd", "-", "check", "build", "-", "reveal"]],
+  ["m_file", ["import_files", "import_psd", "-", "transcode_title", "transcode_all", "-", "preview", "check", "build", "-", "reveal"]],
   ["m_edit", ["undo", "redo", "-", "duplicate", "delete"]],
-  ["m_disc", ["new_slideshow", "new_menu", "new_playlist", "-", "add_chapter", "play", "-", "transcode_title", "transcode_all"]],
-  ["m_view", ["ws_author", "ws_flow", "ws_sim", "ws_build", "-", "theme", "language"]],
+  ["m_object", ["align_left", "align_hcenter", "align_right", "align_top", "align_vcenter", "align_bottom", "-", "distribute_h", "distribute_v", "-", "bring_front", "send_back", "-", "convert"]],
+  ["m_menu", ["new_menu", "-", "set_link", "routing", "safe_area", "-", "tool_select", "tool_text", "tool_zoom", "zoom_in", "zoom_out"]],
+  ["m_timeline", ["new_timeline", "new_slideshow", "new_playlist", "-", "add_chapter", "prev_chapter", "next_chapter", "play"]],
+  ["m_window", ["ws_author", "ws_flow", "ws_sim", "ws_build", "-", "theme", "language"]],
   ["m_help", ["shortcuts", "about"]],
 ];
+function jumpChapter(dir) {
+  const ti = curTitle(), chapters = chaptersOf(ti), now = S.playhead[ti.id] || 0;
+  const to = dir > 0 ? chapters.find((c) => c > now + 0.01) : [...chapters].reverse().find((c) => c < now - 0.01);
+  if (to != null) S.titleSeek(to); else if (dir < 0) S.titleSeek(0);
+}
+function zoomMenu(dir) {
+  const steps = [0.5, 1, 1.5, 2, 3], cur = S.menuZoom || 1;
+  S.menuZoom = dir > 0 ? (steps.find((z) => z > cur + 0.01) || 3) : (steps.filter((z) => z < cur - 0.01).pop() || 0.5);
+  renderMain();
+}
+function newTitleFromMedia() {
+  const vids = mediaOf("video");
+  openModal(`<h2>${t("cmd_new_timeline")}</h2><p class="hint">${esc(t("new_timeline_hint"))}</p>
+    <div style="display:flex;flex-direction:column;gap:6px">${vids.map((v) => `<button data-newtl="${esc(v)}">${esc(v.replace(/^media\//, ""))}</button>`).join("")}</div>`);
+  document.querySelectorAll("[data-newtl]").forEach((b) => (b.onclick = () => { closeModal(); mediaAction("title", b.dataset.newtl); }));
+}
 function runCommand(id, via = "menu") {
   const c = COMMANDS[id];
   if (!c || (c.when && !c.when())) return false;
@@ -2453,18 +2719,21 @@ function runCommand(id, via = "menu") {
   return true;
 }
 window.oncemoreCommand = (id) => runCommand(id, "menu");
+function keyParts(spec) { return spec === "+" ? ["+"] : spec.split("+"); }
 function keyLabel(spec) {
-  const names = IS_MAC ? { mod: "⌘", shift: "⇧", alt: "⌥", delete: "⌫", space: "Space" } : { mod: "Ctrl", shift: "Shift", alt: "Alt", delete: "Delete", space: "Space" };
-  const parts = spec.split("+").map((p) => names[p] || p.toUpperCase());
+  const names = IS_MAC ? { mod: "⌘", shift: "⇧", alt: "⌥", delete: "⌫", space: "Space", pageup: "PgUp", pagedown: "PgDn" } : { mod: "Ctrl", shift: "Shift", alt: "Alt", delete: "Delete", space: "Space", pageup: "PgUp", pagedown: "PgDn" };
+  const parts = keyParts(spec).map((p) => names[p] || p.toUpperCase());
   return IS_MAC ? parts.join("") : parts.join("+");
 }
 function keyMatches(spec, e) {
-  const parts = spec.split("+"), key = parts[parts.length - 1];
+  const parts = keyParts(spec), key = parts[parts.length - 1];
   const want = { mod: parts.includes("mod"), shift: parts.includes("shift"), alt: parts.includes("alt") };
-  if (key === "?") return e.key === "?" && !(e.metaKey || e.ctrlKey || e.altKey);
+  if (["?", "*", "+", "-"].includes(key)) return e.key === key && !(e.metaKey || e.ctrlKey || e.altKey);
   if (want.mod !== (e.metaKey || e.ctrlKey) || want.shift !== e.shiftKey || want.alt !== e.altKey) return false;
   if (key === "delete") return e.key === "Delete" || e.key === "Backspace";
   if (key === "space") return e.code === "Space";
+  if (key === "pageup" || key === "pagedown") return e.key === { pageup: "PageUp", pagedown: "PageDown" }[key];
+  if (key === "[" || key === "]") return e.code === (key === "[" ? "BracketLeft" : "BracketRight");
   if (/^[0-9]$/.test(key)) return e.code === "Digit" + key;
   return e.code === "Key" + key.toUpperCase();
 }
@@ -2555,6 +2824,21 @@ document.addEventListener("contextmenu", (ev) => {
   openPopup(ev.clientX, ev.clientY, items);
 });
 document.addEventListener("click", (ev) => { if (!ev.target.closest(".popup")) closePopups(); });
+// pick whips in Properties (button link, title end action, first play)
+document.addEventListener("pointerdown", (ev) => {
+  const w = ev.target.closest?.("[data-whip]");
+  if (!w || !P()) return;
+  const key = w.dataset.whip, view = S.sel.view, id = S.sel.id, el = S.element;
+  startWhip(ev, (action) => commit((p) => {
+    if (key === "first_play") p.disc.first_play = action;
+    else if (key === "end_action" && view === "title") p.titles.find((x) => x.id === id).end_action = action;
+    else if (key === "action" && view === "menu" && el?.kind === "button") {
+      const mm = p.menus.find((x) => x.id === id);
+      if (action === `menu:${mm.id}`) return;                     // not to itself
+      mm.buttons[el.i].action = action;
+    }
+  }), w);
+});
 window.addEventListener("blur", closePopups);
 
 $("#btn-undo").onclick = undo;
