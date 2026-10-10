@@ -278,6 +278,22 @@
           "$ref": "#/$defs/slideshow",
           "description": "Make this title from pictures instead of a video file."
         },
+        "clips": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 99,
+          "description": "Make this title from several videos played one after another (each optionally trimmed), instead of one source. Every clip starts a chapter unless chapters are given.",
+          "items": {
+            "type": "object",
+            "required": ["source"],
+            "additionalProperties": false,
+            "properties": {
+              "source": {"type": "string", "description": "Video file, relative to the project file."},
+              "in": {"$ref": "#/$defs/time", "description": "Start inside the file (default: its beginning)."},
+              "out": {"$ref": "#/$defs/time", "description": "End inside the file (default: its end)."}
+            }
+          }
+        },
         "chapters": {
           "type": "array",
           "maxItems": 99,
@@ -451,6 +467,11 @@
         {
           "required": [
             "slideshow"
+          ]
+        },
+        {
+          "required": [
+            "clips"
           ]
         }
       ]

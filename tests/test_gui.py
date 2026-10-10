@@ -236,6 +236,45 @@ class TestGuiApi(unittest.TestCase):
         self.assertEqual(self.s.call("/api/subtitles?path=media/none.srt")[0], 404)
 
     @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/dvdauthor/ISO tool")
+    def test_clips_join(self):
+        _, st = self.s.call("/api/new", "POST", {"sample": True})
+        project = st["project"]
+        project["titles"].append({"id": "joined", "clips": [
+            {"source": "media/sample_a.mp4", "in": "00:00:01", "out": "00:00:03"},
+            {"source": "media/sample_b.mp4", "out": 1.5}]})
+        status, r = self.s.call("/api/clips", "POST", {"title": "joined", "project": project})
+        self.assertEqual(status, 200, r)
+        self.assertTrue(r["path"].startswith(".oncemore-cache/clips/"), r["path"])
+        # whole frames per clip: 2 s and 1.5 s at 29.97 fps
+        self.assertAlmostEqual(r["clips"][0]["duration"], 60 * 1001 / 30000, places=5)
+        self.assertAlmostEqual(r["clips"][1]["duration"], 45 * 1001 / 30000, places=5)
+        self.assertEqual(r["starts"], [0.0, round(60 * 1001 / 30000, 6)])
+        self.assertEqual([c["source"] for c in r["clips"]], ["media/sample_a.mp4",
+                                                             "media/sample_b.mp4"])
+        fmt = json.loads(subprocess.run(
+            [tools.find("ffprobe"), "-v", "error", "-show_format", "-show_streams", "-of",
+             "json", os.path.join(self.dir, r["path"])], capture_output=True, text=True).stdout)
+        self.assertAlmostEqual(float(fmt["format"]["duration"]), r["duration"], delta=0.05)
+        self.assertEqual(sorted(x["codec_type"] for x in fmt["streams"]), ["audio", "video"])
+        # cached: the same request does not render again
+        mtime = os.path.getmtime(os.path.join(self.dir, r["path"]))
+        _, r2 = self.s.call("/api/clips", "POST", {"title": "joined", "project": project})
+        self.assertEqual(r2["path"], r["path"])
+        self.assertEqual(os.path.getmtime(os.path.join(self.dir, r["path"])), mtime)
+        # the simulator shows the clip that is playing in each chapter
+        project["menus"][0]["buttons"][0]["action"] = "title:joined"
+        status, sim = self.s.call("/api/sim", "POST", {"project": project})
+        self.assertEqual(status, 200, sim)
+        status, sim = self.s.call("/api/sim", "POST", {"project": project, "state": sim["state"],
+                                                       "key": "enter"})
+        self.assertEqual(sim["title"]["frame"], {"path": "media/sample_a.mp4", "t": 1.5})
+        status, sim = self.s.call("/api/sim", "POST", {"project": project, "state": sim["state"],
+                                                       "key": "next"})
+        self.assertEqual(sim["title"]["frame"], {"path": "media/sample_b.mp4", "t": 0.5})
+        self.assertEqual(self.s.call("/api/clips", "POST", {"title": "t1", "project": project})[0],
+                         400)
+
+    @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/dvdauthor/ISO tool")
     def test_slideshow_render(self):
         _, st = self.s.call("/api/new", "POST", {"sample": True})
         project = st["project"]
@@ -528,6 +567,58 @@ class TestGuiBrowser(unittest.TestCase):
             page.select_option("#inspector select[data-k=action]", f"playlist:{pl['id']}")
             self.wait_saved(page)
             self.assertEqual(self.project()["menus"][0]["buttons"][0]["action"], f"playlist:{pl['id']}")
+            browser.close()
+        self.assertEqual(errors, [])
+
+    def test_clips_editor(self):
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click("#np-sample")
+            page.click(".nav-item[data-view=title][data-id=t2]", timeout=120000)
+            # a second video makes the title a list of clips
+            page.select_option("#clip-add", "media/sample_a.mp4")
+            page.locator("tr[data-clip='1']").wait_for(timeout=180000)
+            self.wait_saved(page)
+            ti = self.project()["titles"][1]
+            self.assertEqual(ti["clips"], [{"source": "media/sample_b.mp4"},
+                                           {"source": "media/sample_a.mp4"}])
+            self.assertNotIn("source", ti)
+            page.fill("tr[data-clip='1'] [data-cf=in]", "2")
+            page.press("tr[data-clip='1'] [data-cf=in]", "Enter")
+            page.fill("tr[data-clip='1'] [data-cf=out]", "00:00:04")
+            page.press("tr[data-clip='1'] [data-cf=out]", "Enter")
+            self.poll(lambda: self.project()["titles"][1]["clips"][1].get("out"))
+            self.assertEqual(self.project()["titles"][1]["clips"][1],
+                             {"source": "media/sample_a.mp4", "in": "00:00:02.000",
+                              "out": "00:00:04.000"})
+            # joined preview, one chapter per clip, the clips on the timeline
+            page.locator("#frame").wait_for(timeout=180000)
+            page.locator(".chapter-list li").nth(1).wait_for(timeout=60000)
+            self.assertEqual(page.locator(".chapter-list li").count(), 2)
+            page.locator(".tl-clip.clip").nth(1).wait_for()
+            self.assertEqual(page.locator(".tl-clip.clip").count(), 2)
+            page.locator(".tl-clip.clip").nth(1).click()
+            page.locator("#tc-input").wait_for()
+            self.assertNotEqual(page.input_value("#tc-input"), "00:00:00.000")
+            self.assertTrue(self.s.app.check(self.project())["valid"])
+            # first clip moved down, then removed: an ordinary title again
+            page.click("tr[data-clip='0'] [data-cmv='1']")
+            self.poll(lambda: self.project()["titles"][1]["clips"][0]["source"] ==
+                      "media/sample_a.mp4")
+            page.click("tr[data-clip='1'] [data-crm]")
+            self.poll(lambda: len(self.project()["titles"][1]["clips"]) == 1)
+            page.locator("tr[data-clip='1']").wait_for(state="detached")
+            page.fill("tr[data-clip='0'] [data-cf=in]", "")
+            page.press("tr[data-clip='0'] [data-cf=in]", "Enter")
+            page.locator("tr[data-clip='0'] [data-cf=out]").fill("")
+            page.press("tr[data-clip='0'] [data-cf=out]", "Enter")
+            self.poll(lambda: "source" in self.project()["titles"][1])
+            self.assertEqual(self.project()["titles"][1]["source"], "media/sample_a.mp4")
+            self.assertNotIn("clips", self.project()["titles"][1])
             browser.close()
         self.assertEqual(errors, [])
 

@@ -536,3 +536,30 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   chapter mark writes the same chapter list as the chapter table, snapped to
   frames, and subtitle clips come from the same cue API as the cue editor.
 
+## 36. Titles made of clips
+
+* A title can list clips (file, in, out) instead of one source. They are
+  joined inside the title's own ffmpeg run (one filter graph: cut with
+  -ss / -t on each input, convert each clip to the disc format, concat), so
+  no intermediate file is written for the disc and nothing is re-encoded
+  twice.
+* Each clip is converted on its own before the join, which is what lets
+  clips of different sizes, frame rates and sample rates be joined; a clip
+  without sound gets generated silence of its length.
+* Clip lengths are rounded up to whole frames of the title (picture is held
+  on its last frame if the file is shorter) and the sound is cut to exactly
+  that length, so picture and sound meet at every join instead of drifting
+  by up to a frame per clip. The chapter at clip *k* is the same rounded
+  sum, so it lands on the first frame of the clip.
+* Scan mode: all clips 23.976p film -> soft pulldown, all interlaced ->
+  interlaced, otherwise progressive (joining field-based and frame-based
+  pictures in one stream would need per-clip flags DVD players handle
+  badly).
+* One sound track per clip title: extra tracks would need their own
+  timeline per clip, and AC-3 pass-through cannot be cut at arbitrary
+  points. Both are rejected in validation rather than silently ignored.
+* The app needs one file to show frames from and to play, so it asks the
+  server for a joined preview (MPEG-4 + PCM at the disc size, cached by the
+  clips and the disc format). The disc never uses that preview.
+* Anything that needs a picture at a time of the title (menu thumbnails,
+  poster frames, the simulator) maps the time to the clip playing then.

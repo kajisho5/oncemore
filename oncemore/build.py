@@ -7,7 +7,7 @@ import json
 import os
 import shutil
 
-from . import author, encode, iso, lpcmfix, slideshow, subtitles, tools
+from . import author, clips, encode, iso, lpcmfix, slideshow, subtitles, tools
 from . import menu as menu_module
 from .errors import OncemoreError, ProjectError
 from .menu import (MenuBuilder, check_element_fonts, display_width, find_font, link_font,
@@ -32,11 +32,14 @@ def inspect(project, reporter=None):
         if t.slideshow:
             slideshow.ensure(t, project.disc_for(t),
                              os.path.join(os.path.dirname(t.source), f"{t.id}.log"), reporter)
-        info = probe(t.source)
-        infos[t.id] = info
         where = f"titles[{i}]"
-        if info.get("has_video") and info.get("fps"):
-            t.video_mode = encode.video_mode(t, info, project.disc)
+        if t.clips:
+            info = _clip_info(project, t, probe, issues, where)
+        else:
+            info = probe(t.source)
+            if info.get("has_video") and info.get("fps"):
+                t.video_mode = encode.video_mode(t, info, project.disc)
+        infos[t.id] = info
         for j, tr in enumerate(t.audio_tracks):
             have = probe(tr.source).get("audio_streams", 0)
             if tr.stream >= have and not (tr.source == t.source and tr.stream == 0):
@@ -126,6 +129,32 @@ def inspect(project, reporter=None):
     return infos, plan
 
 
+def _clip_info(project, t, probe, issues, where):
+    """The probe-like info of a title made of clips: the clips' lengths
+    resolved from their files, the first clip's picture format, and the
+    title's chapters (one per clip unless given)."""
+    modes = set()
+    for j, c in enumerate(t.clips):
+        info = probe(c.source)
+        cw = f"{where}.clips[{j}]"
+        dur = info.get("duration") or 0.0
+        if not info.get("has_video"):
+            issues.append({"path": f"{cw}.source", "message": "no video stream"})
+        elif c.start >= dur > 0:
+            issues.append({"path": f"{cw}.in", "message": f"starts after the end of the "
+                                                          f"file ({dur:.3f}s)"})
+        if info.get("has_video") and info.get("fps"):
+            modes.add(encode.video_mode(t, info, project.disc))
+    # clips of different kinds are all made progressive, so they can be joined
+    t.video_mode = modes.pop() if len(modes) == 1 else "progressive"
+    total = clips.apply(project, t, probe)
+    first = dict(probe(t.clips[0].source))
+    first.update(duration=total, path=None,
+                 has_video=all(probe(c.source).get("has_video") for c in t.clips),
+                 has_audio=any(probe(c.source).get("has_audio") for c in t.clips))
+    return first
+
+
 def summary(project, infos, plan):
     return {
         "disc": {"label": project.disc.label, "standard": project.disc.standard,
@@ -144,6 +173,8 @@ def summary(project, infos, plan):
                     "audio_bps": t.audio_bps, "end_action": t.end_action,
                     "audio_tracks": [{"source": a.source, "stream": a.stream, "lang": a.lang}
                                      for a in t.audio_tracks],
+                    "clips": [{"source": c.source, "in": c.start, "out": c.end,
+                               "duration": round(c.duration or 0.0, 6)} for c in t.clips],
                     "subtitles": [{"file": u.file, "lang": u.lang, "default": u.default,
                                    "cues": len(plan.get("_cues", {}).get((t.id, j), []))}
                                   for j, u in enumerate(t.subtitles)]}
@@ -244,7 +275,9 @@ def _link_or_copy(src, dst):
 def title_cache_key(project, title, info, vbps, fast):
     disc = project.disc_for(title)
     return _cache_key("title", {
-        "source": _file_sig(title.source), "info": {k: info.get(k) for k in (
+        "source": _file_sig(title.source),
+        "clips": [[_file_sig(c.source), c.start, c.end] for c in title.clips],
+        "info": {k: info.get(k) for k in (
             "width", "height", "sar", "fps", "duration", "interlaced", "field_order")},
         "tracks": [(_file_sig(tr.source), tr.stream) for tr in title.audio_tracks],
         "disc": [disc.standard, disc.aspect, disc.width, disc.height],

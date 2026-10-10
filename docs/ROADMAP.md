@@ -60,6 +60,11 @@ browser) and lands only with green CI.
   chapters you drag, audio and subtitle tracks), Properties / Layers,
   workspaces in the top bar, resizable and remembered panels
 
+**P9 — Titles from several videos** (done)
+- [x] A title made of clips (parts of several files with in / out points),
+  joined while encoding, a chapter per clip; clip editor and timeline in the
+  app, joined preview, simulator and menu thumbnails follow the clips
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

@@ -114,6 +114,9 @@ def cmd_simulate(args, rep):
                        for m in project.menus}
         finally:
             shutil.rmtree(work, ignore_errors=True)
+    if any(t.clips for t in project.titles):
+        from . import clips, encode
+        clips.apply_all(project, encode.probe)     # a chapter at every clip
     sim = Simulator(project, layouts)
     state = sim.start()
     steps = [{"key": None, "view": list(sim.view(state)), "log": state["log"]}]
