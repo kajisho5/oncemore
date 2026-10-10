@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "disc": {
+    "label": "SAMPLE_DISC",
+    "standard": "NTSC",
+    "aspect": "16:9",
+    "target": "DVD5",
+    "first_play": "menu:main",
+    "font": null
+  },
+  "titles": [
+    {
+      "id": "t1",
+      "name": "Sample Title A",
+      "source": "media/sample_a.mp4",
+      "chapters": [
+        "00:00:00",
+        "00:00:08",
+        "00:00:16"
+      ],
+      "audio": {
+        "codec": "ac3",
+        "bitrate": "192k"
+      },
+      "end_action": "title:t2",
+      "auto_chapter_menu": {
+        "id": "chapters",
+        "back": "menu:main"
+      }
+    },
+    {
+      "id": "t2",
+      "name": "Sample Title B",
+      "source": "media/sample_b.mp4",
+      "chapters": [
+        0
+      ],
+      "audio": {
+        "codec": "ac3",
+        "bitrate": "192k"
+      },
+      "end_action": "menu:main"
+    }
+  ],
+  "menus": [
+    {
+      "id": "main",
+      "background": "media/menu_bg.png",
+      "audio": null,
+      "texts": [
+        {
+          "text": "SAMPLE DISC",
+          "x": 120,
+          "y": 90,
+          "size": 56
+        }
+      ],
+      "buttons": [
+        {
+          "id": "play",
+          "label": "PLAY ALL",
+          "x": 120,
+          "y": 220,
+          "action": "title:t1"
+        },
+        {
+          "id": "ch",
+          "label": "CHAPTERS",
+          "x": 120,
+          "y": 280,
+          "action": "menu:chapters"
+        },
+        {
+          "id": "b",
+          "label": "SAMPLE TITLE B",
+          "x": 120,
+          "y": 340,
+          "action": "title:t2"
+        }
+      ],
+      "highlight_color": "#FFD400",
+      "select_color": "#FF5A00"
+    }
+  ]
+}

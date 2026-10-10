@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oncemore"
+version = "0.1.0"
+description = "DVD-Video authoring with menus, chapters and ISO output (CLI core)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "GPL-3.0-or-later" }
+authors = [{ name = "oncemore contributors" }]
+keywords = ["dvd", "dvd-video", "authoring", "dvdauthor", "ffmpeg", "iso"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Video :: Conversion",
+]
+dependencies = []
+
+[project.scripts]
+oncemore = "oncemore.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/kajisho5/oncemore"
+
+[tool.setuptools]
+packages = ["oncemore"]
+
+[tool.setuptools.package-data]
+oncemore = ["project.schema.json"]
