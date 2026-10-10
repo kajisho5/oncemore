@@ -118,6 +118,15 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   frame or by its shape). Use an image or a video as the background. **Exact preview**
   renders the menu exactly as the disc will show it, with button hit areas.
 * ▲/▼ in the right-hand panel change the order of titles and menus.
+* **Flowchart** shows the whole disc: first play, menus, titles, playlists and
+  every link between them (buttons, end actions, time-outs, the remote's Menu
+  and Title keys). Boxes a viewer can never reach, or menus they cannot leave,
+  are outlined in red; click a box to edit it.
+* **Simulator** plays the disc with an on-screen remote (arrows, OK, Menu,
+  Title, ⏮ ⏭, play to the end, let a menu time out) before anything is
+  encoded: menus are the exact previews with the real highlight, titles show
+  the chapter's first frame. It follows the same navigation rules as the
+  built disc (checked against libdvdnav in the tests).
 * **Check** estimates the size and finds problems; **Build** writes the `.iso`
   (or a VIDEO_TS folder) into `my-disc/output/`, with progress.
 * Everything is saved automatically to `my-disc/project.oncemore.json`;
@@ -150,11 +159,15 @@ oncemore validate <project> [--no-media]       # schema + references + media + s
 oncemore build <project> -o out/               # writes out/VIDEO_TS (and out/AUDIO_TS)
 oncemore iso <project> -o out.iso [--iso-tool auto|hdiutil|genisoimage|mkisofs|xorriso]
 oncemore preview-menu <project> --menu main -o main.png [--button id] [--state highlight|select|normal] [--outline]
+oncemore simulate <project> --keys down,enter,menu   # press remote keys, no encoding
 oncemore gui [<dir>] [--port N] [--no-browser] # the authoring app
 oncemore doctor                                # external tools, versions, ISO backend
 ```
 
 * `<project>` is a `project.oncemore.json` file or the directory containing it.
+* `validate` also checks the navigation: titles, menus and playlists nothing
+  leads to, and menus without a way out, are reported as warnings
+  (`navigation` in `--json` output).
 * `build` and `iso` encode in **2 passes** by default; `--fast` uses 1 pass.
 * Intermediate files go to `out/.work/` (for `iso`: a hidden build directory
   next to the ISO) and are deleted on success unless `--keep-work` is given.

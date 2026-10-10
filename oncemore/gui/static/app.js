@@ -83,6 +83,14 @@ const I18N = {
     audio_item: "Audio stream {n}", subtitle_item: "Subtitles {n}", subtitle_off: "Subtitles off",
     nothing_selected: "Select a button or text on the menu, or edit the menu settings below.",
     rename_hint: "Changing an ID also updates everything that points to it.",
+    flowchart: "Flowchart", simulator: "Simulator", menu: "Menu", title: "Title",
+    flow_hint: "Everything a viewer can do on the disc: buttons, end actions, time-outs, playlists and the remote's Menu / Title keys. Click a box to edit it. Red boxes cannot be reached or cannot be left.",
+    sim_hint: "Play the disc with a remote before building: arrows, OK, Menu, Title, next / previous chapter. Nothing is encoded; the pictures are the exact menu previews. Keyboard: arrow keys, Enter, M, T, N, P.",
+    fp: "First play", title_key_node: "Title key", stop_node: "Stop", play_all: "Play all",
+    nav_ok: "No navigation problems.", restart: "Insert disc again", play_chapter: "Play chapter",
+    to_end: "Play to the end", time_out: "Let the menu time out", now: "Now", chapter_n: "Chapter {n} of {m}",
+    stopped: "Playback stopped.", audio_n: "Audio {n}", sub_off: "Subtitles off", sub_n: "Subtitles {n}",
+    in_playall: "playing all", in_playlist: "playlist",
     disc_tips: "Coordinates are DVD pixels (720 wide). Text is drawn with the font that oncemore picks to cover all characters.",
     tools: "Tools", ok: "OK", missing: "missing", tracks_hint: "Leave empty to use the video's own sound.",
     stream: "Stream", file: "File", add_track: "+ Track", add_sub: "+ Subtitle file",
@@ -169,6 +177,14 @@ const I18N = {
     audio_item: "音声 {n}", subtitle_item: "字幕 {n}", subtitle_off: "字幕オフ",
     nothing_selected: "メニュー上のボタンやテキストを選択するか、下のメニュー設定を編集してください。",
     rename_hint: "ID を変えると、それを参照している箇所もまとめて更新されます。",
+    flowchart: "フローチャート", simulator: "シミュレータ", menu: "メニュー", title: "タイトル",
+    flow_hint: "ディスクで視聴者ができることの全体図です（ボタン、再生後の動作、タイムアウト、プレイリスト、リモコンのメニュー／タイトルキー）。箱をクリックすると編集できます。赤い箱はたどり着けないか、抜け出せない場所です。",
+    sim_hint: "書き出す前にリモコンでディスクを操作できます（矢印・決定・メニュー・タイトル・前後のチャプター）。エンコードはせず、メニューは実レンダリングの画像です。キーボード：矢印、Enter、M、T、N、P。",
+    fp: "ディスク挿入時", title_key_node: "タイトルキー", stop_node: "停止", play_all: "全タイトル連続再生",
+    nav_ok: "ナビゲーションの問題はありません。", restart: "ディスクを入れ直す", play_chapter: "チャプターを再生",
+    to_end: "最後まで再生", time_out: "メニューをタイムアウトさせる", now: "現在", chapter_n: "チャプター {n} / {m}",
+    stopped: "再生が停止しました。", audio_n: "音声 {n}", sub_off: "字幕オフ", sub_n: "字幕 {n}",
+    in_playall: "連続再生中", in_playlist: "プレイリスト",
     disc_tips: "座標は DVD のピクセル（幅 720）です。文字は全文字を描けるフォントを oncemore が自動で選んで描きます。",
     tools: "ツール", ok: "OK", missing: "不足", tracks_hint: "空なら動画自体の音声を使います。",
     stream: "ストリーム", file: "ファイル", add_track: "＋トラック", add_sub: "＋字幕ファイル",
@@ -419,7 +435,7 @@ function renderSidebar() {
       <span class="kind">${esc(m.kind)}</span><span class="name" title="${esc(m.path)}">${esc(m.path.replace(/^media\//, ""))}</span></div>`).join("");
   const ups = Object.entries(S.uploads).map(([n, pct]) => `<div class="media-item"><span class="name">${esc(n)}</span><span class="muted">${pct}%</span></div>`).join("");
   sb.innerHTML = `
-    <div class="nav-group">${item("disc", "", t("disc"))}</div>
+    <div class="nav-group">${item("disc", "", t("disc"))}${item("flow", "", t("flowchart"))}${item("sim", "", t("simulator"))}</div>
     <div class="nav-group"><div class="nav-head">${t("titles")}<button class="small" id="add-slideshow" title="${esc(t("slideshow_hint"))}">${t("add_slideshow")}</button></div>${titles || `<div class="hint" style="padding:4px 18px">${esc(t("no_titles"))}</div>`}</div>
     <div class="nav-group"><div class="nav-head">${t("menus")}<button class="small" id="add-menu">${t("add")}</button></div>${menus}${gen}</div>
     <div class="nav-group"><div class="nav-head">${t("playlists")}<button class="small" id="add-playlist">${t("add")}</button></div>${(P().playlists || []).map((pl) => item("playlist", pl.id, pl.name || pl.id)).join("")}</div>
@@ -446,6 +462,8 @@ function renderMain() {
   if (v === "menu") return renderMenu(m);
   if (v === "playlist") return renderPlaylist(m);
   if (v === "build") return renderBuild(m);
+  if (v === "flow") return renderFlow(m);
+  if (v === "sim") return renderSim(m);
   return renderDisc(m);
 }
 function renderInspector() {
@@ -456,6 +474,8 @@ function renderInspector() {
   if (v === "title") return renderTitleInspector(el);
   if (v === "menu") return renderMenuInspector(el);
   if (v === "playlist") { el.innerHTML = `<h2>${t("playlist")}</h2><div class="hint">${esc(t("playlist_hint"))}</div>`; return; }
+  if (v === "flow") { el.innerHTML = `<h2>${t("flowchart")}</h2><div class="hint">${esc(t("flow_hint"))}</div>`; return; }
+  if (v === "sim") { el.innerHTML = `<h2>${t("simulator")}</h2><div class="hint">${esc(t("sim_hint"))}</div>`; return; }
   el.innerHTML = `<h3>${t("tools")}</h3>
     <div class="hint">ffmpeg: ${S.tools.ffmpeg ? t("ok") : t("missing")}<br>drawtext: ${S.tools.drawtext ? t("ok") : t("missing")}<br>
     dvdauthor: ${S.tools.dvdauthor ? t("ok") : t("missing")}<br>ISO: ${esc(S.tools.iso || t("missing"))}</div>
@@ -782,6 +802,128 @@ function renderSlideshow(m, ti) {
     } catch (e) { msg.textContent = e.message; }
     finally { btn.disabled = false; }
   };
+}
+
+// ---------------------------------------------------------------- flowchart
+async function renderFlow(m) {
+  m.innerHTML = `<div class="card"><h2>${t("flowchart")}</h2><div id="flow" class="flow"><span class="hint">…</span></div><div id="flow-notes"></div></div>`;
+  let r;
+  try { r = await api("/api/graph", { method: "POST", body: { project: S.project } }); }
+  catch (e) { $("#flow").innerHTML = `<div class="hint">${esc(e.message)}</div>`; return; }
+  if (S.sel.view !== "flow") return;
+  const { nodes, edges } = r.graph;
+  const W = 170, H = 46, CW = 230, RH = 70, PAD = 20;
+  const pos = {};
+  nodes.forEach((n) => (pos[n.id] = { x: PAD + n.col * CW, y: PAD + n.row * RH }));
+  const width = PAD * 2 + (Math.max(...nodes.map((n) => n.col)) + 1) * CW;
+  const height = PAD * 2 + (Math.max(...nodes.map((n) => n.row)) + 1) * RH;
+  const level = {};
+  r.notes.forEach((x) => { if (x.level === "warning" || !level[x.path]) level[x.path] = x.level; });
+  const label = (n) => ({ first_play: t("fp"), title_key: t("title_key_node"), stop: t("stop_node"), playall: t("play_all") }[n.kind] || n.label);
+  const sub = (n) => n.kind === "menu" ? `${t("menu")} · ${n.buttons}` : n.kind === "title" ? `${t("title")} ${n.number} · ${n.chapters} ch` : n.kind === "playlist" ? `${t("playlist")} · ${n.items}` : "";
+  const path = (e, k) => {
+    const a = pos[e.from], b = pos[e.to];
+    if (!a || !b) return "";
+    let x1 = a.x + W, y1 = a.y + H / 2, x2 = b.x, y2 = b.y + H / 2;
+    const off = (k % 5) * 3 - 6;
+    if (b.x === a.x) {          // same column: bulge out to the right
+      x1 = a.x + W; x2 = b.x + W;
+      const out = x1 + 22 + (k % 4) * 7;
+      return `M${x1},${y1 + off} C${out},${y1 + off} ${out},${y2 + off} ${x2 + 2},${y2 + off}`;
+    }
+    if (b.x < a.x) {            // backwards: loop below
+      x1 = a.x + W / 2 + off; y1 = a.y + H; x2 = b.x + W / 2 + off; y2 = b.y + H;
+      const dip = Math.max(y1, y2) + 24 + (k % 4) * 6;
+      return `M${x1},${y1} C${x1},${dip} ${x2},${dip} ${x2},${y2}`;
+    }
+    const mx = (x1 + x2) / 2;
+    return `M${x1},${y1 + off} C${mx},${y1 + off} ${mx},${y2 + off} ${x2},${y2 + off}`;
+  };
+  const svg = `<svg class="flow-svg" width="${width}" height="${height + 40}" viewBox="0 0 ${width} ${height + 40}">
+    <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrowhead"/></marker></defs>
+    ${edges.map((e, k) => `<path class="edge ${e.kind}" d="${path(e, k)}" marker-end="url(#arr)"><title>${esc(e.from)} → ${esc(e.to)}${e.label ? " (" + esc(e.label) + ")" : ""}</title></path>`).join("")}
+    ${nodes.map((n) => `<g class="node ${n.kind} ${level[n.id] || ""}" data-node="${esc(n.id)}" transform="translate(${pos[n.id].x},${pos[n.id].y})">
+      <rect width="${W}" height="${H}" rx="8"/><text x="10" y="19" class="nl">${esc(label(n).slice(0, 22))}</text><text x="10" y="35" class="ns">${esc(sub(n))}</text></g>`).join("")}
+  </svg>`;
+  $("#flow").innerHTML = svg;
+  $("#flow-notes").innerHTML = r.notes.length ? `<ul class="issues">${r.notes.map((x) => `<li class="${x.level}"><span class="path" data-node="${esc(x.path)}">${esc(x.path)}</span> ${esc(x.message)}</li>`).join("")}</ul>` : `<div class="hint ok">✓ ${esc(t("nav_ok"))}</div>`;
+  m.querySelectorAll("[data-node]").forEach((g) => (g.onclick = () => {
+    const [kind, ...rest] = g.dataset.node.split(":"), id = rest.join(":");
+    if (kind === "menu" || kind === "title" || kind === "playlist") select(kind, id);
+    else if (kind === "fp" || kind === "title_key") select("disc");
+  }));
+}
+
+// ---------------------------------------------------------------- disc simulator
+const SIM_KEYS = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", Enter: "enter", m: "menu", t: "title", n: "next", p: "prev" };
+async function simCall(key) {
+  const body = { project: S.project };
+  if (key && S.sim) { body.state = S.sim.state; body.key = key; }
+  try { S.sim = await api("/api/sim", { method: "POST", body }); S.simError = null; }
+  catch (e) { S.simError = e.message; }
+  if (S.sel.view === "sim") renderSimScreen();
+}
+async function renderSim(m) {
+  m.innerHTML = `<div class="card sim">
+    <div class="row"><h2 class="shrink">${t("simulator")}</h2><span class="spacer"></span><button class="small shrink" id="sim-restart">⟲ ${t("restart")}</button></div>
+    <div class="sim-wrap">
+      <div class="sim-screen" id="sim-screen" tabindex="0" style="aspect-ratio:${P().disc.aspect.replace(":", " / ")}"></div>
+      <div class="remote" id="remote">
+        <div class="pad"><span></span><button data-key="up" title="▲">▲</button><span></span>
+          <button data-key="left">◀</button><button data-key="enter" class="ok">OK</button><button data-key="right">▶</button>
+          <span></span><button data-key="down">▼</button><span></span></div>
+        <div class="keys"><button data-key="menu">MENU</button><button data-key="title">TITLE</button></div>
+        <div class="keys"><button data-key="prev" title="⏮">⏮</button><button data-key="play" title="${esc(t("play_chapter"))}">▶</button><button data-key="next" title="⏭">⏭</button></div>
+        <div class="keys"><button data-key="end" title="${esc(t("to_end"))}">⏭⏭</button><button data-key="timeout" title="${esc(t("time_out"))}">⏱</button></div>
+      </div>
+    </div>
+    <div class="sim-status" id="sim-status"></div></div>`;
+  m.querySelectorAll("[data-key]").forEach((b) => (b.onclick = () => simCall(b.dataset.key)));
+  $("#sim-restart").onclick = () => { S.sim = null; simCall(); };
+  $("#sim-screen").onkeydown = (e) => {
+    const k = SIM_KEYS[e.key] || SIM_KEYS[e.key.toLowerCase?.()];
+    if (k) { e.preventDefault(); simCall(k); }
+  };
+  if (!S.sim || S.simProject !== JSON.stringify(S.project)) { S.simProject = JSON.stringify(S.project); S.sim = null; S.simMenus = {}; await simCall(); }
+  else renderSimScreen();
+  $("#sim-screen").focus();
+}
+async function simMenu(id) {
+  S.simMenus = S.simMenus || {};
+  if (!S.simMenus[id]) S.simMenus[id] = api("/api/sim_menu", { method: "POST", body: { project: S.project, menu: id } });
+  return S.simMenus[id];
+}
+async function renderSimScreen() {
+  const scr = $("#sim-screen"), st = $("#sim-status");
+  if (!scr) return;
+  if (S.simError) { scr.innerHTML = `<div class="sim-msg">${esc(S.simError)}</div>`; return; }
+  const sim = S.sim, s = sim.state;
+  const flags = [s.audio ? t("audio_n", { n: s.audio }) : "", s.subtitle ? t("sub_n", { n: s.subtitle }) : t("sub_off"),
+    s.playall ? t("in_playall") : "", s.playlist ? t("in_playlist") : ""].filter(Boolean).join(" · ");
+  if (s.domain === "menu") {
+    let mm;
+    st.innerHTML = `<b>${t("now")}:</b> ${t("menu")} <span class="mono">${esc(s.menu)}</span> · ${esc(flags)}<div class="hint">${esc((s.log || []).join(" → "))}</div>`;
+    if (!scr.dataset.menu || scr.dataset.menu !== s.menu) scr.innerHTML = `<div class="sim-msg">…</div>`;
+    try { mm = await simMenu(s.menu); } catch (e) { scr.innerHTML = `<div class="sim-msg">${esc(e.message)}</div>`; return; }
+    if (S.sim !== sim) return;
+    const b = mm.buttons[s.button - 1];
+    const [sw, sh] = mm.storage;
+    scr.dataset.menu = s.menu;
+    scr.innerHTML = `<img class="base" src="${mm.image}" alt="">${b ? `<img class="hl" src="${mm.overlays[b.id]}" alt="">` : ""}
+      ${mm.buttons.map((x, i) => `<div class="hit" data-hit="${i + 1}" style="left:${x.rect[0] / sw * 100}%;top:${x.rect[1] / sh * 100}%;width:${(x.rect[2] - x.rect[0]) / sw * 100}%;height:${(x.rect[3] - x.rect[1]) / sh * 100}%" title="${esc(x.id)} → ${esc(x.action)}"></div>`).join("")}`;
+    scr.querySelectorAll("[data-hit]").forEach((h) => (h.onclick = async () => { await simCall("select:" + h.dataset.hit); simCall("enter"); }));
+    st.innerHTML = `<b>${t("now")}:</b> ${t("menu")} <span class="mono">${esc(s.menu)}</span> · ${esc(b ? b.id : "—")} · ${esc(flags)}<div class="hint">${esc((s.log || []).join(" → "))}</div>`;
+  } else if (s.domain === "title") {
+    scr.dataset.menu = "";
+    const ti = sim.title, k = ti.chapter, start = ti.chapters[k - 1] || 0;
+    const name = (ti.names || [])[k - 1];
+    scr.innerHTML = `<img class="base" src="${imgUrl("frame", { path: ti.source, t: (start + 0.5).toFixed(3), w: 720 })}" alt="">
+      <div class="sim-osd">${esc(ti.name)} — ${esc(t("chapter_n", { n: k, m: ti.chapters.length }))}${name ? " · " + esc(name) : ""}</div>`;
+    st.innerHTML = `<b>${t("now")}:</b> ${t("title")} <span class="mono">${esc(ti.id)}</span> · ${esc(t("chapter_n", { n: k, m: ti.chapters.length }))} · ${esc(flags)}<div class="hint">${esc((s.log || []).join(" → "))}</div>`;
+  } else {
+    scr.innerHTML = `<div class="sim-msg">■ ${esc(t("stopped"))}</div>`;
+    st.innerHTML = `<div class="hint">${esc((s.log || []).join(" → "))}</div>`;
+  }
 }
 
 function renderTitleInspector(el) {

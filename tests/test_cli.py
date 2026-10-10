@@ -14,7 +14,7 @@ class TestCli(unittest.TestCase):
         self.assertIn("oncemore", out)
         rc, out, _ = run_cli("--help")
         self.assertEqual(rc, 0)
-        for cmd in ("init", "validate", "build", "iso", "preview-menu", "doctor"):
+        for cmd in ("init", "validate", "build", "iso", "preview-menu", "doctor", "simulate"):
             self.assertIn(cmd, out)
 
     def test_doctor_json(self):
@@ -49,6 +49,31 @@ class TestCli(unittest.TestCase):
             self.assertIn("file not found: missing.mp4", msgs)
             self.assertIn("no menu with id 'none'", msgs)
             self.assertNotIn("Traceback", err)
+
+    def test_simulate_and_navigation_notes(self):
+        with tempfile.TemporaryDirectory() as d:
+            from oncemore.scaffold import sample_project
+            data = sample_project()
+            data["titles"].append({"id": "t3", "source": "media/sample_a.mp4"})
+            data["menus"][0]["buttons"][0]["action"] = "title:t1"      # no play all
+            with open(os.path.join(d, "project.oncemore.json"), "w") as f:
+                json.dump(data, f)
+            rc, out, err = run_cli("--json", "validate", "--no-media", d)
+            self.assertEqual(rc, 0, err)
+            nav = json_lines(out)[-1]["navigation"]
+            self.assertIn({"level": "warning", "path": "title:t3",
+                           "message": "title 't3' cannot be reached: no button, playlist or "
+                                      "end action plays it"}, nav)
+            rc, out, err = run_cli("--json", "simulate", d, "--simple-layout",
+                                   "--keys", "down,enter,enter,play,menu")
+            self.assertEqual(rc, 0, err)
+            views = [s["view"] for s in json_lines(out)[-1]["steps"]]
+            self.assertEqual(views, [["menu", "main", 1], ["menu", "main", 2],
+                                     ["menu", "chapters", 1], ["title", 1, 1],
+                                     ["title", 1, 2], ["menu", "main", 2]])
+            rc, out, err = run_cli("simulate", d, "--simple-layout", "--keys", "jump")
+            self.assertEqual(rc, 1)
+            self.assertIn("unknown key 'jump'", err)
 
     def test_missing_tools_message(self):
         with tempfile.TemporaryDirectory() as d:

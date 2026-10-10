@@ -78,6 +78,8 @@ def _declare(lib):
         "dvdnav_spu_stream_to_lang": (ctypes.c_uint16, [P, ctypes.c_uint8]),
         "dvdnav_get_title_string": (ctypes.c_int, [P, ctypes.POINTER(ctypes.c_char_p)]),
         "dvdnav_menu_call": (ctypes.c_int, [P, ctypes.c_int]),
+        "dvdnav_next_pg_search": (ctypes.c_int, [P]),
+        "dvdnav_prev_pg_search": (ctypes.c_int, [P]),
     }
     for name, (res, args) in sigs.items():
         fn = getattr(lib, name)
@@ -278,6 +280,13 @@ class DvdSim:
 
     def title_key(self):
         self.menu_key(self.MENU_TITLE)
+
+    def next_chapter(self):
+        """The remote's Next key (returns False when the player refuses)."""
+        return self.lib.dvdnav_next_pg_search(self.h) == DVDNAV_STATUS_OK
+
+    def prev_chapter(self):
+        return self.lib.dvdnav_prev_pg_search(self.h) == DVDNAV_STATUS_OK
 
     def play_to_end_of_title(self, max_events=2_000_000):
         """Play until the current title ends (another title starts or a menu

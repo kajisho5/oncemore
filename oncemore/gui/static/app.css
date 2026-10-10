@@ -174,6 +174,46 @@ table.cues select { min-width: 92px; }
 .stage-tools { display: flex; gap: 6px; justify-content: center; margin: 12px 0; flex-wrap: wrap; }
 .pill { display: inline-block; padding: 1px 8px; border-radius: 10px; border: 1px solid var(--line); font-size: 11px; color: var(--muted); }
 
+/* flowchart */
+.flow { overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); min-height: 120px; }
+.flow-svg { display: block; }
+.flow-svg .edge { fill: none; stroke: var(--muted); stroke-width: 1.4; opacity: .75; }
+.flow-svg .edge.end, .flow-svg .edge.timeout { stroke-dasharray: 5 3; }
+.flow-svg .edge.menu_key, .flow-svg .edge.title_key { stroke: #6aa9ff; stroke-dasharray: 2 3; }
+.flow-svg .edge.item, .flow-svg .edge.playall { stroke: #b48cff; }
+.flow-svg .arrowhead { fill: var(--muted); }
+.flow-svg .node { cursor: pointer; }
+.flow-svg .node rect { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; }
+.flow-svg .node.menu rect { stroke: #ffd400; }
+.flow-svg .node.title rect { stroke: #4cc38a; }
+.flow-svg .node.playlist rect, .flow-svg .node.playall rect { stroke: #b48cff; }
+.flow-svg .node.first_play rect, .flow-svg .node.title_key rect { stroke: #6aa9ff; }
+.flow-svg .node.warning rect { stroke: var(--err); stroke-width: 3; }
+.flow-svg .node.info rect { stroke-dasharray: 4 2; }
+.flow-svg .node:hover rect { fill: var(--line); }
+.flow-svg .nl { fill: var(--text); font-size: 13px; font-weight: 600; }
+.flow-svg .ns { fill: var(--muted); font-size: 11px; }
+.issues li.warning .path { color: var(--err); }
+.issues .path[data-node] { cursor: pointer; text-decoration: underline; }
+
+/* disc simulator */
+.sim-wrap { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.sim-screen { position: relative; flex: 1 1 480px; background: #000; border-radius: 6px; overflow: hidden; outline: none; }
+.sim-screen:focus { box-shadow: 0 0 0 2px var(--accent); }
+.sim-screen img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.sim-screen img.hl { image-rendering: auto; }
+.sim-screen .hit { position: absolute; cursor: pointer; }
+.sim-screen .hit:hover { outline: 1px dashed rgba(255,255,255,.35); }
+.sim-osd { position: absolute; left: 12px; top: 10px; background: rgba(0,0,0,.6); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 13px; }
+.sim-msg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #ccc; }
+.remote { flex: 0 0 170px; background: var(--bg); border: 1px solid var(--line); border-radius: 28px; padding: 18px 14px; display: flex; flex-direction: column; gap: 12px; }
+.remote .pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.remote button { min-height: 34px; border-radius: 10px; }
+.remote .ok { border-radius: 50%; font-weight: 700; }
+.remote .keys { display: flex; gap: 6px; }
+.remote .keys button { flex: 1; font-size: 12px; }
+.sim-status { margin-top: 10px; }
+
 /* build */
 .progress { height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
 .progress > div { height: 100%; background: var(--accent); width: 0; transition: width .2s; }

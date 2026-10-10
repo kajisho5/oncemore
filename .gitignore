@@ -11,3 +11,4 @@ demo/
 out/
 examples/*/media/
 dist/
+.claude/worktrees/
