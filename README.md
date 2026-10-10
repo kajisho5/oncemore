@@ -567,10 +567,15 @@ metadata file and its mirror):
 * first play, each title's end action when it starts another title, the
   project's playlists (chapter ranges included) and Play All as Blu-ray
   playlists, and the Top Menu key starting `disc.title_key`;
+* subtitles as Blu-ray PGS streams: the same tracks, cues, colours and
+  positions as on the DVD, drawn for the HD frame with smooth edges (64
+  shades instead of a DVD's 4); the track marked `default` is shown from
+  the start. A cue ends 0.2 s before the next one begins, which players
+  need to decode it;
 * `disc.bluray.target` (`BD25` or `BD50`) caps the video rate so the
   titles always fit.
 
-Menus and subtitles are not on Blu-ray discs yet (the build says so). The
+Menus are not on Blu-ray discs yet (the build says so). The
 tests read every Blu-ray back with libbluray, the library VLC, mpv and Kodi
 play Blu-ray with: titles, lengths, chapters, streams, and first play
 through the title end actions; images are also read file by file with
@@ -669,7 +674,7 @@ to ignore it, and delete the folder to reclaim the space.
   DVDs and genisoimage keep the UDF volume descriptor, and hdiutil puts it
   elsewhere. The UDF and ISO 9660 volume names themselves are correct
   (checked by the tests); playback is unaffected.
-* Blu-ray: no menus or subtitles yet. 4:3 titles are pillarboxed in the
+* Blu-ray: no menus yet. 4:3 titles are pillarboxed in the
   16:9 HD frame. Burning a BD uses the same tools as a DVD; growisofs
   documents BD media, `hdiutil burn` with a BD writer has not been tried.
 * No copy protection (by design, permanently).

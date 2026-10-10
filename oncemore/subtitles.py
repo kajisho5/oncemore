@@ -236,6 +236,12 @@ class SubtitleRenderer:
 
     def render(self, cue, base, position="bottom"):
         """Return (canvas, x, y) — the cropped 2-bit bitmap and its offset."""
+        return quantise(self.render_rgba(cue, base, position), self.disc.width,
+                        self.disc.height)
+
+    def render_rgba(self, cue, base, position="bottom"):
+        """The cue drawn white with a black outline on a transparent frame
+        (RGBA bytes, disc width x height)."""
         W, H = self.disc.width, self.disc.height
         cmd = [self.ffmpeg, "-hide_banner", "-nostdin", "-v", "error", "-f", "lavfi", "-i",
                f"color=c=black@0.0:s={self.dw}x{H}:r=1:d=1,format=rgba",
@@ -245,7 +251,7 @@ class SubtitleRenderer:
         if p.returncode != 0 or len(p.stdout) < W * H * 4:
             raise ToolFailedError("ffmpeg could not render a subtitle",
                                   details={"output": tools.tail(p.stderr.decode("utf-8", "replace"))})
-        return quantise(p.stdout, W, H)
+        return p.stdout[:W * H * 4]
 
     def stream_xml(self, cues, lang, index, position="bottom", color=None):
         """Render every cue and write the spumux XML for one stream. `position`

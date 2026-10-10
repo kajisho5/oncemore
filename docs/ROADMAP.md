@@ -173,6 +173,11 @@ browser) and lands only with green CI.
   --format bluray`, Build > Blu-ray > image / BD disc; read back with
   libudfread and libbluray
 
+**P30 — Blu-ray subtitles** (done)
+- [x] Subtitle tracks as PGS streams (64-shade palette, BT.709), the
+  default track switched on by the title's movie object, a decoding gap
+  between cues
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 
@@ -232,7 +237,7 @@ below.
 ## Phase 5 — Blu-ray
 
 Menu-less BDMV with titles, chapters and playlists (P28) and its UDF 2.50
-image (P29): done. Next: PGS subtitles, then IGS menus and pop-up menus.
+image (P29) and PGS subtitles (P30): done. Next: IGS menus and pop-up menus.
 
 ## Later
 

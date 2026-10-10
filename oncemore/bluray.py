@@ -30,6 +30,7 @@ TS_RATE = 48_000_000 // 8      # ts_recording_rate: the 48 Mbit/s maximum, in by
 
 VIDEO_PID = 0x1011
 AUDIO_PID = 0x1100             # + track number
+PG_PID = 0x1200                # + subtitle track number
 PMT_PID = 0x0100
 VERSION = b"0200"
 
@@ -43,7 +44,7 @@ FORMATS = {
     (25, 1): (4, 3),           # 1080i 25
     (30000, 1001): (4, 4),     # 1080i 29.97
 }
-CODING_H264, CODING_LPCM, CODING_AC3 = 0x1B, 0x80, 0x81
+CODING_H264, CODING_LPCM, CODING_AC3, CODING_PG = 0x1B, 0x80, 0x81, 0x90
 
 # ISO 639-1 (the project's codes) -> ISO 639-2/B (the disc's)
 LANGS = {
@@ -141,8 +142,9 @@ def video_args(title, disc, max_bps, fast):
 
 
 def encode_title(title, info, disc, max_bps, out_path, work, fast=False, on_progress=None,
-                 probes=None):
-    """Encode one title to a Blu-ray transport stream (.m2ts)."""
+                 probes=None, sups=()):
+    """Encode one title to a Blu-ray transport stream (.m2ts); `sups` are its
+    subtitle tracks as PGS streams (pgs.write_sup), muxed in as they are."""
     if not info.get("has_video"):
         raise OncemoreError(f"title {title.id!r}: {title.source} has no video stream")
     duration = info["duration"]
@@ -181,6 +183,13 @@ def encode_title(title, info, disc, max_bps, out_path, work, fast=False, on_prog
     pids = ["-streamid", f"0:{VIDEO_PID}"]
     for k in range(tracks):
         pids += ["-streamid", f"{k + 1}:{AUDIO_PID + k}"]
+    n_inputs = inputs.count("-i")
+    for k, sup in enumerate(sups):
+        inputs = inputs + ["-i", sup]
+        maps = maps + ["-map", f"{n_inputs + k}:s:0"]
+        pids += ["-streamid", f"{1 + tracks + k}:{PG_PID + k}"]
+    if sups:
+        acodec += ["-c:s", "copy"]
     encode.run_ffmpeg(inputs + maps + video_args(title, disc, max_bps, fast) + acodec + pids +
                       ["-t", f"{duration:.3f}", "-f", "mpegts", "-mpegts_m2ts_mode", "1",
                        "-mpegts_pmt_start_pid", str(PMT_PID), out_path],
@@ -299,13 +308,22 @@ def index_bdmv(title_objects, first_play, top_menu, video_format, frame_rate):
         _u32(len(body)) + body
 
 
-def _cmd(b0, b1, dst=0, src=0):
-    return bytes([b0, b1, 0, 0]) + _u32(dst) + _u32(src)
+def _cmd(b0, b1, dst=0, src=0, b3=0):
+    """A 12-byte navigation command: operand count / group / sub-group,
+    immediate flags / branch option, compare option, set option; operands."""
+    return bytes([b0, b1, 0, b3]) + _u32(dst) + _u32(src)
 
 
 def play_pl(playlist):
     """Play PlayList <playlist> (an immediate number)."""
     return _cmd(0x22, 0x80, playlist)
+
+
+def set_subtitles(number):
+    """Set Stream: subtitle (PG) track `number` shown, or 0 = none shown."""
+    # Set group, SetSystem sub-group, two immediate operands, option 1 (Set Stream);
+    # the first operand: PG stream number valid (0x8000), shown (0x4000)
+    return _cmd(0x51, 0xC0, 0xC000 | number if number else 0, 0, 0x01)
 
 
 def jump_title(title):
@@ -333,20 +351,27 @@ def _audio_attr(track):
     return bytes([coding, fmt << 4 | 1]) + lang.encode("ascii")
 
 
+def _pg_attr(lang):
+    return bytes([CODING_PG]) + lang.encode("ascii") + b"\0"
+
+
 def mpls(items, marks):
     """A playlist. items: [(clip name, in, out, video_format, frame_rate,
-    audio)] played one after the other, times in 45 kHz on each clip's time
-    line, audio [(coding, channels, lang3)]; marks: chapter marks as
-    (item index, time)."""
+    audio, pg)] played one after the other, times in 45 kHz on each clip's
+    time line, audio [(coding, channels, lang3)], pg [lang3] (subtitles);
+    marks: chapter marks as (item index, time)."""
     app = _u32(14) + bytes([0, 1]) + _u16(0) + bytes(8) + _u16(0)
     body = b""
-    for clip, in_time, out_time, video_format, frame_rate, audio in items:
-        stn = _u16(0) + bytes([1, len(audio), 0, 0, 0, 0, 0, 0]) + bytes(4)
+    for clip, in_time, out_time, video_format, frame_rate, audio, pg in items:
+        stn = _u16(0) + bytes([1, len(audio), len(pg), 0, 0, 0, 0, 0]) + bytes(4)
         entry = _u8(1) + _u16(VIDEO_PID) + bytes(6)
         stn += _u8(len(entry)) + entry + _u8(5) + _video_attr(video_format, frame_rate)
         for k, tr in enumerate(audio):
             entry = _u8(1) + _u16(AUDIO_PID + k) + bytes(6)
             stn += _u8(len(entry)) + entry + _u8(5) + _audio_attr(tr)
+        for k, lang in enumerate(pg):
+            entry = _u8(1) + _u16(PG_PID + k) + bytes(6)
+            stn += _u8(len(entry)) + entry + _u8(5) + _pg_attr(lang)
         # connection_condition 1: the clips are not seamless; STC id 0
         item = clip.encode("ascii") + b"M2TS" + _u16(1) + _u8(0) + _u32(in_time) + \
             _u32(out_time) + bytes(8) + _u8(0) + _u8(0) + _u16(0) + _u16(len(stn)) + stn
@@ -387,9 +412,9 @@ def ep_map(entries):
     return head + one
 
 
-def clpi(scan, video_format, frame_rate, audio):
+def clpi(scan, video_format, frame_rate, audio, pg=()):
     """Clip information of one .m2ts: its streams, time span and EP map.
-    audio: [(coding, channels, lang3)]."""
+    audio: [(coding, channels, lang3)]; pg: [lang3]."""
     ts_type = bytes([0x80]) + b"HDMV" + bytes(9) + bytes(16)
     info = _u16(0) + _u8(1) + _u8(1) + _u32(0) + _u32(TS_RATE) + _u32(scan.packets) + \
         bytes(128) + _u16(len(ts_type)) + ts_type
@@ -405,7 +430,11 @@ def clpi(scan, video_format, frame_rate, audio):
     for k, tr in enumerate(audio):
         coding = _audio_attr(tr) + isrc + bytes(4)
         streams += _u16(AUDIO_PID + k) + _u8(len(coding)) + coding
-    prog = _u8(0) + _u8(1) + _u32(0) + _u16(PMT_PID) + _u8(1 + len(audio)) + _u8(0) + streams
+    for k, lang in enumerate(pg):
+        coding = _pg_attr(lang) + isrc + bytes(4)
+        streams += _u16(PG_PID + k) + _u8(len(coding)) + coding
+    prog = _u8(0) + _u8(1) + _u32(0) + _u16(PMT_PID) + _u8(1 + len(audio) + len(pg)) + \
+        _u8(0) + streams
     prog = _u32(len(prog)) + prog
     cpi = _u16(1) + ep_map(scan.entries)          # 12 reserved bits, CPI_type 1 (EP map)
     cpi = _u32(len(cpi)) + cpi
@@ -436,6 +465,7 @@ class Piece:
     video_format: int
     frame_rate: int
     audio: list           # [(coding, channels, lang3)]
+    pg: list              # subtitle tracks [lang3]
     marks: list           # chapter starts, 45 kHz on the clip's time line
     end: int              # end of the clip, 45 kHz
 
@@ -443,7 +473,7 @@ class Piece:
         """PlayItem covering chapters first..last (1-based, inclusive)."""
         start = self.marks[first - 1]
         stop = self.marks[last] if last and last < len(self.marks) else self.end
-        return (self.clip, start, stop, self.video_format, self.frame_rate, self.audio)
+        return (self.clip, start, stop, self.video_format, self.frame_rate, self.audio, self.pg)
 
 
 def disc_titles(project):
@@ -486,8 +516,16 @@ def navigation(project):
     Returns (objects, first play object, top menu object)."""
     titles, numbers = disc_titles(project)
     objects = []
-    for n, (_, _, end) in enumerate(titles, 1):
-        cmds = [play_pl(n)]
+    for n, (kind, ident, end) in enumerate(titles, 1):
+        first = project.title(ident) if kind == "title" else \
+            project.title(project.playlist(ident).items[0].title_id) if kind == "playlist" \
+            else project.titles[0]
+        cmds = []
+        if first.subtitles:
+            # the default track shown from the start, or subtitles off
+            on = next((k for k, sub in enumerate(first.subtitles, 1) if sub.default), 0)
+            cmds.append(set_subtitles(on))
+        cmds.append(play_pl(n))
         if end in numbers:
             cmds.append(jump_title(numbers[end]))
         objects.append(cmds)
@@ -523,10 +561,11 @@ def write_bdmv(project, clips, out_dir):
         scan = scan_m2ts(clips[t.id])
         video_format, frame_rate = FORMATS[title_fps(t, project.disc)]
         audio = audio_streams(t)
-        pieces[t.id] = Piece(name, video_format, frame_rate, audio,
+        pg = [lang3(sub.lang) for sub in t.subtitles]
+        pieces[t.id] = Piece(name, video_format, frame_rate, audio, pg,
                              chapter_marks(t, scan), scan.end_pts // 2)
         _write(out_dir, os.path.join("CLIPINF", f"{name}.clpi"),
-               clpi(scan, video_format, frame_rate, audio))
+               clpi(scan, video_format, frame_rate, audio, pg))
         dest = os.path.join(out_dir, "BDMV", "STREAM", f"{name}.m2ts")
         if os.path.abspath(clips[t.id]) != os.path.abspath(dest):
             shutil.move(clips[t.id], dest)

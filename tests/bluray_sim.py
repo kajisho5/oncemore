@@ -18,6 +18,8 @@ BD_EVENT_TITLE = 5
 BD_EVENT_PLAYLIST = 6
 BD_EVENT_CHAPTER = 8
 BD_EVENT_END_OF_TITLE = 10
+BD_EVENT_PG_TEXTST_STREAM = 13
+BD_EVENT_PG_TEXTST = 17
 BD_EVENT_IDLE = 28
 
 _CANDIDATES = ("libbluray.so.2", "libbluray.so", "libbluray.2.dylib", "libbluray.dylib",
@@ -160,7 +162,9 @@ class Disc:
                          for i in range(clip.video_stream_count)],
                "audio": [(clip.audio_streams[i].coding_type, clip.audio_streams[i].format,
                           clip.audio_streams[i].lang.decode())
-                         for i in range(clip.audio_stream_count)]}
+                         for i in range(clip.audio_stream_count)],
+               "pg": [(clip.pg_streams[i].coding_type, clip.pg_streams[i].lang.decode())
+                      for i in range(clip.pg_stream_count)]}
         self.lib.bd_free_title_info(p)
         return out
 
@@ -169,7 +173,8 @@ class Disc:
         streams; returns the navigation events in order as (name, value)."""
         names = {BD_EVENT_TITLE: "title", BD_EVENT_PLAYLIST: "playlist",
                  BD_EVENT_CHAPTER: "chapter", BD_EVENT_END_OF_TITLE: "end",
-                 BD_EVENT_ERROR: "error"}
+                 BD_EVENT_ERROR: "error", BD_EVENT_PG_TEXTST_STREAM: "subtitle_stream",
+                 BD_EVENT_PG_TEXTST: "subtitles_shown"}
         if not self.lib.bd_play(self.bd):
             raise RuntimeError("bd_play failed")
         buf = ctypes.create_string_buffer(6144 * 16)

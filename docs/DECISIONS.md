@@ -853,3 +853,19 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   partition.
 * Tests check the structures and read every file back with libudfread, the
   reader libbluray opens images with, and play the image with libbluray.
+
+## 55. Blu-ray subtitles
+
+* ffmpeg cannot encode PGS, so oncemore writes the .sup stream itself and
+  ffmpeg only muxes it (stream copy). Cues are drawn exactly as for DVD
+  (white text, black outline on a transparent frame) at HD size; each
+  pixel's lightness and opacity, 8 steps each, pick one of 64 palette
+  entries that run from the outline to the fill colour. The arithmetic runs
+  on whole rows as big integers, so it costs nothing next to drawing.
+* Every cue is an epoch-start display set (composition, window, palette,
+  object), cleared at its end; a cue ends 0.2 s before the next, the
+  decoding gap players need (other authoring tools warn about too-close
+  cues for the same reason). The stream begins with an empty composition
+  at time 0 because ffmpeg starts every input at 0.
+* The default track is switched on by a Set Stream command in front of
+  Play PlayList; titles with subtitles but no default switch them off.
