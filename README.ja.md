@@ -63,7 +63,24 @@ oncemore doctor
 メニューのフォントは `ONCEMORE_FONT` で上書きできます。
 足りないツールがあれば、何が無いかとインストールコマンドを表示して終了します。
 
-## クイックスタート：アプリ
+## Mac アプリ
+
+**Oncemore.app** は同じ編集画面を普通の Mac のウィンドウで開くアプリです。ダブルクリックで起動し、
+「File › New Project… / Open Project…」でプロジェクトを作成・オープン、次回は前回のプロジェクトを自動で開きます。
+Python は同梱しているので、Homebrew で入れるのは映像ツールだけです：
+
+```sh
+brew install ffmpeg-full dvdauthor
+```
+
+最新の CI 実行の成果物（またはリリース）から `Oncemore-<version>-arm64.zip`（Apple シリコン用）を
+ダウンロードして展開し、*Oncemore.app* を「アプリケーション」に入れてください。まだ公証（notarize）していないため、
+初回起動は macOS にブロックされます。「システム設定 › プライバシーとセキュリティ」で **このまま開く** を押すか、
+`xattr -dr com.apple.quarantine /Applications/Oncemore.app` を実行してください。
+自分でビルドする場合は `macos/build_app.sh`（Xcode コマンドラインツールと `gh` が必要）。Developer ID があれば
+`CODESIGN_IDENTITY` と `NOTARIZE=1` で署名・公証済みのアプリを作れます。
+
+## クイックスタート：ブラウザでアプリ
 
 ```sh
 oncemore gui my-disc          # ブラウザで http://127.0.0.1:…/ が開きます

@@ -65,7 +65,25 @@ Tool locations can be overridden with `ONCEMORE_FFMPEG`, `ONCEMORE_FFPROBE`,
 `ONCEMORE_MKISOFS`, `ONCEMORE_XORRISO`, and the menu font with `ONCEMORE_FONT`.
 If something is missing, oncemore says what and prints the install command.
 
-## Quick start: the app
+## The Mac app
+
+**Oncemore.app** wraps the same authoring UI in a normal Mac window: double-click
+to start, *File › New Project… / Open Project…*, and it reopens your last
+project. Python is bundled; only the video tools come from Homebrew:
+
+```sh
+brew install ffmpeg-full dvdauthor
+```
+
+Download `Oncemore-<version>-arm64.zip` (Apple silicon) from the latest CI run's
+artifacts or a release, unzip, and move *Oncemore.app* to Applications. The
+build is not notarised yet, so macOS blocks the first launch: open *System
+Settings › Privacy & Security* and click **Open Anyway** (or run
+`xattr -dr com.apple.quarantine /Applications/Oncemore.app`). Build it yourself
+with `macos/build_app.sh` (Xcode command line tools + `gh`); with a Developer ID
+set `CODESIGN_IDENTITY` and `NOTARIZE=1` to produce a signed, notarised app.
+
+## Quick start: the app in a browser
 
 ```sh
 oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser

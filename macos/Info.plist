@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key><string>oncemore</string>
+  <key>CFBundleDisplayName</key><string>oncemore</string>
+  <key>CFBundleIdentifier</key><string>io.github.kajisho5.oncemore</string>
+  <key>CFBundleExecutable</key><string>Oncemore</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>@VERSION@</string>
+  <key>CFBundleVersion</key><string>@BUILD@</string>
+  <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+  <key>LSMinimumSystemVersion</key><string>12.0</string>
+  <key>LSApplicationCategoryType</key><string>public.app-category.video</string>
+  <key>NSHighResolutionCapable</key><true/>
+  <key>NSHumanReadableCopyright</key><string>GPL-3.0-or-later. DVD-Video authoring — menus, chapters, ISO, once more.</string>
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <!-- the UI is served by the app's own engine on 127.0.0.1 -->
+    <key>NSAllowsLocalNetworking</key><true/>
+  </dict>
+</dict>
+</plist>

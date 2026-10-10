@@ -51,3 +51,23 @@ jobs:
       - run: python -m oncemore doctor
       - name: Unit + end-to-end tests (ISO via hdiutil)
         run: python -m unittest -v
+
+  macos-app:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # CFBundleVersion = commit count
+      - name: External tools for the smoke test
+        run: brew install ffmpeg-full dvdauthor
+      - name: Build Oncemore.app
+        run: macos/build_app.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Smoke test (launch the app on a sample project)
+        run: macos/smoke_test.sh dist/Oncemore.app
+      - uses: actions/upload-artifact@v6
+        with:
+          name: Oncemore-macOS-arm64
+          path: dist/Oncemore-*.zip
+          if-no-files-found: error
