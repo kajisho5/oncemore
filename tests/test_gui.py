@@ -318,6 +318,11 @@ class TestGuiBrowser(unittest.TestCase):
             page.click("#add-ch")
             self.wait_saved(page)
             self.assertEqual(self.project()["titles"][0]["chapters"], ["00:00:00", "00:00:03.000"])
+            # 5.1 audio; the bitrate shown follows the 5.1 default
+            page.select_option("select[data-k='audio.channels']", "6")
+            self.wait_saved(page)
+            self.assertEqual(self.project()["titles"][0]["audio"], {"channels": 6})
+            self.assertEqual(page.input_value("select[data-k='audio.bitrate']"), "448k")
             # play the preview from the playhead (a WebM or MP4 copy, whichever this
             # browser plays), pause: back to exact frames, later than where it started
             page.click("#play")
@@ -353,6 +358,9 @@ class TestGuiBrowser(unittest.TestCase):
             self.assertEqual((back["x"], back["y"]), (80, 200))
             # point the button at the generated chapter menu via the inspector
             el.click()
+            page.select_option("#inspector select[data-k=action]", "playall")
+            self.wait_saved(page)
+            self.assertEqual(self.project()["menus"][0]["buttons"][0]["action"], "playall")
             page.select_option("#inspector select[data-k=action]", "menu:chapters_t1")
             self.wait_saved(page)
             self.assertEqual(self.project()["menus"][0]["buttons"][0]["action"], "menu:chapters_t1")

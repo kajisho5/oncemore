@@ -167,9 +167,18 @@ class TestDefaultSample(unittest.TestCase):
             # chapter 2 button starts title 1 at chapter 2
             d.activate(2)
             self.assertEqual(d.wait_title(), (1, 2))
-            # title 1 ends -> end_action title:t2
+            # played on its own, title 1 ends -> end_action menu:main
+            self.assertEqual(d.play_to_end_of_title(), ("menu", 1))
+            # PLAY ALL: title 1, then title 2, then title 2's end_action
+            d.activate(1)
+            self.assertEqual(d.wait_title(), (1, 1))
             self.assertEqual(d.play_to_end_of_title(), ("title", (2, 1)))
-            # title 2 ends -> end_action menu:main
+            self.assertEqual(d.play_to_end_of_title(), ("menu", 1))
+            # chapter 3 after PLAY ALL is a single play again
+            d.activate(2)
+            self.assertEqual(d.wait_menu(), 2)
+            d.activate(3)
+            self.assertEqual(d.wait_title(), (1, 3))
             self.assertEqual(d.play_to_end_of_title(), ("menu", 1))
             # BACK from the chapter menu returns to main
             d.activate(2)
@@ -345,6 +354,7 @@ class TestMixedTitlesets(unittest.TestCase):
             d.activate(1)                                    # PLAY ALL: t1 -> t2 across titlesets
             self.assertEqual(d.wait_title(), (1, 1))
             self.assertEqual(d.play_to_end_of_title(), ("title", (2, 1)))
+            self.assertEqual(d.play_to_end_of_title(), ("menu", 3))  # last title's end_action
 
 
 @unittest.skipUnless(TOOLS_OK, SKIP_REASON)
@@ -452,6 +462,74 @@ class TestTracksSubtitlesMotionMenu(unittest.TestCase):
             d.activate(1)
             d.wait_title()
             self.assertFalse(d.active_subtitle()[1])
+
+
+@unittest.skipUnless(TOOLS_OK, SKIP_REASON)
+class TestSurround(unittest.TestCase):
+    """Title B from a 5.1 source kept as 5.1 AC-3 (its own titleset), title A
+    stereo; a stereo source asked for 5.1 gets a warning."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-e2e-51-")
+        rc, _, err = run_cli("init", "surround", cwd=cls.tmp)
+        assert rc == 0, err
+        proj = os.path.join(cls.tmp, "surround")
+        # 6 s of video with a different tone on each of the six channels
+        tones = "|".join(f"0.3*sin({f}*2*PI*t)" for f in (330, 440, 550, 60, 660, 770))
+        subprocess.run(["ffmpeg", "-v", "error", "-y",
+                        "-f", "lavfi", "-i", "testsrc2=s=640x360:r=30000/1001:d=6",
+                        "-f", "lavfi", "-i", f"aevalsrc={tones}:c=5.1:s=48000:d=6",
+                        "-c:v", "mpeg4", "-q:v", "5", "-c:a", "aac", "-b:a", "384k",
+                        "-shortest", os.path.join(proj, "media", "surround.mp4")], check=True)
+        path = os.path.join(proj, "project.oncemore.json")
+        with open(path) as f:
+            data = json.load(f)
+        data["titles"][1].update({"source": "media/surround.mp4",
+                                  "audio": {"codec": "ac3", "channels": 6}})
+        cls.data, cls.path = data, path
+        with open(path, "w") as f:
+            json.dump(data, f)
+        cls.iso = os.path.join(cls.tmp, "surround.iso")
+        rc, out, err = run_cli("--json", "iso", path, "-o", cls.iso, "--fast", cwd=cls.tmp)
+        assert rc == 0, err + out
+        cls.result = json_lines(out)[-1]
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def test_51_track(self):
+        self.assertEqual([(t["titleset"], t["audio_channels"]) for t in self.result["titles"]],
+                         [(1, 2), (2, 6)])
+        vob = iso_extract(self.iso, "/VIDEO_TS/VTS_02_1.VOB", os.path.join(self.tmp, "b.vob"))
+        a = next(s for s in ffprobe_streams(vob) if s["codec_type"] == "audio")
+        self.assertEqual((a["codec_name"], a["channels"]), ("ac3", 6))
+        # the centre channel (550 Hz in the source) survived as its own channel
+        p = subprocess.run(["ffmpeg", "-v", "info", "-i", vob, "-vn",
+                            "-af", "pan=mono|c0=FC,volumedetect", "-f", "null", "-"],
+                           capture_output=True, text=True)
+        mean = float(p.stderr.split("mean_volume:")[1].split("dB")[0])
+        self.assertGreater(mean, -30)
+
+    @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
+    def test_player_sees_six_channels(self):
+        with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
+            self.assertEqual(d.wait_menu(), 1)
+            d.activate(3)                                   # SAMPLE TITLE B
+            self.assertEqual(d.wait_title(), (2, 1))
+            self.assertEqual(d.audio_channels(0), 6)
+
+    def test_stereo_source_warns(self):
+        data = json.loads(json.dumps(self.data))
+        data["titles"][0]["audio"] = {"codec": "ac3", "channels": 6}
+        path = os.path.join(self.tmp, "surround", "warn.oncemore.json")
+        with open(path, "w") as f:
+            json.dump(data, f)
+        rc, out, err = run_cli("--json", "validate", path, cwd=self.tmp)
+        self.assertEqual(rc, 0, err + out)
+        self.assertIn("only use the front speakers", out)
+
 
 
 @unittest.skipUnless(TOOLS_OK, SKIP_REASON)

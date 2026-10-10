@@ -19,6 +19,13 @@ Several titlesets (titles with another aspect ratio or audio codec):
 * A title outside titleset 1 cannot call titleset 1's menus directly, so it
   stores the target menu in g1 and calls the VMGM title menu, which jumps to
   the root menu of titleset 1, whose dispatcher reads g1.
+
+"Play all" (only emitted when a button or first play uses it):
+* GPRM g2 is 1 while playing everything. The playall button / first play
+  sets it and starts the first title; title and chapter buttons clear it.
+* Each title's <post> first checks g2 and jumps to the next title in project
+  order; the last title clears g2 and then follows its own end_action. So a
+  title played on its own still returns where its end_action says.
 """
 
 import os
@@ -28,6 +35,7 @@ from . import tools
 from .project import chapter_points, format_time, parse_action
 
 NAV_REG = "g1"
+PLAYALL_REG = "g2"
 
 
 def _menu_number(project, mid):
@@ -45,12 +53,15 @@ def _title_ref(project, tid, from_titleset):
 def button_command(project, action):
     """Command executed by a menu button (menu domain of titleset 1)."""
     kind, target, num = parse_action(action)
+    single = f"{PLAYALL_REG} = 0; " if project.uses_playall else ""
     if kind == "menu":
         return f"jump menu {_menu_number(project, target)};"
+    if kind == "playall":
+        return f"{PLAYALL_REG} = 1; jump {_title_ref(project, project.titles[0].id, 1)};"
     if kind == "title":
-        return f"jump {_title_ref(project, target, 1)};"
+        return f"{single}jump {_title_ref(project, target, 1)};"
     if kind == "chapter":
-        return f"jump {_title_ref(project, target, 1)} chapter {num};"
+        return f"{single}jump {_title_ref(project, target, 1)} chapter {num};"
     if kind == "audio":
         return f"audio = {num - 1};"
     if kind == "subtitle":
@@ -71,6 +82,17 @@ def default_subtitle(project):
 def end_command(project, action, title=None):
     """<post> of `title` (default: one in titleset 1)."""
     ts = title.titleset if title else 1
+    if title is not None and project.uses_playall:
+        nxt = project.playall_next(title)
+        if nxt is None:
+            pre = f"{PLAYALL_REG} = 0; "
+        else:
+            pre = f"if ({PLAYALL_REG} == 1) {{ jump {_title_ref(project, nxt.id, ts)}; }} "
+        return pre + _end_command(project, action, ts)
+    return _end_command(project, action, ts)
+
+
+def _end_command(project, action, ts):
     kind, target, _ = parse_action(action)
     if kind == "menu":
         n = _menu_number(project, target)
@@ -90,6 +112,9 @@ def first_play_command(project):
     if kind == "menu":
         n = _menu_number(project, target)
         return f"{pre}{NAV_REG} = {n if n != 1 else 0}; jump titleset 1 menu entry root;"
+    if kind == "playall":
+        pre += f"{PLAYALL_REG} = 1; "
+        target = project.titles[0].id
     t = project.title(target)
     if t.titleset == 1:
         return f"{pre}jump title {t.number};"
@@ -106,7 +131,7 @@ def audio_tags(project, titles=None):
     titles = titles or project.titles
     codec = titles[0].audio_codec
     base = ('format="pcm" quant="16bps" samplerate="48khz" channels="2"' if codec == "lpcm"
-            else 'format="ac3" channels="2"')
+            else f'format="ac3" channels="{titles[0].audio_channels}"')
     n = max(len(t.audio_tracks) for t in titles) or 1
     langs = (project.audio_langs + [None] * n)[:n]
     return [f'<audio {base}' + (f' lang="{lang}"' if lang else "") + "/>" for lang in langs]

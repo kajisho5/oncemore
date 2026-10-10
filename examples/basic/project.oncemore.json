@@ -22,7 +22,7 @@
         "codec": "ac3",
         "bitrate": "192k"
       },
-      "end_action": "title:t2",
+      "end_action": "menu:main",
       "auto_chapter_menu": {
         "id": "chapters",
         "back": "menu:main"
@@ -61,7 +61,7 @@
           "label": "PLAY ALL",
           "x": 120,
           "y": 220,
-          "action": "title:t1"
+          "action": "playall"
         },
         {
           "id": "ch",

@@ -22,13 +22,14 @@ Done (as a local web app, `oncemore gui`):
   colours, remote navigation; exact server-side preview with hit areas
 * Check (size estimate, issues) and Build (ISO / folder) with live progress
 * Autosave, undo/redo, English/Japanese UI
+* Oncemore.app: a native macOS window around the same UI with bundled Python,
+  built for Apple silicon and Intel by the release workflow (notarised once a
+  Developer ID is configured)
 * Title playback (cached H.264/WebM proxy), ▲/▼ ordering of titles and menus,
   image buttons (frame or shape highlight)
 
 Next:
 
-* A native macOS wrapper (.app with a WKWebView around the same UI, signed and
-  notarised) so it starts like any Mac app, without a terminal
 * Playback preview of menu navigation (titles play since the proxy preview)
 * Multi-select, alignment guides and snapping in the menu editor
 * Drag-and-drop reordering in the sidebar (▲/▼ buttons exist)
@@ -42,12 +43,14 @@ Done:
 * Menu buttons that switch audio / subtitle streams (`audio:<n>`, `subtitle:<n|off>`)
 * Motion menus (video background, its sound or separate music)
 * Several titlesets: titles with another aspect ratio or audio codec on one disc
+* "Play all" (`playall` buttons / first play) that keeps single-title returns
+* 5.1 AC-3 audio (`audio.channels: 6`)
 
 Still to do:
 
-* 5.1 AC-3 pass-through (today everything is down-mixed to stereo)
+* AC-3 pass-through without re-encoding
 * Menu transitions, animated buttons
-* "Play all" playlists and resume-aware returns
+* Resume-aware returns (back to the chapter you left)
 * Per-cue subtitle position/colour, ASS input
 
 ## Phase 4 — web version
