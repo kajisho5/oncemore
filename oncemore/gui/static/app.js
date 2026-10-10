@@ -18,6 +18,11 @@ const I18N = {
     chapter_menu: "Chapter menu", chapter_menu_on: "Generate a chapter menu with thumbnails",
     subtitles: "Subtitles", audio_tracks: "Audio tracks", default_on: "on at start",
     add_chapter: "Add chapter here", chapters: "Chapters", delete: "Delete",
+    image: "Image", width: "Width", highlight_style: "Highlight", hl_frame: "Frame around it", hl_shape: "Its shape",
+    image_hint: "An image button shows the picture instead of the text (PNG with transparency works best).",
+    move_up: "Move up", move_down: "Move down", order_title: "Play all follows this order.",
+    order_menu: "The first menu opens when the disc starts, unless “When the disc starts” says otherwise.",
+    play: "Play", pause: "Pause", preparing: "Preparing preview… {p}%", play_err: "This preview cannot be played here.",
     no_titles: "No titles yet. Drop a video file into Media, then choose “Add as title”.",
     add_as_title: "Add as title", use_as_bg: "Use as menu background", use_as_music: "Use as menu music",
     use_as_video_bg: "Use as motion menu background", add_sub_to: "Add as subtitles to",
@@ -61,6 +66,11 @@ const I18N = {
     chapter_menu: "チャプターメニュー", chapter_menu_on: "サムネイル付きチャプターメニューを自動生成",
     subtitles: "字幕", audio_tracks: "音声トラック", default_on: "最初から表示",
     add_chapter: "ここにチャプター", chapters: "チャプター", delete: "削除",
+    image: "画像", width: "幅", highlight_style: "ハイライト", hl_frame: "周りに枠", hl_shape: "画像の形",
+    image_hint: "画像ボタンは文字の代わりに画像を表示します（透過 PNG がおすすめ）。",
+    move_up: "上へ", move_down: "下へ", order_title: "「全タイトルを連続再生」はこの順番で再生します。",
+    order_menu: "ディスク挿入時は先頭のメニューが開きます（「ディスク挿入時」で別の指定がない場合）。",
+    play: "再生", pause: "一時停止", preparing: "プレビューを準備中… {p}%", play_err: "このプレビューはここでは再生できません。",
     no_titles: "タイトルがまだありません。動画を「素材」にドロップして「タイトルとして追加」を選んでください。",
     add_as_title: "タイトルとして追加", use_as_bg: "メニュー背景に使う", use_as_music: "メニューの BGM に使う",
     use_as_video_bg: "動画背景（モーションメニュー）に使う", add_sub_to: "字幕として追加：",
@@ -209,6 +219,17 @@ function renameRefs(p, kind, oldId, newId) {
   for (const m of p.menus || []) for (const b of m.buttons || []) b.action = fix(b.action);
 }
 const mediaOf = (kind) => S.media.filter((m) => m.kind === kind).map((m) => m.path);
+// ▲/▼ for the order of titles or menus (project order matters: play all, first menu)
+const orderHtml = (hint) => `<div class="row" style="margin:10px 0 4px">
+    <button class="small shrink" data-move="-1">▲ ${t("move_up")}</button>
+    <button class="small shrink" data-move="1">▼ ${t("move_down")}</button></div><div class="hint">${esc(hint)}</div>`;
+function bindOrder(el, listName, id) {
+  el.querySelectorAll("[data-move]").forEach((b) => {
+    const list = P()[listName] || [], i = list.findIndex((x) => x.id === id), j = i + Number(b.dataset.move);
+    if (i < 0 || j < 0 || j >= list.length) { b.disabled = true; return; }
+    b.onclick = () => commit((p) => { const l = p[listName]; [l[i], l[j]] = [l[j], l[i]]; });
+  });
+}
 
 // ---------------------------------------------------------------- edits, undo, save
 function commit(fn, { render = true } = {}) {
@@ -412,12 +433,14 @@ function renderTitle(m) {
   const ar = ti.aspect || P().disc.aspect;
   m.innerHTML = `<div class="card">
     <div class="row"><h2 class="shrink">${esc(ti.name || ti.id)}</h2><span class="muted">${esc(ti.source)} · ${info.width || "?"}×${info.height || "?"} · ${dur.toFixed(2)}s</span></div>
-    <div class="viewer" style="aspect-ratio:${ar.replace(":", " / ")}"><img id="frame" alt=""><span class="tc" id="tc">${fmtTime(ph)}</span></div>
+    <div class="viewer" style="aspect-ratio:${ar.replace(":", " / ")}"><img id="frame" alt=""><video id="player" playsinline preload="none" hidden></video>
+      <span class="tc" id="tc">${fmtTime(ph)}</span><span class="proxy-msg" id="proxy-msg" hidden></span></div>
     <div class="timeline" id="timeline">
       ${chapters.map((c, i) => `<div class="marker" data-ch="${i}" title="${esc(t("chapter_at", { n: i + 1 }))} ${fmtTime(c)}" style="left:${dur ? (c / dur) * 100 : 0}%"></div>`).join("")}
       <input type="range" id="scrub" min="0" max="${dur}" step="${(1 / fps).toFixed(5)}" value="${ph}">
     </div>
     <div class="transport">
+      <button id="play" class="shrink">▶ ${t("play")}</button>
       <button data-step="-1">−1s</button><button data-step="${-1 / fps}">−1f</button>
       <button data-step="${1 / fps}">+1f</button><button data-step="1">+1s</button>
       <input id="tc-input" class="mono" style="width:130px" value="${fmtTime(ph)}" title="${t("playhead")}">
@@ -442,13 +465,57 @@ function renderTitle(m) {
   };
   img.onerror = () => { img.alt = t("frame_err"); };
   const scrub = $("#scrub");
-  scrub.oninput = () => show(Number(scrub.value));
-  const seek = (time) => { time = Math.max(0, Math.min(dur, time)); scrub.value = time; show(time); };
+  // Playback uses a small H.264 copy made by the server; when it stops, the
+  // exact frame at that time is shown again (frame-accurate chapter marks).
+  const video = $("#player"), msg = $("#proxy-msg"), playBtn = $("#play");
+  const snap = (x) => Math.round(x * fps) / fps;
+  const format = video.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"') ? "mp4" : "webm";
+  let playing = false;
+  const toFrames = (time) => {
+    playing = false; video.pause(); video.hidden = true; img.hidden = false;
+    playBtn.textContent = "▶ " + t("play");
+    if (time != null) seek(time);
+  };
+  const seek = (time) => {
+    if (playing) toFrames(null);
+    time = Math.max(0, Math.min(dur, time)); scrub.value = time; show(time);
+  };
+  scrub.oninput = () => { if (playing) toFrames(null); show(Number(scrub.value)); };
+  video.onpause = () => { if (playing) toFrames(snap(video.currentTime)); };
+  video.ontimeupdate = () => {
+    if (!playing) return;
+    scrub.value = video.currentTime; S.playhead[ti.id] = video.currentTime;
+    $("#tc").textContent = fmtTime(video.currentTime); $("#tc-input").value = fmtTime(video.currentTime);
+  };
+  video.onerror = () => { if (video.getAttribute("src")) { msg.hidden = false; msg.textContent = t("play_err"); toFrames(null); } };
+  playBtn.onclick = async () => {
+    if (playing) { video.pause(); return; }
+    playBtn.disabled = true;
+    try {
+      for (;;) {
+        const st = await api("/api/proxy?" + new URLSearchParams({ path: ti.source, format }), { method: "POST" });
+        if (st.state === "ready") break;
+        if (st.state === "error") throw new Error(st.error || t("play_err"));
+        msg.hidden = false; msg.textContent = t("preparing", { p: Math.round(st.fraction * 100) });
+        await new Promise((r) => setTimeout(r, 500));
+        if (S.sel.view !== "title" || S.sel.id !== ti.id || !document.body.contains(video)) return;
+      }
+    } catch (e) { msg.hidden = false; msg.textContent = e.message; return; }
+    finally { playBtn.disabled = false; }
+    msg.hidden = true;
+    const src = imgUrl("proxy", { path: ti.source, format });
+    if (video.getAttribute("src") !== src) video.src = src;
+    video.currentTime = Number(scrub.value) >= dur - 0.05 ? 0 : Number(scrub.value);
+    playing = true; video.hidden = false; img.hidden = true;
+    playBtn.textContent = "❚❚ " + t("pause");
+    video.play().catch((e) => { if (playing) { msg.hidden = false; msg.textContent = e.message; toFrames(null); } });
+  };
   m.querySelectorAll("[data-step]").forEach((b) => (b.onclick = () => seek(Number(scrub.value) + Number(b.dataset.step))));
   m.querySelectorAll("[data-seek]").forEach((el) => (el.onclick = () => seek(Number(el.dataset.seek))));
   m.querySelectorAll(".marker").forEach((el) => (el.onclick = () => seek(chapters[Number(el.dataset.ch)])));
   $("#tc-input").onchange = (e) => seek(parseTime(e.target.value));
   $("#add-ch").onclick = () => {
+    if (playing) toFrames(snap(video.currentTime));
     const time = Number(scrub.value);
     if (chapters.some((c) => Math.abs(c - time) < 0.5)) return;
     commit((p) => {
@@ -503,6 +570,7 @@ function renderTitleInspector(el) {
     <h3>${t("chapter_menu")}</h3>
     <label><input type="checkbox" id="cm-on" ${cm ? "checked" : ""}> ${t("chapter_menu_on")}</label>
     ${cm ? `<div style="margin-top:8px" data-nobind><label class="field"><span>BACK → </span>${selectHtml("back", [["__none__", t("auto")], ...actionOptions({ forButton: false, includeChapters: false })], (cm === true ? null : cm.back) || "__none__", 'id="cm-back"')}</label></div>` : ""}
+    <h3></h3>${orderHtml(t("order_title"))}
     <h3></h3><button class="danger" id="del-title">${t("delete")}</button>`;
   const find = (p) => p.titles.find((x) => x.id === ti.id);
   bindFields(el, find, {});
@@ -549,6 +617,7 @@ function renderTitleInspector(el) {
     commit((p) => { renameRefs(p, "title", ti.id, nid); find(p).id = nid; });
     S.sel.id = nid; renderAll();
   };
+  bindOrder(el, "titles", ti.id);
   $("#del-title").onclick = () => {
     if (!confirm(t("confirm_delete", { x: ti.name || ti.id }))) return;
     commit((p) => { p.titles = p.titles.filter((x) => x.id !== ti.id); });
@@ -590,7 +659,7 @@ function renderMenu(m) {
   const defSize = menu.font_size || 32, defColor = menu.text_color || "#FFFFFF";
   const els = [
     ...(menu.texts || []).map((x, i) => ({ kind: "text", i, x: x.x, y: x.y, size: x.size || defSize, color: x.color || defColor, label: x.text })),
-    ...(menu.buttons || []).map((b, i) => ({ kind: "button", i, x: b.x, y: b.y, size: b.size || defSize, color: b.color || defColor, label: b.label })),
+    ...(menu.buttons || []).map((b, i) => ({ kind: "button", i, x: b.x, y: b.y, size: b.size || defSize, color: b.color || defColor, label: b.label || "", image: b.image, width: b.width })),
   ];
   const sel = S.element;
   const firstBtn = 0;
@@ -604,7 +673,9 @@ function renderMenu(m) {
       ${S.showSafe ? `<div class="safe" style="left:${w * 0.05}px;top:${h * 0.05}px;width:${w * 0.9}px;height:${h * 0.9}px"></div>` : ""}
       ${els.map((e) => `<div class="el ${e.kind} ${sel && sel.kind === e.kind && sel.i === e.i ? "selected" : ""} ${e.kind === "button" && e.i === firstBtn ? "highlight" : ""}"
           data-kind="${e.kind}" data-i="${e.i}"
-          style="left:${e.x * sx * scale}px;top:${e.y * scale}px;font-size:${e.size * scale}px;color:${esc(e.kind === "button" && e.i === firstBtn ? (menu.highlight_color || "#FFD400") : e.color)}">${esc(e.label)}</div>`).join("")}
+          style="left:${e.x * sx * scale}px;top:${e.y * scale}px;font-size:${e.size * scale}px;color:${esc(e.kind === "button" && e.i === firstBtn ? (menu.highlight_color || "#FFD400") : e.color)}">${e.image
+            ? `<img src="${imgUrl("file", { path: e.image })}" alt="${esc(e.label)}" draggable="false" style="display:block;width:${(e.width || 160) * sx * scale}px${e.i === firstBtn ? `;outline:2px solid ${esc(menu.highlight_color || "#FFD400")}` : ""}">`
+            : esc(e.label)}</div>`).join("")}
     </div></div>
     <div class="hint" style="text-align:center;margin-top:8px">${w}×${h} · 720×${H} DVD px · ${esc(P().disc.aspect)}</div>`;
   const stage = $("#stage");
@@ -683,23 +754,48 @@ function renderMenuInspector(el) {
     const list = sel.kind === "button" ? menu.buttons : menu.texts || [];
     const it = list[sel.i];
     if (!it) { S.element = null; return renderMenuInspector(el); }
-    const btnIds = [["__none__", t("nav_auto")], ...menu.buttons.filter((b) => b !== it).map((b) => [b.id, `${b.id} (${b.label})`])];
+    const btnIds = [["__none__", t("nav_auto")], ...menu.buttons.filter((b) => b !== it).map((b) => [b.id, `${b.id} (${b.label || b.image})`])];
+    const isImage = sel.kind === "button" && it.image;
     el.innerHTML = `<h2>${sel.kind === "button" ? t("button") : t("text")}</h2>
       ${sel.kind === "button" ? `<label class="field"><span>${t("text")}</span><input data-k="label" value="${esc(it.label)}"></label>
-        <label class="field"><span>${t("action")}</span>${selectHtml("action", actionOptions(), it.action)}</label>`
+        <label class="field"><span>${t("action")}</span>${selectHtml("action", actionOptions(), it.action)}</label>
+        <label class="field" data-nobind><span>${t("image")}</span>${selectHtml("image", [["__none__", t("none")], ...mediaOf("image").map((x) => [x, x])], it.image || "__none__")}
+          <div class="hint">${esc(t("image_hint"))}</div></label>`
         : `<label class="field"><span>${t("text")}</span><input data-k="text" value="${esc(it.text)}"></label>`}
       <div class="grid2">
         <label class="field"><span>X</span><input type="number" data-k="x" min="0" max="719" value="${it.x}"></label>
         <label class="field"><span>Y</span><input type="number" data-k="y" min="0" max="${discH() - 1}" value="${it.y}"></label>
-        <label class="field"><span>${t("size")}</span><input type="number" data-k="size" min="8" max="200" value="${it.size || ""}" placeholder="${menu.font_size || 32}"></label>
-        <label class="field"><span>${t("color")}</span><input type="color" data-k="color" value="${esc(it.color || menu.text_color || "#ffffff")}"></label>
+        ${isImage ? `<label class="field"><span>${t("width")}</span><input type="number" data-k="width" min="8" max="720" value="${it.width || ""}" placeholder="${t("auto")}"></label>
+        <label class="field"><span>${t("highlight_style")}</span>${selectHtml("highlight", [["frame", t("hl_frame")], ["shape", t("hl_shape")]], it.highlight || "frame")}</label>`
+        : `<label class="field"><span>${t("size")}</span><input type="number" data-k="size" min="8" max="200" value="${it.size || ""}" placeholder="${menu.font_size || 32}"></label>
+        <label class="field"><span>${t("color")}</span><input type="color" data-k="color" value="${esc(it.color || menu.text_color || "#ffffff")}"></label>`}
       </div>
       ${sel.kind === "button" ? `<h3>${t("nav")}</h3><div class="grid2">${["up", "down", "left", "right"].map((d) =>
         `<label class="field"><span>${d}</span>${selectHtml("nav." + d, btnIds, (it.nav || {})[d] || "__none__")}</label>`).join("")}</div>` : ""}
       <button class="danger" id="del-el">${t("delete")}</button>`;
     bindFields(el, (p) => (sel.kind === "button" ? find(p).buttons : find(p).texts)[sel.i], {
-      numeric: ["x", "y", "size"],
-      onAfter: (p) => { const o = (sel.kind === "button" ? find(p).buttons : find(p).texts)[sel.i]; if (o.nav && !Object.keys(o.nav).length) delete o.nav; },
+      numeric: ["x", "y", "size", "width"],
+      onAfter: (p, key) => {
+        const o = (sel.kind === "button" ? find(p).buttons : find(p).texts)[sel.i];
+        if (o.nav && !Object.keys(o.nav).length) delete o.nav;
+        if (key === "highlight" && o.highlight === "frame") delete o.highlight;
+      },
+    });
+    // picking an image: start at a width that keeps the whole picture on screen
+    const imgSel = el.querySelector("select[data-k=image]");
+    if (imgSel) imgSel.addEventListener("change", async () => {
+      const path = imgSel.value === "__none__" ? null : imgSel.value;
+      let width = null;
+      if (path) {
+        const info = await probe(path), sx = displayW() / 720;
+        const nw = info.width || 160, nh = info.height || 160;
+        width = Math.round(Math.max(8, Math.min(nw / sx, 160, 720 - it.x, Math.floor((discH() - it.y) * nw / nh / sx) - 1)));
+      }
+      commit((p) => {
+        const o = find(p).buttons[sel.i];
+        if (path) { o.image = path; o.width = width; }
+        else { delete o.image; delete o.width; delete o.highlight; if (!o.label) o.label = "BUTTON"; }
+      });
     });
     $("#del-el").onclick = () => {
       if (sel.kind === "button" && menu.buttons.length <= 1) return;
@@ -722,8 +818,10 @@ function renderMenuInspector(el) {
       <label class="field"><span>${t("duration")}</span><input type="number" data-k="duration" min="1" max="600" value="${menu.duration || ""}" placeholder="${t("auto")}"></label>
     </div>
     <label class="field"><span>${t("music")}</span>${selectHtml("audio", [...none, ...mediaOf("audio").map((x) => [x, x])], menu.audio || "__none__")}</label>
-    <button class="danger" id="del-menu">${t("delete")}</button>`;
+    ${orderHtml(t("order_menu"))}
+    <h3></h3><button class="danger" id="del-menu">${t("delete")}</button>`;
   bindFields(el, find, { numeric: ["font_size", "duration"] });
+  bindOrder(el, "menus", menu.id);
   $("#menu-id").onchange = (e) => {
     const nid = e.target.value.trim().replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 40);
     if (!nid || nid === menu.id || allMenuIds().includes(nid)) { e.target.value = menu.id; return; }

@@ -22,14 +22,16 @@ Done (as a local web app, `oncemore gui`):
   colours, remote navigation; exact server-side preview with hit areas
 * Check (size estimate, issues) and Build (ISO / folder) with live progress
 * Autosave, undo/redo, English/Japanese UI
+* Title playback (cached H.264/WebM proxy), ▲/▼ ordering of titles and menus,
+  image buttons (frame or shape highlight)
 
 Next:
 
 * A native macOS wrapper (.app with a WKWebView around the same UI, signed and
   notarised) so it starts like any Mac app, without a terminal
-* Playback preview of titles (proxy encode) and of menu navigation
+* Playback preview of menu navigation (titles play since the proxy preview)
 * Multi-select, alignment guides and snapping in the menu editor
-* Drag-reordering titles and menus; button graphics (images instead of text)
+* Drag-and-drop reordering in the sidebar (▲/▼ buttons exist)
 
 ## Phase 3 — richer discs
 

@@ -92,13 +92,16 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
 * **New project** → *Create sample project* gives you a working disc to explore,
   or start empty and **drop your video files** onto the window.
 * **Titles**: pick a video in *Media* → *Add as title*. Scrub through it and
-  press **◆ Add chapter here** wherever a chapter should start. Tick *Generate a
+  press **◆ Add chapter here** wherever a chapter should start; **▶ Play** plays
+  it (a small preview copy is made the first time). Tick *Generate a
   chapter menu* for a thumbnail menu. Set what happens when it ends, audio
   tracks and subtitles (`.srt`) in the right-hand panel.
 * **Menus**: *+ Add*, then drag buttons and text where you want them. Choose
   each button's target (a menu, a title, a chapter, an audio or subtitle
-  stream). Use an image or a video as the background. **Exact preview**
+  stream). A button can be a picture instead of text (*Image*, highlighted by a
+  frame or by its shape). Use an image or a video as the background. **Exact preview**
   renders the menu exactly as the disc will show it, with button hit areas.
+* ▲/▼ in the right-hand panel change the order of titles and menus.
 * **Check** estimates the size and finds problems; **Build** writes the `.iso`
   (or a VIDEO_TS folder) into `my-disc/output/`, with progress.
 * Everything is saved automatically to `my-disc/project.oncemore.json`;
@@ -251,6 +254,11 @@ with PREV/NEXT buttons when there are more.
 (`{"up": id, "down": id, "left": id, "right": id}`) to override the automatic
 navigation. `audio:<n>` / `subtitle:<n>` (1-based) select a stream and stay on
 the menu, so a "setup" menu is just a few of these buttons plus a BACK button.
+**Image buttons**: `image` (a picture, transparent PNG works best) replaces the
+label (then optional), drawn with its top-left at `x`/`y`; `width` on the
+720-wide grid (default: the picture's own width; the height follows its
+aspect), and `highlight`: `frame` (default, a frame around it) or `shape` (its
+opaque pixels in the highlight colour).
 
 ### Audio tracks and subtitles
 

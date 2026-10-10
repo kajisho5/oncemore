@@ -160,6 +160,54 @@ class TestGuiApi(unittest.TestCase):
         self.assertTrue(any(e["event"] == "progress" for e in events))
         self.assertTrue(os.path.isfile(os.path.join(self.dir, "output", "SAMPLE_DISC.iso")))
 
+    @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/dvdauthor/ISO tool")
+    def test_playback_proxy(self):
+        self.s.call("/api/new", "POST", {"sample": True})
+        src = os.path.join(self.dir, "media", "sample_b.mp4")
+        for fmt, magic, codecs in (("mp4", b"ftyp", ["aac", "h264"]),
+                                   ("webm", b"\x1a\x45\xdf\xa3", ["opus", "vp8"])):
+            q = f"path=media/sample_b.mp4&format={fmt}"
+            self.assertEqual(self.s.call(f"/api/proxy?{q}")[0], 404)         # not made yet
+            for _ in range(240):
+                status, st = self.s.call(f"/api/proxy?{q}", "POST")
+                self.assertEqual(status, 200, st)
+                if st["state"] != "running":
+                    break
+                time.sleep(0.25)
+            self.assertEqual(st["state"], "ready", st)
+            # the <video> element sends ?token= and byte ranges
+            url = f"/api/proxy?{q}&token={self.s.app.token}"
+            status, whole = self.s.call(url, token=False)
+            self.assertEqual(status, 200)
+            self.assertIn(magic, whole[:8])
+            status, part = self.s.call(url, token=False, headers={"Range": "bytes=100-199"})
+            self.assertEqual((status, part), (206, whole[100:200]))
+            status, tail = self.s.call(url, token=False, headers={"Range": "bytes=-10"})
+            self.assertEqual((status, tail), (206, whole[-10:]))
+            self.assertEqual(self.s.call(url, token=False,
+                                         headers={"Range": f"bytes={len(whole)}-"})[0], 416)
+            streams = json.loads(subprocess.run(
+                [tools.find("ffprobe"), "-v", "error", "-show_streams", "-of", "json",
+                 self.s.app.proxy_status(src, fmt)[1]],
+                capture_output=True, text=True).stdout)["streams"]
+            self.assertEqual(sorted(x["codec_name"] for x in streams), codecs)
+            v = next(x for x in streams if x["codec_type"] == "video")
+            self.assertEqual(v["height"], 360)
+        # cached on disk: a new server finds it without encoding again
+        s2 = GuiServer(self.dir)
+        try:
+            self.assertEqual(s2.call("/api/proxy?path=media/sample_b.mp4", "POST")[1]["state"],
+                             "ready")
+        finally:
+            s2.close()
+        # only videos inside the project, known formats
+        self.assertEqual(self.s.call("/api/proxy?path=media/menu_bg.png", "POST")[0], 403)
+        self.assertEqual(self.s.call("/api/proxy?path=../x.mp4", "POST")[0], 403)
+        self.assertEqual(self.s.call("/api/proxy?path=media/sample_b.mp4&format=avi",
+                                     "POST")[0], 400)
+        # the cache folder is not listed as media
+        _, state = self.s.call("/api/state")
+        self.assertFalse(any(".oncemore-cache" in m["path"] for m in state["media"]))
 
 def _chromium():
     exe = None
@@ -197,6 +245,47 @@ class TestGuiBrowser(unittest.TestCase):
         # (the page's CSP forbids eval, so no wait_for_function)
         page.locator("#save-state", has_text=re.compile("^(Saved|保存済み)$")).wait_for()
 
+    def launch(self, p):
+        try:
+            return p.chromium.launch()
+        except Exception:
+            exe = _chromium()
+            if not exe:
+                self.skipTest("no Chromium for Playwright")
+            return p.chromium.launch(executable_path=exe)
+
+    def test_reorder_titles(self):
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click("#np-sample")
+            page.click(".nav-item[data-view=title][data-id=t2]", timeout=120000)
+            self.assertTrue(page.locator("[data-move='1']").is_disabled())   # already last
+            page.click("[data-move='-1']")
+            self.wait_saved(page)
+            self.assertEqual([x["id"] for x in self.project()["titles"]], ["t2", "t1"])
+            first = page.locator(".nav-item[data-view=title]").first
+            self.assertEqual(first.get_attribute("data-id"), "t2")
+            self.assertTrue(page.locator("[data-move='-1']").is_disabled())  # now first
+            # one user menu: nothing to move
+            page.click(".nav-item[data-view=menu][data-id=main]")
+            page.locator("#inspector [data-move]").first.wait_for()
+            self.assertEqual(page.locator("#inspector [data-move]:disabled").count(), 2)
+            # turn SAMPLE TITLE B into a picture button, then check the exact preview
+            page.locator(".stage .el.button").nth(2).click()
+            page.select_option("#inspector select[data-k=image]", "media/menu_bg.png")
+            page.wait_for_selector(".stage .el.button img")   # after the image was probed
+            self.wait_saved(page)
+            b = self.project()["menus"][0]["buttons"][2]
+            self.assertEqual((b["image"], b["width"]), ("media/menu_bg.png", 160))
+            page.select_option("#inspector select[data-k=highlight]", "shape")
+            self.wait_saved(page)
+            self.assertEqual(self.project()["menus"][0]["buttons"][2]["highlight"], "shape")
+            page.click("#exact")
+            page.wait_for_selector(".stage img.exact", timeout=60000)
+            browser.close()
+
     def test_full_flow(self):
         errors = []
         with sync_playwright() as p:
@@ -229,6 +318,16 @@ class TestGuiBrowser(unittest.TestCase):
             page.click("#add-ch")
             self.wait_saved(page)
             self.assertEqual(self.project()["titles"][0]["chapters"], ["00:00:00", "00:00:03.000"])
+            # play the preview from the playhead (a WebM or MP4 copy, whichever this
+            # browser plays), pause: back to exact frames, later than where it started
+            page.click("#play")
+            page.locator("#play", has_text="Pause").wait_for(timeout=120000)
+            page.wait_for_timeout(1200)
+            page.click("#play")
+            page.locator("#play", has_text="Play").wait_for()
+            self.assertTrue(page.locator("#player").is_hidden())
+            self.assertTrue(page.locator("#frame").is_visible())
+            self.assertGreater(float(page.input_value("#scrub")), 3.2)
             # enable the chapter menu, then add a menu
             page.check("#cm-on")
             page.click("#add-menu")

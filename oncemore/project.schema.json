@@ -406,7 +406,6 @@
       "type": "object",
       "required": [
         "id",
-        "label",
         "x",
         "y",
         "action"
@@ -418,19 +417,38 @@
         },
         "label": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Text of the button. Optional for image buttons (then only shown in the editor)."
+        },
+        "image": {
+          "type": "string",
+          "description": "Image button: a picture (PNG with transparency works best) drawn at x/y instead of the label."
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 720,
+          "description": "Image buttons: width in menu pixels (720-wide grid); the height follows the picture's aspect. Default: the picture's own width."
+        },
+        "highlight": {
+          "enum": [
+            "frame",
+            "shape"
+          ],
+          "default": "frame",
+          "description": "Image buttons: a frame around the picture, or its shape (opaque pixels) in the highlight colour."
         },
         "x": {
           "type": "integer",
           "minimum": 0,
           "maximum": 719,
-          "description": "Left edge of the label, in menu pixels (720 wide)."
+          "description": "Left edge of the label or image, in menu pixels (720 wide)."
         },
         "y": {
           "type": "integer",
           "minimum": 0,
           "maximum": 575,
-          "description": "Top edge of the label (480 high for NTSC, 576 for PAL)."
+          "description": "Top edge of the label or image (480 high for NTSC, 576 for PAL)."
         },
         "action": {
           "$ref": "#/$defs/action"
@@ -447,7 +465,19 @@
           "$ref": "#/$defs/nav",
           "description": "Override automatic up/down/left/right navigation (button ids)."
         }
-      }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "label"
+          ]
+        },
+        {
+          "required": [
+            "image"
+          ]
+        }
+      ]
     },
     "menu": {
       "type": "object",
