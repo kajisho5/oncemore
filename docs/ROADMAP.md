@@ -145,6 +145,11 @@ browser) and lands only with green CI.
   menu's heading and button texts; the subtitle look (size, colours,
   outline, margin)
 
+**P24 — End-action overrides** (done)
+- [x] A title / chapter button can say where to go when that title ends,
+  instead of the title's own end action, for that play only; drawn in the
+  flowchart, checked against libdvdnav
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

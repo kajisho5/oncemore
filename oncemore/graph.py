@@ -58,6 +58,10 @@ def build(project):
                       "loop": m.loop})
         for b in m.buttons:
             edge(node_id("menu", m.id), b.action, "button", b.id)
+            # the title it plays then ends where the override says
+            if b.override and parse_action(b.action)[0] in ("title", "chapter"):
+                edge(node_id("title", parse_action(b.action)[1]), b.override, "override",
+                     f"override ({m.id}/{b.id})")
         if m.loop is not None:
             edge(node_id("menu", m.id), m.end_action, "timeout",
                  f"after {m.loop} play{'s' if m.loop != 1 else ''}")

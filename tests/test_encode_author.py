@@ -223,6 +223,33 @@ class TestAuthorXml(unittest.TestCase):
         self.assertIn("a resume button needs one free player register",
                       json.dumps(cm.exception.issues))
 
+    def test_override(self):
+        d = sample_project()
+        d["menus"][0]["buttons"].append({"id": "b2", "label": "B THEN CHAPTERS", "x": 470,
+                                         "y": 220, "action": "title:t2",
+                                         "override": "menu:chapters"})
+        p = build_project(d, "/v/project.oncemore.json", check_files=False)
+        self.assertEqual((p.overrides, author.override_reg(p)), (["menu:chapters"], "g12"))
+        x = author.build_xml(p, {"main": "m", "chapters": "c"}, {"t1": "a", "t2": "b"}, "/o")
+        self.assertIn('<button name="b2">g5 = button; g2 = 0; g12 = 1; jump title 2;</button>', x)
+        self.assertIn('<button name="b">g5 = button; g2 = 0; g12 = 0; jump title 2;</button>', x)
+        self.assertIn('<button name="play">g5 = button; g12 = 0; g2 = 1; jump title 1;</button>', x)
+        # every title's post: the override first (cleared), then its own end
+        self.assertIn('<post>if (g12 == 1) { g12 = 0; g1 = 2; call menu entry root; } '
+                      'g2 = 0; g1 = 1; call menu entry root;</post>', x)
+        # with a resume button too, the override takes the next free register
+        d["menus"][0]["buttons"].append({"id": "res", "label": "RESUME", "x": 470, "y": 280,
+                                         "action": "resume"})
+        p = build_project(d, "/v/project.oncemore.json", check_files=False)
+        self.assertEqual((author.resume_reg(p), author.override_reg(p)), ("g12", "g11"))
+        # an override needs a title / chapter action and a target that exists
+        d["menus"][0]["buttons"][-1]["override"] = "title:nope"
+        with self.assertRaises(ProjectError) as cm:
+            build_project(d, "/v/project.oncemore.json", check_files=False)
+        msg = json.dumps(cm.exception.issues)
+        self.assertIn("an override needs a title:... or chapter:... action", msg)
+        self.assertIn("no title with id 'nope'", msg)
+
     def p2_project(self):
         d = sample_project()
         d["titles"][1].update({"aspect": "4:3", "audio": {"codec": "lpcm"}, "chapters": [0, 4, 8]})

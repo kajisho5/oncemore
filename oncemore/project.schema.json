@@ -618,6 +618,11 @@
           "default": false,
           "description": "Run the action as soon as the button is selected (no Enter needed)."
         },
+        "override": {
+          "type": "string",
+          "pattern": "^(menu:[A-Za-z0-9_-]{1,40}|title:[A-Za-z0-9_-]{1,40}|stop)$",
+          "description": "End action override: when the title this button plays (title:... / chapter:... action) ends, go here instead of the title's own end_action. Only for plays started from this button."
+        },
         "size": {
           "type": "integer",
           "minimum": 8,

@@ -38,7 +38,7 @@ def project(data):
 def rich_project():
     """Two titlesets, a playlist across them, play all, remote keys, a
     remembered menu, an auto button, an intro that times out, stream buttons,
-    a resume button."""
+    a resume button, an end-action override."""
     d = sample_project()
     t1, t2 = d["titles"]
     t1["remote_menu"] = "chapters"
@@ -49,7 +49,9 @@ def rich_project():
     main["buttons"] += [
         {"id": "all", "label": "PLAY ALL", "x": 470, "y": 160, "action": "playall"},
         {"id": "best", "label": "BEST OF", "x": 470, "y": 220, "action": "playlist:best"},
-        {"id": "setup", "label": "SETUP", "x": 470, "y": 280, "action": "menu:setup"}]
+        {"id": "setup", "label": "SETUP", "x": 470, "y": 280, "action": "menu:setup"},
+        {"id": "b2", "label": "B THEN SETUP", "x": 470, "y": 340, "action": "title:t2",
+         "override": "menu:setup"}]
     d["menus"].append({"id": "setup", "remember_button": False, "buttons": [
         {"id": "a1", "label": "AUDIO 1", "x": 100, "y": 150, "action": "audio:1"},
         {"id": "off", "label": "SUBTITLES OFF", "x": 100, "y": 210, "action": "subtitle:off"},
@@ -133,6 +135,18 @@ class TestSimulator(unittest.TestCase):
         self.assertEqual(self.sim.view(s), ("title", 1, 3))
         self.sim.press(s, "next")                  # past the last chapter: the title ends
         self.assertEqual(s["menu"], "main")
+
+    def test_override(self):
+        s = self.keys("select:b2", "enter")
+        self.assertEqual(self.sim.view(s), ("title", 2, 1))
+        self.sim.press(s, "end")                     # t2 ends: the override, not t1
+        self.assertEqual(s["menu"], "setup")
+        self.sim.press(s, "select:go")
+        self.sim.press(s, "enter")                   # t2 again, without the override
+        self.sim.press(s, "end")
+        self.assertEqual(self.sim.view(s), ("title", 1, 1))   # its own end action
+        s = self.keys("select:b2", "enter", "menu", "select:all", "enter", "end")
+        self.assertEqual(self.sim.view(s), ("title", 2, 1))   # play all cleared it
 
     def test_resume(self):
         s = self.keys("select:setup", "enter", "select:res", "enter")
@@ -329,6 +343,30 @@ class TestSimulatorMatchesDisc(unittest.TestCase):
             self.assertEqual(press(*resume), ("title", 1, 2))       # where the Menu key left
             self.assertEqual(press("end")[0], "menu")               # t1 ended
             self.assertEqual(press(*resume), ("title", 1, 1))
+
+    def test_override_on_disc(self):
+        """B THEN SETUP plays title 2 and then the setup menu, instead of
+        title 2's own end action (title 1); GO plays it without."""
+        sim = Simulator(self.project, self.layouts)
+        s = sim.start()
+        with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
+            self.settle(d)
+
+            def press(*keys):
+                for key in keys:
+                    before = sim.view(s)
+                    sim.press(s, key)
+                    if key.startswith("select:"):
+                        ids = [g["id"] for g in self.layouts[before[1]]]
+                        d.select(ids.index(key[7:]) + 1)
+                    else:
+                        self.player_key(d, key, before)
+                    self.assertEqual(self.view(d), sim.view(s), f"{before} --{key}-->")
+                return sim.view(s)
+
+            self.assertEqual(press("select:b2", "enter"), ("title", 2, 1))
+            self.assertEqual(press("end")[:2], ("menu", "setup"))
+            self.assertEqual(press("select:go", "enter", "end"), ("title", 1, 1))
 
     def test_random_sessions(self):
         for seed in range(12):

@@ -185,6 +185,9 @@ def apply(tid, project, project_dir, menu_id):
     for b in menu.get("buttons", []):
         if not _link_ok(b.get("action"), targets):
             b["action"] = "stop"
+            b.pop("override", None)
+        if not _link_ok(b.get("override"), targets):
+            b.pop("override", None)
     if not _link_ok(menu.get("end_action"), targets):
         menu.pop("end_action", None)
     return menu

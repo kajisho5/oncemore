@@ -30,6 +30,10 @@ g13-g15 are dvdauthor's scratch registers (multi-statement buttons and
 expressions), so they stay untouched. A multi-statement button that does not
 jump falls through into the next button's code in dvdauthor's dispatcher, so
 only buttons that leave the menu get the "remember" prefix.
+An end-action override on a button (`override`, Encore-style: "play this title,
+then go there instead of its own end action") is a number in the next free
+register: the button sets it, every other way of starting a title clears it,
+and each title's <post> first checks it (and clears it) before its usual end.
 A resume button (`resume`, only when one is used) takes the first register
 nobody else uses (`resume_reg`) as a flag: 1 while a title is playing (its
 <pre>), 0 once it ended (its <post>). The button resumes the title the
@@ -69,9 +73,9 @@ def button_reg(menu):
     return None
 
 
-def resume_reg(project):
-    """Register flagging "a title was interrupted" for resume buttons:
-    the first one this project leaves free, or None."""
+def _free_regs(project):
+    """Registers this project's navigation leaves free, in the order they are
+    handed out (resume flag first, then the override)."""
     used = {NAV_REG}
     if project.uses_playlists:
         used |= {STATE_REG, ITEM_END_REG}
@@ -82,15 +86,28 @@ def resume_reg(project):
     if any(m.loop is not None for m in project.menus):
         used.add(LOOP_REG)
     used |= {button_reg(m) for m in project.menus} - {None}
-    for n in (12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 0):
-        if f"g{n}" not in used:
-            return f"g{n}"
-    return None
+    return [f"g{n}" for n in (12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 0) if f"g{n}" not in used]
+
+
+def resume_reg(project):
+    """Register flagging "a title was interrupted" for resume buttons, or None."""
+    free = _free_regs(project) if project.uses_resume else []
+    return free[0] if free else None
+
+
+def override_reg(project):
+    """Register holding the end-action override of the playing title (0 =
+    none, k = project.overrides[k - 1]), or None."""
+    if not project.overrides:
+        return None
+    free = _free_regs(project)[1 if project.uses_resume else 0:]
+    return free[0] if free else None
 
 
 def _single(project):
-    """Commands that end play-all / playlist mode before a single play."""
-    cmd = f"{PLAYALL_REG} = 0; " if project.uses_playall else ""
+    """Commands that end play-all / playlist mode (and any end-action
+    override) before a single play."""
+    cmd = (f"{PLAYALL_REG} = 0; " if project.uses_playall else "") + _no_override(project)
     if project.uses_playlists:
         cmd += f"{STATE_REG} = 0; {ITEM_END_REG} = 0; "
     return cmd
@@ -126,9 +143,13 @@ def _item_start(project, state, item):
     return f"{STATE_REG} = {state}; {ITEM_END_REG} = {item.last or 0}; "
 
 
+def _no_override(project):
+    return f"{override_reg(project)} = 0; " if project.overrides else ""
+
+
 def playlist_start(project, pid, domain):
     state, _, _, item = next(x for x in playlist_states(project) if x[1].id == pid)
-    flag = f"{PLAYALL_REG} = 0; " if project.uses_playall else ""
+    flag = (f"{PLAYALL_REG} = 0; " if project.uses_playall else "") + _no_override(project)
     return flag + _item_start(project, state, item) + _item_jump(project, item, domain)
 
 
@@ -172,11 +193,19 @@ def _title_ref(project, tid, from_titleset):
     return f"titleset {t.titleset} title {t.number}"
 
 
-def button_command(project, action, menu=None):
+def button_command(project, action, menu=None, override=None):
     """Command executed by a menu button (menu domain of titleset 1). With
-    `menu`, the button first records itself as that menu's last button."""
+    `menu`, the button first records itself as that menu's last button;
+    `override` replaces the end action of the title it plays."""
     reg = button_reg(menu) if menu is not None else None
-    cmd = _menu_domain_command(project, action)
+    if override:
+        kind, target, num = parse_action(action)
+        chap = f" chapter {num}" if kind == "chapter" else ""
+        k, o = project.overrides.index(override) + 1, override_reg(project)
+        single = _single(project).replace(f"{o} = 0; ", "")
+        cmd = f"{single}{o} = {k}; jump {_title_ref(project, target, 1)}{chap};"
+    else:
+        cmd = _menu_domain_command(project, action)
     leaves = parse_action(action)[0] not in ("audio", "subtitle")
     return f"{reg} = button; {cmd}" if reg and leaves else cmd
 
@@ -190,6 +219,7 @@ def _menu_domain_command(project, action):
         return playlist_start(project, target, "menu")
     if kind == "playall":
         reset = f"{STATE_REG} = 0; {ITEM_END_REG} = 0; " if project.uses_playlists else ""
+        reset += _no_override(project)
         return f"{reset}{PLAYALL_REG} = 1; jump {_title_ref(project, project.titles[0].id, 1)};"
     if kind == "resume":
         first = f"{single}jump {_title_ref(project, project.titles[0].id, 1)};"
@@ -220,6 +250,10 @@ def end_command(project, action, title=None):
     lists = playlist_dispatch(project, title) if title is not None else ""
     rest = _post_rest(project, action, title)
     rest = f"{lists} {rest}" if lists else rest
+    if title is not None and project.overrides:
+        o = override_reg(project)
+        rest = " ".join(f"if ({o} == {k}) {{ {o} = 0; {_end_command(project, act, title.titleset)} }}"
+                        for k, act in enumerate(project.overrides, 1)) + " " + rest
     if title is not None and project.uses_resume:
         rest = f"{resume_reg(project)} = 0; {rest}"   # ended: nothing to resume
     return rest
@@ -302,6 +336,7 @@ def vmgm_title_command(project):
                     if project.uses_playall else "")
             if project.uses_playlists:
                 flag = f"{STATE_REG} = 0; {ITEM_END_REG} = 0; " + flag
+            flag += _no_override(project)
             cmds.append(f"if ({NAV_REG} == 0) {{ {flag}jump title {t.global_number}; }}")
     cmds.append("jump titleset 1 menu entry root;")
     return " ".join(cmds)
@@ -412,7 +447,7 @@ def build_xml(project, menu_files, title_files, dest):
                 x.append(f"        <pre>{pre}</pre>")
             for b in m.buttons:
                 x.append(f"        <button name={quoteattr(b.id)}>"
-                         f"{button_command(project, b.action, m)}</button>")
+                         f"{button_command(project, b.action, m, b.override)}</button>")
             x.append(f"        {menu_vob(m, menu_files[m.id])}")
             x.append(f"        <post>{menu_post(project, m)}</post>")
             x.append("      </pgc>")
