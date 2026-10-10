@@ -161,12 +161,10 @@ def _composite(doc, layers, out_png, size, background, work, log):
         cur = f"c{k}"
     w, h = size
     chains.append(f"[{cur}]scale={w}:{h}:flags=bicubic,setsar=1,format=rgb24[out]")
-    graph = ";".join(chains)
-    script = os.path.join(work, "composite.txt")
-    with open(script, "w") as f:
-        f.write(graph)
+    # (passed inline: -filter_complex_script is gone in ffmpeg 8, and its
+    # replacement "-/filter_complex" does not exist before ffmpeg 7)
     tools.run([tools.find("ffmpeg"), "-hide_banner", "-nostdin", "-y"] + inputs +
-              ["-filter_complex_script", script, "-map", "[out]", "-frames:v", "1",
+              ["-filter_complex", ";".join(chains), "-map", "[out]", "-frames:v", "1",
                "-update", "1", out_png], log=log, what="ffmpeg (Photoshop import)", timeout=600)
 
 
