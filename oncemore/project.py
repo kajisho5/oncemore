@@ -193,8 +193,8 @@ def parse_action(s):
     """'menu:x' -> ('menu', 'x', None); 'chapter:t:2' -> ('chapter', 't', 2); 'stop';
     'audio:2' -> ('audio', None, 2); 'subtitle:off' -> ('subtitle', None, 0);
     'playall' -> ('playall', None, None); 'playlist:p' -> ('playlist', 'p', None);
-    'resume' -> ('resume', None, None)."""
-    if s in ("stop", "playall", "resume"):
+    'resume' -> ('resume', None, None); 'lastmenu' -> ('lastmenu', None, None)."""
+    if s in ("stop", "playall", "resume", "lastmenu"):
         return (s, None, None)
     kind, _, rest = s.partition(":")
     if kind == "chapter":
@@ -459,6 +459,13 @@ class Project:
         """End-action overrides used by buttons, in a fixed order (1-based
         numbers in the override register)."""
         return sorted({b.override for m in self.menus for b in m.buttons if b.override})
+
+    @property
+    def uses_last_menu(self):
+        """Some title / playlist end action or override returns to the last menu."""
+        ends = [t.end_action for t in self.titles] + [p.end_action for p in self.playlists] + \
+            [b.override for m in self.menus for b in m.buttons if b.override]
+        return "lastmenu" in ends and bool(self.menus)
 
     @property
     def uses_resume(self):
@@ -983,10 +990,15 @@ class _Builder:
         return out
 
     def check_refs(self, project, user_menu_ids):
-        def check(where, action, allow_chapter=True, allow_resume=False):
+        def check(where, action, allow_chapter=True, allow_resume=False, allow_last=False):
             kind, target, num = parse_action(action)
             if kind == "resume" and not allow_resume:
                 self.err(where, "resume is only for menu buttons")
+            elif kind == "lastmenu" and not allow_last:
+                self.err(where, "lastmenu is only for the end of titles and playlists "
+                                "(and overrides)")
+            elif kind == "lastmenu" and not project.menus:
+                self.err(where, "lastmenu needs a menu")
             elif kind == "menu" and project.menu(target) is None:
                 self.err(where, f"no menu with id {target!r}")
             elif kind == "audio" and num > len(project.audio_langs):
@@ -1013,7 +1025,7 @@ class _Builder:
             if not project.menus and project.disc.title_key:
                 self.warnings.append("disc.title_key needs at least one menu; ignored")
         for i, t in enumerate(project.titles):
-            check(f"titles[{i}].end_action", t.end_action)
+            check(f"titles[{i}].end_action", t.end_action, allow_last=True)
             if t.remote_menu and project.menu(t.remote_menu) is None:
                 self.err(f"titles[{i}].remote_menu", f"no menu with id {t.remote_menu!r}")
         for m in project.menus:
@@ -1034,11 +1046,11 @@ class _Builder:
                     if parse_action(b.action)[0] not in ("title", "chapter"):
                         self.err(f"{where}.buttons[{j}].override",
                                  "an override needs a title:... or chapter:... action")
-                    check(f"{where}.buttons[{j}].override", b.override)
+                    check(f"{where}.buttons[{j}].override", b.override, allow_last=True)
             if m.loop is not None:
                 check(f"{where}.end_action", m.end_action)
         for i, pl in enumerate(project.playlists):
-            check(f"playlists[{i}].end_action", pl.end_action)
+            check(f"playlists[{i}].end_action", pl.end_action, allow_last=True)
             if not pl.items:
                 self.err(f"playlists[{i}].items", "a playlist needs at least one item")
             for j, it in enumerate(pl.items):
@@ -1059,6 +1071,10 @@ class _Builder:
             if project.uses_resume and author.resume_reg(project) is None:
                 self.err("menus", "a resume button needs one free player register, and "
                                   "this disc uses them all (fewer menus that remember "
+                                  "their last button would free one)")
+            if project.uses_last_menu and author.last_menu_reg(project) is None:
+                self.err("menus", "returning to the last menu needs one free player register, "
+                                  "and this disc uses them all (fewer menus that remember "
                                   "their last button would free one)")
             if project.overrides and author.override_reg(project) is None:
                 self.err("menus", "end-action overrides need one free player register, and "

@@ -34,6 +34,11 @@ An end-action override on a button (`override`, Encore-style: "play this title,
 then go there instead of its own end action") is a number in the next free
 register: the button sets it, every other way of starting a title clears it,
 and each title's <post> first checks it (and clears it) before its usual end.
+"Return to the last menu" (`lastmenu`, for title / playlist end actions and
+overrides) keeps the number of the menu shown last in the next free
+register (each menu's <pre> sets it) and routes there like any menu end
+action; before any menu was shown it is 0, so the Menu-key target / first
+menu opens.
 A resume button (`resume`, only when one is used) takes the first register
 nobody else uses (`resume_reg`) as a flag: 1 while a title is playing (its
 <pre>), 0 once it ended (its <post>). The button resumes the title the
@@ -101,6 +106,15 @@ def override_reg(project):
     if not project.overrides:
         return None
     free = _free_regs(project)[1 if project.uses_resume else 0:]
+    return free[0] if free else None
+
+
+def last_menu_reg(project):
+    """Register holding the number of the menu shown last (for `lastmenu`
+    end actions; each menu's pre sets it), or None."""
+    if not project.uses_last_menu:
+        return None
+    free = _free_regs(project)[int(project.uses_resume) + int(bool(project.overrides)):]
     return free[0] if free else None
 
 
@@ -290,6 +304,11 @@ def _end_command(project, action, ts):
         return f"{reg} call vmgm menu entry title;"
     if kind == "title":
         return f"jump {_title_ref(project, target, ts)};"
+    if kind == "lastmenu":
+        reg = f"{NAV_REG} = {last_menu_reg(project)};"
+        if ts == 1:
+            return f"{reg} call menu entry root;"
+        return f"{reg} call vmgm menu entry title;"
     return "exit;"
 
 
@@ -353,6 +372,23 @@ def vmgm_title_command(project):
 
 
 def menu_pre(project, menu):
+    cmds = _menu_pre(project, menu)
+    if project.uses_last_menu and first_button_on_entry(project, menu) and menu.buttons:
+        # the last-menu bookkeeping alone: keep what dvdauthor does for a menu
+        # without pre commands (it highlights button 1)
+        cmds.append("button = 1024;")
+    return " ".join(cmds)
+
+
+def first_button_on_entry(project, menu):
+    """Whether entering `menu` always highlights button 1: dvdauthor sets it
+    in a menu without pre commands of its own."""
+    own = [c for c in _menu_pre(project, menu)
+           if not c.startswith(f"{last_menu_reg(project)} = ")]
+    return not own
+
+
+def _menu_pre(project, menu):
     cmds = []
     if menu.number == 1:
         if project.uses_remote_menu:
@@ -361,6 +397,8 @@ def menu_pre(project, menu):
         cmds += [f"if ({NAV_REG} == {o.number}) {{ {NAV_REG} = 0; jump menu {o.number}; }}"
                  for o in project.menus if o.number != 1]
         cmds.append(f"{NAV_REG} = 0;")
+    if project.uses_last_menu:
+        cmds.append(f"{last_menu_reg(project)} = {menu.number};")
     if menu.loop is not None:
         cmds.append(f"{LOOP_REG} = 0;")
     ids = [b.id for b in menu.buttons]
@@ -370,7 +408,7 @@ def menu_pre(project, menu):
         cmds.append(f"if ({reg} != 0) {{ button = {reg}; }} else {{ button = {default * 1024}; }}")
     elif menu.default_button:
         cmds.append(f"button = {default * 1024};")
-    return " ".join(cmds)
+    return cmds
 
 
 def menu_post(project, menu):

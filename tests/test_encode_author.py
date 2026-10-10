@@ -251,6 +251,28 @@ class TestAuthorXml(unittest.TestCase):
         self.assertIn("an override needs a title:... or chapter:... action", msg)
         self.assertIn("no title with id 'nope'", msg)
 
+    def test_last_menu(self):
+        d = sample_project()
+        d["titles"][1]["end_action"] = "lastmenu"
+        p = build_project(d, "/v/project.oncemore.json", check_files=False)
+        self.assertEqual(author.last_menu_reg(p), "g12")
+        x = author.build_xml(p, {"main": "m", "chapters": "c"}, {"t1": "a", "t2": "b"}, "/o")
+        self.assertIn("g1 = 0; g12 = 1; if (g5 != 0)", x)               # the root menu's pre
+        self.assertIn("<pre>g12 = 2; if (g6 != 0)", x)                  # the chapters menu
+        self.assertIn("<post>g2 = 0; g1 = g12; call menu entry root;</post>", x)
+        # before any menu (first play straight into the title): the first menu
+        d["disc"]["first_play"] = "title:t2"
+        sim = Simulator(build_project(d, "/v/project.oncemore.json", check_files=False))
+        s = sim.start()
+        sim.press(s, "end")
+        self.assertEqual((s["domain"], s["menu"]), ("menu", "main"))
+        # only where something ends
+        d["disc"]["first_play"] = "menu:main"
+        d["menus"][0]["loop"], d["menus"][0]["end_action"] = 2, "lastmenu"
+        with self.assertRaises(ProjectError) as cm:
+            build_project(d, "/v/project.oncemore.json", check_files=False)
+        self.assertIn("menus[0].end_action", json.dumps(cm.exception.issues))
+
     def p2_project(self):
         d = sample_project()
         d["titles"][1].update({"aspect": "4:3", "audio": {"codec": "lpcm"}, "chapters": [0, 4, 8]})

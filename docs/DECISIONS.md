@@ -786,3 +786,19 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   a resume keeps it, since it is the same play going on.
 * It takes the next free register after the resume flag. Discs without
   overrides are unchanged.
+
+## 51. Return to the last menu
+
+* `lastmenu` is for the places where something ends: a title's or a
+  playlist's end action and a button's override. A menu button or time-out
+  would only find the menu it is on.
+* Each menu's `<pre>` writes its number to a register; the end action
+  routes there through the root menu like any menu end action. Before any
+  menu was shown the register is 0, which the root menu reads as the Menu-key
+  target (or itself), a sensible place to land.
+* The register is handed out after the resume flag and the override, so
+  discs not using it are unchanged.
+* dvdauthor highlights button 1 in a menu that has no pre commands. A menu
+  whose only pre command is this bookkeeping says `button = 1024` itself, so
+  adding the register changes no highlight; the simulator follows the same
+  rule (libdvdnav showed the difference).

@@ -365,8 +365,8 @@
         },
         "end_action": {
           "type": "string",
-          "pattern": "^(menu:[A-Za-z0-9_-]{1,40}|title:[A-Za-z0-9_-]{1,40}|stop)$",
-          "description": "menu:<id> | title:<id> | stop. Default: first menu, or stop."
+          "pattern": "^(menu:[A-Za-z0-9_-]{1,40}|title:[A-Za-z0-9_-]{1,40}|lastmenu|stop)$",
+          "description": "menu:<id> | title:<id> | lastmenu | stop. lastmenu returns to the menu shown last. Default: first menu, or stop."
         },
         "remote_menu": {
           "$ref": "#/$defs/id",
@@ -632,7 +632,7 @@
         },
         "override": {
           "type": "string",
-          "pattern": "^(menu:[A-Za-z0-9_-]{1,40}|title:[A-Za-z0-9_-]{1,40}|stop)$",
+          "pattern": "^(menu:[A-Za-z0-9_-]{1,40}|title:[A-Za-z0-9_-]{1,40}|lastmenu|stop)$",
           "description": "End action override: when the title this button plays (title:... / chapter:... action) ends, go here instead of the title's own end_action. Only for plays started from this button."
         },
         "size": {
@@ -861,8 +861,8 @@
         },
         "end_action": {
           "type": "string",
-          "pattern": "^(menu:[A-Za-z0-9_-]{1,40}|title:[A-Za-z0-9_-]{1,40}|stop)$",
-          "description": "After the last item. Default: stop."
+          "pattern": "^(menu:[A-Za-z0-9_-]{1,40}|title:[A-Za-z0-9_-]{1,40}|lastmenu|stop)$",
+          "description": "After the last item: menu:<id> | title:<id> | lastmenu (the menu shown last) | stop. Default: stop."
         }
       }
     },

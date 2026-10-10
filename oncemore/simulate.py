@@ -20,6 +20,7 @@ requests):
   menu_key    menu the Menu key opens during the current title (g3)
   remember    {menu id: last button used} for menus that remember it
   loops       times the current menu has played (g4)
+  last_menu   menu shown last (for `lastmenu` end actions), None before any
   override    end action replacing the playing title's own (a button's
               `override`), None when there is none
   resume      {"title", "chapter", "button"} the Menu / Title key left, for resume
@@ -74,7 +75,7 @@ class Simulator:
     def start(self):
         s = {"domain": "stopped", "menu": None, "button": 1, "title": None, "chapter": 0,
              "audio": 1, "subtitle": 0, "playall": 0, "playlist": 0, "item_end": 0,
-             "menu_key": None, "remember": {}, "loops": 0, "resume": None, "override": None, "log": []}
+             "menu_key": None, "remember": {}, "loops": 0, "resume": None, "override": None, "last_menu": None, "log": []}
         sub = author.default_subtitle(self.p)
         if sub is not None:
             s["subtitle"] = sub + 1
@@ -94,7 +95,7 @@ class Simulator:
     # -- moving around -----------------------------------------------------------
     def enter_menu(self, s, mid):
         m = self.menu(mid)
-        s.update(domain="menu", menu=m.id, title=None, chapter=0, loops=0)
+        s.update(domain="menu", menu=m.id, title=None, chapter=0, loops=0, last_menu=m.id)
         n = len(m.buttons)
         ids = [b.id for b in m.buttons]
         default = ids.index(m.default_button) + 1 if m.default_button else 1
@@ -102,6 +103,8 @@ class Simulator:
             s["button"] = s["remember"].get(m.id) or default
         elif m.default_button:
             s["button"] = default
+        elif author.first_button_on_entry(self.p, m):
+            s["button"] = 1
         elif not 1 <= s["button"] <= n:
             s["button"] = 1
         self.note(s, f"menu {m.id}")
@@ -184,6 +187,11 @@ class Simulator:
         kind, target, _ = parse_action(action)
         if kind == "menu":
             self.via_root(s, target)
+        elif kind == "lastmenu":
+            # g1 = the last menu; 0 before any: the root's dispatcher then takes
+            # the Menu-key target (g3) or stays on the first menu
+            key = s["menu_key"] if self.p.uses_remote_menu else None
+            self.via_root(s, s["last_menu"] or key or self.root().id)
         elif kind == "title":
             self.play(s, target)
         else:
