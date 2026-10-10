@@ -484,7 +484,8 @@ class TestGuiBrowser(unittest.TestCase):
             page.click("#np-sample")
             page.locator(".nav-item[data-view=title][data-id=t2]").wait_for(timeout=120000)
             self.assertEqual(page.locator("#menubar > button").all_inner_texts(),
-                             ["File", "Edit", "Object", "Menu", "Timeline", "Window", "Help"])
+                             ["File", "Edit", "Object", "Menu", "Timeline", "View", "Window",
+                              "Help"])
             # Disc > New playlist
             page.click("#menubar > button:has-text('Timeline')")
             page.click(".popup button:has-text('New playlist')")
@@ -517,7 +518,7 @@ class TestGuiBrowser(unittest.TestCase):
             page.keyboard.press("Alt+Shift+2")
             page.locator("#center-head", has_text="Flowchart").wait_for()
             page.keyboard.press("Alt+Shift+1")
-            page.locator("#center-head", has_text="Disc").wait_for()
+            page.locator("#inspector #rom-files").wait_for()           # the disc's properties
             # a chapter at the playhead with * (Shift+8)
             page.click(".nav-item[data-view=title][data-id=t2]")
             page.fill("#tc-input", "00:00:03.000")
@@ -565,8 +566,9 @@ class TestGuiBrowser(unittest.TestCase):
             self.poll(lambda: self.project()["menus"][0]["buttons"][-1]["action"] == "title:t1")
             # drag a menu onto an empty part of the menu: a new button for it
             n_buttons = len(self.project()["menus"][0]["buttons"])
+            stage_w = page.locator("#stage").bounding_box()["width"]
             page.locator(".nav-item[data-view=menu][data-id=chapters]").drag_to(
-                page.locator("#stage"), target_position={"x": 600, "y": 60})
+                page.locator("#stage"), target_position={"x": stage_w - 40, "y": 30})
             self.poll(lambda: len(self.project()["menus"][0]["buttons"]) == n_buttons + 1)
             b = self.project()["menus"][0]["buttons"][-1]
             self.assertEqual((b["action"], b["label"]), ("menu:chapters", "CHAPTERS"))
@@ -964,8 +966,8 @@ class TestGuiBrowser(unittest.TestCase):
             page.click(".flow-svg [data-node='menu:setup']")         # opens the menu editor
             page.locator(".nav-item.active[data-view=menu][data-id=setup]").wait_for()
             # the simulator: down to CHAPTERS, OK, then BACK with the mouse
-            page.click(".nav-item[data-view=sim]")
-            page.locator("#sim-screen img.hl").wait_for(timeout=120000)
+            page.select_option("#workspaces", "sim")           # Project Preview, from first play
+            page.locator("#pv-window #sim-screen img.hl").wait_for(timeout=120000)
             page.locator("#sim-status", has_text="main").wait_for()
             page.locator("#sim-screen").press("ArrowDown")
             page.locator("#sim-status", has_text="main · ").wait_for()
@@ -1038,9 +1040,9 @@ class TestGuiBrowser(unittest.TestCase):
             page.click(".nav-item[data-view=menu][data-id=main]", timeout=120000)
             page.locator(".stage .el.button").first.wait_for(timeout=60000)
             # workspaces
-            page.click("#workspaces [data-ws=flow]")
+            page.select_option("#workspaces", "flow")
             page.locator(".flow-svg").wait_for(timeout=60000)
-            page.click("#workspaces [data-ws=author]")
+            page.select_option("#workspaces", "author")
             page.locator("#center-head", has_text="main").wait_for()
             # layers <-> stage selection
             rows = page.locator("#layers .layer-row[data-lk=button]")
@@ -1075,7 +1077,9 @@ class TestGuiBrowser(unittest.TestCase):
             page.mouse.click(ruler["x"] + ruler["width"] * 0.75, ruler["y"] + 5)
             page.locator("#tc", has_text="00:00:18").wait_for()
             # theme and panel sizes are remembered
-            page.click("#btn-theme")
+            page.keyboard.press("Control+Comma")                       # Edit > Preferences
+            page.select_option("#pref-theme", "light")
+            page.keyboard.press("Escape")
             self.assertEqual(page.evaluate("document.documentElement.dataset.theme"), "light")
             sp = page.locator(".splitter[data-split=left]").bounding_box()
             page.mouse.move(sp["x"] + 2, sp["y"] + 200)
@@ -1084,7 +1088,7 @@ class TestGuiBrowser(unittest.TestCase):
             page.mouse.up()
             width = page.locator("#p-left").bounding_box()["width"]
             page.reload()
-            page.locator("#workspaces button").first.wait_for(timeout=60000)
+            page.locator("#workspaces option").first.wait_for(state="attached", timeout=60000)
             self.assertEqual(page.evaluate("document.documentElement.dataset.theme"), "light")
             self.assertAlmostEqual(page.locator("#p-left").bounding_box()["width"], width, delta=2)
             browser.close()
@@ -1218,7 +1222,8 @@ class TestGuiBrowser(unittest.TestCase):
             moved = self.project()["menus"][0]["buttons"][0]
             self.assertGreater(moved["x"], 80 + 60)
             self.assertGreater(moved["y"], 200 + 30)
-            page.click("#btn-undo")
+            page.click("#menubar [data-mb='1']")                       # Edit > Undo
+            page.click(".popup button:has-text('Undo')")
             self.wait_saved(page)
             back = self.project()["menus"][0]["buttons"][0]
             self.assertEqual((back["x"], back["y"]), (80, 200))
@@ -1234,11 +1239,11 @@ class TestGuiBrowser(unittest.TestCase):
             page.click("#exact")
             page.wait_for_selector(".stage img.exact", timeout=60000)
             # build
-            page.click("#btn-build")
+            page.click("[data-lt=build]")                              # the Build panel
             page.check("#fast")
             page.click("#start")
             page.wait_for_selector(".result-ok, .result-err", timeout=300000)
-            self.assertEqual(page.locator(".result-ok").count(), 1, page.inner_text("#main"))
+            self.assertEqual(page.locator(".result-ok").count(), 1, page.inner_text("#sidebar"))
             browser.close()
         self.assertEqual(errors, [])
         self.assertTrue(os.path.isfile(os.path.join(self.dir, "output", "DEMO_DISC.iso")))

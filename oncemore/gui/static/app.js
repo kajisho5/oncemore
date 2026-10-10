@@ -52,7 +52,7 @@ const I18N = {
     link_hint: "Drag a title, menu or playlist from the project panel onto a button to link it, or onto the menu to add a button for it.",
     cmd_transcode_title: "Transcode this title now", cmd_transcode_all: "Transcode all titles now",
     transcoding: "Transcoding", transcoded: "Transcoded: the build will reuse it", not_transcoded: "Not transcoded yet (encoded when the disc is built)",
-    m_object: "Object", m_menu: "Menu", m_timeline: "Timeline", m_window: "Window",
+    m_object: "Object", m_menu: "Menu", m_timeline: "Timeline", m_view: "View", m_window: "Window",
     cmd_preview: "Preview", cmd_set_link: "Set link…", cmd_routing: "Show button routing", cmd_safe_area: "Show safe area",
     cmd_tool_select: "Selection tool", cmd_tool_text: "Text tool", cmd_tool_zoom: "Zoom tool", cmd_zoom_in: "Zoom in", cmd_zoom_out: "Zoom out",
     cmd_align_left: "Align left edges", cmd_align_hcenter: "Align horizontal centres", cmd_align_right: "Align right edges",
@@ -65,12 +65,13 @@ const I18N = {
     sp_normal: "Normal", sp_selected: "Selected", sp_activated: "Activated", overlap_hint: "This button's area overlaps another button: the remote may not reach one of them",
     whip_hint: "Drag to a title, menu or playlist (project panel or flowchart) to link it", flow_link_hint: "Drag from an item to another to link it: first play, end actions, a button of a menu.",
     pick_button: "Which button links there?", unused: "Not used",
+    type_clips: "Timeline (clips)", type_timeline: "Timeline", type_chapter_menu: "Chapter menu", n_buttons: "{n} buttons", n_items: "{n} items", kind_video: "Video", kind_audio: "Audio", kind_image: "Still image", kind_subtitle: "Subtitles", kind_design: "Photoshop design", kind_font: "Font", col_name: "Name", col_type: "Type", col_duration: "Duration", col_buttons: "Buttons", col_first: "First play", col_chapters: "Chapters", col_transcode: "Transcode", buttons_of: "Buttons of {m}", chapters_of: "Chapters of {t}", status_transcoded: "Transcoded", status_untranscoded: "Untranscoded", add_menu_short: "+ Menu", add_playlist_short: "+ Playlist", panel_menu: "Panel menu", menu_viewer: "Menu Viewer", layers_hint: "Open a menu to see its layers.", timelines: "Timelines", preferences: "Preferences", cmd_preferences: "Preferences…", appearance: "Appearance", brightness: "Brightness", brightness_hint: "Lighter or darker interface greys (the menu and video pictures are not changed).", darker: "Darker", lighter: "Lighter", default: "Default", welcome: "Welcome", new_project_basic: "Basic", authoring_mode: "Authoring mode",
     m_file: "File", m_edit: "Edit", m_disc: "Disc", m_view: "View", m_help: "Help",
     cmd_import_files: "Import files…", cmd_import_psd: "Import Photoshop design…", cmd_check: "Check project",
     cmd_build: "Build disc…", cmd_reveal: "Show project folder", cmd_undo: "Undo", cmd_redo: "Redo",
     cmd_duplicate: "Duplicate", cmd_delete: "Delete", cmd_new_slideshow: "New slideshow", cmd_new_menu: "New menu…",
     cmd_new_playlist: "New playlist", cmd_add_chapter: "Add chapter at playhead", cmd_play: "Play / pause",
-    cmd_ws_author: "Author", cmd_ws_flow: "Flowchart", cmd_ws_sim: "Preview (remote control)", cmd_ws_build: "Build",
+    cmd_ws_author: "Workspace: Default", cmd_ws_flow: "Workspace: Flowchart", cmd_ws_sim: "Project Preview", cmd_ws_build: "Build",
     cmd_theme: "Light / dark theme", cmd_language: "日本語", cmd_shortcuts: "Keyboard shortcuts", cmd_about: "About oncemore",
     open: "Open", set_first_play: "Play first when the disc starts", copy_of: "{x} copy", reveal_file: "Show in folder",
     copy: "Copy", paste: "Paste", nudge: "Move selected elements (10 px with Shift)", copy_paste: "Copy / paste elements",
@@ -138,9 +139,22 @@ const I18N = {
     stream: "Stream", file: "File", add_track: "+ Track", add_sub: "+ Subtitle file",
     frame_err: "Cannot show this frame", preview_err: "Preview failed",
     confirm_delete: "Delete “{x}”?", chapter_at: "Chapter {n}", playhead: "Playhead",
+    workspace: "Workspace", ws_default: "Default", monitor: "Monitor", no_menus: "(no Menus)", no_timelines: "(no Timelines)",
+    project_preview: "Project Preview", search: "Search", fit: "Fit", step_back: "Step Backward", step_fwd: "Step Forward",
+    prev_ch: "Previous Chapter", next_ch: "Next Chapter", tc_source: "Source", no_timeline_open: "Open a timeline from the Project panel to see it here.",
+    prop_disc: "Disc", prop_title: "Timeline", prop_menu: "Menu", prop_button: "Button", prop_text: "Text", prop_shape: "Rectangle",
+    prop_asset: "Asset", prop_playlist: "Chapter Playlist", prop_slideshow: "Slideshow",
+    name_location: "Name and Location", project_settings: "Project Settings", location: "Location", transcode_settings: "Transcode Settings",
+    np_transcode: "Codec: MPEG-2; Dimensions: {d}; Frame Rate: {f}; Audio: AC-3 / PCM; Maximum Audio/Video Bitrate: 9.8 Mbps",
+    np_info: "The disc's settings can be changed at any time in the Properties panel (select the disc in the Flowchart).",
+    np_open_sample: "Open the sample project", advanced: "Advanced", cancel: "Cancel",
+    build_source: "Source", current_project: "Current Project", destination: "Destination", disc_info: "Disc Info",
+    settings: "Settings", size_estimate: "Estimated size", check_project: "Check Project…", new_item: "New Item", delete_item: "Delete",
+    tool_import_psd: "Make a menu from a Photoshop file", preview_close: "Close the preview",
+    basic: "Basic", motion: "Motion", toggle_safe: "Show Safe Area",
   },
   ja: {
-    check: "チェック", build: "書き出し", drop_here: "ファイルをドロップしてプロジェクトに追加",
+    check: "チェック", build: "ビルド", drop_here: "ファイルをドロップしてプロジェクトに追加",
     disc: "ディスク", titles: "タイトル", menus: "メニュー", media: "素材", generated: "自動生成",
     add: "＋追加", add_files: "ここにファイルをドロップ、またはクリックして追加",
     saved: "保存済み", saving: "保存中…", unsaved: "未保存", save_error: "保存に失敗",
@@ -188,7 +202,7 @@ const I18N = {
     link_hint: "プロジェクトパネルのタイトル・メニュー・プレイリストをボタンにドラッグするとリンク、メニューの空いた所にドラッグするとそのボタンを追加します。",
     cmd_transcode_title: "このタイトルを今すぐトランスコード", cmd_transcode_all: "すべてのタイトルを今すぐトランスコード",
     transcoding: "トランスコード中", transcoded: "トランスコード済み（書き出し時に再利用）", not_transcoded: "未トランスコード（書き出し時にエンコード）",
-    m_object: "オブジェクト", m_menu: "メニュー", m_timeline: "タイムライン", m_window: "ウィンドウ",
+    m_object: "オブジェクト", m_menu: "メニュー", m_timeline: "タイムライン", m_view: "表示", m_window: "ウィンドウ",
     cmd_preview: "プレビュー", cmd_set_link: "リンクを設定…", cmd_routing: "ボタンのルーティングを表示", cmd_safe_area: "セーフエリアを表示",
     cmd_tool_select: "選択ツール", cmd_tool_text: "テキストツール", cmd_tool_zoom: "ズームツール", cmd_zoom_in: "ズームイン", cmd_zoom_out: "ズームアウト",
     cmd_align_left: "左端揃え", cmd_align_hcenter: "左右中央揃え", cmd_align_right: "右端揃え",
@@ -201,12 +215,13 @@ const I18N = {
     sp_normal: "通常", sp_selected: "選択中", sp_activated: "決定時", overlap_hint: "このボタンの範囲が他のボタンと重なっています：リモコンでどちらかに移れないことがあります",
     whip_hint: "タイトル・メニュー・プレイリスト（プロジェクトパネルかフローチャート）までドラッグしてリンク", flow_link_hint: "項目から別の項目へドラッグしてリンク：最初の再生、終了時の動作、メニューのボタン。",
     pick_button: "どのボタンからリンクしますか？", unused: "未使用",
+    type_clips: "タイムライン（クリップ）", type_timeline: "タイムライン", type_chapter_menu: "チャプターメニュー", n_buttons: "ボタン {n}", n_items: "{n} 項目", kind_video: "ビデオ", kind_audio: "オーディオ", kind_image: "静止画", kind_subtitle: "字幕", kind_design: "Photoshop デザイン", kind_font: "フォント", col_name: "名前", col_type: "種類", col_duration: "デュレーション", col_buttons: "ボタン", col_first: "最初に再生", col_chapters: "チャプター", col_transcode: "トランスコード", buttons_of: "{m} のボタン", chapters_of: "{t} のチャプター", status_transcoded: "トランスコード済み", status_untranscoded: "未トランスコード", add_menu_short: "＋メニュー", add_playlist_short: "＋プレイリスト", panel_menu: "パネルメニュー", menu_viewer: "メニュービューア", layers_hint: "メニューを開くとレイヤーが表示されます。", timelines: "タイムライン", preferences: "環境設定", cmd_preferences: "環境設定…", appearance: "アピアランス", brightness: "明るさ", brightness_hint: "インターフェイスのグレーを明るく／暗くします（メニューや映像の画は変わりません）。", darker: "暗く", lighter: "明るく", default: "初期設定", welcome: "ようこそ", new_project_basic: "基本", authoring_mode: "オーサリングモード",
     m_file: "ファイル", m_edit: "編集", m_disc: "ディスク", m_view: "表示", m_help: "ヘルプ",
     cmd_import_files: "ファイルを読み込む…", cmd_import_psd: "Photoshop デザインを読み込む…", cmd_check: "プロジェクトをチェック",
-    cmd_build: "ディスクを書き出す…", cmd_reveal: "プロジェクトのフォルダを表示", cmd_undo: "取り消す", cmd_redo: "やり直す",
+    cmd_build: "ディスクをビルド…", cmd_reveal: "プロジェクトのフォルダを表示", cmd_undo: "取り消す", cmd_redo: "やり直す",
     cmd_duplicate: "複製", cmd_delete: "削除", cmd_new_slideshow: "新規スライドショー", cmd_new_menu: "新規メニュー…",
     cmd_new_playlist: "新規プレイリスト", cmd_add_chapter: "再生位置にチャプターを追加", cmd_play: "再生／一時停止",
-    cmd_ws_author: "オーサリング", cmd_ws_flow: "フローチャート", cmd_ws_sim: "プレビュー（リモコン）", cmd_ws_build: "書き出し",
+    cmd_ws_author: "ワークスペース：初期設定", cmd_ws_flow: "ワークスペース：フローチャート", cmd_ws_sim: "プロジェクトプレビュー", cmd_ws_build: "ビルド",
     cmd_theme: "ライト／ダーク", cmd_language: "English", cmd_shortcuts: "キーボードショートカット", cmd_about: "oncemore について",
     open: "開く", set_first_play: "ディスクの最初に再生", copy_of: "{x} のコピー", reveal_file: "フォルダで表示",
     copy: "コピー", paste: "ペースト", nudge: "選択した要素を移動（Shift で 10px）", copy_paste: "要素のコピー／ペースト",
@@ -240,7 +255,7 @@ const I18N = {
     generated_menu: "このメニューは「{t}」のチャプターから自動生成されます。変更はそのタイトルの設定で行います。",
     go_to_title: "タイトルを開く",
     build_iso: "ディスクイメージ（.iso）", build_folder: "VIDEO_TS フォルダ", fast: "高速（1パス）エンコード",
-    start_build: "開始", building: "書き出し中…", build_done: "完了", build_failed: "書き出しに失敗",
+    start_build: "開始", building: "ビルド中…", build_done: "完了", build_failed: "ビルドに失敗",
     reveal: "Finder で表示", reveal_other: "フォルダを開く", output: "出力先", warnings: "警告",
     step_probe: "素材をチェック", step_menu: "メニュー「{i}」を作成", step_encode: "タイトル「{i}」をエンコード",
     step_subtitles: "「{i}」の字幕を作成", step_author: "VIDEO_TS を構成", step_iso: "ディスクイメージを書き出し",
@@ -274,6 +289,19 @@ const I18N = {
     stream: "ストリーム", file: "ファイル", add_track: "＋トラック", add_sub: "＋字幕ファイル",
     frame_err: "このフレームを表示できません", preview_err: "プレビューに失敗",
     confirm_delete: "「{x}」を削除しますか？", chapter_at: "チャプター {n}", playhead: "再生位置",
+    workspace: "ワークスペース", ws_default: "初期設定", monitor: "モニター", no_menus: "（メニューなし）", no_timelines: "（タイムラインなし）",
+    project_preview: "プロジェクトプレビュー", search: "検索", fit: "全体表示", step_back: "1 フレーム戻る", step_fwd: "1 フレーム進む",
+    prev_ch: "前のチャプター", next_ch: "次のチャプター", tc_source: "ソース", no_timeline_open: "プロジェクトパネルでタイムラインを開くとここに表示されます。",
+    prop_disc: "ディスク", prop_title: "タイムライン", prop_menu: "メニュー", prop_button: "ボタン", prop_text: "テキスト", prop_shape: "長方形",
+    prop_asset: "アセット", prop_playlist: "チャプタープレイリスト", prop_slideshow: "スライドショー",
+    name_location: "名前と場所", project_settings: "プロジェクト設定", location: "場所", transcode_settings: "トランスコード設定",
+    np_transcode: "コーデック：MPEG-2、サイズ：{d}、フレームレート：{f}、音声：AC-3 / PCM、最大ビットレート：9.8 Mbps",
+    np_info: "ディスクの設定は、あとからいつでもプロパティパネルで変更できます（フローチャートでディスクを選択）。",
+    np_open_sample: "サンプルプロジェクトを開く", advanced: "詳細", cancel: "キャンセル",
+    build_source: "ソース", current_project: "現在のプロジェクト", destination: "保存先", disc_info: "ディスク情報",
+    settings: "設定", size_estimate: "推定サイズ", check_project: "プロジェクトをチェック…", new_item: "新規項目", delete_item: "削除",
+    tool_import_psd: "Photoshop ファイルからメニューを作る", preview_close: "プレビューを閉じる",
+    basic: "基本", motion: "モーション", toggle_safe: "セーフエリアを表示",
   },
 };
 let LANG = (() => {
@@ -580,18 +608,81 @@ async function refreshMedia() {
 function renderAll() {
   document.documentElement.lang = LANG;
   document.querySelectorAll("[data-i18n]").forEach((el) => (el.textContent = t(el.dataset.i18n)));
-  renderMenubar(); renderTopbar(); renderWorkspaces(); renderLeft(); renderCenterHead(); renderMain();
-  renderInspector(); renderTimeline(); renderStatus();
+  renderMenubar(); renderTopbar(); renderToolbar(); renderWorkspaces(); renderLeft(); renderCenterHead(); renderMain();
+  renderInspector(); renderTimeline(); renderStatus(); markFrame();
 }
 function renderTopbar() {
-  $("#disc-name").textContent = P()?.disc?.label || "";
+  const label = P()?.disc?.label || "";
+  $("#disc-name").textContent = label;
   const st = $("#save-state");
   st.textContent = P() ? t({ saved: "saved", saving: "saving", unsaved: "unsaved", error: "save_error" }[S.saveState]) : "";
   st.className = "save-state" + (S.saveState === "error" ? " err" : "");
-  $("#btn-undo").disabled = !S.undo.length;
-  $("#btn-redo").disabled = !S.redo.length;
-  $("#btn-check").disabled = !P(); $("#btn-build").disabled = !P();
+  // the window title names the project, with * while it has unsaved changes
+  document.title = P() ? `${label}${S.saveState === "saved" ? "" : " *"} - oncemore` : "oncemore";
 }
+// The Tools panel under the menu bar: selection, text and zoom for the menu
+// viewer, new button / rectangle, a menu from a Photoshop file, Preview.
+function renderToolbar() {
+  const bar = $("#tools"), onMenu = S.sel.view === "menu" && !!curMenu(), tool = S.tool || "select";
+  const b = (attrs, title, icon, on = false, enabled = true) => `<button ${attrs} class="tool ${on ? "on" : ""}" title="${esc(title)}" ${enabled ? "" : "disabled"}>${icon}</button>`;
+  bar.innerHTML = !P() ? "" : [
+    b('data-tool="select"', `${t("tool_select")} (V)`, ICONS.select, tool === "select", onMenu),
+    b('data-tool="text" id="add-text"', `${t("tool_text")} (T)`, ICONS.text, tool === "text", onMenu),
+    b('data-tool="zoom"', `${t("tool_zoom")} (Z)`, ICONS.zoom, tool === "zoom", onMenu),
+    `<span class="sep"></span>`,
+    b('id="add-btn"', t("add_button"), ICONS.button, false, onMenu),
+    b('id="add-shape"', t("add_shape"), ICONS.rect, false, onMenu),
+    `<span class="sep"></span>`,
+    b('id="tool-psd"', t("tool_import_psd"), ICONS.psd),
+    b('id="tool-preview"', `${t("cmd_preview")} (${keyLabel("shift+space")})`, ICONS.preview, false, (P().titles || []).length > 0),
+  ].join("");
+  bar.querySelectorAll("[data-tool]").forEach((x) => (x.onclick = () => setTool(x.dataset.tool)));
+  const on = (id, fn) => { const x = $(id); if (x) x.onclick = fn; };
+  on("#add-btn", addMenuButton);
+  on("#add-shape", addMenuShape);
+  on("#tool-psd", pickPsd);
+  on("#tool-preview", () => runCommand("preview"));
+}
+// small line icons for the tool buttons (drawn here; no images)
+const svg = (d, extra = "") => `<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" ${extra}>${d}</svg>`;
+const ICONS = {
+  select: svg('<path d="M3 1.5v11.5l3-3 2 4.5 1.8-.8-2-4.4H12z" fill="currentColor"/>'),
+  text: svg('<path d="M2.5 2.5h11v2.5h-1.3l-.4-1.2H9v8.7l1.4.4V14H5.6v-1.1l1.4-.4V3.8H4.2l-.4 1.2H2.5z" fill="currentColor"/>'),
+  zoom: svg('<circle cx="6.5" cy="6.5" r="4.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9.6 9.6l4.6 4.6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>'),
+  button: svg('<rect x="1.5" y="4" width="13" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5 8h6" stroke="currentColor" stroke-width="1.4"/>'),
+  rect: svg('<rect x="2" y="3" width="12" height="10" fill="currentColor"/>'),
+  psd: svg('<rect x="1.5" y="1.5" width="13" height="13" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4 4.5h8M4 7.5h8M4 10.5h5" stroke="currentColor" stroke-width="1.3"/>'),
+  preview: svg('<circle cx="8" cy="8" r="6.3" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="1.4" fill="currentColor"/><path d="M11 10.5l4 2.3-4 2.2z" fill="currentColor"/>'),
+  import: svg('<path d="M8 1.5v8M4.5 6l3.5 3.5L11.5 6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2 11v3h12v-3" fill="none" stroke="currentColor" stroke-width="1.5"/>'),
+  slideshow: svg('<rect x="1.5" y="3" width="13" height="10" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4 11l3-3.5 2 2 1.5-1.5 2 3z" fill="currentColor"/><circle cx="11" cy="6" r="1" fill="currentColor"/>'),
+  menu: svg('<rect x="1.5" y="2.5" width="13" height="11" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4 6h3M4 8.5h3M4 11h3M9 5.5h3.5v3H9z" fill="currentColor" stroke="currentColor" stroke-width=".8"/>'),
+  playlist: svg('<path d="M2 3.5h9M2 7h9M2 10.5h6" stroke="currentColor" stroke-width="1.5"/><path d="M10 9.5l4.5 2.5-4.5 2.5z" fill="currentColor"/>'),
+  trash: svg('<path d="M3 4.5h10M6 4.5V3h4v1.5M4.5 4.5l.7 9.5h5.6l.7-9.5" fill="none" stroke="currentColor" stroke-width="1.3"/>'),
+  timeline: svg('<rect x="1.5" y="3" width="13" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 6h13M4 3v3M7 3v3M10 3v3M13 3v3" stroke="currentColor"/>'),
+  disc: svg('<circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="1.8" fill="none" stroke="currentColor" stroke-width="1.2"/>'),
+  video: svg('<rect x="1.5" y="3.5" width="9" height="9" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M10.5 7l4-2.5v7l-4-2.5z" fill="currentColor"/>'),
+  audio: svg('<path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path d="M11 5.5a3.5 3.5 0 010 5M12.8 3.8a6 6 0 010 8.4" fill="none" stroke="currentColor" stroke-width="1.2"/>'),
+  image: svg('<rect x="1.5" y="2.5" width="13" height="11" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M3.5 11.5l3.5-4 2.5 2.5 1.5-1.5 2 3z" fill="currentColor"/>'),
+  safe: svg('<rect x="1.5" y="2.5" width="13" height="11" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="4" y="5" width="8" height="6" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="1.5 1"/>'),
+  play: svg('<path d="M4.5 2.5l9 5.5-9 5.5z" fill="currentColor"/>'),
+  pause: svg('<path d="M4 2.5h3v11H4zM9 2.5h3v11H9z" fill="currentColor"/>'),
+  stepb: svg('<path d="M3 3h2v10H3zM13 3v10L6 8z" fill="currentColor"/>'),
+  stepf: svg('<path d="M11 3h2v10h-2zM3 3v10l7-5z" fill="currentColor"/>'),
+  prevch: svg('<path d="M3 2v12M3 3h4" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="M13 5v6L8 8z" fill="currentColor"/>'),
+  nextch: svg('<path d="M13 2v12M13 3H9" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="M3 5v6l5-3z" fill="currentColor"/>'),
+  addch: svg('<path d="M4 2v12M4 3h5l-1.5 2L9 7H4" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M11 9v5M8.5 11.5h5" stroke="currentColor" stroke-width="1.5"/>'),
+  mtnS: svg('<path d="M3 12l3-4 2 2 2-3 3 5z" fill="currentColor"/>'),
+  mtnL: svg('<path d="M0.5 14l4.5-7 3 3.5 3-5 4.5 8.5z" fill="currentColor"/>'),
+  panel: svg('<path d="M3 5l2.5 3L8 5z" fill="currentColor"/><path d="M9.5 4.5h4M9.5 7.5h4M9.5 10.5h4" stroke="currentColor" stroke-width="1.3"/>', 'width="18" height="14"'),
+};
+// the panel being worked in gets an amber outline
+function markFrame() {
+  document.querySelectorAll("[data-frame]").forEach((f) => f.classList.toggle("active-frame", f.dataset.frame === S.activeFrame));
+}
+document.addEventListener("pointerdown", (ev) => {
+  const f = ev.target.closest?.("[data-frame]");
+  if (f && S.activeFrame !== f.dataset.frame) { S.activeFrame = f.dataset.frame; markFrame(); }
+}, true);
 function renderStatus() {
   const bar = $("#statusbar");
   if (!P()) { bar.textContent = S.dir; return; }
@@ -612,27 +703,63 @@ function showIssues(issues, title) {
 function openModal(html) { $("#modal-body").innerHTML = html; $("#modal").hidden = false; }
 function closeModal() { $("#modal").hidden = true; }
 
+// The Project frame: Project (every element and asset in one list with its
+// type, length and state), Menus (menus and their buttons) and Timelines
+// (titles with their chapters and encode state).
 function renderSidebar() {
   const sb = $("#sidebar");
   if (!P()) { sb.innerHTML = ""; return; }
+  const tab = S.leftTab || "project";
+  if (tab === "build") return renderBuild(sb);
+  if (tab === "menus") return renderMenusPanel(sb);
+  if (tab === "timelines") return renderTimelinesPanel(sb);
   const v = S.sel;
-  const item = (view, id, label, tag = "", mark = "") =>
-    `<div class="nav-item ${v.view === view && v.id === id ? "active" : ""}" data-view="${view}" data-id="${esc(id || "")}">${mark}${esc(label)}${tag ? `<span class="tag">${esc(tag)}</span>` : ""}</div>`;
-  const enc = (id) => (S.encStatus && id in S.encStatus ? `<span class="enc ${S.encStatus[id] ? "ok" : ""}" title="${esc(t(S.encStatus[id] ? "transcoded" : "not_transcoded"))}"></span>` : "");
-  const titles = (P().titles || []).map((ti) => item("title", ti.id, ti.name || ti.id, ti.aspect || "", enc(ti.id))).join("");
-  const menus = (P().menus || []).map((m) => item("menu", m.id, m.id)).join("");
-  const gen = generatedMenus().map((g) => item("menu", g.id, g.id, t("generated"))).join("");
-  const media = S.media.map((m) => `<div class="media-item ${S.selectedMedia === m.path ? "selected" : ""}" data-media="${esc(m.path)}" draggable="false">
-      <span class="kind">${esc(m.kind)}</span><span class="name" title="${esc(m.path)}">${esc(m.path.replace(/^media\//, ""))}</span></div>`).join("");
-  const ups = Object.entries(S.uploads).map(([n, pct]) => `<div class="media-item"><span class="name">${esc(n)}</span><span class="muted">${pct}%</span></div>`).join("");
+  const enc = (id) => (S.encStatus && id in S.encStatus ? `<span class="enc ${S.encStatus[id] ? "ok" : ""}" title="${esc(t(S.encStatus[id] ? "transcoded" : "not_transcoded"))}"></span>` : `<span class="enc none"></span>`);
+  const q = (S.search || "").toLowerCase(), hit = (...xs) => !q || xs.some((x) => String(x || "").toLowerCase().includes(q));
+  const row = (view, id, ico, label, type, len, mark = "", extra = "") => !hit(label, id, type) ? "" :
+    `<div class="nav-item prow ${v.view === view && v.id === id ? "active" : ""}" data-view="${view}" data-id="${esc(id || "")}" ${extra}>
+      <span class="c-name"><span class="ico k-${view}">${ICONS[ico] || ico}</span>${mark}${esc(label)}</span><span class="c-type">${esc(type)}</span><span class="c-len">${esc(len)}</span></div>`;
+  const len = (path) => { const pr = path && S.probes[path]; return pr && pr.duration ? fmtTime(pr.duration, false) : ""; };
+  const titles = (P().titles || []).map((ti) => row("title", ti.id, ti.slideshow ? "slideshow" : "timeline", ti.name || ti.id,
+    t(ti.slideshow ? "slideshow" : ti.clips ? "type_clips" : "type_timeline"), len(ti.source), enc(ti.id))).join("");
+  const menus = (P().menus || []).map((m) => row("menu", m.id, "menu", m.id, t("menu"), t("n_buttons", { n: (m.buttons || []).length }))).join("");
+  const gen = generatedMenus().map((g) => row("menu", g.id, "menu", g.id, t("type_chapter_menu"), "")).join("");
+  const pls = (P().playlists || []).map((pl) => row("playlist", pl.id, "playlist", pl.name || pl.id, t("playlist"), t("n_items", { n: pl.items.length }))).join("");
+  const media = S.media.filter((m) => hit(m.path, t("kind_" + m.kind))).map((m) => `<div class="media-item prow ${S.selectedMedia === m.path ? "selected" : ""}" data-media="${esc(m.path)}" draggable="false">
+      <span class="c-name"><span class="ico">${{ video: ICONS.video, audio: ICONS.audio, image: ICONS.image, subtitle: "≣", design: ICONS.psd, font: "Aa" }[m.kind] || "·"}</span><span class="name" title="${esc(m.path)}">${esc(m.path.replace(/^media\//, ""))}</span></span>
+      <span class="c-type">${esc(t("kind_" + m.kind))}</span><span class="c-len">${len(m.kind === "video" || m.kind === "audio" ? m.path : null) || fmtBytes(m.bytes)}</span></div>`).join("");
+  const ups = Object.entries(S.uploads).map(([n, pct]) => `<div class="media-item prow"><span class="c-name"><span class="name">${esc(n)}</span></span><span class="c-type">${t("importing")}</span><span class="c-len">${pct}%</span></div>`).join("");
+  const sel = (P().titles || []).find((x) => v.view === "title" && x.id === v.id);
+  const prev = S.selectedMedia ? S.media.find((m) => m.path === S.selectedMedia) : null;
+  const selMenu = v.view === "menu" ? (P().menus || []).find((x) => x.id === v.id) : null;
+  const thumbPath = prev ? (prev.kind === "image" ? imgUrl("file", { path: prev.path }) : prev.kind === "video" ? imgUrl("frame", { path: prev.path, t: 1, w: 160 }) : "")
+    : sel && sel.source && !sel.slideshow ? imgUrl("frame", { path: sel.source, t: 1, w: 160 })
+    : selMenu && selMenu.background ? imgUrl("file", { path: selMenu.background })
+    : selMenu && selMenu.background_video ? imgUrl("frame", { path: selMenu.background_video, t: 0, w: 160 }) : "";
+  const name = prev ? prev.path.replace(/^media\//, "") : v.view === "disc" ? P().disc.label : sel ? sel.name || sel.id : (v.id || P().disc.label);
+  const count = (P().titles || []).length + (P().menus || []).length + (P().playlists || []).length + S.media.length;
+  const durOf = sel && !sel.slideshow ? len(sel.source) : prev ? len(prev.kind === "video" || prev.kind === "audio" ? prev.path : null) : "";
+  const pi = prev ? S.probes[prev.path] : sel ? S.probes[sel.source] : null;
+  const dims = pi && pi.width ? `${pi.width}×${pi.height}` : "";
   sb.innerHTML = `
-    <div class="nav-group">${item("disc", "", t("disc"))}${item("flow", "", t("flowchart"))}${item("sim", "", t("simulator"))}</div>
-    <div class="nav-group"><div class="nav-head">${t("titles")}<button class="small" id="add-slideshow" title="${esc(t("slideshow_hint"))}">${t("add_slideshow")}</button></div>${titles || `<div class="hint" style="padding:4px 18px">${esc(t("no_titles"))}</div>`}</div>
-    <div class="nav-group"><div class="nav-head">${t("menus")}<button class="small" id="add-menu">${t("add")}</button></div>${menus}${gen}</div>
-    <div class="nav-group"><div class="nav-head">${t("playlists")}<button class="small" id="add-playlist">${t("add")}</button></div>${(P().playlists || []).map((pl) => item("playlist", pl.id, pl.name || pl.id)).join("")}</div>
-    <div class="nav-group"><div class="nav-head">${t("media")}</div>${media}${ups}
-      <div class="dropzone" id="dropzone">${esc(t("add_files"))}</div></div>
-    <div class="nav-group">${item("build", "", "▸ " + t("build"))}</div>`;
+    <div class="proj-preview nav-item ${v.view === "disc" && !prev ? "active" : ""}" data-view="disc" data-id="" title="${esc(t("prop_disc"))}">
+      <span class="disclose" aria-hidden="true">▾</span>
+      <div class="thumb">${thumbPath ? `<img src="${thumbPath}" alt="">` : `<div class="ph">${ICONS.disc}</div>`}<span class="tplay" aria-hidden="true">${ICONS.play}</span></div>
+      <div class="info"><b>${esc(name)}</b><span>${esc(prev ? t("kind_" + prev.kind) : t(v.view === "title" ? "type_timeline" : v.view === "menu" ? "menu" : v.view === "playlist" ? "playlist" : "disc"))}${dims ? ", " + dims : ""}</span>
+      <span>${esc(durOf || t("n_items", { n: count }))}</span></div></div>
+    <div class="proj-table" role="grid">
+      <div class="prow phead"><span class="c-name">${t("col_name")}</span><span class="c-type">${t("col_type")}</span><span class="c-len">${t("col_duration")}</span></div>
+      ${titles}${pls}${menus}${gen}${media}${ups}
+      ${count ? "" : `<div class="hint" style="padding:8px">${esc(t("no_titles"))}</div>`}
+    </div>
+    <div class="panel-foot">
+      <button class="ficon" id="dropzone" title="${esc(t("add_files"))}">${ICONS.import}</button>
+      <button class="ficon" id="add-slideshow" title="${esc(t("add_slideshow"))} — ${esc(t("slideshow_hint"))}">${ICONS.slideshow}</button>
+      <button class="ficon" id="add-menu" title="${esc(t("add_menu_short"))}">${ICONS.menu}</button>
+      <button class="ficon" id="add-playlist" title="${esc(t("add_playlist_short"))}">${ICONS.playlist}</button>
+      <span class="spacer"></span>
+      <button class="ficon" id="trash" title="${esc(t("delete_item"))}" ${LISTS[v.view] && v.id && editing() ? "" : "disabled"}>${ICONS.trash}</button>
+    </div>`;
   sb.querySelectorAll(".nav-item").forEach((el) => (el.onclick = () => select(el.dataset.view, el.dataset.id)));
   bindLinkSources(sb);
   sb.querySelectorAll(".media-item[data-media]").forEach((el) => (el.onclick = () => { S.selectedMedia = el.dataset.media; S.element = null; renderSidebar(); renderInspector(); }));
@@ -640,29 +767,102 @@ function renderSidebar() {
   $("#add-playlist").onclick = addPlaylist;
   $("#add-slideshow").onclick = addSlideshow;
   $("#dropzone").onclick = pickFiles;
+  $("#trash").onclick = () => runCommand("delete");
+  // durations of titles and media fill in as they are probed
+  const want = [...(P().titles || []).filter((x) => x.source && !x.slideshow).map((x) => x.source), ...S.media.filter((m) => m.kind === "video" || m.kind === "audio").map((m) => m.path)]
+    .filter((x) => !S.probes[x]);
+  if (want.length && !S.probing) {
+    S.probing = true;
+    Promise.all(want.slice(0, 12).map(probe)).finally(() => { S.probing = false; if ((S.leftTab || "project") === "project") renderSidebar(); });
+  }
 }
+function renderMenusPanel(sb) {
+  const v = S.sel, menus = [...(P().menus || []).map((m) => ({ id: m.id, n: (m.buttons || []).length, gen: false })), ...generatedMenus().map((g) => ({ id: g.id, n: null, gen: true }))];
+  const cur = v.view === "menu" ? curMenu() : null;
+  sb.innerHTML = `<div class="proj-table">
+      <div class="prow phead"><span class="c-name">${t("col_name")}</span><span class="c-type">${t("col_buttons")}</span><span class="c-len">${t("col_first")}</span></div>
+      ${menus.map((m) => `<div class="nav-item prow ${v.view === "menu" && v.id === m.id ? "active" : ""}" data-view="menu" data-id="${esc(m.id)}">
+        <span class="c-name"><span class="ico k-menu">${ICONS.menu}</span>${esc(m.id)}</span><span class="c-type">${m.gen ? t("generated") : m.n}</span><span class="c-len">${P().disc.first_play === "menu:" + m.id ? "◉" : ""}</span></div>`).join("")}
+    </div>
+    ${cur ? `<div class="sub-head">${esc(t("buttons_of", { m: cur.id }))}</div><div class="proj-table">
+      ${cur.buttons.map((b, i) => `<div class="prow brow ${S.element?.kind === "button" && S.element.i === i ? "selected" : ""}" data-bi="${i}">
+        <span class="c-name"><span class="ico">${i + 1}</span>${esc(b.label || b.id)}</span><span class="c-type">${esc(linkName(b.action))}</span><span class="c-len"></span></div>`).join("")}</div>` : ""}
+    <div class="panel-foot"><button class="icon-text" id="add-menu">${t("add_menu_short")}</button></div>`;
+  sb.querySelectorAll(".nav-item").forEach((el) => (el.onclick = () => select("menu", el.dataset.id)));
+  bindLinkSources(sb);
+  sb.querySelectorAll(".brow").forEach((r) => (r.onclick = () => { S.element = { kind: "button", i: Number(r.dataset.bi) }; S.sels = [S.element]; renderMain(); renderInspector(); renderSidebar(); }));
+  $("#add-menu").onclick = addMenu;
+}
+function renderTimelinesPanel(sb) {
+  const v = S.sel, ts = P().titles || [];
+  const cur = v.view === "title" ? curTitle() : null;
+  sb.innerHTML = `<div class="proj-table">
+      <div class="prow phead"><span class="c-name">${t("col_name")}</span><span class="c-type">${t("col_chapters")}</span><span class="c-len">${t("col_transcode")}</span></div>
+      ${ts.map((ti) => `<div class="nav-item prow ${v.view === "title" && v.id === ti.id ? "active" : ""}" data-view="title" data-id="${esc(ti.id)}">
+        <span class="c-name"><span class="ico k-title">${ICONS.timeline}</span>${esc(ti.name || ti.id)}</span><span class="c-type">${chaptersOf(ti).length}</span>
+        <span class="c-len">${S.encStatus && ti.id in S.encStatus ? t(S.encStatus[ti.id] ? "status_transcoded" : "status_untranscoded") : ""}</span></div>`).join("")}
+    </div>
+    ${cur ? `<div class="sub-head">${esc(t("chapters_of", { t: cur.name || cur.id }))}</div><div class="proj-table">
+      ${chapterEntries(cur).map((c, i) => `<div class="prow crow" data-ct="${c.time}"><span class="c-name"><span class="ico k-chapter">◆</span>${i + 1}${c.name ? " · " + esc(c.name) : ""}</span><span class="c-type mono">${fmtTime(c.time)}</span><span class="c-len"></span></div>`).join("")}</div>` : ""}
+    <div class="panel-foot"><button class="icon-text" id="add-slideshow">${t("add_slideshow")}</button></div>`;
+  sb.querySelectorAll(".nav-item").forEach((el) => (el.onclick = () => select("title", el.dataset.id)));
+  bindLinkSources(sb);
+  sb.querySelectorAll(".crow").forEach((r) => (r.onclick = () => S.titleSeek && S.titleSeek(Number(r.dataset.ct))));
+  $("#add-slideshow").onclick = addSlideshow;
+}
+const linkName = (a) => {
+  if (!a) return "";
+  const [k, id, n] = a.split(":");
+  if (k === "title") return "▶ " + id;
+  if (k === "chapter") return `▶ ${id} ◆${n}`;
+  if (k === "menu") return "▦ " + id;
+  if (k === "playlist") return "≡ " + id;
+  return a;
+};
 function select(view, id) {
+  if (view === "build") {                       // Build is a panel in the Project frame
+    S.leftTab = "build";
+    if (S.sel.view === "sim") S.sel = S.lastAuthor || { view: "disc" };
+    renderAll(); return;
+  }
   S.sel = { view, id }; S.element = null; S.selectedMedia = null; S.preview = null;
   if (workspaceOf(view) === "author") S.lastAuthor = { view, id };
+  if (view === "title") S.lastTitle = id;
+  if (view === "menu") S.lastMenu = id;
+  if (view === "playlist") S.lastPlaylist = id;
   renderAll();
 }
 
 function renderMain() {
   const m = $("#main");
+  if (S.sel.view !== "title") S.titleSeek = null;      // (the Monitor is not showing a timeline)
+  renderPreviewWindow();
   if (!P()) return renderWelcome(m);
   const v = S.sel.view;
   if (v === "title") return renderTitle(m);
   if (v === "menu") return renderMenu(m);
   if (v === "playlist") return renderPlaylist(m);
-  if (v === "build") return renderBuild(m);
   if (v === "flow") return renderFlow(m);
-  if (v === "sim") return renderSim(m);
-  return renderDisc(m);
+  return renderMonitorEmpty(m);
+}
+// the Monitor with nothing open in it
+function renderMonitorEmpty(m) {
+  m.innerHTML = `<div class="monitor empty"><div class="monitor-screen"><span class="hint">${esc(t("no_timeline_open"))}</span></div>
+    <div class="monitor-bar"><select disabled class="shrink"><option>${esc(t("fit"))}</option></select><span class="spacer"></span><span class="tc-amber">00:00:00.000</span></div></div>`;
+}
+// File > Preview: the disc played with a remote, in a window of its own
+function renderPreviewWindow() {
+  const w = $("#pv-window"), body = $("#pv-body"), open = !!P() && S.sel.view === "sim";
+  w.hidden = !open;
+  if (!open) { if (body.childElementCount) body.innerHTML = ""; return; }
+  $("#pv-title").textContent = t("project_preview");
+  $("#pv-close").title = t("preview_close");
+  $("#pv-close").onclick = () => { const last = S.lastAuthor || { view: "disc" }; select(last.view, last.id); };
+  renderSim(body);
 }
 function renderInspector() {
-  $("#right-head").innerHTML = `<span class="title">${t("properties")}</span>`;
+  $("#right-head").innerHTML = tabStrip([["props", t("properties")]], "props", "data-rt");
   renderLayers();
-  if (S.leftTab === "library") renderLibrary();
   const el = $("#inspector");
   if (!P()) { el.innerHTML = ""; return; }
   if (S.selectedMedia) return renderMediaInspector(el);
@@ -671,11 +871,14 @@ function renderInspector() {
   if (v === "menu") return renderMenuInspector(el);
   if (v === "playlist") { el.innerHTML = `<h2>${t("playlist")}</h2><div class="hint">${esc(t("playlist_hint"))}</div>`; return; }
   if (v === "flow") { el.innerHTML = `<h2>${t("flowchart")}</h2><div class="hint">${esc(t("flow_hint"))}</div>`; return; }
-  if (v === "sim") { el.innerHTML = `<h2>${t("simulator")}</h2><div class="hint">${esc(t("sim_hint"))}</div>`; return; }
-  el.innerHTML = `<h3>${t("tools")}</h3>
+  if (v === "sim") { el.innerHTML = `<h2>${t("project_preview")}</h2><div class="hint">${esc(t("sim_hint"))}</div>`; return; }
+  return renderDisc(el);
+}
+function renderToolsInfo(el) {
+  el.insertAdjacentHTML("beforeend", `<h3>${t("tools")}</h3>
     <div class="hint">ffmpeg: ${S.tools.ffmpeg ? t("ok") : t("missing")}<br>drawtext: ${S.tools.drawtext ? t("ok") : t("missing")}<br>
     dvdauthor: ${S.tools.dvdauthor ? t("ok") : t("missing")}<br>ISO: ${esc(S.tools.iso || t("missing"))}</div>
-    <h3>oncemore</h3><div class="hint">${esc(t("disc_tips"))}</div>`;
+    <h3>oncemore</h3><div class="hint">${esc(t("disc_tips"))}</div>`);
 }
 
 // generic binding: inputs with data-k="path.to.key" inside root update obj
@@ -702,15 +905,32 @@ function bindFields(root, getTarget, { numeric = [], onAfter } = {}) {
 
 // ---------------------------------------------------------------- welcome
 function renderWelcome(m) {
-  m.innerHTML = `<div class="empty"><h2>${t("new_project")}</h2><p>${esc(t("new_hint", { dir: S.dir }))}</p>
-    <div class="card" style="max-width:420px;margin:20px auto;text-align:left">
-      <label class="field"><span>${t("label")}</span><input id="np-label" value="MY_DISC"></label>
-      <div class="grid2">
-        <label class="field"><span>${t("standard")}</span><select id="np-std"><option>NTSC</option><option>PAL</option></select></label>
-        <label class="field"><span>${t("aspect")}</span><select id="np-aspect"><option>16:9</option><option>4:3</option></select></label>
+  // File > New Project, over the empty workspace
+  const tx = () => {
+    const pal = $("#np-std")?.value === "PAL";
+    return t("np_transcode", { d: pal ? "720 × 576" : "720 × 480", f: pal ? "25" : "29.97" });
+  };
+  m.innerHTML = `<div class="welcome"><div class="dialog np-dialog" role="dialog" aria-label="${esc(t("new_project"))}">
+    <div class="dlg-title">${esc(t("new_project"))}</div>
+    <div class="dlg-body">
+      <div class="dlg-tabs"><span class="tab active">${t("basic")}</span></div>
+      <div class="dlg-page">
+        <fieldset class="group"><legend>${t("name_location")}</legend>
+          <label class="frow"><span class="fl">${t("name")}:</span><input id="np-label" value="MY_DISC"></label>
+          <div class="frow"><span class="fl">${t("location")}:</span><input class="mono" readonly value="${esc(S.dir)}" title="${esc(S.dir)}"></div>
+        </fieldset>
+        <fieldset class="group"><legend>${t("project_settings")}</legend>
+          <div class="frow"><span class="fl">${t("authoring_mode")}:</span><label><input type="radio" name="np-mode" checked> DVD</label></div>
+          <label class="frow"><span class="fl">${t("standard")}:</span><select id="np-std" class="shrink"><option>NTSC</option><option>PAL</option></select></label>
+          <label class="frow"><span class="fl">${t("aspect")}:</span><select id="np-aspect" class="shrink"><option>16:9</option><option>4:3</option></select></label>
+          <div class="frow top"><span class="fl">${t("transcode_settings")}:</span><span class="np-tx" id="np-tx"></span></div>
+        </fieldset>
+        <div class="np-info"><span class="i" aria-hidden="true">i</span><span>${esc(t("np_info"))}</span></div>
       </div>
-      <div class="row"><button id="np-empty">${t("empty_project")}</button><button id="np-sample" class="primary">${t("sample_project")}</button></div>
-    </div></div>`;
+      <div class="dlg-buttons"><button id="np-sample">${t("np_open_sample")}</button><span class="spacer"></span><button id="np-empty" class="primary">OK</button></div>
+    </div></div></div>`;
+  $("#np-tx").textContent = tx();
+  $("#np-std").onchange = () => { $("#np-tx").textContent = tx(); };
   const go = async (sample) => {
     const r = await api("/api/new", { method: "POST", body: { sample, label: $("#np-label").value, standard: $("#np-std").value, aspect: $("#np-aspect").value } });
     applyState(r); S.sel = { view: "disc" }; renderAll(); refreshEncodeStatus();
@@ -723,7 +943,7 @@ function renderWelcome(m) {
 function renderDisc(m) {
   const d = P().disc;
   const fp = actionOptions({ forButton: false, allowStop: false, includeChapters: false, allowPlayAll: true });
-  m.innerHTML = `<div class="card" style="max-width:640px"><h2>${t("disc")}</h2>
+  m.innerHTML = `<h2>${t("prop_disc")}</h2><div class="card">
     <label class="field"><span>${t("label")}</span><input data-k="label" value="${esc(d.label)}"></label>
     <div class="grid2">
       <label class="field"><span>${t("standard")}</span>${selectHtml("standard", [["NTSC", "NTSC (720×480, 29.97)"], ["PAL", "PAL (720×576, 25)"]], d.standard)}</label>
@@ -735,6 +955,7 @@ function renderDisc(m) {
     <label class="field"><span>${t("title_key")}</span>${selectHtml("title_key", [["__none__", t("first_menu")], ...fp], d.title_key || "__none__")}</label>
     <label class="field" data-nobind><span>${t("rom_files")}</span><textarea id="rom-files" rows="3" placeholder="extras/">${esc((d.rom_files || []).join("\n"))}</textarea><div class="hint">${esc(t("rom_hint"))}</div></label>
   </div>`;
+  renderToolsInfo(m);
   bindFields(m, (p) => p.disc);
   $("#rom-files").onchange = (e) => commit((p) => {
     const list = e.target.value.split("\n").map((x) => x.trim()).filter(Boolean);
@@ -776,22 +997,35 @@ function renderTitle(m) {
   const ph = Math.min(S.playhead[ti.id] || 0, dur);
   const chapters = chaptersOf(ti);
   const ar = ti.aspect || P().disc.aspect;
-  m.innerHTML = `<div class="card">
-    <div class="row"><h2 class="shrink">${esc(ti.name || ti.id)}</h2><span class="muted">${join ? esc(t("clips_n", { n: ti.clips.length })) : esc(ti.source) + ` · ${info.width || "?"}×${info.height || "?"}`} · ${dur.toFixed(2)}s</span></div>
-    <div class="viewer" style="aspect-ratio:${ar.replace(":", " / ")}"><img id="frame" alt=""><video id="player" playsinline preload="none" hidden></video>
-      <span class="tc" id="tc">${fmtTime(ph)}</span><span class="proxy-msg" id="proxy-msg" hidden></span></div>
+  const chNow = Math.max(1, chapters.filter((c) => c <= ph + 1e-6).length);
+  const zoom = S.monZoom || "fit";
+  m.innerHTML = `<div class="monitor">
+    <div class="monitor-screen ${zoom === "fit" ? "fit" : ""}"><div class="viewer" style="aspect-ratio:${ar.replace(":", " / ")};${zoom === "fit" ? "" : `width:${Math.round(720 * Number(zoom))}px`}"><img id="frame" alt=""><video id="player" playsinline preload="none" hidden></video>
+      ${S.showSafe ? `<div class="safe-guides"><i></i><b></b></div>` : ""}
+      <span class="tc" id="tc">${fmtTime(ph)}</span><span class="proxy-msg" id="proxy-msg" hidden></span></div></div>
     <div class="timeline" id="timeline">
       ${chapters.map((c, i) => `<div class="marker" data-ch="${i}" title="${esc(t("chapter_at", { n: i + 1 }))} ${fmtTime(c)}" style="left:${dur ? (c / dur) * 100 : 0}%"></div>`).join("")}
       <input type="range" id="scrub" min="0" max="${dur}" step="${(1 / fps).toFixed(5)}" value="${ph}">
     </div>
-    <div class="transport">
-      <button id="play" class="shrink">▶ ${t("play")}</button>
-      <button data-step="-1">−1s</button><button data-step="${-1 / fps}">−1f</button>
-      <button data-step="${1 / fps}">+1f</button><button data-step="1">+1s</button>
-      <input id="tc-input" class="mono" style="width:130px" value="${fmtTime(ph)}" title="${t("playhead")}">
+    <div class="monitor-bar transport">
+      <select id="mon-zoom" class="shrink" title="${esc(t("zoom_hint"))}">${[["fit", t("fit")], ["0.5", "50%"], ["1", "100%"]].map(([v, l]) => `<option value="${v}" ${v === zoom ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>
+      <button class="micon ${S.showSafe ? "on" : ""}" id="mon-safe" title="${esc(t("toggle_safe"))}">${ICONS.safe}</button>
+      <span class="sep"></span>
+      <button class="micon" data-step="-1" title="−1s">−1s</button>
+      <button class="micon" data-step="${-1 / fps}" title="${esc(t("step_back"))}">${ICONS.stepb}</button>
+      <button id="play" class="micon play" title="${esc(t("play"))} (Space)">${ICONS.play}<span class="sr">${t("play")}</span></button>
+      <button class="micon" data-step="${1 / fps}" title="${esc(t("step_fwd"))}">${ICONS.stepf}</button>
+      <button class="micon" data-step="1" title="+1s">+1s</button>
+      <span class="sep"></span>
+      <button class="micon" id="mon-prev" title="${esc(t("prev_ch"))} (PgUp)">${ICONS.prevch}</button>
+      <span class="chnum mono" id="mon-ch">${String(chNow).padStart(2, "0")}</span>
+      <button class="micon" id="mon-next" title="${esc(t("next_ch"))} (PgDn)">${ICONS.nextch}</button>
+      <button id="add-ch" class="micon" title="${esc(t("add_chapter"))} (*)">${ICONS.addch}</button>
       <span class="spacer"></span>
-      <button id="add-ch" class="primary">◆ ${t("add_chapter")}</button>
+      <input id="tc-input" class="tc-amber mono" value="${fmtTime(ph)}" title="${t("playhead")}">
     </div>
+    <div class="monitor-extra">
+    <div class="meta-line"><b>${esc(ti.name || ti.id)}</b> <span class="muted">${join ? esc(t("clips_n", { n: ti.clips.length })) : esc(ti.source) + ` · ${info.width || "?"}×${info.height || "?"}`} · ${dur.toFixed(2)}s</span></div>
     <div id="clip-box">${clipEditorHtml(ti, join)}</div>
     <h3>${t("chapters")} (${chapters.length})</h3>
     <ul class="chapter-list">${chapterEntries(ti).map((c, i) => `<li><span class="n">${i + 1}</span><span class="t" data-seek="${c.time}">${fmtTime(c.time)}</span>
@@ -799,12 +1033,15 @@ function renderTitle(m) {
       <button class="small ${c.poster != null ? "on" : ""}" data-poster="${i}" title="${esc(t("poster_hint"))}">🖼 ${c.poster != null ? fmtTime(c.poster) : t("poster")}</button>
       ${i ? `<button class="small danger" data-del="${i}">✕</button>` : ""}</li>`).join("")}</ul>
     <div id="sub-editor"></div>
-  </div>`;
+  </div></div>`;
   const img = $("#frame");
   let pending = null, last = -1;
   const show = (time) => {
     S.playhead[ti.id] = time; tlPlayhead(time);
     $("#tc").textContent = fmtTime(time); $("#tc-input").value = fmtTime(time);
+    const n = Math.max(1, chapters.filter((c) => c <= time + 1e-6).length), chEl = $("#mon-ch");
+    if (chEl) chEl.textContent = String(n).padStart(2, "0");
+    const tlTc = $("#tl-tc"); if (tlTc) tlTc.textContent = fmtTime(time);
     clearTimeout(pending);
     pending = setTimeout(() => {
       if (Math.abs(time - last) < 1e-4) return;
@@ -822,7 +1059,7 @@ function renderTitle(m) {
   let playing = false;
   const toFrames = (time) => {
     playing = false; video.pause(); video.hidden = true; img.hidden = false;
-    playBtn.textContent = "▶ " + t("play");
+    playBtn.innerHTML = `${ICONS.play}<span class="sr">${t("play")}</span>`;
     if (time != null) seek(time);
   };
   const seek = (time) => {
@@ -857,13 +1094,17 @@ function renderTitle(m) {
     if (video.getAttribute("src") !== url) video.src = url;
     video.currentTime = Number(scrub.value) >= dur - 0.05 ? 0 : Number(scrub.value);
     playing = true; video.hidden = false; img.hidden = true;
-    playBtn.textContent = "❚❚ " + t("pause");
+    playBtn.innerHTML = `${ICONS.pause}<span class="sr">${t("pause")}</span>`;
     video.play().catch((e) => { if (playing) { msg.hidden = false; msg.textContent = e.message; toFrames(null); } });
   };
   m.querySelectorAll("[data-step]").forEach((b) => (b.onclick = () => seek(Number(scrub.value) + Number(b.dataset.step))));
   m.querySelectorAll("[data-seek]").forEach((el) => (el.onclick = () => seek(Number(el.dataset.seek))));
   m.querySelectorAll(".marker").forEach((el) => (el.onclick = () => seek(chapters[Number(el.dataset.ch)])));
   $("#tc-input").onchange = (e) => seek(parseTime(e.target.value));
+  $("#mon-prev").onclick = () => jumpChapter(-1);
+  $("#mon-next").onclick = () => jumpChapter(1);
+  $("#mon-zoom").onchange = (e) => { S.monZoom = e.target.value; renderMain(); };
+  $("#mon-safe").onclick = () => { S.showSafe = !S.showSafe; renderMain(); };
   $("#add-ch").onclick = () => {
     if (playing) toFrames(snap(video.currentTime));
     const time = Number(scrub.value);
@@ -1023,7 +1264,9 @@ async function renderFlow(m) {
   catch (e) { const f = $("#flow"); if (f) f.innerHTML = `<div class="hint">${esc(e.message)}</div>`; return; }
   if (S.sel.view !== "flow") return;
   const { nodes, edges } = r.graph;
-  const W = 170, H = 46, CW = 230, RH = 70, PAD = 20;
+  // each item is a card: its picture, its name under it; a menu also lists
+  // its buttons under an orange band. First play is the disc itself.
+  const W = 132, H = 74, CW = 200, RH = 150, PAD = 24;
   const pos = {};
   // items nothing leads to go in their own row at the bottom, as unused
   const unused = new Set(r.unused || []);
@@ -1038,6 +1281,33 @@ async function renderFlow(m) {
   r.notes.forEach((x) => { if (x.level === "warning" || !level[x.path]) level[x.path] = x.level; });
   const label = (n) => ({ first_play: t("fp"), title_key: t("title_key_node"), stop: t("stop_node"), playall: t("play_all") }[n.kind] || n.label);
   const sub = (n) => n.kind === "menu" ? `${t("menu")} · ${n.buttons}` : n.kind === "title" ? `${t("title")} ${n.number} · ${n.chapters} ch` : n.kind === "playlist" ? `${t("playlist")} · ${n.items}` : "";
+  const thumb = (n) => {
+    const [kind, ...rest] = n.id.split(":"), id = rest.join(":");
+    if (kind === "menu") {
+      const mm = (P().menus || []).find((x) => x.id === id);
+      if (mm?.background) return imgUrl("file", { path: mm.background });
+      if (mm?.background_video) return imgUrl("frame", { path: mm.background_video, t: 0, w: 160 });
+    }
+    if (kind === "title") {
+      const ti = (P().titles || []).find((x) => x.id === id);
+      if (ti?.source && !ti.slideshow) return imgUrl("frame", { path: ti.source, t: 1, w: 160 });
+    }
+    return "";
+  };
+  const buttonsOf = (n) => n.kind !== "menu" ? [] : ((P().menus || []).find((x) => "menu:" + x.id === n.id)?.buttons || []).map((b) => b.label || b.id);
+  const card = (n) => {
+    if (n.kind === "first_play") {
+      return `<circle cx="${W / 2}" cy="${H / 2 - 2}" r="30" class="disc-ico"/><circle cx="${W / 2}" cy="${H / 2 - 2}" r="8" class="disc-hole"/>
+        <rect class="lbl" y="${H}" width="${W}" height="18" rx="2"/><text x="6" y="${H + 13}" class="nl">${esc((P().disc.label || label(n)).slice(0, 20))}</text>`;
+    }
+    const src = thumb(n), bs = buttonsOf(n);
+    const pic = src ? `<image href="${esc(src)}" x="3" y="3" width="${W - 6}" height="${H - 6}" preserveAspectRatio="xMidYMid slice"/>`
+      : `<text x="${W / 2}" y="${H / 2 + 6}" text-anchor="middle" class="ph">${esc({ title_key: "TITLE", playall: "▶▶", stop: "■", playlist: "≡" }[n.kind] || "")}</text>`;
+    return `<rect width="${W}" height="${H}" rx="2"/>${pic}
+      <rect class="lbl" y="${H}" width="${W}" height="18" rx="2"/><text x="6" y="${H + 13}" class="nl">${esc(label(n).slice(0, 20))}</text>
+      ${n.kind === "title" || n.kind === "playlist" ? `<text x="6" y="${H + 30}" class="ns">${esc(sub(n))}</text>` : ""}
+      ${bs.length ? `<rect class="band" y="${H + 18}" width="${W}" height="4"/>${bs.slice(0, 4).map((b, k) => `<rect class="brow" y="${H + 22 + k * 15}" width="${W}" height="15"/><text x="8" y="${H + 33 + k * 15}" class="nb">${esc(String(b).slice(0, 20))}</text>`).join("")}${bs.length > 4 ? `<text x="8" y="${H + 33 + 4 * 15}" class="nb">…</text>` : ""}` : ""}`;
+  };
   const path = (e, k) => {
     const a = pos[e.from], b = pos[e.to];
     if (!a || !b) return "";
@@ -1061,7 +1331,7 @@ async function renderFlow(m) {
     ${edges.map((e, k) => `<path class="edge ${e.kind}" d="${path(e, k)}" marker-end="url(#arr)"><title>${esc(e.from)} → ${esc(e.to)}${e.label ? " (" + esc(e.label) + ")" : ""}</title></path>`).join("")}
     ${unused.size ? `<line class="unused-line" x1="${PAD}" x2="${width - PAD}" y1="${spareY - 26}" y2="${spareY - 26}"/><text class="unused-label" x="${PAD}" y="${spareY - 8}">${esc(t("unused"))}</text>` : ""}
     ${nodes.map((n) => `<g class="node ${n.kind} ${level[n.id] || ""} ${unused.has(n.id) ? "unused" : ""}" data-node="${esc(n.id)}" transform="translate(${pos[n.id].x},${pos[n.id].y})">
-      <rect width="${W}" height="${H}" rx="8"/><text x="10" y="19" class="nl">${esc(label(n).slice(0, 22))}</text><text x="10" y="35" class="ns">${esc(sub(n))}</text></g>`).join("")}
+      ${card(n)}</g>`).join("")}
   </svg>`;
   $("#flow").innerHTML = svg;
   $("#flow-notes").innerHTML = r.notes.length ? `<ul class="issues">${r.notes.map((x) => `<li class="${x.level}"><span class="path" data-node="${esc(x.path)}">${esc(x.path)}</span> ${esc(x.message)}</li>`).join("")}</ul>` : `<div class="hint ok">✓ ${esc(t("nav_ok"))}</div>`;
@@ -1189,7 +1459,7 @@ function renderTitleInspector(el) {
   const ends = actionOptions({ forButton: false, includeChapters: false });
   const langs = [["", "—"], ["ja", "日本語 (ja)"], ["en", "English (en)"], ["fr", "Français (fr)"], ["de", "Deutsch (de)"], ["es", "Español (es)"], ["zh", "中文 (zh)"], ["ko", "한국어 (ko)"]];
   const subs = ti.subtitles || [], tracks = ti.audio_tracks || [];
-  el.innerHTML = `<h2>${t("title_props")}</h2>
+  el.innerHTML = `<h2>${t("prop_title")}</h2>
     <label class="field"><span>${t("name")}</span><input data-k="name" value="${esc(ti.name || "")}"></label>
     <label class="field"><span>${t("id")}</span><input id="ti-id" value="${esc(ti.id)}"><div class="hint">${esc(t("rename_hint"))}</div></label>
     ${ti.slideshow || ti.clips ? `<label class="field"><span>${t("source")}</span><div class="hint">${esc(ti.clips ? t("clips_n", { n: ti.clips.length }) : t("slideshow"))}</div></label>`
@@ -1464,16 +1734,6 @@ function renderMenu(m) {
   const tool = S.tool || "select";
   const zoomSel = selectHtml("zoom", [["fit", t("zoom_fit")], ["0.5", "50%"], ["1", "100%"], ["1.5", "150%"], ["2", "200%"], ["3", "300%"]], S.menuZoom ? String(S.menuZoom) : "fit", 'id="zoom" class="shrink" title="' + esc(t("zoom_hint")) + '"');
   m.innerHTML = `<div class="menu-viewer">
-    <div class="tools" role="toolbar" aria-label="${esc(t("tools"))}">
-      <button data-tool="select" class="${tool === "select" ? "on" : ""}" title="${esc(t("tool_select"))} (V)">↖</button>
-      <button data-tool="text" id="add-text" class="${tool === "text" ? "on" : ""}" title="${esc(t("tool_text"))} (T)">T</button>
-      <button data-tool="zoom" class="${tool === "zoom" ? "on" : ""}" title="${esc(t("tool_zoom"))} (Z)">⌕</button>
-      <span class="sep"></span>
-      <button id="add-btn" title="${esc(t("add_button"))}">▭</button>
-      <button id="add-shape" title="${esc(t("add_shape"))}">■</button>
-      <span class="sep"></span>
-      <button id="tool-preview" title="${esc(t("cmd_preview"))} (⇧Space)">▶</button>
-    </div>
     <div class="viewer-main">
     ${S.sels.length > 1 ? `<div class="stage-tools align-tools">${t("align")}:
       ${[["left", "⇤"], ["hcenter", "↔"], ["right", "⇥"], ["top", "⤒"], ["vcenter", "↕"], ["bottom", "⤓"]].map(([k, i]) => `<button class="small" data-align="${k}" title="${esc(t("align_" + k))}">${i}</button>`).join("")}
@@ -1630,15 +1890,6 @@ function renderMenu(m) {
   $("#routing").onchange = (e) => { S.showRouting = e.target.checked; renderMain(); };
   if (S.showRouting) drawRouting(stage, menu, scale, sx);
   bindLinkDrop(stage, menu, scale, sx);
-  $("#add-btn").onclick = () => commit((p) => {
-    const mm = p.menus.find((x) => x.id === menu.id);
-    const id = uniqueId("button", mm.buttons.map((b) => b.id));
-    const last = mm.buttons[mm.buttons.length - 1];
-    mm.buttons.push({ id, label: "BUTTON", x: last ? last.x : 80, y: last ? Math.min(H - 40, last.y + 60) : 200, action: "stop" });
-    S.element = { kind: "button", i: mm.buttons.length - 1 }; S.sels = [S.element];
-  });
-  m.querySelectorAll("[data-tool]").forEach((b) => (b.onclick = () => setTool(b.dataset.tool)));
-  $("#tool-preview").onclick = () => runCommand("preview");
   $("#zoom").onchange = (e) => { S.menuZoom = e.target.value === "fit" ? null : Number(e.target.value); renderMain(); };
   m.querySelectorAll("[data-sp]").forEach((b) => (b.onclick = () => {
     if (S.spView === b.dataset.sp) { S.spView = null; S.preview = null; renderMain(); return; }
@@ -1646,16 +1897,34 @@ function renderMenu(m) {
     requestPreview(menu.id, null, false, { every: true, state: b.dataset.sp });
     renderMain();
   }));
-  $("#add-shape").onclick = () => commit((p) => {
-    const mm = p.menus.find((x) => x.id === menu.id);
-    (mm.shapes = mm.shapes || []).push({ x: 60, y: Math.round(H * 0.7), w: 600, h: 60, color: "#00000080" });
-    S.element = { kind: "shape", i: mm.shapes.length - 1 }; S.sels = [S.element];
-  });
   $("#exact").onclick = () => { S.spView = null; if (S.preview) { S.preview = null; renderMain(); } else requestPreview(menu.id, S.element && S.element.kind === "button" ? menu.buttons[S.element.i].id : null); };
   if (S.preview && S.previewFor === menu.id) drawPreview();
   stage.classList.toggle("tool-text", tool === "text");
   stage.classList.toggle("tool-zoom", tool === "zoom");
   checkOverlaps(stage, menu, scale, sx);
+}
+// new button / rectangle on the open menu (Tools panel)
+function addMenuButton() {
+  const menu = curMenu();
+  if (!menu) return;
+  const H = discH();
+  commit((p) => {
+    const mm = p.menus.find((x) => x.id === menu.id);
+    const id = uniqueId("button", mm.buttons.map((b) => b.id));
+    const last = mm.buttons[mm.buttons.length - 1];
+    mm.buttons.push({ id, label: "BUTTON", x: last ? last.x : 80, y: last ? Math.min(H - 40, last.y + 60) : 200, action: "stop" });
+    S.element = { kind: "button", i: mm.buttons.length - 1 }; S.sels = [S.element];
+  });
+}
+function addMenuShape() {
+  const menu = curMenu();
+  if (!menu) return;
+  const H = discH();
+  commit((p) => {
+    const mm = p.menus.find((x) => x.id === menu.id);
+    (mm.shapes = mm.shapes || []).push({ x: 60, y: Math.round(H * 0.7), w: 600, h: 60, color: "#00000080" });
+    S.element = { kind: "shape", i: mm.shapes.length - 1 }; S.sels = [S.element];
+  });
 }
 // keyboard editing on the menu stage: arrows nudge (Shift: 10 px), Delete,
 // Cmd/Ctrl+D duplicate, Cmd/Ctrl+C / V copy and paste
@@ -1876,7 +2145,7 @@ function renderMenuInspector(el) {
     return;
   }
   const none = [["__none__", t("none")]];
-  el.innerHTML = `<h2>${t("menu_props")}</h2><div class="hint">${esc(t("nothing_selected"))}</div><h3></h3>
+  el.innerHTML = `<h2>${t("prop_menu")}</h2><div class="hint">${esc(t("nothing_selected"))}</div><h3></h3>
     <label class="field"><span>${t("id")}</span><input id="menu-id" value="${esc(menu.id)}"></label>
     <label class="field"><span>${t("background")}</span>${selectHtml("background", [...none, ...mediaOf("image").map((x) => [x, x])], menu.background || "__none__")}</label>
     <label class="field"><span>${t("background_video")}</span>${selectHtml("background_video", [...none, ...mediaOf("video").map((x) => [x, x])], menu.background_video || "__none__")}</label>
@@ -2040,12 +2309,22 @@ function renderBuild(m) {
   }
   const result = evs.find((e) => e.event === "result"), error = evs.find((e) => e.event === "error");
   const logs = evs.filter((e) => e.event === "log").map((e) => `${e.level === "warn" ? "⚠ " : ""}${e.message}`);
-  m.innerHTML = `<div class="card" style="max-width:720px"><h2>${t("build")}</h2>
-    <label style="display:block;margin:6px 0"><input type="radio" name="kind" value="iso" ${(S.buildKind || "iso") === "iso" ? "checked" : ""}> ${t("build_iso")}</label>
-    <label style="display:block;margin:6px 0"><input type="radio" name="kind" value="folder" ${S.buildKind === "folder" ? "checked" : ""}> ${t("build_folder")}</label>
-    <label style="display:block;margin:10px 0"><input type="checkbox" id="fast" ${S.buildFast ? "checked" : ""}> ${t("fast")}</label>
-    <label style="display:block;margin:10px 0"><input type="checkbox" id="nocache" ${S.buildNoCache ? "checked" : ""}> ${t("no_cache")}</label>
-    <button class="primary" id="start" ${job && !job.done ? "disabled" : ""}>${job && !job.done ? t("building") : t("start_build")}</button>
+  const d = P().disc, kind = S.buildKind || "iso";
+  m.innerHTML = `<div class="build-panel">
+    <div class="build-top"><button id="btn-check">${esc(t("check_project"))}</button><span class="spacer"></span>
+      <button class="primary build-go" id="start" ${job && !job.done ? "disabled" : ""}>${job && !job.done ? t("building") : t("build")}</button></div>
+    <fieldset class="group"><legend>${t("build_source")}</legend>
+      <div class="frow"><span class="fl">${t("build_source")}</span><select disabled><option>${esc(t("current_project"))}</option></select></div></fieldset>
+    <fieldset class="group"><legend>${t("output")}</legend>
+      <label class="frow"><span class="fl"></span><span><input type="radio" name="kind" value="iso" ${kind === "iso" ? "checked" : ""}> ${t("build_iso")}</span></label>
+      <label class="frow"><span class="fl"></span><span><input type="radio" name="kind" value="folder" ${kind === "folder" ? "checked" : ""}> ${t("build_folder")}</span></label>
+      <div class="frow"><span class="fl">${t("destination")}</span><input class="mono" readonly value="${esc(S.dir)}/output"></div></fieldset>
+    <fieldset class="group"><legend>${t("settings")}</legend>
+      <label class="frow"><span class="fl"></span><span><input type="checkbox" id="fast" ${S.buildFast ? "checked" : ""}> ${t("fast")}</span></label>
+      <label class="frow"><span class="fl"></span><span><input type="checkbox" id="nocache" ${S.buildNoCache ? "checked" : ""}> ${t("no_cache")}</span></label></fieldset>
+    <fieldset class="group"><legend>${t("disc_info")}</legend>
+      <div class="frow"><span class="fl">${t("label")}</span><span>${esc(d.label)}</span></div>
+      <div class="frow"><span class="fl">${t("standard")}</span><span>${esc(d.standard)} · ${esc(d.aspect)} · ${esc(d.target || "DVD5")}</span></div></fieldset>
   </div>
   ${steps.length ? `<div class="card" style="max-width:720px"><ul class="steps">${steps.map((s, i) => {
     const f = progress[`${s.step}:${s.item ?? ""}`];
@@ -2067,6 +2346,7 @@ function renderBuild(m) {
   $("#fast").onchange = (e) => (S.buildFast = e.target.checked);
   $("#nocache").onchange = (e) => (S.buildNoCache = e.target.checked);
   $("#start").onclick = startBuild;
+  $("#btn-check").onclick = runCheck;
   const rv = $("#reveal");
   if (rv) rv.onclick = () => api("/api/reveal", { method: "POST", body: { path: relPath(result.iso || result.video_ts) } }).catch((e) => alert(e.message));
 }
@@ -2078,7 +2358,7 @@ async function startBuild() {
     S.job = { id: r.job, done: false }; S.jobEvents = []; S.jobNext = 0;
     pollJob();
   } catch (e) { alert(e.message); }
-  if (S.sel.view === "build") renderMain();
+  if (S.leftTab === "build") renderSidebar();
 }
 async function pollJob() {
   if (!S.job) return;
@@ -2086,44 +2366,58 @@ async function pollJob() {
     const r = await api(`/api/jobs/${S.job.id}?since=${S.jobNext}`);
     S.jobEvents.push(...r.events); S.jobNext = r.next; S.job.done = r.done; S.job.ok = r.ok;
   } catch (e) { console.error(e); }
-  if (S.sel.view === "build") renderMain();
+  if (S.leftTab === "build") renderSidebar();
   if (!S.job.done) setTimeout(pollJob, 500);
 }
 
 // ---------------------------------------------------------------- workspace
 // Project | editor (+ Timeline) | Properties (+ Layers); see docs/DESIGN.md
-const WORKSPACES = [["author", "ws_author"], ["flow", "flowchart"], ["sim", "ws_preview"], ["build", "build"]];
+const WORKSPACES = [["author", "ws_default"], ["flow", "flowchart"], ["sim", "project_preview"], ["build", "build"]];
 const workspaceOf = (view) => (["flow", "sim", "build"].includes(view) ? view : "author");
 const store = { get(k, d) { try { const v = localStorage.getItem("oncemore." + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem("oncemore." + k, JSON.stringify(v)); } catch (e) { /* private mode */ } } };
 
+// Window > Workspace, and the Workspace menu at the right of the Tools panel
 function renderWorkspaces() {
   const ws = $("#workspaces");
-  if (!P()) { ws.innerHTML = ""; return; }
-  const cur = workspaceOf(S.sel.view);
-  ws.innerHTML = WORKSPACES.map(([k, l]) => `<button data-ws="${k}" class="${cur === k ? "active" : ""}">${esc(t(l))}</button>`).join("");
-  ws.querySelectorAll("[data-ws]").forEach((b) => (b.onclick = () => {
-    const k = b.dataset.ws;
-    if (k === "author") { const last = S.lastAuthor || { view: "disc" }; select(last.view, last.id); } else select(k);
-  }));
+  ws.disabled = !P();
+  const cur = S.leftTab === "build" ? "build" : workspaceOf(S.sel.view);
+  ws.innerHTML = WORKSPACES.map(([k, l]) => `<option value="${k}" data-ws="${k}" ${cur === k ? "selected" : ""}>${esc(t(l))}</option>`).join("");
+  ws.onchange = () => WS(ws.value)();
 }
+// a tab strip of a frame: a grip, the tabs (the front one with its close
+// box), then the panel menu on the right
+const tabStrip = (tabs, cur, attr) => `<span class="grip" aria-hidden="true"></span><div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${cur === k ? "active" : ""}" ${attr}="${k}">${esc(l)}${cur === k ? `<span class="x" aria-hidden="true">×</span>` : ""}</button>`).join("")}</div><span class="spacer"></span><button class="panel-menu" title="${esc(t("panel_menu"))}">${ICONS.panel}</button>`;
 function renderLeft() {
-  const lib = S.leftTab === "library";
-  $("#left-tabs").innerHTML = P() ? `<div class="tabs"><button class="tab ${lib ? "" : "active"}" data-lt="project">${t("project")}</button><button class="tab ${lib ? "active" : ""}" data-lt="library">${t("library")}</button></div>` : "";
-  $("#left-tabs").querySelectorAll("[data-lt]").forEach((b) => (b.onclick = () => { S.leftTab = b.dataset.lt; renderLeft(); }));
-  $("#sidebar").hidden = lib; $("#library").hidden = !lib;
-  if (lib) renderLibrary(); else renderSidebar();
+  const tab = S.leftTab || "project";
+  $("#left-tabs").innerHTML = P() ? tabStrip([["project", t("project")], ["menus", t("menus")], ["timelines", t("timelines")], ["build", t("build")]], tab, "data-lt") : "";
+  $("#left-tabs").querySelectorAll("[data-lt]").forEach((b) => (b.onclick = () => { S.leftTab = b.dataset.lt; renderLeft(); renderWorkspaces(); }));
+  renderSidebar();
 }
+// The viewer frame: Monitor (the open timeline), the Menu Viewer (named after
+// the open menu), the open chapter playlist and the Flowchart. The Project
+// Preview opens in a window of its own; Build is a panel in the Project frame.
 function renderCenterHead() {
   const h = $("#center-head"), v = S.sel.view;
   if (!P()) { h.innerHTML = ""; return; }
-  const kinds = { title: ["title", "kind-title"], menu: ["menu", "kind-menu"], playlist: ["playlist", "kind-playlist"], flow: ["flowchart", "kind-remote"], sim: ["simulator", "kind-remote"], build: ["build", ""], disc: ["disc", ""] };
-  const [label, cls] = kinds[v] || ["disc", ""];
-  let name = "";
-  if (v === "title") { const x = curTitle(); name = x ? x.name || x.id : ""; }
-  else if (v === "menu" || v === "playlist") name = S.sel.id || "";
-  else if (v === "disc") name = P().disc.label;
-  h.innerHTML = `${cls ? `<span class="kind-dot ${cls}"></span>` : ""}<span>${esc(t(label))}</span>${name ? `<span class="crumb">${esc(name)}</span>` : ""}`;
+  const ti = S.lastTitle && (P().titles || []).find((x) => x.id === S.lastTitle);
+  const mn = S.lastMenu && ((P().menus || []).some((x) => x.id === S.lastMenu) || generatedMenus().some((g) => g.id === S.lastMenu)) ? S.lastMenu : null;
+  const pl = S.lastPlaylist && (P().playlists || []).some((x) => x.id === S.lastPlaylist) ? S.lastPlaylist : null;
+  const cur = v === "menu" ? "menu" : v === "flow" ? "flow" : v === "playlist" ? "playlist" : "monitor";
+  const tab = (k, label, attrs) => `<button class="tab vtab ${cur === k ? "active" : ""}" ${attrs}>${esc(label)}${cur === k ? `<span class="x" aria-hidden="true">×</span>` : ""}</button>`;
+  h.innerHTML = `<span class="grip" aria-hidden="true"></span><div class="tabs">
+    ${tab("monitor", ti ? `${t("monitor")}` : t("monitor"), 'data-ctab="monitor"')}
+    ${tab("menu", mn ? `${t("menu")}: ${mn}` : t("no_menus"), `data-ctab="menu" ${mn ? "" : "disabled"}`)}
+    ${pl ? tab("playlist", `${t("playlist")}: ${pl}`, 'data-ctab="playlist"') : ""}
+    ${tab("flow", t("flowchart"), 'data-view="flow" data-id="" data-ctab="flow"').replace('class="tab vtab', 'class="tab nav-item vtab')}
+    </div><span class="spacer"></span><button class="panel-menu" title="${esc(t("panel_menu"))}">${ICONS.panel}</button>`;
+  h.querySelectorAll("[data-ctab]").forEach((b) => (b.onclick = () => {
+    const k = b.dataset.ctab;
+    if (k === "monitor") { if (ti) select("title", ti.id); else select("disc"); }
+    else if (k === "menu" && mn) select("menu", mn);
+    else if (k === "playlist" && pl) select("playlist", pl);
+    else if (k === "flow") select("flow");
+  }));
 }
 
 // -- library: templates, backgrounds, text styles, Photoshop designs
@@ -2134,7 +2428,7 @@ const TEXT_STYLES = [
 async function renderLibrary() {
   const el = $("#library");
   if (!S.templates) { try { S.templates = (await api("/api/templates")).templates; } catch (e) { S.templates = []; } }
-  if (S.leftTab !== "library") return;
+  if ((S.rightTab || "layers") !== "library") return;
   const menu = S.sel.view === "menu" ? curMenu() : null;
   const sels = menu ? (S.sels || []).filter((x) => x.kind !== "shape") : [];
   el.innerHTML = `
@@ -2172,11 +2466,17 @@ async function renderLibrary() {
 
 // -- layers: every element of the menu, top first, synced with the stage selection
 function renderLayers() {
-  const panel = $("#p-layers"), body = $("#layers");
-  const menu = S.sel.view === "menu" && P() ? curMenu() : null;
-  panel.hidden = !menu;
-  if (!menu) return;
-  $("#layers-head").innerHTML = `<span class="title">${t("layers")}</span>`;
+  const panel = $("#p-layers"), body = $("#layers"), lib = $("#library");
+  panel.hidden = !P();
+  if (!P()) return;
+  // Layers and Library share a frame, as tabs
+  const tab = S.rightTab || "layers";
+  $("#layers-head").innerHTML = tabStrip([["layers", t("layers")], ["library", t("library")]], tab, "data-lt");
+  $("#layers-head").querySelectorAll("[data-lt]").forEach((b) => (b.onclick = () => { S.rightTab = b.dataset.lt; renderLayers(); }));
+  body.hidden = tab !== "layers"; lib.hidden = tab !== "library";
+  if (tab === "library") { renderLibrary(); return; }
+  const menu = S.sel.view === "menu" ? curMenu() : null;
+  if (!menu) { body.innerHTML = `<div class="hint" style="padding:8px">${esc(t("layers_hint"))}</div>`; return; }
   const sel = (k, i) => (S.sels || []).some((x) => x.kind === k && x.i === i) || (S.element && S.element.kind === k && S.element.i === i);
   const row = (k, i, ico, name, to, n) => `<div class="layer-row ${sel(k, i) ? "selected" : ""}" data-lk="${k}" data-li="${i}">
       <span class="ico">${ico}</span><span class="nm">${esc(name)}</span>${to ? `<span class="to">${esc(to)}</span>` : ""}
@@ -2216,24 +2516,35 @@ function tlPlayhead(time) {
 }
 async function renderTimeline() {
   const panel = $("#p-timeline"), split = $("#tl-splitter");
-  const ti = S.sel.view === "title" && P() ? curTitle() : null;
+  // the open timeline, or the one opened last while a menu or the flowchart is in front
+  const tlOf = () => { const id = S.sel.view === "title" ? S.sel.id : S.lastTitle; return P() && id ? (P().titles || []).find((x) => x.id === id) : null; };
+  const ti = tlOf();
   const show = !!(ti && (ti.source || ti.clips) && !ti.slideshow);
-  panel.hidden = split.hidden = !show;
-  if (!show) { S.tl = null; return; }
+  panel.hidden = split.hidden = !P();
+  if (!show) {
+    // the Timeline panel stays in its place, empty, as long as no timeline is open
+    S.tl = null;
+    if (!P()) return;
+    $("#tl-head").innerHTML = `<span class="grip" aria-hidden="true"></span><div class="tabs"><button class="tab active" disabled>${esc(t("no_timelines"))}</button></div><span class="spacer"></span><button class="panel-menu" title="${esc(t("panel_menu"))}">${ICONS.panel}</button>`;
+    $("#tl").innerHTML = `<div class="tl-empty"><div class="tl-row"><span class="tl-label tl-tcs"><span>${esc(t("timeline"))}:</span><span>${esc(t("tc_source"))}:</span></span><div class="tl-track tl-ruler"></div></div></div>`;
+    return;
+  }
   let src = ti.source, join = null;
   if (ti.clips) {
     try { join = await clipJoin(ti); } catch (e) { return; }
     src = join.path;
   }
   const info = await probe(src);
-  if (S.sel.view !== "title" || curTitle() !== ti) return;
+  if (tlOf() !== ti) return;
   const dur = join ? join.duration : info?.duration || 0;
   const zoom = S.tlZoom || 1;
-  $("#tl-head").innerHTML = `<span class="title">${t("timeline")}</span><span class="crumb">${esc(ti.name || ti.id)} · ${fmtTime(dur)}</span><span class="spacer"></span>
-    <button class="small" id="tl-out" title="−">−</button><button class="small" id="tl-in" title="+">+</button>`;
+  $("#tl-head").innerHTML = `<span class="grip" aria-hidden="true"></span><div class="tabs"><button class="tab active">${esc(ti.name || ti.id)}<span class="dd" aria-hidden="true">▾</span><span class="x" aria-hidden="true">×</span></button></div>
+    <span class="spacer"></span>
+    <button class="tlz" id="tl-out" title="${esc(t("zoom_hint"))}">${ICONS.mtnS}</button><button class="tlz" id="tl-in" title="${esc(t("zoom_hint"))}">${ICONS.mtnL}</button>
+    <button class="panel-menu" title="${esc(t("panel_menu"))}">${ICONS.panel}</button>`;
   $("#tl-out").onclick = () => { S.tlZoom = Math.max(1, zoom / 2); renderTimeline(); };
   $("#tl-in").onclick = () => { S.tlZoom = Math.min(64, zoom * 2); renderTimeline(); };
-  const box = $("#tl"), LABEL = 110;
+  const box = $("#tl"), LABEL = 170;
   const width = Math.max(200, (box.clientWidth || 800) - LABEL - 16) * zoom;
   const pps = dur ? width / dur : 1;
   S.tl = { x0: LABEL, pps, dur };
@@ -2247,10 +2558,11 @@ async function renderTimeline() {
   // the sound drawn under its clip (the waveform is the length of the file)
   const wave = (path, stream, len) => `<img class="tl-wave" alt="" draggable="false" style="width:${len * pps}px" src="${imgUrl("waveform", { path, s: stream, w: Math.round(Math.min(4000, Math.max(64, len * pps))), h: 48 })}">`;
   const subs = ti.subtitles || [];
-  const lane = (label, cls, inner, kind = "") => `<div class="tl-row"><span class="tl-label">${kind ? `<span class="kind-dot" style="background:var(--c-kind-${kind})"></span>` : ""}${esc(label)}</span><div class="tl-track tl-lane ${cls}" style="width:${width}px">${inner}</div></div>`;
+  const LANE_ICON = { title: ICONS.video, audio: ICONS.audio, chapter: ICONS.addch, subtitle: "≣" };
+  const lane = (label, cls, inner, kind = "") => `<div class="tl-row lane-${kind}"><span class="tl-label"><span class="tl-ico">${LANE_ICON[kind] || ""}</span><b>${esc(label)}</b></span><div class="tl-track tl-lane ${cls}" style="width:${width}px">${inner}</div></div>`;
   box.innerHTML = `<div class="tl" style="width:${LABEL + width + 16}px">
-    <div class="tl-row"><span class="tl-label"></span><div class="tl-track tl-ruler" id="tl-ruler" style="width:${width}px">${ticks.join("")}</div></div>
-    ${lane(t("video"), "video", thumbs, "title")}
+    <div class="tl-row tl-top"><span class="tl-label tl-tcs"><span>${esc(t("timeline"))}:<br><b class="tc-amber" id="tl-tc">${fmtTime(S.playhead[ti.id] || 0)}</b></span><span>${esc(t("tc_source"))}:<br><b class="tc-amber">${fmtTime(dur)}</b></span></span><div class="tl-track tl-ruler" id="tl-ruler" style="width:${width}px">${ticks.join("")}</div></div>
+    ${lane(t("video"), "video", `<span class="vname">${esc(join ? ti.name || ti.id : (ti.source || "").replace(/^media\//, ""))}</span>` + thumbs, "title")}
     ${join ? lane(t("clips"), "clips", join.clips.map((c, k) => `<div class="tl-clip clip ${k % 2 ? "alt" : ""}" data-cstart="${c.start}" style="left:${c.start * pps}px;width:${Math.max(3, c.duration * pps)}px" title="${esc(c.source)}">${k + 1} ${esc(c.source.replace(/^media\//, ""))}</div>`).join(""), "title") : ""}
     ${lane(t("chapters"), "chapters", entries.map((c, i) => `<div class="tl-chapter ${i ? "" : "first"}" data-tlch="${i}" style="left:${c.time * pps}px" title="${esc(fmtTime(c.time))}"><span>${i + 1}${c.name ? " " + esc(c.name) : ""}</span></div>`).join(""), "chapter")}
     ${join ? lane(t("audio"), "", wave(join.path, 0, dur) + join.clips.map((c) => `<div class="tl-clip audio" style="left:${c.start * pps}px;width:${Math.max(3, c.duration * pps)}px">${esc(c.source.replace(/^media\//, ""))}</div>`).join(""), "audio")
@@ -2321,6 +2633,25 @@ function initSplitters() {
     };
   });
 }
+function applyBrightness() {
+  const b = Number(store.get("brightness", 0)) || 0;
+  document.documentElement.style.setProperty("--ui-b", `${b}%`);
+}
+function preferencesBox() {
+  const b = Number(store.get("brightness", 0)) || 0;
+  openModal(`<h2>${t("preferences")}</h2><h3>${t("appearance")}</h3>
+    <label class="field"><span>${t("brightness")}</span>
+      <div class="row"><span class="shrink hint">${t("darker")}</span><input type="range" id="pref-bright" min="-8" max="14" step="1" value="${b}"><span class="shrink hint">${t("lighter")}</span>
+      <button class="small shrink" id="pref-bright-def">${t("default")}</button></div>
+      <div class="hint">${esc(t("brightness_hint"))}</div></label>
+    <label class="field"><span>${t("cmd_theme")}</span>${selectHtml("theme", [["dark", "Dark"], ["light", "Light"]], store.get("theme", "dark"), 'id="pref-theme"')}</label>
+    <label class="field"><span>${t("language")}</span>${selectHtml("lang", [["en", "English"], ["ja", "日本語"]], LANG, 'id="pref-lang"')}</label>`);
+  const set = (v) => { store.set("brightness", v); applyBrightness(); };
+  $("#pref-bright").oninput = (e) => set(Number(e.target.value));
+  $("#pref-bright-def").onclick = () => { $("#pref-bright").value = 0; set(0); };
+  $("#pref-lang").onchange = (e) => { LANG = e.target.value; try { localStorage.setItem("oncemore.lang", LANG); } catch (x) { /* storage blocked */ } renderAll(); preferencesBox(); };
+  $("#pref-theme").onchange = (e) => { store.set("theme", e.target.value); applyTheme(); };
+}
 function applyTheme() {
   const th = store.get("theme", "dark");
   if (th === "light") document.documentElement.dataset.theme = "light"; else delete document.documentElement.dataset.theme;
@@ -2346,6 +2677,7 @@ async function boot() {
 // Zoom (Z) zooms in (Alt / Option: out).
 function setTool(tool) {
   S.tool = tool;
+  renderToolbar();
   if (S.sel.view === "menu") renderMain();
 }
 // buttons whose areas overlap cannot both be reached reliably: outlined in red
@@ -2637,7 +2969,10 @@ function shortcutsSheet() {
     <tr><td>${esc(t("nudge"))}</td><td class="mono">← ↑ → ↓ / ${esc(keyLabel("shift"))}</td></tr>
     <tr><td>${esc(t("copy_paste"))}</td><td class="mono">${esc(keyLabel("mod+c"))} / ${esc(keyLabel("mod+v"))}</td></tr></table>`);
 }
-const WS = (k) => () => { if (k === "author") { const last = S.lastAuthor || { view: "disc" }; select(last.view, last.id); } else select(k); };
+const WS = (k) => () => {
+  if (k === "author") { if (S.leftTab === "build") S.leftTab = "project"; const last = S.lastAuthor || { view: "disc" }; select(last.view, last.id); }
+  else select(k);
+};
 const COMMANDS = {
   import_files: { key: "mod+i", run: pickFiles, when: hasProject },
   import_psd: { run: pickPsd, when: hasProject },
@@ -2662,7 +2997,7 @@ const COMMANDS = {
   preview: { key: "shift+space", run: () => { S.simFrom = S.sel.view === "menu" && curMenu() ? S.sel.id : null; select("sim"); }, when: () => hasProject() && (P().titles || []).length > 0 },
   set_link: { key: "mod+l", run: () => $("#inspector select[data-k=action]")?.focus(), when: () => S.sel.view === "menu" && S.element?.kind === "button" },
   routing: { run: () => { S.showRouting = !S.showRouting; renderMain(); }, when: () => S.sel.view === "menu" && !!curMenu() },
-  safe_area: { run: () => { S.showSafe = !S.showSafe; renderMain(); }, when: () => S.sel.view === "menu" && !!curMenu() },
+  safe_area: { run: () => { S.showSafe = !S.showSafe; renderMain(); }, when: () => (S.sel.view === "menu" && !!curMenu()) || (S.sel.view === "title" && !!$("#mon-safe")) },
   tool_select: { key: "v", run: () => setTool("select"), when: () => S.sel.view === "menu" && !!curMenu() },
   tool_text: { key: "t", run: () => setTool("text"), when: () => S.sel.view === "menu" && !!curMenu() },
   tool_zoom: { key: "z", run: () => setTool("zoom"), when: () => S.sel.view === "menu" && !!curMenu() },
@@ -2680,18 +3015,20 @@ const COMMANDS = {
   ws_flow: { key: "alt+shift+2", run: WS("flow"), when: hasProject },
   ws_sim: { key: "alt+shift+3", run: WS("sim"), when: hasProject },
   ws_build: { key: "alt+shift+4", run: WS("build"), when: hasProject },
-  theme: { run: () => $("#btn-theme").click() },
-  language: { run: () => $("#btn-lang").click() },
+  theme: { run: toggleTheme },
+  preferences: { key: "mod+,", run: preferencesBox },
+  language: { run: toggleLang },
   shortcuts: { key: "?", run: shortcutsSheet },
   about: { run: aboutBox },
 };
-// in the order disc authoring people know: File, Edit, Object, Menu, Timeline, Window, Help
+// in the order disc authoring people know: File, Edit, Object, Menu, Timeline, View, Window, Help
 const MENUBAR = [
   ["m_file", ["import_files", "import_psd", "-", "transcode_title", "transcode_all", "-", "preview", "check", "build", "-", "reveal"]],
-  ["m_edit", ["undo", "redo", "-", "duplicate", "delete"]],
+  ["m_edit", ["undo", "redo", "-", "duplicate", "delete", "-", "preferences"]],
   ["m_object", ["align_left", "align_hcenter", "align_right", "align_top", "align_vcenter", "align_bottom", "-", "distribute_h", "distribute_v", "-", "bring_front", "send_back", "-", "convert"]],
-  ["m_menu", ["new_menu", "-", "set_link", "routing", "safe_area", "-", "tool_select", "tool_text", "tool_zoom", "zoom_in", "zoom_out"]],
+  ["m_menu", ["new_menu", "-", "set_link", "-", "tool_select", "tool_text", "tool_zoom"]],
   ["m_timeline", ["new_timeline", "new_slideshow", "new_playlist", "-", "add_chapter", "prev_chapter", "next_chapter", "play"]],
+  ["m_view", ["zoom_in", "zoom_out", "-", "safe_area", "routing"]],
   ["m_window", ["ws_author", "ws_flow", "ws_sim", "ws_build", "-", "theme", "language"]],
   ["m_help", ["shortcuts", "about"]],
 ];
@@ -2734,6 +3071,7 @@ function keyMatches(spec, e) {
   if (key === "space") return e.code === "Space";
   if (key === "pageup" || key === "pagedown") return e.key === { pageup: "PageUp", pagedown: "PageDown" }[key];
   if (key === "[" || key === "]") return e.code === (key === "[" ? "BracketLeft" : "BracketRight");
+  if (key === ",") return e.code === "Comma";
   if (/^[0-9]$/.test(key)) return e.code === "Digit" + key;
   return e.code === "Key" + key.toUpperCase();
 }
@@ -2841,14 +3179,12 @@ document.addEventListener("pointerdown", (ev) => {
 });
 window.addEventListener("blur", closePopups);
 
-$("#btn-undo").onclick = undo;
-$("#btn-redo").onclick = redo;
-$("#btn-check").onclick = runCheck;
-$("#btn-build").onclick = () => select("build");
-$("#btn-theme").onclick = () => { store.set("theme", store.get("theme", "dark") === "light" ? "dark" : "light"); applyTheme(); };
+$("#search").oninput = (ev) => { S.search = ev.target.value; if ((S.leftTab || "project") !== "project") { S.leftTab = "project"; renderLeft(); } else renderSidebar(); };
+function toggleTheme() { store.set("theme", store.get("theme", "dark") === "light" ? "dark" : "light"); applyTheme(); }
+function toggleLang() { LANG = LANG === "ja" ? "en" : "ja"; try { localStorage.setItem("oncemore.lang", LANG); } catch (e) { /* storage blocked */ } renderAll(); }
 applyTheme();
+applyBrightness();
 initSplitters();
-$("#btn-lang").onclick = () => { LANG = LANG === "ja" ? "en" : "ja"; localStorage.setItem("oncemore.lang", LANG); renderAll(); };
 $("#modal").addEventListener("click", (e) => { if (e.target.id === "modal" || e.target.classList.contains("modal-close")) closeModal(); });
 window.addEventListener("keydown", (e) => {
   const inField = ["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement?.tagName) || document.activeElement?.isContentEditable;

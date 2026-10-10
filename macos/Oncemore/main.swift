@@ -336,7 +336,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
             return item
         }
         func own(_ item: NSMenuItem) -> NSMenuItem { item.target = self; return item }
-        // the order disc authoring people know: File, Edit, Object, Menu, Timeline, Window, Help
+        // the order disc authoring people know: File, Edit, Object, Menu, Timeline, View, Window, Help
         _ = add("File", [
             own(mi("New Project…", #selector(newProject(_:)), "n")),
             own(mi("Open Project…", #selector(openProject(_:)), "o")),
@@ -367,6 +367,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
             .separator(),
             cmd("Duplicate", "duplicate", "d"),
             cmd("Delete", "delete"),
+            .separator(),
+            cmd("Preferences…", "preferences", ","),
         ])
         _ = add("Object", [
             cmd("Align Left Edges", "align_left"),
@@ -388,8 +390,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
             cmd("New Menu…", "new_menu"),
             .separator(),
             cmd("Set Link…", "set_link", "l"),
-            cmd("Show Button Routing", "routing"),
-            cmd("Show Safe Area", "safe_area"),
             .separator(),
             cmd("Selection Tool", "tool_select"),
             cmd("Text Tool", "tool_text"),
@@ -405,10 +405,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
             cmd("Next Chapter", "next_chapter"),
             cmd("Play / Pause", "play"),
         ])
+        _ = add("View", [
+            cmd("Zoom In", "zoom_in", "="),
+            cmd("Zoom Out", "zoom_out", "-"),
+            .separator(),
+            cmd("Show Safe Area", "safe_area"),
+            cmd("Show Button Routing", "routing"),
+        ])
         let windowMenu = add("Window", [
-            cmd("Author", "ws_author", "1", [.option, .shift]),
-            cmd("Flowchart", "ws_flow", "2", [.option, .shift]),
-            cmd("Preview (Remote Control)", "ws_sim", "3", [.option, .shift]),
+            cmd("Workspace: Default", "ws_author", "1", [.option, .shift]),
+            cmd("Workspace: Flowchart", "ws_flow", "2", [.option, .shift]),
+            cmd("Project Preview", "ws_sim", "3", [.option, .shift]),
             cmd("Build", "ws_build", "4", [.option, .shift]),
             .separator(),
             cmd("Light / Dark Theme", "theme"),
