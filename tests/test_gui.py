@@ -1401,6 +1401,51 @@ class TestGuiBrowser(unittest.TestCase):
             browser.close()
         self.assertEqual(errors, [])
 
+    def test_thumbnails_chapter_menu_texts_subtitle_look(self):
+        """Settings that used to be JSON only: a button's thumbnail, the
+        chapter menu's texts, the subtitle look."""
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1440, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click("#np-sample")
+            page.click(".nav-item[data-view=menu][data-id=main]", timeout=120000)
+            page.locator(".stage .el.button[data-i='2']").click()          # B -> title:t2
+            page.check("#th-on")
+            self.wait_saved(page)
+            th = self.project()["menus"][0]["buttons"][2]["thumbnail"]
+            self.assertEqual(set(th), {"x", "y", "w", "h"})
+            page.fill("#inspector [data-th=time]", "2")
+            page.locator("#inspector [data-th=time]").dispatch_event("change")
+            self.wait_saved(page)
+            self.assertEqual(self.project()["menus"][0]["buttons"][2]["thumbnail"]["time"], 2)
+            page.locator(".stage .thumb-pv img").wait_for()
+            self.assertTrue(page.locator("#th-anim").is_disabled())        # still menu
+            self.assertTrue(self.s.app.check(self.project())["valid"])
+            page.select_option("#inspector select[data-k=action]", "menu:main")
+            self.wait_saved(page)
+            self.assertNotIn("thumbnail", self.project()["menus"][0]["buttons"][2])
+            # the chapter menu's texts
+            page.click(".nav-item[data-view=title][data-id=t1]")
+            page.fill("#inspector [data-cm=back_label]", "RETURN")
+            page.locator("#inspector [data-cm=back_label]").dispatch_event("change")
+            self.wait_saved(page)
+            self.assertEqual(self.project()["titles"][0]["auto_chapter_menu"]["back_label"], "RETURN")
+            # the subtitle look
+            page.click(".nav-item[data-view=disc]")
+            page.fill("#inspector input[data-k='subtitle_style.size']", "40")
+            page.locator("#inspector input[data-k='subtitle_style.size']").dispatch_event("change")
+            self.wait_saved(page)
+            page.fill("#inspector input[data-k='subtitle_style.color']", "#ffff00")
+            page.locator("#inspector input[data-k='subtitle_style.color']").dispatch_event("change")
+            self.wait_saved(page)
+            self.assertEqual(self.project()["disc"]["subtitle_style"], {"size": 40, "color": "#FFFF00"})
+            self.assertTrue(self.s.app.check(self.project())["valid"])
+            self.assertEqual(errors, [])
+            browser.close()
+
     def test_menu_tools(self):
         """Layer visibility, Save menu as template / a menu from it, Create
         chapter index."""

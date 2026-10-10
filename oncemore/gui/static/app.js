@@ -34,6 +34,11 @@ const I18N = {
     highlight_image: "Highlight picture", highlight_image_hint: "Optional: a picture whose opaque pixels light up when the button is selected.",
     new_menu: "New menu", blank_menu: "Blank", template_hint: "Start from a layout; everything stays editable.",
     motion_bg: "Motion background", animated_thumbs: "Thumbnails play the chapter",
+    thumb_section: "Thumbnail", thumb_on: "Show a picture of the linked title / chapter",
+    thumb_time: "Frame at (s)", thumb_anim: "Play it (motion menus)",
+    sub_style: "Subtitle look (all tracks)", sub_margin: "Bottom margin", outline_w: "Outline width",
+    cm_heading: "Heading", cm_label_format: "Labels ({n} = number)", cm_back_label: "BACK button",
+    cm_prev_label: "PREV button", cm_next_label: "NEXT button",
     scan: "Picture", scan_auto: "Automatic", scan_progressive: "Progressive",
     scan_interlaced: "Interlaced (keep fields)", scan_pulldown: "Film, 3:2 pulldown (23.976)",
     scan_ivtc: "Telecined film (29.97i → 23.976 + pulldown)",
@@ -206,6 +211,11 @@ const I18N = {
     highlight_image: "ハイライト画像", highlight_image_hint: "任意：不透明な部分が選択時に光る画像。",
     new_menu: "新しいメニュー", blank_menu: "白紙", template_hint: "レイアウトから始められます。あとから全部編集できます。",
     motion_bg: "動く背景", animated_thumbs: "サムネイルでチャプターを再生",
+    thumb_section: "サムネイル", thumb_on: "リンク先のタイトル／チャプターの絵を表示",
+    thumb_time: "フレーム位置（秒）", thumb_anim: "再生する（モーションメニュー）",
+    sub_style: "字幕の見た目（全トラック）", sub_margin: "下の余白", outline_w: "縁取りの太さ",
+    cm_heading: "見出し", cm_label_format: "ラベル（{n} = 番号）", cm_back_label: "BACK ボタン",
+    cm_prev_label: "PREV ボタン", cm_next_label: "NEXT ボタン",
     scan: "走査方式", scan_auto: "自動", scan_progressive: "プログレッシブ",
     scan_interlaced: "インターレース（フィールドを保持）", scan_pulldown: "フィルム・3:2 プルダウン（23.976）",
     scan_ivtc: "テレシネ済みフィルム（29.97i → 23.976 + プルダウン）",
@@ -991,8 +1001,17 @@ function renderWelcome(m) {
 }
 
 // ---------------------------------------------------------------- disc
+// a frame of what a thumbnail button plays (its title's source, else nothing)
+function thumbSrc(b) {
+  const [kind, tid, n] = (b.action || "").split(":");
+  const ti = (P().titles || []).find((x) => x.id === tid);
+  if (!ti || !ti.source || ti.slideshow || !/^(title|chapter)$/.test(kind)) return "";
+  const start = kind === "chapter" ? chaptersOf(ti)[Number(n) - 1] || 0 : 0;
+  return imgUrl("frame", { path: ti.source, t: start + (b.thumbnail.time ?? 1), w: 240 });
+}
+
 function renderDisc(m) {
-  const d = P().disc;
+  const d = P().disc, ss = d.subtitle_style || {}, pal = d.standard === "PAL";
   const fp = actionOptions({ forButton: false, allowStop: false, includeChapters: false, allowPlayAll: true });
   m.innerHTML = `<h2>${t("prop_disc")}</h2><div class="card">
     <label class="field"><span>${t("label")}</span><input data-k="label" value="${esc(d.label)}"></label>
@@ -1005,9 +1024,24 @@ function renderDisc(m) {
     <label class="field"><span>${t("first_play")} ${whipHtml("first_play")}</span>${selectHtml("first_play", [["__none__", t("auto")], ...fp], d.first_play || "__none__")}</label>
     <label class="field"><span>${t("title_key")}</span>${selectHtml("title_key", [["__none__", t("first_menu")], ...fp], d.title_key || "__none__")}</label>
     <label class="field" data-nobind><span>${t("rom_files")}</span><textarea id="rom-files" rows="3" placeholder="extras/">${esc((d.rom_files || []).join("\n"))}</textarea><div class="hint">${esc(t("rom_hint"))}</div></label>
+    <h3>${t("sub_style")}</h3>
+    <div class="grid2">
+      <label class="field"><span>${t("size")}</span><input type="number" data-k="subtitle_style.size" min="12" max="80" value="${ss.size ?? ""}" placeholder="${pal ? 36 : 30}"></label>
+      <label class="field"><span>${t("sub_margin")}</span><input type="number" data-k="subtitle_style.margin" min="0" max="200" value="${ss.margin ?? ""}" placeholder="${pal ? 43 : 36}"></label>
+      <label class="field"><span>${t("color")}</span><input type="color" data-k="subtitle_style.color" value="${esc((ss.color || "#FFFFFF").slice(0, 7))}"></label>
+      <label class="field"><span>${t("outline")}</span><input type="color" data-k="subtitle_style.outline" value="${esc((ss.outline || "#000000").slice(0, 7))}"></label>
+      <label class="field"><span>${t("outline_w")}</span><input type="number" data-k="subtitle_style.outline_width" min="0" max="8" value="${ss.outline_width ?? ""}" placeholder="3"></label>
+    </div>
   </div>`;
   renderToolsInfo(m);
-  bindFields(m, (p) => p.disc);
+  bindFields(m, (p) => p.disc, {
+    numeric: ["subtitle_style.size", "subtitle_style.margin", "subtitle_style.outline_width"],
+    onAfter: (p, key, val) => {
+      const st = p.disc.subtitle_style;
+      if (st && (key.endsWith(".color") || key.endsWith(".outline"))) st[key.split(".")[1]] = val.toUpperCase();
+      if (st && !Object.keys(st).length) delete p.disc.subtitle_style;
+    },
+  });
   $("#rom-files").onchange = (e) => commit((p) => {
     const list = e.target.value.split("\n").map((x) => x.trim()).filter(Boolean);
     if (list.length) p.disc.rom_files = list; else delete p.disc.rom_files;
@@ -1555,7 +1589,10 @@ function renderTitleInspector(el) {
     <label><input type="checkbox" id="cm-on" ${cm ? "checked" : ""}> ${t("chapter_menu_on")}</label>
     ${cm ? `<div style="margin-top:8px" data-nobind><label class="field"><span>BACK → </span>${selectHtml("back", [["__none__", t("auto")], ...actionOptions({ forButton: false, includeChapters: false })], (cm === true ? null : cm.back) || "__none__", 'id="cm-back"')}</label>
       <label class="field"><span>${t("motion_bg")}</span>${selectHtml("cmbg", [["__none__", t("none")], ...mediaOf("video").map((v) => [v, v])], (cm === true ? null : cm.background_video) || "__none__", 'id="cm-bgv"')}</label>
-      <label><input type="checkbox" id="cm-anim" ${cm !== true && cm.animated_thumbnails ? "checked" : ""} ${cm !== true && cm.background_video ? "" : "disabled"}> ${t("animated_thumbs")}</label></div>` : ""}
+      <label><input type="checkbox" id="cm-anim" ${cm !== true && cm.animated_thumbnails ? "checked" : ""} ${cm !== true && cm.background_video ? "" : "disabled"}> ${t("animated_thumbs")}</label>
+      ${[["title", "cm_heading", ti.name || ti.id], ["label_format", "cm_label_format", "Chapter {n}"], ["back_label", "cm_back_label", "BACK"],
+        ["prev_label", "cm_prev_label", "PREV"], ["next_label", "cm_next_label", "NEXT"]].map(([k, l, ph]) =>
+        `<label class="field"><span>${t(l)}</span><input data-cm="${k}" value="${esc(cm === true ? "" : cm[k] || "")}" placeholder="${esc(ph)}"></label>`).join("")}</div>` : ""}
     <h3></h3>${orderHtml(t("order_title"))}
     <h3></h3><button class="danger" id="del-title">${t("delete")}</button>`;
   const find = (p) => p.titles.find((x) => x.id === ti.id);
@@ -1607,6 +1644,7 @@ function renderTitleInspector(el) {
   });
   if ($("#cm-bgv")) $("#cm-bgv").onchange = (e) => cmSet("background_video", e.target.value === "__none__" ? undefined : e.target.value);
   if ($("#cm-anim")) $("#cm-anim").onchange = (e) => cmSet("animated_thumbnails", e.target.checked || undefined);
+  el.querySelectorAll("[data-cm]").forEach((inp) => (inp.onchange = () => cmSet(inp.dataset.cm, inp.value.trim() || undefined)));
   const back = $("#cm-back");
   if (back) back.addEventListener("change", () => {
     commit((p) => {
@@ -1797,6 +1835,10 @@ function renderMenu(m) {
     <div class="stage-wrap"><div class="stage" id="stage" tabindex="0" style="width:${w}px;height:${h}px;background:${esc(menu.background_color || "#000")}">
       ${bg}
       ${S.showSafe ? `<div class="safe" style="left:${w * 0.05}px;top:${h * 0.05}px;width:${w * 0.9}px;height:${h * 0.9}px"></div>` : ""}
+      ${(menu.buttons || []).filter((b) => b.thumbnail && !b.hidden).map((b) => {
+        const th = b.thumbnail, src = thumbSrc(b);
+        return `<div class="thumb-pv" style="left:${th.x * sx * scale}px;top:${th.y * scale}px;width:${th.w * sx * scale}px;height:${th.h * scale}px">${src ? `<img src="${src}" alt="" draggable="false">` : ""}</div>`;
+      }).join("")}
       ${els.map((e) => `<div class="el ${e.kind} ${isSel(e) ? "selected" : ""} ${e.kind === "button" && e.i === firstBtn ? "highlight" : ""}"
           data-kind="${e.kind}" data-i="${e.i}" style="${css(e)}">${e.kind === "shape" ? "" : e.hl
             ? `<img class="area" src="${imgUrl("file", { path: e.hl })}" alt="" draggable="false" style="display:block;width:${(e.width || 160) * sx * scale}px;${e.i === firstBtn ? `filter:drop-shadow(0 0 0 ${esc(menu.highlight_color || "#FFD400")});opacity:.9` : "opacity:.35"}">`
@@ -2188,6 +2230,12 @@ function renderMenuInspector(el) {
         <label class="field"><span><input type="checkbox" id="st-shadow" ${it.shadow ? "checked" : ""}> ${t("shadow")}</span>
           <span class="row"><input type="color" id="st-shadow-c" value="${esc((it.shadow || "#000000").slice(0, 7))}"><input type="number" id="st-shadow-o" min="1" max="20" value="${it.shadow_offset || 3}" style="width:56px"></span></label>
       </div>`}
+      ${sel.kind === "button" && /^(title|chapter):/.test(it.action || "") ? `<h3>${t("thumb_section")}</h3><div data-nobind>
+        <label class="field"><span></span><label><input type="checkbox" id="th-on" ${it.thumbnail ? "checked" : ""}> ${t("thumb_on")}</label></label>
+        ${it.thumbnail ? `<div class="grid2">${["x", "y", "w", "h"].map((k) =>
+          `<label class="field"><span>${k === "w" ? t("width") : k === "h" ? t("height") : k.toUpperCase()}</span><input type="number" data-th="${k}" min="${k === "w" || k === "h" ? 8 : 0}" max="${k === "y" || k === "h" ? discH() : 720}" value="${it.thumbnail[k]}"></label>`).join("")}
+          <label class="field"><span>${t("thumb_time")}</span><input type="number" data-th="time" min="0" step="0.1" value="${it.thumbnail.time ?? ""}" placeholder="1"></label></div>
+          <label class="field"><span></span><label><input type="checkbox" id="th-anim" ${it.thumbnail.animated ? "checked" : ""} ${menu.background_video ? "" : "disabled"}> ${t("thumb_anim")}</label></label>` : ""}</div>` : ""}
       ${sel.kind === "button" ? `<label class="field"><span>${t("highlight_image")}</span>${selectHtml("highlight_image", [["__none__", t("auto")], ...mediaOf("image").map((x) => [x, x])], it.highlight_image || "__none__")}<div class="hint">${esc(t("highlight_image_hint"))}</div></label>` : ""}
       ${sel.kind === "button" ? `<h3>${t("nav")}</h3><div class="grid2">${["up", "down", "left", "right"].map((d) =>
         `<label class="field"><span>${d}</span>${selectHtml("nav." + d, btnIds, (it.nav || {})[d] || "__none__")}</label>`).join("")}</div>` : ""}
@@ -2199,8 +2247,20 @@ function renderMenuInspector(el) {
         if (o.nav && !Object.keys(o.nav).length) delete o.nav;
         if (key === "highlight" && o.highlight === "frame") delete o.highlight;
         if (key === "auto_activate" && !o.auto_activate) delete o.auto_activate;
+        if (key === "action" && !/^(title|chapter):/.test(o.action)) delete o.thumbnail;   // needs a title / chapter
       },
     });
+    const thSet = (fn) => commit((p) => { const o = find(p).buttons[sel.i]; fn(o); });
+    if ($("#th-on")) $("#th-on").onchange = (e) => thSet((o) => {
+      if (!e.target.checked) { delete o.thumbnail; return; }
+      const w = 144, h = Math.round(w * (P().disc.aspect === "4:3" ? 3 / 4 : 9 / 16) * discH() / 480);
+      o.thumbnail = { x: Math.min(o.x, 720 - w), y: Math.max(0, Math.min(o.y - h - 8, discH() - h)), w, h };
+    });
+    el.querySelectorAll("[data-th]").forEach((inp) => (inp.onchange = () => thSet((o) => {
+      const k = inp.dataset.th, v = inp.value === "" ? undefined : Number(inp.value);
+      if (v === undefined && k === "time") delete o.thumbnail.time; else if (v !== undefined) o.thumbnail[k] = v;
+    })));
+    if ($("#th-anim")) $("#th-anim").onchange = (e) => thSet((o) => { if (e.target.checked) o.thumbnail.animated = true; else delete o.thumbnail.animated; });
     // outline / shadow: checkbox + colour + size
     const style = () => commit((p) => {
       const o = (sel.kind === "button" ? find(p).buttons : find(p).texts)[sel.i];

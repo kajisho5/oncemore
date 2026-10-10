@@ -422,6 +422,8 @@ button.icon { padding: 0 6px; min-width: 22px; }
 input, textarea { background: var(--c-field); color: var(--c-text-field); border: 1px solid var(--c-field-border); border-radius: var(--r-field); padding: 1px 4px;
                   font-size: var(--fs-sm); box-shadow: var(--field-shadow); }
 input[readonly] { background: var(--c-bg-4); color: var(--c-text); }
+.stage .thumb-pv { position: absolute; pointer-events: none; outline: 1px dashed var(--c-ui); background: var(--c-picture); }
+.stage .thumb-pv img { width: 100%; height: 100%; object-fit: fill; display: block; }
 input[type=checkbox], input[type=radio] { accent-color: var(--c-ui); }
 input[type=range] { box-shadow: none; padding: 0; background: transparent; accent-color: var(--c-text-2); }
 input[type=color] { background: var(--c-bg-2); padding: 1px; height: 20px; }
