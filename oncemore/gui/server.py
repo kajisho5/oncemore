@@ -22,6 +22,7 @@ API (all JSON unless noted):
 """
 
 import base64
+import dataclasses
 import hashlib
 import json
 import mimetypes
@@ -41,7 +42,8 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 
-from .. import __version__, build, encode, scaffold, slideshow, subtitles, templates, tools
+from .. import (__version__, build, encode, graph, png4, scaffold, simulate, slideshow,
+               subtitles, templates, tools)
 from ..errors import OncemoreError, ProjectError
 from ..project import PROJECT_FILENAME, build_project, read_json
 from ..report import Reporter
@@ -111,6 +113,8 @@ class App:
         self.proxy_lock = threading.Lock()
         self._encoders = None
         self._drawtext = None
+        self.sim_cache = {}        # menu signature -> layout / images for the simulator
+        self.sim_lock = threading.Lock()
 
     # -- paths -----------------------------------------------------------------
     def resolve(self, rel):
@@ -156,7 +160,10 @@ class App:
         """Schema + reference + file checks, never raises."""
         try:
             p = build_project(data, self.path, check_files=True)
-            return {"valid": True, "issues": [], "warnings": p.warnings}
+            nav = graph.check(p)
+            return {"valid": True, "issues": [], "navigation": nav,
+                    "warnings": p.warnings + [f"{n['path']}: {n['message']}" for n in nav
+                                              if n["level"] == "warning"]}
         except ProjectError as e:
             return {"valid": False, "issues": e.issues or [{"path": "", "message": e.message}],
                     "warnings": []}
@@ -534,6 +541,92 @@ class Handler(BaseHTTPRequestHandler):
                          os.path.join(os.path.dirname(t.source), f"{t.id}.log"))
         self.json({"path": self.app.rel(t.source), "duration": t.slideshow.duration,
                    "starts": t.slideshow.starts()})
+
+    # -- flowchart, project check and the disc simulator --------------------------
+    def _project_from(self, body, check_files=False):
+        return build_project(body.get("project") or self.app.load(), self.app.path,
+                             check_files=check_files)
+
+    def api_post_graph(self, q):
+        project = self._project_from(self.body_json())
+        self.json({"graph": graph.build(project), "notes": graph.check(project)})
+
+    def _sim_menu(self, project, menu, images=False):
+        """Layout (and with `images`, the picture without highlights plus one
+        highlight overlay per button) of a menu, cached by its definition."""
+        from ..menu import MenuBuilder
+        key = json.dumps([dataclasses.asdict(menu), project.disc.standard, project.disc.aspect,
+                          {t.id: [t.source, t.chapters, t.aspect] for t in project.titles}],
+                         sort_keys=True, default=str)
+        with self.app.sim_lock:
+            hit = self.app.sim_cache.get(key)
+        if hit and (hit.get("image") or not images):
+            return hit
+        tools.require(["ffmpeg", "ffprobe"], need_drawtext=True)
+        work = tempfile.mkdtemp(prefix="oncemore-sim-")
+        try:
+            mb = MenuBuilder(project, work)
+            geoms = mb.layout(menu)
+            out = {"buttons": [{"id": g.id, "rect": list(g.rect), "nav": g.nav, "auto": g.auto,
+                                "action": g.action} for g in geoms],
+                   "size": [mb.dw, project.disc.height],
+                   "storage": [project.disc.width, project.disc.height]}
+            if images:
+                png = os.path.join(work, "normal.png")
+                if geoms:
+                    mb.preview(menu, png, state="normal")
+                else:
+                    tools.run([tools.find("ffmpeg"), "-hide_banner", "-nostdin", "-y",
+                               "-i", mb.render_base(menu), "-vf",
+                               f"scale={mb.dw}:{project.disc.height},setsar=1",
+                               "-frames:v", "1", png], what="ffmpeg (preview)")
+                with open(png, "rb") as f:
+                    out["image"] = "data:image/png;base64," + base64.b64encode(f.read()).decode()
+                colour = png4.parse_color(menu.highlight_color)
+                out["overlays"] = {}
+                for g in geoms:
+                    data = png4.encode_indexed_png(mb.highlight_canvas(geoms, only=g.id),
+                                                   [(0, 0, 0, 0), colour])
+                    out["overlays"][g.id] = ("data:image/png;base64," +
+                                             base64.b64encode(data).decode())
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
+        with self.app.sim_lock:
+            if len(self.app.sim_cache) > 64:
+                self.app.sim_cache.clear()
+            self.app.sim_cache[key] = out
+        return out
+
+    def api_post_sim(self, q):
+        """One remote-control key: {project?, state?, key?} -> the new state
+        and what the screen shows (no state: insert the disc)."""
+        body = self.body_json()
+        project = self._project_from(body)
+        layouts = {m.id: self._sim_menu(project, m)["buttons"] for m in project.menus}
+        sim = simulate.Simulator(project, layouts)
+        state = body.get("state")
+        if not state:
+            state = sim.start()
+        elif body.get("key"):
+            try:
+                sim.press(state, body["key"])
+            except (simulate.SimError, KeyError, IndexError) as e:
+                raise ValueError(str(e))
+        out = {"state": state, "view": list(sim.view(state))}
+        if state["domain"] == "title":
+            t = project.title(state["title"])
+            out["title"] = {"id": t.id, "name": t.name, "source": self.app.rel(t.source),
+                            "chapters": t.chapters, "chapter": state["chapter"],
+                            "names": t.chapter_names}
+        self.json(out)
+
+    def api_post_sim_menu(self, q):
+        body = self.body_json()
+        project = self._project_from(body)
+        menu = project.menu(body.get("menu"))
+        if menu is None:
+            raise ValueError(f"no menu {body.get('menu')!r}")
+        self.json(self._sim_menu(project, menu, images=True))
 
     def api_get_templates(self, q):
         self.json({"templates": [{"id": k, **v} for k, v in templates.TEMPLATES.items()]})

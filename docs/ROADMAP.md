@@ -43,10 +43,10 @@ browser) and lands only with green CI.
 - [x] AC-3 pass-through
 - [x] DVD-ROM content (extra files next to VIDEO_TS on the disc)
 
-**P5 — Seeing and checking the whole disc**
-- [ ] Flowchart of the navigation (menus, titles, playlists and their links)
-- [ ] Project check: unreachable titles / menus, dead ends, missing end actions
-- [ ] Disc simulator in the app: a remote control that drives menus,
+**P5 — Seeing and checking the whole disc** (done)
+- [x] Flowchart of the navigation (menus, titles, playlists and their links)
+- [x] Project check: unreachable titles / menus, dead ends, missing end actions
+- [x] Disc simulator in the app: a remote control that drives menus,
   highlights, titles and end actions before anything is encoded
 
 **P6 — Bringing existing designs**

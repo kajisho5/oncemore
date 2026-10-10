@@ -108,6 +108,13 @@ oncemore gui my-disc          # ブラウザで http://127.0.0.1:…/ が開き�
   （「画像」。ハイライトは枠か画像の形）。背景には画像か動画を使えます。
   **実レンダリング確認**で、ディスクで実際に表示される見た目とボタンの当たり判定を確認できます。
 * タイトルやメニューの順番は右パネルの ▲/▼ で変えられます。
+* **フローチャート**でディスク全体（ディスク挿入時、メニュー、タイトル、プレイリストと、それらをつなぐボタン・
+  再生後の動作・タイムアウト・リモコンのメニュー／タイトルキー）を一望できます。視聴者がたどり着けない箱や、
+  抜け出せないメニューは赤枠で表示されます。箱をクリックすると編集できます。
+* **シミュレータ**では、書き出す前に画面上のリモコン（矢印・決定・メニュー・タイトル・⏮ ⏭・最後まで再生・
+  メニューのタイムアウト）でディスクを操作できます。メニューは実レンダリング画像と実際のハイライト、
+  タイトルはチャプター先頭のフレームで表示します。完成ディスクと同じナビゲーション規則で動きます
+  （テストで libdvdnav と照合しています）。
 * **チェック**で容量の見積もりと問題点の確認、**書き出し**で `my-disc/output/` に
   `.iso`（または VIDEO_TS フォルダ）を進捗表示付きで書き出します。
 * 編集は `my-disc/project.oncemore.json` に自動保存され、⌘Z / Ctrl+Z で元に戻せます。
@@ -139,11 +146,14 @@ oncemore validate <project> [--no-media]       # スキーマ＋参照＋素材�
 oncemore build <project> -o out/               # out/VIDEO_TS（と out/AUDIO_TS）を生成
 oncemore iso <project> -o out.iso [--iso-tool auto|hdiutil|genisoimage|mkisofs|xorriso]
 oncemore preview-menu <project> --menu main -o main.png [--button id] [--state highlight|select|normal] [--outline]
+oncemore simulate <project> --keys down,enter,menu   # リモコン操作を再現（エンコードなし）
 oncemore gui [<dir>] [--port N] [--no-browser] # オーサリングアプリ
 oncemore doctor                                # 外部ツールの有無・バージョン・ISO バックエンド
 ```
 
 * `<project>` は `project.oncemore.json` かそれを含むディレクトリ。
+* `validate` はナビゲーションも確認します。どこからも行けないタイトル・メニュー・プレイリストや、
+  抜け出せないメニューは警告になります（`--json` では `navigation`）。
 * `build` / `iso` は既定で **2 パス**エンコード。`--fast` で 1 パス。
 * 中間ファイルは `out/.work/`（`iso` では ISO の隣の隠しビルドディレクトリ）に置き、
   `--keep-work` が無ければ成功時に削除します。各外部コマンドのログは `.work/logs/`。

@@ -452,3 +452,33 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   limit) and at least 10 (25 fields, over 0.4 s); chapter marks and forced
   key frames use the 23.976 frame grid of the encoded pictures.
 
+## 33. Flowchart, navigation check and the disc simulator
+
+* One navigation graph (`oncemore/graph.py`) feeds the flowchart and the
+  checks: nodes are first play, the Title key, menus, titles, playlists, play
+  all and stop; edges are buttons, menu time-outs, end actions, play-all
+  succession, playlist items and the Menu key of each title. Columns are the
+  breadth-first distance from first play; unreachable nodes get the last
+  column, so they stand out.
+* Checks are warnings only where a viewer is really affected: a menu, title
+  or playlist that nothing leads to, and a menu with neither a button that
+  leaves it nor a time-out. A title that stops playback, or a menu end action
+  that can never run because the menu loops forever, is an "info" note.
+* The simulator (`oncemore/simulate.py`) is not a second design of the
+  navigation but a transcription of what `author.py` compiles: the root-menu
+  dispatcher, g0 / g2 / g3 / g12, remembered buttons in g5–g11, playlist
+  cell commands that only fire at the end of their chapter (so skipping past
+  them continues the title), Next on the last chapter running the post
+  commands, and the player keeping the highlighted button number (SPRM 8)
+  when a menu does not set one. Button geometry and arrow-key neighbours come
+  from the same layout code as the disc.
+* It is checked against libdvdnav: a disc using two titlesets, a playlist
+  across them, play all, remembered and default buttons, an auto-activate
+  button, stream buttons, Menu / Title key targets and an intro that times
+  out is driven by seeded random key sequences, and after every key both must
+  show the same menu and button or the same title and chapter (600 keys over
+  20 sessions agreed while developing it; the test runs 12 sessions).
+* In the app the menu pictures are the exact previews without highlights
+  plus one highlight overlay per button, rendered once per menu definition
+  and cached, so moving around is instant.
+

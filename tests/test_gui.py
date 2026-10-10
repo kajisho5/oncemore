@@ -264,6 +264,33 @@ class TestGuiApi(unittest.TestCase):
         self.assertEqual(self.s.call("/api/slideshow", "POST", {"title": "t1", "project": project})[0],
                          400)
 
+    def test_graph_and_simulator_api(self):
+        self.s.call("/api/new", "POST", {"sample": True})
+        status, r = self.s.call("/api/graph", "POST", {})
+        self.assertEqual(status, 200, r)
+        self.assertIn("menu:chapters", [n["id"] for n in r["graph"]["nodes"]])
+        self.assertEqual([n for n in r["notes"] if n["level"] == "warning"], [])
+        _, st = self.s.call("/api/state")
+        bad = json.loads(json.dumps(st["project"]))
+        bad["titles"][0]["end_action"] = "menu:nope"
+        self.assertEqual(self.s.call("/api/graph", "POST", {"project": bad})[0], 422)
+        if not MEDIA_TOOLS:
+            return
+        status, r = self.s.call("/api/sim", "POST", {})
+        self.assertEqual((status, r["view"]), (200, ["menu", "main", 1]))
+        for key, view in (("down", ["menu", "main", 2]), ("enter", ["menu", "chapters", 1]),
+                          ("right", ["menu", "chapters", 2]), ("enter", ["title", 1, 2])):
+            status, r = self.s.call("/api/sim", "POST", {"state": r["state"], "key": key})
+            self.assertEqual((status, r["view"]), (200, view), key)
+        self.assertEqual(r["title"]["source"], "media/sample_a.mp4")
+        self.assertEqual(self.s.call("/api/sim", "POST", {"state": r["state"], "key": "x"})[0], 400)
+        status, m = self.s.call("/api/sim_menu", "POST", {"menu": "main"})
+        self.assertEqual(status, 200, m)
+        self.assertTrue(m["image"].startswith("data:image/png;base64,"))
+        self.assertEqual(sorted(m["overlays"]), ["b", "ch", "play"])
+        self.assertEqual(m["storage"], [720, 480])
+
+
 
 def _chromium():
     exe = None
@@ -495,6 +522,47 @@ class TestGuiBrowser(unittest.TestCase):
             page.locator("tr[data-cue='1']").wait_for(state="detached")
             with open(srt, encoding="utf-8") as f:
                 self.assertNotIn("Hello there", f.read())
+            browser.close()
+        self.assertEqual(errors, [])
+
+    def test_flowchart_and_simulator(self):
+        from .test_simulate import rich_project
+        self.s.call("/api/new", "POST", {"sample": True})
+        with open(os.path.join(self.dir, "project.oncemore.json"), "w") as f:
+            json.dump(rich_project(), f)
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click(".nav-item[data-view=flow]")
+            page.locator(".flow-svg").wait_for(timeout=60000)
+            for node in ("fp", "menu:main", "menu:intro", "title:t1", "playlist:best",
+                         "playall"):
+                self.assertEqual(page.locator(f".flow-svg [data-node='{node}']").count(), 1)
+            page.locator("#flow-notes", has_text="No navigation problems").wait_for()
+            page.click(".flow-svg [data-node='menu:setup']")         # opens the menu editor
+            page.locator(".nav-item.active[data-view=menu][data-id=setup]").wait_for()
+            # the simulator: down to CHAPTERS, OK, then BACK with the mouse
+            page.click(".nav-item[data-view=sim]")
+            page.locator("#sim-screen img.hl").wait_for(timeout=120000)
+            page.locator("#sim-status", has_text="main").wait_for()
+            page.locator("#sim-screen").press("ArrowDown")
+            page.locator("#sim-status", has_text="main · ").wait_for()
+            page.click("[data-key=enter]")
+            page.locator("#sim-status", has_text="chapters").wait_for(timeout=120000)
+            page.locator("#sim-screen img.hl").wait_for(timeout=120000)
+            page.click("[data-key=title]")                            # Title key -> intro
+            page.locator("#sim-status", has_text="intro").wait_for(timeout=120000)
+            page.click("[data-key=enter]")                            # SKIP -> chapter 3
+            page.locator("#sim-status", has_text="Chapter 3 of 3").wait_for()
+            page.click("[data-key=menu]")                             # remote_menu of t1
+            page.locator("#sim-status", has_text="chapters").wait_for()
+            page.locator("#sim-screen .hit").first.wait_for(timeout=120000)
+            n = page.locator("#sim-screen .hit").count()
+            page.locator("#sim-screen .hit").nth(n - 1).click()      # BACK
+            page.locator("#sim-status", has_text="Menu main").wait_for()
             browser.close()
         self.assertEqual(errors, [])
 

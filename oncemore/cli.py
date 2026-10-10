@@ -6,7 +6,7 @@ import shutil
 import sys
 import tempfile
 
-from . import __version__, build, scaffold, tools
+from . import __version__, build, graph, scaffold, tools
 from .errors import OncemoreError, ProjectError
 from .project import PROJECT_FILENAME, load_project
 from .report import Reporter
@@ -59,6 +59,15 @@ def cmd_init(args, rep):
     return 0
 
 
+def _navigation(project, rep):
+    """Flowchart checks: warnings are reported, notes go to the result."""
+    notes = graph.check(project)
+    for n in notes:
+        if n["level"] == "warning":
+            rep.warn(f"{n['path']}: {n['message']}")
+    return notes
+
+
 def cmd_validate(args, rep):
     project = load_project(args.project, check_files=not args.no_media)
     if args.no_media:
@@ -66,6 +75,7 @@ def cmd_validate(args, rep):
                 "titles": [t.id for t in project.titles], "menus": [m.id for m in project.menus]}
         for w in project.warnings:
             rep.warn(w)
+        data["navigation"] = _navigation(project, rep)
         rep.result(data, "Project is valid (media not checked).")
         return 0
     infos, plan = build.inspect(project, rep)
@@ -73,6 +83,7 @@ def cmd_validate(args, rep):
     s.update({"valid": True, "media_checked": True})
     for w in s["warnings"]:
         rep.warn(w)
+    s["navigation"] = _navigation(project, rep)
     lines = [f"Project OK: {project.disc.label} ({project.disc.standard} {project.disc.aspect}, "
              f"{project.disc.target})", ""]
     for t in s["titles"]:
@@ -84,6 +95,43 @@ def cmd_validate(args, rep):
     lines += ["", f"  video bitrate: {s['video_bps'] / 1e6:.2f} Mbit/s average",
               f"  estimated size: {_gib(s['estimated_bytes'])} of {_gib(s['capacity_bytes'])}"]
     rep.result(s, "\n".join(lines))
+    return 0
+
+
+def cmd_simulate(args, rep):
+    """Press remote keys on the project without building it."""
+    from .simulate import Simulator, SimError
+    project = load_project(args.project, check_files=False)
+    layouts = None
+    if not args.simple_layout:
+        from .menu import MenuBuilder
+        work = tempfile.mkdtemp(prefix="oncemore-sim-")
+        try:
+            mb = MenuBuilder(project, work)
+            layouts = {m.id: [{"id": g.id, "rect": g.rect, "nav": g.nav, "auto": g.auto,
+                               "action": g.action} for g in mb.layout(m)]
+                       for m in project.menus}
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
+    sim = Simulator(project, layouts)
+    state = sim.start()
+    steps = [{"key": None, "view": list(sim.view(state)), "log": state["log"]}]
+    for key in [k for k in (args.keys or "").split(",") if k.strip()]:
+        try:
+            sim.press(state, key.strip())
+        except SimError as e:
+            raise OncemoreError(str(e))
+        steps.append({"key": key.strip(), "view": list(sim.view(state)), "log": state["log"]})
+
+    def show(v):
+        if v[0] == "menu":
+            m = project.menu(v[1])
+            return f"menu {v[1]}, button {m.buttons[v[2] - 1].id if m.buttons else '-'}"
+        if v[0] == "title":
+            return f"title {v[1]}, chapter {v[2]}"
+        return "stopped"
+    lines = [f"{'start' if s['key'] is None else s['key']:>8}  {show(s['view'])}" for s in steps]
+    rep.result({"steps": steps, "state": state}, "\n".join(lines))
     return 0
 
 
@@ -161,6 +209,17 @@ def make_parser():
     s.add_argument("project", help=proj_help)
     s.add_argument("--no-media", action="store_true", help="only check the JSON (no file checks, no ffprobe)")
     s.set_defaults(func=cmd_validate)
+
+    s = sub.add_parser("simulate", parents=[common],
+                       help="press remote-control keys on the project (no encoding)")
+    s.add_argument("project", help=proj_help)
+    s.add_argument("--keys", default="",
+                   help="comma-separated keys: up, down, left, right, enter, menu, title, "
+                        "next, prev, play, end, timeout, select:<button>")
+    s.add_argument("--simple-layout", action="store_true",
+                   help="lay buttons out in a column instead of measuring the labels "
+                        "(no ffmpeg needed; arrow keys may differ from the disc)")
+    s.set_defaults(func=cmd_simulate)
 
     def build_opts(sp):
         sp.add_argument("--fast", action="store_true", help="1-pass encoding (default: 2-pass)")
