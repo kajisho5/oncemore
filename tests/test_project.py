@@ -129,12 +129,16 @@ class TestProject(unittest.TestCase):
         m["default_button"] = ids[1]
         m.setdefault("texts", []).append({"text": "GONE", "x": 10, "y": 10, "hidden": True})
         m.setdefault("shapes", []).append({"x": 0, "y": 0, "w": 10, "h": 10, "hidden": True})
+        m["images"] = [{"file": "logo.png", "x": 5, "y": 6, "w": 70, "h": 30, "opacity": 0.5},
+                       {"file": "gone.png", "x": 0, "y": 0, "w": 10, "h": 10, "hidden": True}]
         menu = build(d).menus[0]
         self.assertEqual([b.id for b in menu.buttons], [ids[0]] + ids[2:])
         self.assertEqual(menu.buttons[0].nav, {})              # its route went with it
         self.assertIsNone(menu.default_button)
         self.assertNotIn("GONE", [t.text for t in menu.texts])
         self.assertNotIn((0, 0, 10, 10), [(s.x, s.y, s.w, s.h) for s in menu.shapes])
+        self.assertEqual([(os.path.basename(p.file), p.x, p.y, p.w, p.h, p.opacity)
+                          for p in menu.images], [("logo.png", 5, 6, 70, 30, 0.5)])
         for b in m["buttons"]:
             b["hidden"] = True
         with self.assertRaises(ProjectError) as cm:

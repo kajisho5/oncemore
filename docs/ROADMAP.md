@@ -182,6 +182,11 @@ browser) and lands only with green CI.
 - [x] A source's own chapter markers (with names) become the chapters of a
   new title; Timeline > Import chapter markers from the source
 
+**P32 — Pictures on menus** (done)
+- [x] Logos and photos that are not buttons (`images[]`): Tools > Picture
+  or Place on the menu, natural proportions, resize keeping them, opacity,
+  Layers; PSD re-import replaces them with the new artwork
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

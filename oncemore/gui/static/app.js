@@ -22,7 +22,9 @@ const I18N = {
     chapter_menu: "Chapter menu", chapter_menu_on: "Generate a chapter menu with thumbnails",
     subtitles: "Subtitles", audio_tracks: "Audio tracks", default_on: "on at start",
     add_chapter: "Add chapter here", chapters: "Chapters", delete: "Delete",
-    add_shape: "+ Rectangle", snap: "Snap", align: "Align", n_selected: "{n} selected",
+    add_shape: "+ Rectangle", add_picture: "+ Picture", picture: "Picture", pictures: "Pictures",
+    place_on_menu: "Place on the menu", picture_hint: "A picture on the menu that is not a button: a logo, a photo. PNG keeps its transparency.",
+    pick_picture: "Choose a picture from the project's files (File > Import first).", keep_ratio: "Keep proportions", snap: "Snap", align: "Align", n_selected: "{n} selected",
     align_left: "Align left edges", align_hcenter: "Centre horizontally", align_right: "Align right edges",
     align_top: "Align tops", align_vcenter: "Centre vertically", align_bottom: "Align bottoms",
     distribute_h: "Distribute horizontally", distribute_v: "Distribute vertically",
@@ -208,7 +210,9 @@ const I18N = {
     chapter_menu: "チャプターメニュー", chapter_menu_on: "サムネイル付きチャプターメニューを自動生成",
     subtitles: "字幕", audio_tracks: "音声トラック", default_on: "最初から表示",
     add_chapter: "ここにチャプター", chapters: "チャプター", delete: "削除",
-    add_shape: "＋四角形", snap: "スナップ", align: "整列", n_selected: "{n} 個選択中",
+    add_shape: "＋四角形", add_picture: "＋画像", picture: "画像", pictures: "画像",
+    place_on_menu: "メニューに配置", picture_hint: "ボタンではない画像（ロゴ・写真）。PNG は透明部分がそのまま残ります。",
+    pick_picture: "プロジェクトのファイルから画像を選んでください（先にファイル > 読み込み）。", keep_ratio: "縦横比を保つ", snap: "スナップ", align: "整列", n_selected: "{n} 個選択中",
     align_left: "左揃え", align_hcenter: "左右中央揃え", align_right: "右揃え",
     align_top: "上揃え", align_vcenter: "上下中央揃え", align_bottom: "下揃え",
     distribute_h: "左右に等間隔", distribute_v: "上下に等間隔",
@@ -718,6 +722,7 @@ function renderToolbar() {
     `<span class="sep"></span>`,
     b('id="add-btn"', t("add_button"), ICONS.button, false, onMenu),
     b('id="add-shape"', t("add_shape"), ICONS.rect, false, onMenu),
+    b('id="add-picture"', t("add_picture"), ICONS.picture, false, onMenu),
     `<span class="sep"></span>`,
     b('id="tool-psd"', onMenu && curMenu().psd ? t("cmd_edit_psd") : t("tool_import_psd"), ICONS.psd),
     b('id="tool-preview"', `${t("cmd_preview")} (${keyLabel("shift+space")})`, ICONS.preview, false, (P().titles || []).length > 0),
@@ -726,6 +731,7 @@ function renderToolbar() {
   const on = (id, fn) => { const x = $(id); if (x) x.onclick = fn; };
   on("#add-btn", addMenuButton);
   on("#add-shape", addMenuShape);
+  on("#add-picture", pickMenuPicture);
   on("#tool-psd", () => (onMenu && curMenu().psd ? editPsd() : pickPsd()));
   on("#tool-preview", () => runCommand("preview"));
 }
@@ -737,6 +743,7 @@ const ICONS = {
   zoom: svg('<circle cx="6.5" cy="6.5" r="4.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9.6 9.6l4.6 4.6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>'),
   button: svg('<rect x="1.5" y="4" width="13" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5 8h6" stroke="currentColor" stroke-width="1.4"/>'),
   rect: svg('<rect x="2" y="3" width="12" height="10" fill="currentColor"/>'),
+  picture: svg('<rect x="2" y="3" width="12" height="10" rx="1"/><path d="M3 12l3.5-4 2.5 3 1.5-1.5L13 12"/><circle cx="10.5" cy="6" r="1"/>'),
   psd: svg('<rect x="1.5" y="1.5" width="13" height="13" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4 4.5h8M4 7.5h8M4 10.5h5" stroke="currentColor" stroke-width="1.3"/>'),
   preview: svg('<circle cx="8" cy="8" r="6.3" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="1.4" fill="currentColor"/><path d="M11 10.5l4 2.3-4 2.2z" fill="currentColor"/>'),
   import: svg('<path d="M8 1.5v8M4.5 6l3.5 3.5L11.5 6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2 11v3h12v-3" fill="none" stroke="currentColor" stroke-width="1.5"/>'),
@@ -1845,9 +1852,10 @@ function renderMenu(m) {
   const styleOf = (x) => ({ font: x.font, outline: x.outline, outline_width: x.outline_width || 2, shadow: x.shadow, shadow_offset: x.shadow_offset || 3 });
   const els = [
     ...(menu.shapes || []).map((x, i) => ({ kind: "shape", i, x: x.x, y: x.y, w: x.w, h: x.h, color: x.color || "#00000080" })),
+    ...(menu.images || []).map((x, i) => ({ kind: "image", i, x: x.x, y: x.y, w: x.w, h: x.h, file: x.file, opacity: x.opacity ?? 1 })),
     ...(menu.texts || []).map((x, i) => ({ kind: "text", i, x: x.x, y: x.y, size: x.size || defSize, color: x.color || defColor, label: x.text, ...styleOf(x) })),
     ...(menu.buttons || []).map((b, i) => ({ kind: "button", i, x: b.x, y: b.y, size: b.size || defSize, color: b.color || defColor, label: b.label || "", image: b.image, width: b.width, hl: !b.label && !b.image ? b.highlight_image : null, ...styleOf(b) })),
-  ].filter((e) => !(e.kind === "button" ? menu.buttons : e.kind === "text" ? menu.texts : menu.shapes)[e.i].hidden);   // (switched off in Layers)
+  ].filter((e) => !menu[KIND_LIST[e.kind]][e.i].hidden);   // (switched off in Layers)
   // selection: S.sels (all selected), S.element (the one the inspector shows)
   if (!S.element) S.sels = [];
   else if (!(S.sels || []).some((x) => x.kind === S.element.kind && x.i === S.element.i)) S.sels = [S.element];
@@ -1857,6 +1865,7 @@ function renderMenu(m) {
   const css = (e) => {
     let st = `left:${e.x * sx * scale}px;top:${e.y * scale}px;`;
     if (e.kind === "shape") return st + `width:${e.w * sx * scale}px;height:${e.h * scale}px;background:${cssColor(e.color)}`;
+    if (e.kind === "image") return st + `width:${e.w * sx * scale}px;height:${e.h * scale}px;opacity:${e.opacity}`;
     st += `font-size:${e.size * scale}px;color:${esc(e.kind === "button" && e.i === firstBtn ? (menu.highlight_color || "#FFD400") : e.color)};`;
     if (e.font) st += `font-family:${fontFamily(e.font)},sans-serif;`;
     const sh = [];
@@ -1882,7 +1891,9 @@ function renderMenu(m) {
         return `<div class="thumb-pv" style="left:${th.x * sx * scale}px;top:${th.y * scale}px;width:${th.w * sx * scale}px;height:${th.h * scale}px">${src ? `<img src="${src}" alt="" draggable="false">` : ""}</div>`;
       }).join("")}
       ${els.map((e) => `<div class="el ${e.kind} ${isSel(e) ? "selected" : ""} ${e.kind === "button" && e.i === firstBtn ? "highlight" : ""}"
-          data-kind="${e.kind}" data-i="${e.i}" style="${css(e)}">${e.kind === "shape" ? "" : e.hl
+          data-kind="${e.kind}" data-i="${e.i}" style="${css(e)}">${e.kind === "shape" ? "" : e.kind === "image"
+            ? `<img src="${imgUrl("file", { path: e.file })}" alt="" draggable="false" style="display:block;width:100%;height:100%">`
+            : e.hl
             ? `<img class="area" src="${imgUrl("file", { path: e.hl })}" alt="" draggable="false" style="display:block;width:${(e.width || 160) * sx * scale}px;${e.i === firstBtn ? `filter:drop-shadow(0 0 0 ${esc(menu.highlight_color || "#FFD400")});opacity:.9` : "opacity:.35"}">`
             : e.image
             ? `<img src="${imgUrl("file", { path: e.image })}" alt="${esc(e.label)}" draggable="false" style="display:block;width:${(e.width || 160) * sx * scale}px${e.i === firstBtn ? `;outline:2px solid ${esc(menu.highlight_color || "#FFD400")}` : ""}">`
@@ -1907,10 +1918,11 @@ function renderMenu(m) {
   // element boxes on the 720-wide grid (texts measured from the page)
   const box = (k) => {
     const n = nodeOf(k), e = els.find((x) => x.kind === k.kind && x.i === k.i);
-    const bw = e.kind === "shape" ? e.w : n.offsetWidth / scale / sx, bh = e.kind === "shape" ? e.h : n.offsetHeight / scale;
+    const sized = e.kind === "shape" || e.kind === "image";
+    const bw = sized ? e.w : n.offsetWidth / scale / sx, bh = sized ? e.h : n.offsetHeight / scale;
     return { x: e.x, y: e.y, w: bw, h: bh };
   };
-  const listOf = (mm, kind) => (kind === "button" ? mm.buttons : kind === "text" ? (mm.texts = mm.texts || []) : (mm.shapes = mm.shapes || []));
+  const listOf = elementList;
   stage.querySelectorAll(".el").forEach((node) => {
     node.addEventListener("pointerdown", (ev) => {
       ev.preventDefault();
@@ -2102,6 +2114,30 @@ function addMenuShape() {
     S.element = { kind: "shape", i: mm.shapes.length - 1 }; S.sels = [S.element];
   });
 }
+// a picture on the menu: its natural size (square pixels), at most half the frame
+function pickMenuPicture() {
+  const imgs = mediaOf("image");
+  if (!imgs.length) return alert(t("pick_picture"));
+  openModal(`<h2>${t("add_picture")}</h2><p class="hint">${esc(t("picture_hint"))}</p>
+    <div class="lib-grid">${imgs.map((x) => `<button class="lib-item" data-pic="${esc(x)}"><img src="${imgUrl("file", { path: x })}" alt=""><span>${esc(x.replace(/^media\//, ""))}</span></button>`).join("")}</div>`);
+  document.querySelectorAll("[data-pic]").forEach((b) => (b.onclick = () => { closeModal(); placeMenuPicture(b.dataset.pic); }));
+}
+function placeMenuPicture(path) {
+  const menu = curMenu();
+  if (!menu) return;
+  const H = discH(), sx = displayW() / 720, im = new Image();
+  im.onload = () => {
+    let w = im.naturalWidth / sx, h = im.naturalHeight;
+    const k = Math.min(1, 360 / w, (H / 2) / h);
+    w = Math.max(1, Math.round(w * k)); h = Math.max(1, Math.round(h * k));
+    commit((p) => {
+      const mm = p.menus.find((x) => x.id === menu.id);
+      (mm.images = mm.images || []).push({ file: path, x: Math.round((720 - w) / 2), y: Math.round((H - h) / 2), w, h });
+      S.element = { kind: "image", i: mm.images.length - 1 }; S.sels = [S.element];
+    });
+  };
+  im.src = imgUrl("file", { path });
+}
 // keyboard editing on the menu stage: arrows nudge (Shift: 10 px), Delete,
 // Cmd/Ctrl+D duplicate, Cmd/Ctrl+C / V copy and paste
 function stageKeys(ev) {
@@ -2128,7 +2164,8 @@ function stageKeys(ev) {
   }
 }
 // the selected elements of the menu being edited (stage, layers, menu bar)
-const elementList = (mm, kind) => (kind === "button" ? mm.buttons : kind === "text" ? (mm.texts = mm.texts || []) : (mm.shapes = mm.shapes || []));
+const KIND_LIST = { button: "buttons", text: "texts", shape: "shapes", image: "images" };
+const elementList = (mm, kind) => (mm[KIND_LIST[kind]] = mm[KIND_LIST[kind]] || []);
 const hasElements = () => S.sel.view === "menu" && !!curMenu() && !!(S.sels?.length || S.element);
 function deleteElements() {
   const menu = curMenu();
@@ -2215,6 +2252,33 @@ function renderMenuInspector(el) {
   const find = (p) => p.menus.find((x) => x.id === menu.id);
   if (sel && S.sels?.length > 1) {
     el.innerHTML = `<h2>${esc(t("n_selected", { n: S.sels.length }))}</h2><div class="hint">${esc(t("multi_hint"))}</div>`;
+    return;
+  }
+  if (sel && sel.kind === "image") {
+    const it = (menu.images || [])[sel.i];
+    if (!it) { S.element = null; return renderMenuInspector(el); }
+    el.innerHTML = `<h2>${t("picture")}</h2><div class="hint">${esc(t("picture_hint"))}</div>
+      <label class="field"><span>${t("file")}</span>${selectHtml("file", mediaOf("image").map((x) => [x, x.replace(/^media\//, "")]), it.file, 'data-k="file"')}</label>
+      <div class="grid2">
+        <label class="field"><span>X</span><input type="number" data-k="x" min="0" max="719" value="${it.x}"></label>
+        <label class="field"><span>Y</span><input type="number" data-k="y" min="0" max="${discH() - 1}" value="${it.y}"></label>
+        <label class="field"><span>${t("width")}</span><input type="number" id="pic-w" min="1" max="720" value="${it.w}" data-nobind></label>
+        <label class="field"><span>${t("height")}</span><input type="number" id="pic-h" min="1" max="${discH()}" value="${it.h}" data-nobind></label>
+      </div>
+      <label class="field" data-nobind><span></span><label><input type="checkbox" id="pic-ratio" ${S.picFree ? "" : "checked"}> ${t("keep_ratio")}</label></label>
+      <label class="field" data-nobind><span>${t("opacity")}</span><input type="range" id="pic-a" min="0" max="100" value="${Math.round((it.opacity ?? 1) * 100)}"></label>
+      <button class="danger" id="del-el">${t("delete")}</button>`;
+    bindFields(el, (p) => find(p).images[sel.i], { numeric: ["x", "y"] });
+    const resize = (which) => commit((p) => {
+      const x = find(p).images[sel.i], ratio = x.h / x.w;
+      const v = Math.max(1, Math.round(Number($(which === "w" ? "#pic-w" : "#pic-h").value) || 1));
+      if (which === "w") { x.w = Math.min(720, v); if ($("#pic-ratio").checked) x.h = Math.max(1, Math.min(discH(), Math.round(x.w * ratio))); }
+      else { x.h = Math.min(discH(), v); if ($("#pic-ratio").checked) x.w = Math.max(1, Math.min(720, Math.round(x.h / ratio))); }
+    });
+    $("#pic-w").onchange = () => resize("w"); $("#pic-h").onchange = () => resize("h");
+    $("#pic-ratio").onchange = (e) => (S.picFree = !e.target.checked);
+    $("#pic-a").onchange = (e) => commit((p) => { const x = find(p).images[sel.i], v = Number(e.target.value) / 100; if (v >= 1) delete x.opacity; else x.opacity = v; });
+    $("#del-el").onclick = () => { commit((p) => { find(p).images.splice(sel.i, 1); if (!find(p).images.length) delete find(p).images; }); S.element = null; S.sels = []; renderAll(); };
     return;
   }
   if (sel && sel.kind === "shape") {
@@ -2408,7 +2472,7 @@ async function renderMediaInspector(el) {
     if (menu) actions.push(`<button data-act="vbg">${t("use_as_video_bg")}</button>`);
   }
   if (item.kind === "image") {
-    if (menu) actions.push(`<button class="primary" data-act="bg">${t("use_as_bg")}</button>`);
+    if (menu) actions.push(`<button class="primary" data-act="bg">${t("use_as_bg")}</button>`, `<button data-act="pic">${t("place_on_menu")}</button>`);
     actions.push(`<button data-act="newmenu">${t("new_menu_with_bg")}</button>`);
   }
   if (item.kind === "audio" && menu) actions.push(`<button data-act="music">${t("use_as_music")}</button>`);
@@ -2432,6 +2496,7 @@ function mediaAction(act, path, titleId) {
     });
     S.selectedMedia = null; return select("title", id);
   }
+  if (act === "pic") { S.selectedMedia = null; return placeMenuPicture(path); }
   if (act === "newmenu") {
     addBlankMenu(uniqueId("menu", allMenuIds())); const mid = S.sel.id;
     commit((p) => { p.menus.find((x) => x.id === mid).background = path; });
@@ -2652,7 +2717,7 @@ async function renderLibrary() {
   if (!S.userTemplates) { try { S.userTemplates = (await api("/api/user_templates")).templates; } catch (e) { S.userTemplates = []; } }
   if ((S.rightTab || "layers") !== "library") return;
   const menu = S.sel.view === "menu" ? curMenu() : null;
-  const sels = menu ? (S.sels || []).filter((x) => x.kind !== "shape") : [];
+  const sels = menu ? (S.sels || []).filter((x) => x.kind !== "shape" && x.kind !== "image") : [];
   el.innerHTML = `
     <div class="lib-section"><h4>${t("lib_templates")}</h4><div class="lib-grid">
       ${S.templates.map((x) => `<button class="lib-item" data-tpl="${esc(x.id)}" title="${esc(x[LANG] || x.en)}"><b>${esc((x[LANG] || x.en).split(/ [—-] /)[0])}</b><span class="hint">${esc((x[LANG] || x.en).split(/ [—-] /)[1] || "")}</span></button>`).join("")}
@@ -2710,17 +2775,18 @@ function renderLayers() {
   const menu = S.sel.view === "menu" ? curMenu() : null;
   if (!menu) { body.innerHTML = `<div class="hint" style="padding:8px">${esc(t("layers_hint"))}</div>`; return; }
   const sel = (k, i) => (S.sels || []).some((x) => x.kind === k && x.i === i) || (S.element && S.element.kind === k && S.element.i === i);
-  const listOfKind = (k) => (k === "button" ? menu.buttons : k === "text" ? menu.texts : menu.shapes) || [];
+  const listOfKind = (k) => menu[KIND_LIST[k]] || [];
   const row = (k, i, ico, name, to, n) => `<div class="layer-row ${sel(k, i) ? "selected" : ""} ${listOfKind(k)[i].hidden ? "off" : ""}" data-lk="${k}" data-li="${i}">
       <button class="eye" data-leye title="${esc(t(listOfKind(k)[i].hidden ? "layer_show" : "layer_hide"))}">${listOfKind(k)[i].hidden ? ICONS.eyeOff : ICONS.eye}</button>
       <span class="ico">${ico}</span><span class="nm">${esc(name)}</span>${to ? `<span class="to">${esc(to)}</span>` : ""}
       <span class="ops"><button class="small" data-lmove="-1" ${i ? "" : "disabled"} title="▲">▲</button><button class="small" data-lmove="1" ${i + 1 < n ? "" : "disabled"} title="▼">▼</button><button class="small danger" data-ldel title="${esc(t("delete"))}">✕</button></span></div>`;
-  const bs = menu.buttons || [], ts = menu.texts || [], ss = menu.shapes || [];
+  const bs = menu.buttons || [], ts = menu.texts || [], ss = menu.shapes || [], ims = menu.images || [];
   body.innerHTML = `<div class="layer-group">${t("buttons")} (${bs.length})</div>${bs.map((b, i) => row("button", i, b.image ? "▣" : b.label ? "◉" : "⬚", b.label || b.id, b.action, bs.length)).join("")}
     ${ts.length ? `<div class="layer-group">${t("texts")} (${ts.length})</div>${ts.map((x, i) => row("text", i, "T", x.text, "", ts.length)).join("")}` : ""}
+    ${ims.length ? `<div class="layer-group">${t("pictures")} (${ims.length})</div>${ims.map((x, i) => row("image", i, "▨", x.file.replace(/^media\//, ""), "", ims.length)).join("")}` : ""}
     ${ss.length ? `<div class="layer-group">${t("shapes")} (${ss.length})</div>${ss.map((x, i) => row("shape", i, "■", `${t("rectangle")} ${i + 1}`, "", ss.length)).join("")}` : ""}
     <div class="layer-group">${t("background")}</div><div class="layer-row"><span class="ico">▤</span><span class="nm">${esc(menu.background_video || menu.background || menu.background_color || "#000")}</span></div>`;
-  const list = (mm, k) => (k === "button" ? mm.buttons : k === "text" ? mm.texts : mm.shapes);
+  const list = elementList;
   body.querySelectorAll(".layer-row[data-lk]").forEach((r) => {
     const k = r.dataset.lk, i = Number(r.dataset.li);
     r.onclick = (e) => {
@@ -3008,7 +3074,7 @@ function arrangeElement(where) {
 }
 function convertElement() {
   const menu = curMenu(), k = S.element;
-  if (!menu || !k || k.kind === "shape") return;
+  if (!menu || !k || k.kind === "shape" || k.kind === "image") return;
   commit((p) => {
     const mm = p.menus.find((x) => x.id === menu.id);
     if (k.kind === "text") {
@@ -3255,7 +3321,7 @@ const COMMANDS = {
   distribute_v: { run: () => $('[data-distribute="v"]')?.click(), when: () => !!$('[data-distribute="v"]') },
   bring_front: { key: "mod+shift+]", run: () => arrangeElement("front"), when: () => hasElements() && (S.sels?.length || 1) === 1 },
   send_back: { key: "mod+shift+[", run: () => arrangeElement("back"), when: () => hasElements() && (S.sels?.length || 1) === 1 },
-  convert: { run: convertElement, when: () => hasElements() && (S.sels?.length || 1) === 1 && S.element?.kind !== "shape" },
+  convert: { run: convertElement, when: () => hasElements() && (S.sels?.length || 1) === 1 && S.element?.kind !== "shape" && S.element?.kind !== "image" },
   play: { key: "space", run: () => $("#play")?.click(), when: () => S.sel.view === "title" && !!$("#play") },
   ws_author: { key: "alt+shift+1", run: WS("author"), when: hasProject },
   ws_flow: { key: "alt+shift+2", run: WS("flow"), when: hasProject },
@@ -3603,7 +3669,7 @@ function mediaMenu(path) {
   if (!item) return null;
   const menu = S.sel.view === "menu" ? curMenu() : null, out = [];
   if (item.kind === "video") { out.push({ label: t("add_as_title"), run: () => mediaAction("title", path) }); if (menu) out.push({ label: t("use_as_video_bg"), run: () => mediaAction("vbg", path) }); }
-  if (item.kind === "image") { if (menu) out.push({ label: t("use_as_bg"), run: () => mediaAction("bg", path) }); out.push({ label: t("new_menu_with_bg"), run: () => mediaAction("newmenu", path) }); }
+  if (item.kind === "image") { if (menu) out.push({ label: t("use_as_bg"), run: () => mediaAction("bg", path) }, { label: t("place_on_menu"), run: () => placeMenuPicture(path) }); out.push({ label: t("new_menu_with_bg"), run: () => mediaAction("newmenu", path) }); }
   if (item.kind === "audio" && menu) out.push({ label: t("use_as_music"), run: () => mediaAction("music", path) });
   if (item.kind === "design") out.push({ label: t("make_menu_from_psd"), run: () => mediaAction("psd", path) });
   if (out.length) out.push("-");

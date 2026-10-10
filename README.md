@@ -391,10 +391,11 @@ when there are more.
 | `remember_button` | coming back highlights the button used last (menus 1–7) | `true` |
 | `font_size`, `text_color` | defaults for texts/buttons | `32`, `#FFFFFF` |
 | `highlight_color`, `select_color` | button colours when selected / activated; `#RRGGBBAA` for translucent (a DVD has 16 levels of opacity) | `#FFD400`, `#FF5A00` |
-| `hidden` (buttons, texts, shapes) | switched off in the Layers panel: kept in the project, not on the disc | `false` |
+| `hidden` (buttons, texts, shapes, images) | switched off in the Layers panel: kept in the project, not on the disc | `false` |
 | `normal_color` | colour of the buttons' highlight shapes while not selected (the colour set's Normal state); none when absent | — |
 | `texts[]` | `{text, x, y, size?, color?}` decorative text, plus the text style keys below | `[]` |
 | `shapes[]` | `{x, y, w, h, color}` filled rectangles (bars, panels; `#RRGGBBAA` for translucent) drawn under texts and buttons | `[]` |
+| `images[]` | `{file, x, y, w, h, opacity}` pictures that are not buttons (logos, photos; PNG keeps its transparency), drawn over the rectangles and under texts and buttons. In the app: Tools > Picture, or right-click an image > Place on the menu | `[]` |
 
 Text style (texts and text buttons): `font` (a font file for this element; it
 must contain all its characters), `outline` + `outline_width`, `shadow` +

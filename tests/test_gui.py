@@ -633,6 +633,44 @@ class TestGuiBrowser(unittest.TestCase):
             browser.close()
         self.assertEqual(errors, [])
 
+    def test_menu_pictures(self):
+        """A picture placed on a menu: natural proportions, centred, resized
+        with its proportions, listed in Layers, drawn in the exact preview."""
+        self.s.call("/api/new", "POST", {"sample": True})
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
+                        "color=c=0x00FF00:s=160x80", "-frames:v", "1",
+                        os.path.join(self.dir, "media", "logo.png")], check=True)
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click(".nav-item[data-view=menu][data-id=main]", timeout=120000)
+            page.click("#add-picture")
+            page.click("[data-pic='media/logo.png']")
+            pic = self.poll(lambda: (self.project()["menus"][0].get("images") or [None])[0])
+            # 160 x 80 square pixels on a 16:9 NTSC disc: 135 x 80 DVD pixels, centred
+            self.assertEqual(pic, {"file": "media/logo.png", "x": 293, "y": 200, "w": 135, "h": 80})
+            page.locator(".stage .el.image.selected img").wait_for()
+            page.fill("#pic-w", "270")
+            page.press("#pic-w", "Enter")
+            self.poll(lambda: self.project()["menus"][0]["images"][0]["w"] == 270)
+            self.assertEqual(self.project()["menus"][0]["images"][0]["h"], 160)
+            page.locator("#layers .layer-row[data-lk=image]").wait_for()
+            # drag it: moves like any element
+            box = page.locator(".stage .el.image").bounding_box()
+            page.mouse.move(box["x"] + 20, box["y"] + 20)
+            page.mouse.down()
+            page.mouse.move(box["x"] + 60, box["y"] + 20, steps=4)
+            page.mouse.up()
+            self.poll(lambda: self.project()["menus"][0]["images"][0]["x"] > 300)
+            self.assertTrue(self.s.app.check(self.project())["valid"])
+            browser.close()
+        self.assertEqual(errors, [])
+        status, pv = self.s.call("/api/preview", "POST", {"menu": "main"})
+        self.assertEqual(status, 200, pv)
+
     def test_transcode_now_and_waveforms(self):
         with sync_playwright() as p:
             browser = self.launch(p)

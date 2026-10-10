@@ -828,6 +828,14 @@
           },
           "description": "Filled rectangles drawn under the texts and buttons (bars, panels)."
         },
+        "images": {
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "$ref": "#/$defs/picture"
+          },
+          "description": "Pictures placed on the menu that are not buttons (logos, photos), drawn over the rectangles and under the texts and buttons."
+        },
         "buttons": {
           "type": "array",
           "minItems": 1,
@@ -918,6 +926,53 @@
         "color": {
           "$ref": "#/$defs/color",
           "description": "Fill colour, #RRGGBBAA for translucent. Default #00000080."
+        }
+      }
+    },
+    "picture": {
+      "type": "object",
+      "required": [
+        "file",
+        "x",
+        "y",
+        "w",
+        "h"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "hidden": {
+          "type": "boolean",
+          "description": "Switched off in the Layers panel: not on the disc."
+        },
+        "file": {
+          "type": "string",
+          "description": "Image file (PNG with transparency, JPEG, ...)."
+        },
+        "x": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 719
+        },
+        "y": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 575
+        },
+        "w": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 720
+        },
+        "h": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 576
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "0 (invisible) to 1 (default)."
         }
       }
     },

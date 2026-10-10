@@ -580,7 +580,12 @@ class MenuBuilder:
                 f"h={s.h}:color={_hex(s.color)}:t=fill" for s in menu.shapes)
             chains.append(f"[{cur}]{boxes}[shp]")
             cur = "shp"
-        overlays = list(self.thumbnails(menu))
+        overlays = []
+        for p in menu.images:
+            fade = f",colorchannelmixer=aa={p.opacity:.3f}" if p.opacity < 1 else ""
+            overlays.append((p.file, round(p.x * self.sx), p.y,
+                             f"scale={max(1, round(p.w * self.sx))}:{p.h},format=rgba{fade}"))
+        overlays += list(self.thumbnails(menu))
         for b in menu.buttons:
             if b.image:
                 dwid, h, _ = self.image_box(menu.id, b)
