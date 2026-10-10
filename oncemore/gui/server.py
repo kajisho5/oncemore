@@ -48,7 +48,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 
 from .. import (__version__, build, clips, encode, graph, png4, scaffold, simulate, slideshow,
-               subtitles, templates, tools)
+               subtitles, templates, tools, usertemplates)
 from ..errors import OncemoreError, ProjectError
 from ..project import PROJECT_FILENAME, build_project, clip_starts, read_json, source_at
 from ..report import Reporter
@@ -749,6 +749,25 @@ class Handler(BaseHTTPRequestHandler):
         project = body.get("project") or self.app.load()
         menu = templates.make_menu(body["template"], project, body["id"], back=body.get("back"))
         self.json({"menu": menu})
+
+    # -- menus saved as templates (Menu > Save menu as template) -----------------
+    def api_get_user_templates(self, q):
+        self.json({"templates": usertemplates.list_templates(), "folder": usertemplates.library()})
+
+    def api_post_save_template(self, q):
+        body = self.body_json()
+        tid = usertemplates.save(body.get("menu"), body.get("name"), self.app.dir)
+        self.json({"id": tid, "templates": usertemplates.list_templates()})
+
+    def api_post_apply_template(self, q):
+        body = self.body_json()
+        project = body.get("project") or self.app.load() or {}
+        menu = usertemplates.apply(body.get("template"), project, self.app.dir, body["id"])
+        self.json({"menu": menu, "media": self.app.media()})
+
+    def api_post_delete_template(self, q):
+        usertemplates.delete(self.body_json().get("template"))
+        self.json({"templates": usertemplates.list_templates()})
 
     def api_post_proxy(self, q):
         full = self.app.resolve(q.get("path"))

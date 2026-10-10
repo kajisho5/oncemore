@@ -488,6 +488,10 @@
       ],
       "additionalProperties": false,
       "properties": {
+        "hidden": {
+          "type": "boolean",
+          "description": "Switched off in the Layers panel: not on the disc."
+        },
         "text": {
           "type": "string",
           "minLength": 1
@@ -564,6 +568,10 @@
       ],
       "additionalProperties": false,
       "properties": {
+        "hidden": {
+          "type": "boolean",
+          "description": "Switched off in the Layers panel: not on the disc."
+        },
         "id": {
           "$ref": "#/$defs/id"
         },
@@ -847,6 +855,10 @@
       ],
       "additionalProperties": false,
       "properties": {
+        "hidden": {
+          "type": "boolean",
+          "description": "Switched off in the Layers panel: not on the disc."
+        },
         "x": {
           "type": "integer",
           "minimum": 0,

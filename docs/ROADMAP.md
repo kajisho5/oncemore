@@ -118,6 +118,11 @@ browser) and lands only with green CI.
   the Normal state is the subpicture's display image, shown on every button
   that is not selected; previews and the simulator compose it as a player does
 
+**P17 — Menu tools** (done)
+- [x] Layer visibility (hidden elements stay in the project, not on the disc)
+- [x] Save menu as template: a per-user template library with copies of the
+  files a menu uses; My templates in the Library; Create chapter index
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

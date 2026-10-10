@@ -107,6 +107,27 @@ class TestProject(unittest.TestCase):
             build(data)
         return " | ".join(f"{i['path']}: {i['message']}" for i in cm.exception.issues)
 
+    def test_hidden_elements_are_left_out(self):
+        d = copy.deepcopy(self.data)
+        m = d["menus"][0]
+        ids = [b["id"] for b in m["buttons"]]
+        m["buttons"][1]["hidden"] = True
+        m["buttons"][0]["nav"] = {"down": ids[1]}
+        m["default_button"] = ids[1]
+        m.setdefault("texts", []).append({"text": "GONE", "x": 10, "y": 10, "hidden": True})
+        m.setdefault("shapes", []).append({"x": 0, "y": 0, "w": 10, "h": 10, "hidden": True})
+        menu = build(d).menus[0]
+        self.assertEqual([b.id for b in menu.buttons], [ids[0]] + ids[2:])
+        self.assertEqual(menu.buttons[0].nav, {})              # its route went with it
+        self.assertIsNone(menu.default_button)
+        self.assertNotIn("GONE", [t.text for t in menu.texts])
+        self.assertNotIn((0, 0, 10, 10), [(s.x, s.y, s.w, s.h) for s in menu.shapes])
+        for b in m["buttons"]:
+            b["hidden"] = True
+        with self.assertRaises(ProjectError) as cm:
+            build(d)
+        self.assertIn("every button is hidden", str(cm.exception.issues))
+
     def test_sample_project(self):
         p = build(self.data)
         self.assertEqual(p.disc.label, "SAMPLE_DISC")

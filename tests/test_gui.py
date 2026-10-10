@@ -1351,6 +1351,54 @@ class TestGuiBrowser(unittest.TestCase):
             browser.close()
         self.assertEqual(errors, [])
 
+    def test_menu_tools(self):
+        """Layer visibility, Save menu as template / a menu from it, Create
+        chapter index."""
+        from unittest import mock
+        lib = os.path.join(self.dir, "..", os.path.basename(self.dir) + "-templates")
+        self.addCleanup(shutil.rmtree, lib, True)
+        with mock.patch.dict(os.environ, {"ONCEMORE_TEMPLATES": lib}), sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1440, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.on("dialog", lambda d: (errors.append("dialog: " + d.message), d.dismiss()))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click("#np-sample")
+            page.click(".nav-item[data-view=menu][data-id=main]", timeout=120000)
+            page.locator(".stage .el.button").first.wait_for(timeout=60000)
+            # the eye in Layers: the button leaves the stage and the disc
+            page.locator("#layers .layer-row[data-lk=button][data-li='2'] [data-leye]").click()
+            self.wait_saved(page)
+            self.assertTrue(self.project()["menus"][0]["buttons"][2]["hidden"])
+            self.assertEqual(page.locator(".stage .el.button").count(), 2)
+            self.assertTrue(self.s.app.check(self.project())["valid"])
+            page.locator("#layers .layer-row[data-lk=button][data-li='2'] [data-leye]").click()
+            self.wait_saved(page)
+            self.assertNotIn("hidden", self.project()["menus"][0]["buttons"][2])
+            # save the menu as a template; it appears in the Library and makes a new menu
+            page.evaluate("window.oncemoreCommand('save_template')")
+            page.fill("#tpl-name", "Blue main")
+            page.click("#tpl-ok")
+            page.locator("#library [data-utpl=blue_main]").wait_for(timeout=30000)
+            self.assertTrue(os.path.isfile(os.path.join(lib, "blue_main", "files", "menu_bg.png")))
+            page.keyboard.press("Escape")
+            page.click("#library [data-utpl=blue_main]")
+            page.locator(".nav-item.active[data-view=menu][data-id=blue_main]").wait_for(timeout=30000)
+            self.wait_saved(page)
+            made = [m for m in self.project()["menus"] if m["id"] == "blue_main"][0]
+            self.assertEqual(made["background"], "media/menu_bg.png")         # the same file: reused
+            self.assertEqual(len(made["buttons"]), 3)
+            # Menu > Create chapter index for title B: its chapter menu opens
+            page.evaluate("window.oncemoreCommand('chapter_index')")
+            page.select_option("#ci-title", "t2")
+            page.click("#cix-ok")
+            self.wait_saved(page)
+            self.assertTrue(self.project()["titles"][1]["auto_chapter_menu"])
+            page.locator(".nav-item.active[data-view=menu][data-id=chapters_t2]").wait_for(timeout=30000)
+            browser.close()
+        self.assertEqual(errors, [])
+
 
 if __name__ == "__main__":
     unittest.main()
