@@ -152,6 +152,13 @@ const I18N = {
     settings: "Settings", size_estimate: "Estimated size", check_project: "Check Project…", new_item: "New Item", delete_item: "Delete",
     tool_import_psd: "Make a menu from a Photoshop file", preview_close: "Close the preview",
     basic: "Basic", motion: "Motion", toggle_safe: "Show Safe Area",
+    cmd_chapters_interval: "Add chapter points at intervals…", cmd_replace_asset: "Replace asset…", cmd_project_settings: "Project settings…",
+    cmd_edit_psd: "Edit menu in Photoshop", cmd_win_project: "Project", cmd_win_menus: "Menus", cmd_win_timelines: "Timelines", cmd_win_build: "Build",
+    cmd_win_monitor: "Monitor", cmd_win_flowchart: "Flowchart", cmd_win_properties: "Properties", cmd_win_layers: "Layers", cmd_win_library: "Library",
+    ci_every: "A chapter every", ci_minutes: "minutes", ci_seconds: "seconds", ci_replace: "Remove the chapters there are now (the first stays)",
+    ci_preview: "{n} chapters on {d}.", ra_what: "Replace", ra_with: "With", ra_uses: "Used {n} time(s) in the project.", ra_missing: "missing",
+    ra_hint: "Every use in the project then points to the new file: titles, clips, audio and subtitle tracks, menu backgrounds, buttons, slideshows, music.",
+    ra_none: "The project uses no files yet.", psd_changed: "The Photoshop file of this menu has changed.", open_failed: "This system has no program to open the file with.",
     skin: "Skin", skin_modern: "Modern", skin_classic: "Classic", skin_hint: "Classic: the look of the classic disc authoring apps (mid-grey panels, light fields, amber timecode). The layout is the same.",
   },
   ja: {
@@ -303,6 +310,13 @@ const I18N = {
     settings: "設定", size_estimate: "推定サイズ", check_project: "プロジェクトをチェック…", new_item: "新規項目", delete_item: "削除",
     tool_import_psd: "Photoshop ファイルからメニューを作る", preview_close: "プレビューを閉じる",
     basic: "基本", motion: "モーション", toggle_safe: "セーフエリアを表示",
+    cmd_chapters_interval: "一定間隔でチャプターポイントを追加…", cmd_replace_asset: "アセットを置き換え…", cmd_project_settings: "プロジェクト設定…",
+    cmd_edit_psd: "Photoshop でメニューを編集", cmd_win_project: "プロジェクト", cmd_win_menus: "メニュー", cmd_win_timelines: "タイムライン", cmd_win_build: "ビルド",
+    cmd_win_monitor: "モニター", cmd_win_flowchart: "フローチャート", cmd_win_properties: "プロパティ", cmd_win_layers: "レイヤー", cmd_win_library: "ライブラリ",
+    ci_every: "チャプターの間隔", ci_minutes: "分", ci_seconds: "秒", ci_replace: "今あるチャプターを消す（最初のチャプターは残します）",
+    ci_preview: "{d} の中にチャプターが {n} 個になります。", ra_what: "置き換えるファイル", ra_with: "新しいファイル", ra_uses: "プロジェクト内で {n} か所で使われています。", ra_missing: "見つかりません",
+    ra_hint: "プロジェクト内のすべての使用箇所（タイトル、クリップ、音声・字幕トラック、メニューの背景、ボタン、スライドショー、BGM）が新しいファイルを指すようになります。",
+    ra_none: "プロジェクトはまだファイルを使っていません。", psd_changed: "このメニューの Photoshop ファイルが変更されました。", open_failed: "このシステムにはファイルを開くプログラムがありません。",
     skin: "スキン", skin_modern: "モダン", skin_classic: "クラシック", skin_hint: "クラシック：昔ながらのディスクオーサリングアプリの見た目（中間グレーのパネル、明るい入力欄、琥珀色のタイムコード）。配置は同じです。",
   },
 };
@@ -635,14 +649,14 @@ function renderToolbar() {
     b('id="add-btn"', t("add_button"), ICONS.button, false, onMenu),
     b('id="add-shape"', t("add_shape"), ICONS.rect, false, onMenu),
     `<span class="sep"></span>`,
-    b('id="tool-psd"', t("tool_import_psd"), ICONS.psd),
+    b('id="tool-psd"', onMenu && curMenu().psd ? t("cmd_edit_psd") : t("tool_import_psd"), ICONS.psd),
     b('id="tool-preview"', `${t("cmd_preview")} (${keyLabel("shift+space")})`, ICONS.preview, false, (P().titles || []).length > 0),
   ].join("");
   bar.querySelectorAll("[data-tool]").forEach((x) => (x.onclick = () => setTool(x.dataset.tool)));
   const on = (id, fn) => { const x = $(id); if (x) x.onclick = fn; };
   on("#add-btn", addMenuButton);
   on("#add-shape", addMenuShape);
-  on("#tool-psd", pickPsd);
+  on("#tool-psd", () => (onMenu && curMenu().psd ? editPsd() : pickPsd()));
   on("#tool-preview", () => runCommand("preview"));
 }
 // small line icons for the tool buttons (drawn here; no images)
@@ -699,8 +713,12 @@ function renderStatus() {
   $("#st-issues").onclick = () => issues.length && showIssues(issues);
 }
 function showIssues(issues, title) {
+  const have = new Set(S.media.map((m) => m.path)), missing = P() ? [...assetRefs().keys()].filter((r) => !have.has(r)) : [];
   openModal(`<h2>${esc(title || t("issues", { n: issues.length }))}</h2><ul class="issues">${issues.map((i) =>
-    `<li>${i.path ? `<span class="path">${esc(i.path)}</span><br>` : ""}${esc(i.message)}</li>`).join("")}</ul>`);
+    `<li>${i.path ? `<span class="path">${esc(i.path)}</span><br>` : ""}${esc(i.message)}</li>`).join("")}</ul>
+    ${missing.length ? `<div class="dlg-buttons"><span class="spacer"></span><button id="issues-replace">${t("cmd_replace_asset")}</button></div>` : ""}`);
+  const b = $("#issues-replace");
+  if (b) b.onclick = () => replaceAssetBox(missing[0]);
 }
 function openModal(html) { $("#modal-body").innerHTML = html; $("#modal").hidden = false; }
 function closeModal() { $("#modal").hidden = true; }
@@ -1737,6 +1755,7 @@ function renderMenu(m) {
   const zoomSel = selectHtml("zoom", [["fit", t("zoom_fit")], ["0.5", "50%"], ["1", "100%"], ["1.5", "150%"], ["2", "200%"], ["3", "300%"]], S.menuZoom ? String(S.menuZoom) : "fit", 'id="zoom" class="shrink" title="' + esc(t("zoom_hint")) + '"');
   m.innerHTML = `<div class="menu-viewer">
     <div class="viewer-main">
+    ${S.psdChanged === menu.id ? `<div class="notice" id="psd-changed">${esc(t("psd_changed"))} <button class="small" id="psd-reimport">${t("reimport")}</button></div>` : ""}
     ${S.sels.length > 1 ? `<div class="stage-tools align-tools">${t("align")}:
       ${[["left", "⇤"], ["hcenter", "↔"], ["right", "⇥"], ["top", "⤒"], ["vcenter", "↕"], ["bottom", "⤓"]].map(([k, i]) => `<button class="small" data-align="${k}" title="${esc(t("align_" + k))}">${i}</button>`).join("")}
       ${S.sels.length > 2 ? `<button class="small" data-distribute="h" title="${esc(t("distribute_h"))}">⇹</button><button class="small" data-distribute="v" title="${esc(t("distribute_v"))}">⇳</button>` : ""}
@@ -1764,6 +1783,7 @@ function renderMenu(m) {
     <div class="hint" style="text-align:center;margin-top:6px">${w}×${h} · 720×${H} DVD px · ${esc(P().disc.aspect)} · ${esc(t("stage_keys"))}</div>
     <div class="hint" style="text-align:center">${esc(t("link_hint"))}</div>
     </div></div>`;
+  if ($("#psd-reimport")) $("#psd-reimport").onclick = () => { S.psdChanged = null; importPsd(menu.psd, menu.id); };
   const stage = $("#stage");
   const nodeOf = (k) => stage.querySelector(`.el[data-kind="${k.kind}"][data-i="${k.i}"]`);
   // element boxes on the 720-wide grid (texts measured from the page)
@@ -2166,7 +2186,7 @@ function renderMenuInspector(el) {
       <label class="field"><span>${t("loop_point")}</span><input type="number" data-k="loop_point" min="0" step="0.1" value="${menu.loop_point ?? ""}" placeholder="0"></label>
     </div>
     ${menu.loop && menu.loop !== "forever" ? `<label class="field"><span>${t("menu_end")}</span>${selectHtml("end_action", actionOptions({ forButton: false, includeChapters: true, allowPlayAll: true }), menu.end_action || "stop")}</label>` : ""}
-    ${menu.psd ? `<label class="field"><span>Photoshop</span><div class="row"><span class="mono shrink" style="overflow:hidden;text-overflow:ellipsis">${esc(menu.psd)}</span><button class="small shrink" id="psd-again">${t("reimport")}</button></div><div class="hint">${esc(t("reimport_hint"))}</div></label>` : ""}
+    ${menu.psd ? `<label class="field"><span>Photoshop</span><div class="row"><span class="mono shrink" style="overflow:hidden;text-overflow:ellipsis">${esc(menu.psd)}</span><button class="small shrink" id="psd-edit">${t("cmd_edit_psd")}</button><button class="small shrink" id="psd-again">${t("reimport")}</button></div><div class="hint">${esc(t("reimport_hint"))}</div></label>` : ""}
     <label class="field"><span>${t("default_button")}</span>${selectHtml("default_button", [["__none__", t("auto")], ...(menu.buttons || []).map((b) => [b.id, `${b.id} (${b.label || b.image || ""})`])], menu.default_button || "__none__")}</label>
     <label class="field"><span></span><label><input type="checkbox" id="remember-btn" ${menu.remember_button === false ? "" : "checked"}> ${t("remember_button")}</label></label>
     ${orderHtml(t("order_menu"))}
@@ -2179,7 +2199,8 @@ function renderMenuInspector(el) {
       if (key === "loop_point" && !val) delete mm.loop_point;
     },
   });
-  if ($("#psd-again")) $("#psd-again").onclick = () => importPsd(menu.psd, menu.id);
+  if ($("#psd-again")) $("#psd-again").onclick = () => { S.psdChanged = null; importPsd(menu.psd, menu.id); };
+  if ($("#psd-edit")) $("#psd-edit").onclick = editPsd;
   $("#remember-btn").onchange = (e) => commit((p) => { const mm = find(p); if (e.target.checked) delete mm.remember_button; else mm.remember_button = false; });
   bindOrder(el, "menus", menu.id);
   $("#menu-id").onchange = (e) => {
@@ -3021,6 +3042,19 @@ const COMMANDS = {
   ws_flow: { key: "alt+shift+2", run: WS("flow"), when: hasProject },
   ws_sim: { key: "alt+shift+3", run: WS("sim"), when: hasProject },
   ws_build: { key: "alt+shift+4", run: WS("build"), when: hasProject },
+  chapters_interval: { run: chaptersAtIntervals, when: () => S.sel.view === "title" && !!curTitle() && !curTitle().slideshow && titleLength(curTitle()) > 0 },
+  replace_asset: { run: () => replaceAssetBox(), when: hasProject },
+  project_settings: { run: () => { S.leftTab = S.leftTab === "build" ? "project" : S.leftTab; S.activeFrame = "props"; select("disc"); }, when: hasProject },
+  edit_psd: { run: editPsd, when: () => S.sel.view === "menu" && !!curMenu()?.psd },
+  win_project: { run: () => showLeft("project"), when: hasProject },
+  win_menus: { run: () => showLeft("menus"), when: hasProject },
+  win_timelines: { run: () => showLeft("timelines"), when: hasProject },
+  win_build: { run: () => showLeft("build"), when: hasProject },
+  win_monitor: { run: () => { S.activeFrame = "center"; if (S.lastTitle && (P().titles || []).some((x) => x.id === S.lastTitle)) select("title", S.lastTitle); else select("disc"); }, when: hasProject },
+  win_flowchart: { run: () => { S.activeFrame = "center"; select("flow"); }, when: hasProject },
+  win_properties: { run: () => { S.activeFrame = "props"; markFrame(); }, when: hasProject },
+  win_layers: { run: () => showRight("layers"), when: hasProject },
+  win_library: { run: () => showRight("library"), when: hasProject },
   theme: { run: toggleTheme },
   preferences: { key: "mod+,", run: preferencesBox },
   language: { run: toggleLang },
@@ -3029,15 +3063,124 @@ const COMMANDS = {
 };
 // in the order disc authoring people know: File, Edit, Object, Menu, Timeline, View, Window, Help
 const MENUBAR = [
-  ["m_file", ["import_files", "import_psd", "-", "transcode_title", "transcode_all", "-", "preview", "check", "build", "-", "reveal"]],
-  ["m_edit", ["undo", "redo", "-", "duplicate", "delete", "-", "preferences"]],
+  ["m_file", ["import_files", "import_psd", "replace_asset", "-", "project_settings", "-", "transcode_title", "transcode_all", "-", "preview", "check", "build", "-", "reveal"]],
+  ["m_edit", ["undo", "redo", "-", "duplicate", "delete", "-", "edit_psd", "-", "preferences"]],
   ["m_object", ["align_left", "align_hcenter", "align_right", "align_top", "align_vcenter", "align_bottom", "-", "distribute_h", "distribute_v", "-", "bring_front", "send_back", "-", "convert"]],
   ["m_menu", ["new_menu", "-", "set_link", "-", "tool_select", "tool_text", "tool_zoom"]],
-  ["m_timeline", ["new_timeline", "new_slideshow", "new_playlist", "-", "add_chapter", "prev_chapter", "next_chapter", "play"]],
+  ["m_timeline", ["new_timeline", "new_slideshow", "new_playlist", "-", "add_chapter", "chapters_interval", "prev_chapter", "next_chapter", "play"]],
   ["m_view", ["zoom_in", "zoom_out", "-", "safe_area", "routing"]],
-  ["m_window", ["ws_author", "ws_flow", "ws_sim", "ws_build", "-", "theme", "language"]],
+  ["m_window", ["ws_author", "ws_flow", "ws_sim", "ws_build", "-", "win_project", "win_menus", "win_timelines", "win_build", "win_monitor", "win_flowchart",
+    "win_properties", "win_layers", "win_library", "-", "theme", "language"]],
   ["m_help", ["shortcuts", "about"]],
 ];
+// Window > (panel): bring a panel to the front of its frame
+function showLeft(tab) { S.leftTab = tab; S.activeFrame = "left"; renderLeft(); renderWorkspaces(); markFrame(); }
+function showRight(tab) { S.rightTab = tab; S.activeFrame = "layers"; renderLayers(); markFrame(); }
+// the length of a title as the app knows it (joined clips or the probed file)
+function titleLength(ti) {
+  if (!ti) return 0;
+  if (ti.clips) { const j = clipJoinNow(ti); return j ? j.duration : 0; }
+  return S.probes[ti.source]?.duration || 0;
+}
+// Timeline > Add chapter points at intervals
+function chaptersAtIntervals() {
+  const ti = curTitle(), dur = titleLength(ti);
+  const last = S.ciLast || { n: 5, unit: 60 };
+  openModal(`<h2>${t("cmd_chapters_interval")}</h2>
+    <label class="field"><span>${t("ci_every")}</span><div class="row"><input id="ci-n" type="number" min="1" step="1" value="${last.n}" class="shrink" style="width:90px">
+      <select id="ci-unit" class="shrink"><option value="60" ${last.unit === 60 ? "selected" : ""}>${t("ci_minutes")}</option><option value="1" ${last.unit === 1 ? "selected" : ""}>${t("ci_seconds")}</option></select></div></label>
+    <label class="field"><span></span><label><input type="checkbox" id="ci-replace" checked> ${esc(t("ci_replace"))}</label></label>
+    <div class="hint" id="ci-preview"></div>
+    <div class="dlg-buttons"><span class="spacer"></span><button id="ci-ok" class="primary">OK</button></div>`);
+  const step = () => Number($("#ci-n").value) * Number($("#ci-unit").value);
+  const planned = () => {
+    const s = step(), keep = $("#ci-replace").checked ? chapterEntries(ti).slice(0, 1) : chapterEntries(ti), out = [...keep];
+    if (s > 0) for (let x = s; x < dur - 0.5; x += s) if (!out.some((c) => Math.abs(c.time - x) < 0.5)) out.push({ time: Math.round(x * 1000) / 1000, name: "", poster: null });
+    if (!out.length) out.push({ time: 0, name: "", poster: null });
+    return out.sort((a, b) => a.time - b.time);
+  };
+  const upd = () => { $("#ci-preview").textContent = t("ci_preview", { n: planned().length, d: fmtTime(dur, false) }); };
+  ["#ci-n", "#ci-unit", "#ci-replace"].forEach((s) => ($(s).oninput = $(s).onchange = upd));
+  upd();
+  $("#ci-ok").onclick = () => {
+    if (!(step() > 0)) return;
+    S.ciLast = { n: Number($("#ci-n").value), unit: Number($("#ci-unit").value) };
+    const list = planned();
+    closeModal();
+    commit((p) => setChapters(p.titles.find((x) => x.id === ti.id), list));
+  };
+}
+// File > Replace asset: every use of one file in the project points to another
+const MEDIA_RE = /\.(mp4|m4v|mov|mkv|avi|mpe?g|m2ts|mts|ts|vob|webm|dv|wav|aiff?|mp3|m4a|aac|ac3|flac|png|jpe?g|bmp|tiff?|gif|webp|srt|vtt|ass|ssa|psd|psb|ttf|otf|ttc)$/i;
+function assetRefs(p = P()) {
+  const uses = new Map();
+  const walk = (v) => {
+    if (typeof v === "string") { if (MEDIA_RE.test(v)) uses.set(v, (uses.get(v) || 0) + 1); }
+    else if (Array.isArray(v)) v.forEach(walk);
+    else if (v && typeof v === "object") Object.values(v).forEach(walk);
+  };
+  walk(p);
+  return uses;
+}
+function replaceAssetRefs(p, from, to) {
+  const walk = (v) => {
+    if (Array.isArray(v)) { v.forEach((x, i) => { v[i] = walk(x); }); return v; }
+    if (v && typeof v === "object") { for (const k of Object.keys(v)) v[k] = walk(v[k]); return v; }
+    return v === from ? to : v;
+  };
+  walk(p);
+}
+function replaceAssetBox(from) {
+  const uses = assetRefs(), have = new Set(S.media.map((m) => m.path));
+  const refs = [...uses.keys()].sort((a, b) => (have.has(a) - have.has(b)) || a.localeCompare(b));   // missing first
+  if (!refs.length) { openModal(`<h2>${t("cmd_replace_asset")}</h2><p class="hint">${esc(t("ra_none"))}</p>`); return; }
+  const cur = from && uses.has(from) ? from : refs[0];
+  openModal(`<h2>${t("cmd_replace_asset")}</h2>
+    <label class="field"><span>${t("ra_what")}</span><select id="ra-from">${refs.map((r) => `<option value="${esc(r)}" ${r === cur ? "selected" : ""}>${esc(r)}${have.has(r) ? "" : ` — ⚠ ${esc(t("ra_missing"))}`}</option>`).join("")}</select></label>
+    <label class="field"><span>${t("ra_with")}</span><select id="ra-to">${S.media.map((m) => `<option value="${esc(m.path)}">${esc(m.path)}</option>`).join("")}</select></label>
+    <div class="hint" id="ra-uses"></div><div class="hint">${esc(t("ra_hint"))}</div>
+    <div class="dlg-buttons"><span class="spacer"></span><button id="ra-ok" class="primary" ${S.media.length ? "" : "disabled"}>OK</button></div>`);
+  const upd = () => {
+    $("#ra-uses").textContent = t("ra_uses", { n: uses.get($("#ra-from").value) || 0 });
+    const ext = (s) => (s.match(/\.[^.]+$/) || [""])[0].toLowerCase(), want = ext($("#ra-from").value);
+    const same = S.media.find((m) => ext(m.path) === want && m.path !== $("#ra-from").value);
+    if (same && ext($("#ra-to").value) !== want) $("#ra-to").value = same.path;
+  };
+  $("#ra-from").onchange = upd; upd();
+  $("#ra-ok").onclick = () => {
+    const a = $("#ra-from").value, b = $("#ra-to").value;
+    closeModal();
+    if (!b || a === b) return;
+    commit((p) => replaceAssetRefs(p, a, b));
+    S.probes = {}; S.preview = null;
+    renderAll(); refreshEncodeStatus();
+  };
+}
+// Edit > Edit menu in Photoshop: open the menu's .psd; when it is saved
+// there, the Menu Viewer offers to import it again
+function editPsd() {
+  const menu = curMenu();
+  if (!menu?.psd) return;
+  api("/api/stat?" + new URLSearchParams({ path: menu.psd })).then((st) => { S.psdWatch = { menu: menu.id, path: menu.psd, mtime: st.mtime }; watchPsd(); }).catch(() => {});
+  api("/api/open", { method: "POST", body: { path: menu.psd } })
+    .then((r) => { if (!r.opened) alert(t("open_failed")); })
+    .catch((e) => alert(e.message));
+}
+function watchPsd() {
+  clearTimeout(S.psdTimer);
+  const w = S.psdWatch;
+  if (!w || !P()) return;
+  S.psdTimer = setTimeout(async () => {
+    try {
+      const st = await api("/api/stat?" + new URLSearchParams({ path: w.path }));
+      if (st.mtime && w.mtime && st.mtime !== w.mtime) {
+        w.mtime = st.mtime; S.psdChanged = w.menu;
+        if (S.sel.view === "menu" && S.sel.id === w.menu) renderMain();
+      }
+    } catch (e) { /* the file went away: keep watching */ }
+    watchPsd();
+  }, 2000);
+}
 function jumpChapter(dir) {
   const ti = curTitle(), chapters = chaptersOf(ti), now = S.playhead[ti.id] || 0;
   const to = dir > 0 ? chapters.find((c) => c > now + 0.01) : [...chapters].reverse().find((c) => c < now - 0.01);
@@ -3145,6 +3288,7 @@ function mediaMenu(path) {
   if (item.kind === "audio" && menu) out.push({ label: t("use_as_music"), run: () => mediaAction("music", path) });
   if (item.kind === "design") out.push({ label: t("make_menu_from_psd"), run: () => mediaAction("psd", path) });
   if (out.length) out.push("-");
+  out.push({ label: t("cmd_replace_asset"), disabled: !assetRefs().has(path), run: () => replaceAssetBox(path) });
   out.push({ label: t("reveal_file"), run: () => api("/api/reveal", { method: "POST", body: { path } }).catch((e) => alert(e.message)) });
   return out;
 }

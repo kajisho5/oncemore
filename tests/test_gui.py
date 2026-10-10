@@ -90,6 +90,23 @@ class TestGuiApi(unittest.TestCase):
         self.assertEqual(self.s.call("/api/file?path=project.oncemore.json")[0], 403)
         self.assertEqual(self.s.call("/", token=False)[0], 200)            # static page
 
+    def test_open_and_stat(self):
+        os.makedirs(os.path.join(self.dir, "media"))
+        path = os.path.join(self.dir, "media", "menu.psd")
+        with open(path, "wb") as f:
+            f.write(b"8BPS fake")
+        status, st = self.s.call("/api/stat?path=media/menu.psd")
+        self.assertEqual(status, 200)
+        self.assertTrue(st["exists"])
+        self.assertEqual(st["bytes"], 9)
+        os.utime(path, (st["mtime"] + 5, st["mtime"] + 5))
+        self.assertAlmostEqual(self.s.call("/api/stat?path=media/menu.psd")[1]["mtime"], st["mtime"] + 5)
+        self.assertFalse(self.s.call("/api/stat?path=media/gone.psd")[1]["exists"])
+        # opening is limited to existing files in the project folder
+        self.assertEqual(self.s.call("/api/open", "POST", {"path": "../x.psd"})[0], 403)
+        self.assertEqual(self.s.call("/api/open", "POST", {"path": "media/gone.psd"})[0], 404)
+        self.assertEqual(self.s.call("/api/stat?path=/etc/passwd")[0], 403)
+
     def test_new_save_and_upload(self):
         status, st = self.s.call("/api/state")
         self.assertEqual(status, 200)
@@ -1252,6 +1269,63 @@ class TestGuiBrowser(unittest.TestCase):
             browser.close()
         self.assertEqual(errors, [])
         self.assertTrue(os.path.isfile(os.path.join(self.dir, "output", "DEMO_DISC.iso")))
+
+    def test_conveniences(self):
+        """Chapters at intervals, Replace asset (also for a missing file),
+        Project settings, Window > panel, the Photoshop change notice."""
+        self.s.call("/api/new", "POST", {"sample": True})
+        pj = self.project()
+        pj["titles"][1]["source"] = "media/gone.mp4"                 # a missing file
+        pj["menus"][0]["psd"] = "media/main.psd"
+        with open(os.path.join(self.dir, "media", "main.psd"), "wb") as f:
+            f.write(b"8BPS fake")
+        with open(os.path.join(self.dir, "project.oncemore.json"), "w") as f:
+            json.dump(pj, f)
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1440, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            # a chapter every 5 seconds on the 24-second title, replacing its chapters
+            page.click(".nav-item[data-view=title][data-id=t1]", timeout=120000)
+            page.locator("#tc-input").wait_for(timeout=60000)
+            page.evaluate("window.oncemoreCommand('chapters_interval')")
+            page.fill("#ci-n", "5")
+            page.select_option("#ci-unit", "1")
+            page.locator("#ci-preview", has_text="5 chapters").wait_for()
+            page.click("#ci-ok")
+            self.wait_saved(page)
+            ch = [c["time"] if isinstance(c, dict) else c for c in self.project()["titles"][0]["chapters"]]
+            self.assertEqual(ch, ["00:00:00", "00:00:05.000", "00:00:10.000", "00:00:15.000",
+                                  "00:00:20.000"])
+            # the missing file is listed first and marked; replace it everywhere
+            page.evaluate("window.oncemoreCommand('replace_asset')")
+            self.assertIn("missing", page.locator("#ra-from option").first.inner_text())
+            self.assertEqual(page.input_value("#ra-from"), "media/gone.mp4")
+            page.select_option("#ra-to", "media/sample_b.mp4")
+            page.click("#ra-ok")
+            self.wait_saved(page)
+            self.assertEqual(self.project()["titles"][1]["source"], "media/sample_b.mp4")
+            self.assertNotIn("gone.mp4", json.dumps(self.project()))
+            self.assertTrue(self.s.app.check(self.project())["valid"])
+            # File > Project settings: the disc in Properties
+            page.evaluate("window.oncemoreCommand('project_settings')")
+            page.locator("#inspector #rom-files").wait_for()
+            # Window > Library / Build bring those panels to the front
+            page.evaluate("window.oncemoreCommand('win_library')")
+            page.locator("#library .lib-section").first.wait_for()
+            page.evaluate("window.oncemoreCommand('win_build')")
+            page.locator("#sidebar #start").wait_for()
+            page.evaluate("window.oncemoreCommand('win_project')")
+            # the menu's Photoshop file changes on disk: the viewer offers to import it again
+            page.click(".nav-item[data-view=menu][data-id=main]")
+            page.locator(".stage .el.button").first.wait_for(timeout=60000)
+            page.locator("#inspector #psd-edit").wait_for()
+            page.evaluate("S.psdWatch = {menu: 'main', path: 'media/main.psd', mtime: 1}; watchPsd()")
+            page.locator("#psd-changed").wait_for(timeout=15000)
+            browser.close()
+        self.assertEqual(errors, [])
 
 
 if __name__ == "__main__":

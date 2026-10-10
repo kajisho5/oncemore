@@ -108,6 +108,11 @@ browser) and lands only with green CI.
 - [x] Two skins: Modern (default, a current flat dark look) and Classic (the
   classic look above)
 
+**P15 — Authoring conveniences** (done)
+- [x] Chapter points at intervals; Replace asset (relink a missing file
+  everywhere it is used); File > Project settings; Window menu items for
+  every panel; Edit menu in Photoshop with a notice when the file is saved
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 
