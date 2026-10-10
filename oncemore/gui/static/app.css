@@ -724,3 +724,7 @@ fieldset.group legend { padding: 0 var(--sp-1); color: var(--c-text); }
 :root[data-skin="classic"] .tabbar .tab .x { display: inline; }
 .notice { display: flex; align-items: center; gap: var(--sp-3); margin: var(--sp-2) var(--sp-3) 0; padding: var(--sp-2) var(--sp-3);
           background: var(--c-bg-4); border: 1px solid var(--c-active-panel); border-radius: var(--r-md); font-size: var(--fs-sm); }
+.cset { min-width: 0; }
+.cset input[type=range] { flex: 1 1 0; width: 0; min-width: 30px; }
+.cset .pct { min-width: 34px; text-align: right; font-size: var(--fs-xs); }
+.cset input[type=color] { width: 34px; }

@@ -646,7 +646,7 @@ class Handler(BaseHTTPRequestHandler):
             if images:
                 png = os.path.join(work, "normal.png")
                 if geoms:
-                    mb.preview(menu, png, state="normal")
+                    mb.preview(menu, png, state="none")     # the buttons are in the overlays
                 else:
                     tools.run([tools.find("ffmpeg"), "-hide_banner", "-nostdin", "-y",
                                "-i", mb.render_base(menu), "-vf",
@@ -654,11 +654,13 @@ class Handler(BaseHTTPRequestHandler):
                                "-frames:v", "1", png], what="ffmpeg (preview)")
                 with open(png, "rb") as f:
                     out["image"] = "data:image/png;base64," + base64.b64encode(f.read()).decode()
-                colour = png4.parse_color(menu.highlight_color)
+                # one picture per selected button: that button highlighted, the
+                # others in the menu's normal colour (if it has one)
+                palette = mb.state_palette(menu, menu.highlight_color)
                 out["overlays"] = {}
                 for g in geoms:
-                    data = png4.encode_indexed_png(mb.highlight_canvas(geoms, only=g.id),
-                                                   [(0, 0, 0, 0), colour])
+                    data = png4.encode_indexed_png(mb.state_canvas(menu, geoms, "highlight", g.id),
+                                                   palette)
                     out["overlays"][g.id] = ("data:image/png;base64," +
                                              base64.b64encode(data).decode())
         finally:

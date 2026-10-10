@@ -690,3 +690,19 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   its own: importing replaces the menu's pictures, and the person may still
   be saving in between.
 
+## 44. Colour sets
+
+* A DVD button subpicture has three pictures: the display image (always
+  shown), the highlight and the select picture (swapped in inside the
+  selected / activated button). The menu's colour set maps onto them
+  directly: `normal_color` paints the buttons' shapes into the display
+  image, `highlight_color` and `select_color` stay as before. All three take
+  `#RRGGBBAA`; spumux turns the alpha into the DVD contrast (alpha >> 4, 16
+  levels), checked on a built disc with spuunmux.
+* One colour per state (not the classic app's two groups of three): the
+  shapes oncemore draws are one colour each, and that is what keeps a
+  button's pixels to the four colours a subpicture allows.
+* Previews draw the selected button in its state colour and the others in
+  the normal colour; the simulator gets the plain menu plus one picture per
+  selected button, so it shows exactly that too.
+

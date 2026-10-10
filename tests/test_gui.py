@@ -370,6 +370,17 @@ class TestGuiApi(unittest.TestCase):
         self.assertTrue(m["image"].startswith("data:image/png;base64,"))
         self.assertEqual(sorted(m["overlays"]), ["b", "ch", "play"])
         self.assertEqual(m["storage"], [720, 480])
+        # with a normal colour, each overlay shows the selected button in the
+        # highlight colour and the others in the normal colour
+        from oncemore import png4
+        with open(os.path.join(self.dir, "project.oncemore.json")) as f:
+            pj = json.load(f)
+        pj["menus"][0]["normal_color"] = "#FFFFFF60"
+        status, m = self.s.call("/api/sim_menu", "POST", {"menu": "main", "project": pj})
+        self.assertEqual(status, 200, m)
+        canvas, pal = png4.read_indexed_png(base64.b64decode(m["overlays"]["ch"].split(",", 1)[1]))
+        self.assertEqual(canvas.used_indices(), [0, 1, 3])
+        self.assertEqual(tuple(pal[3]), (255, 255, 255, 0x60))
 
 
 
@@ -1318,6 +1329,19 @@ class TestGuiBrowser(unittest.TestCase):
             page.evaluate("window.oncemoreCommand('win_build')")
             page.locator("#sidebar #start").wait_for()
             page.evaluate("window.oncemoreCommand('win_project')")
+            # the colour set: a 50% highlight, then a normal colour (40% white by default)
+            page.click(".nav-item[data-view=menu][data-id=main]")
+            page.locator("#inspector [data-cs-a=highlight_color]").wait_for(timeout=60000)
+            page.locator("#inspector [data-cs-a=highlight_color]").evaluate(
+                "(e) => { e.value = 50; e.dispatchEvent(new Event('change')); }")
+            self.wait_saved(page)
+            self.assertEqual(self.project()["menus"][0]["highlight_color"], "#FFD40080")
+            page.check("#inspector [data-cs-on=normal_color]")
+            self.wait_saved(page)
+            self.assertEqual(self.project()["menus"][0]["normal_color"], "#FFFFFF66")
+            page.uncheck("#inspector [data-cs-on=normal_color]")
+            self.wait_saved(page)
+            self.assertNotIn("normal_color", self.project()["menus"][0])
             # the menu's Photoshop file changes on disk: the viewer offers to import it again
             page.click(".nav-item[data-view=menu][data-id=main]")
             page.locator(".stage .el.button").first.wait_for(timeout=60000)

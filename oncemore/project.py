@@ -397,6 +397,7 @@ class Menu:
     default_button: str = None
     remember_button: bool = True
     shapes: list = field(default_factory=list)
+    normal_color: str = None   # the buttons' shapes while not selected (None: not shown)
 
 
 @dataclass
@@ -802,6 +803,7 @@ class _Builder:
             duration=float(m.get("duration", 0)) or None,
             highlight_color=m.get("highlight_color", DEFAULT_HIGHLIGHT),
             select_color=m.get("select_color", DEFAULT_SELECT),
+            normal_color=m.get("normal_color"),
             texts=texts, buttons=buttons,
         )
 
@@ -932,6 +934,7 @@ class _Builder:
                 duration=float(spec.get("duration", 0)) or None,
                 highlight_color=spec.get("highlight_color", DEFAULT_HIGHLIGHT),
                 select_color=spec.get("select_color", DEFAULT_SELECT),
+                normal_color=spec.get("normal_color"),
                 texts=[Text(heading + page_label, 54, round(30 * k), 32, color)],
                 buttons=buttons, generated=True,
             ))
