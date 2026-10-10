@@ -172,6 +172,7 @@ const I18N = {
     utpl_hint: "The menu and copies of the files it uses (backgrounds, pictures, fonts, music) are kept in your template library, so any project can start a menu from it.",
     utpl_saved: "Saved “{n}” to the Library (My templates).",
     chapter_index_hint: "Makes the title's chapter menu (six chapters a page, with the chapters' names and poster frames) and opens it.",
+    theme_dark: "Dark", theme_light: "Light",
     skin: "Skin", skin_modern: "Modern", skin_classic: "Classic", skin_hint: "Classic: the look of the classic disc authoring apps (mid-grey panels, light fields, amber timecode). The layout is the same.",
   },
   ja: {
@@ -343,6 +344,7 @@ const I18N = {
     utpl_hint: "メニューと、使っているファイル（背景・画像・フォント・BGM）のコピーをテンプレートライブラリに保存します。どのプロジェクトからでもこのメニューを元に作れます。",
     utpl_saved: "「{n}」をライブラリ（マイテンプレート）に保存しました。",
     chapter_index_hint: "タイトルのチャプターメニュー（1 ページ 6 チャプター、チャプター名とポスターフレーム付き）を作って開きます。",
+    theme_dark: "ダーク", theme_light: "ライト",
     skin: "スキン", skin_modern: "モダン", skin_classic: "クラシック", skin_hint: "クラシック：昔ながらのディスクオーサリングアプリの見た目（中間グレーのパネル、明るい入力欄、琥珀色のタイムコード）。配置は同じです。",
   },
 };
@@ -1335,6 +1337,9 @@ async function renderFlow(m) {
       const mm = (P().menus || []).find((x) => x.id === id);
       if (mm?.background) return imgUrl("file", { path: mm.background });
       if (mm?.background_video) return imgUrl("frame", { path: mm.background_video, t: 0, w: 160 });
+      // a generated chapter menu: its title's picture
+      const g = !mm && generatedMenus().find((x) => x.id === id), gt = g && (P().titles || []).find((x) => x.id === g.title);
+      if (gt?.source && !gt.slideshow) return imgUrl("frame", { path: gt.source, t: 1, w: 160 });
     }
     if (kind === "title") {
       const ti = (P().titles || []).find((x) => x.id === id);
@@ -2750,7 +2755,7 @@ function preferencesBox() {
       <button class="small shrink" id="pref-bright-def">${t("default")}</button></div>
       <div class="hint">${esc(t("brightness_hint"))}</div></label>
     <label class="field"><span>${t("skin")}</span>${selectHtml("skin", [["modern", t("skin_modern")], ["classic", t("skin_classic")]], store.get("skin", "modern"), 'id="pref-skin"')}<div class="hint">${esc(t("skin_hint"))}</div></label>
-    <label class="field"><span>${t("cmd_theme")}</span>${selectHtml("theme", [["dark", "Dark"], ["light", "Light"]], store.get("theme", "dark"), 'id="pref-theme"')}</label>
+    <label class="field"><span>${t("cmd_theme")}</span>${selectHtml("theme", [["dark", t("theme_dark")], ["light", t("theme_light")]], store.get("theme", "dark"), 'id="pref-theme"')}</label>
     <label class="field"><span>${t("language")}</span>${selectHtml("lang", [["en", "English"], ["ja", "日本語"]], LANG, 'id="pref-lang"')}</label>`);
   const set = (v) => { store.set("brightness", v); applyBrightness(); };
   $("#pref-bright").oninput = (e) => set(Number(e.target.value));
