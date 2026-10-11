@@ -167,10 +167,18 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   title; Timeline > Import chapter markers from the source reads them again
   (for titles made of clips, the markers inside each clip).
 * **My styles** (Library): save the look of a text, button or shape (font,
-  size, colour, outline, shadow) under a name, and give it to other objects
+  size, colour, outline, shadow, bold, italic, spacing) under a name, and give it to other objects
   in any project; the font is kept with the style.
 * **Paragraphs** (a text's Properties): text of several lines, lined up
   left, centred or right, with the space between the lines.
+* **Bold, italic, letter spacing and kerning** (a text's or button's
+  Properties): bold and italic use those faces of the font's family (offered
+  when the family has them); letter spacing spreads the characters out or
+  closes them up, and kerning can be switched off.
+* **Button highlights** (a button's Properties > Highlight): its own pixels
+  (the letters, or a picture's opaque pixels), a frame, a line under it, or a
+  rectangle or ellipse drawn on the menu (drag it, and its corner to resize;
+  filled or just its outline). The highlight picture can still replace it.
 * **Menus with pages** (Menu > Add new page): a menu's buttons spread over
   pages, turned with buttons to the next, previous or a given page; a
   heading or background shape can be on every page. Each page is a menu of
@@ -359,6 +367,26 @@ narrow it). Nothing leaves your computer except through the assistant you
 connected. Both protocol eras are spoken: revision 2026-07-28 and the earlier
 ones that open with `initialize`.
 
+### With ffmpeg-skill: getting the videos ready first
+
+oncemore makes the disc from the videos it is given; it does not edit them.
+For an assistant that should also prepare the footage, add
+[ffmpeg-skill](https://github.com/kajisho5/ffmpeg-skill) (local FFmpeg, no
+cloud, no API keys) next to it:
+
+```
+npx ffmpeg-skill        # Claude Code; --cursor, --codex or --all for the others
+```
+
+Then one request can cover both, e.g. "trim the start of these phone videos,
+even out their loudness and make a DVD with a chapter menu": ffmpeg-skill
+cuts (`cut.py`, `silence.py`), turns HDR phone video into SDR
+(`color.py --to-sdr`), evens out loudness (`loudness.py`, EBU R128) and makes
+subtitle files (`caption.py`); oncemore takes the results, adds the menus and
+builds the disc. Leave the final encode to oncemore: it encodes to what the
+DVD and Blu-ray rules allow. The two never call each other: the assistant
+uses both, and oncemore stays standard-library only and offline.
+
 ## Project file
 
 `project.oncemore.json` is the only input. JSON Schema:
@@ -493,8 +521,17 @@ when there are more.
 
 Text style (texts and text buttons): `font` (a font file for this element; it
 must contain all its characters), `outline` + `outline_width`, `shadow` +
-`shadow_offset`. A button's `highlight_image` is a picture whose opaque pixels
+`shadow_offset`, `bold` and `italic` (the bold or italic face of the font's
+family: its file next to the font, or installed), `letter_spacing` (pixels
+added between the characters) and `kerning` (`false`: no kerning pairs).
+A button's `highlight_image` is a picture whose opaque pixels
 light up when it is selected, instead of the automatic highlight.
+A button's `highlight` says how it lights up: `shape` (its own pixels: an image
+button's opaque pixels, a text button's letters), `frame` (a frame around it),
+`underline` (text buttons: the letters and a line under them; the default for
+them, `frame` for image buttons) or `drawn`: the rectangle or ellipse in
+`highlight_area` (`{x, y, w, h, form: "rectangle" | "ellipse", filled}`, on the
+720-wide grid), which is then the whole highlight and the button's area.
 A text can be a paragraph: its `text` holds several lines (newlines), `align`
 lines them up (`left`, `center`, `right`; `x` is the paragraph's left edge)
 and `line_spacing` adds pixels between them.
@@ -539,8 +576,8 @@ share one copy.
 **Image buttons**: `image` (a picture, transparent PNG works best) replaces the
 label (then optional), drawn with its top-left at `x`/`y`; `width` on the
 720-wide grid (default: the picture's own width; the height follows its
-aspect), and `highlight`: `frame` (default, a frame around it) or `shape` (its
-opaque pixels in the highlight colour).
+aspect), and `highlight`: `frame` (default, a frame around it), `shape` (its
+opaque pixels in the highlight colour) or `drawn` (a drawn shape, above).
 
 ### Menus from Photoshop
 

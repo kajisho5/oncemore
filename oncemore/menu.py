@@ -23,7 +23,7 @@ import unicodedata
 from dataclasses import dataclass, field
 from xml.sax.saxutils import quoteattr
 
-from . import clips, encode, fontcheck, navigation, png4, tools
+from . import clips, encode, fontcheck, fontfaces, navigation, png4, tools
 from .errors import OncemoreError, ProjectError, ToolFailedError
 from .project import source_at
 
@@ -136,21 +136,52 @@ def find_font(explicit=None, text=""):
              "supported by drawtext.")
 
 
-def check_element_fonts(project):
+def face_of(path, el):
+    """The font file a text or button is drawn with: the bold and/or italic
+    face of `path`'s family when it asks for one."""
+    bold, italic = bool(getattr(el, "bold", False)), bool(getattr(el, "italic", False))
+    if not (bold or italic):
+        return path
+    try:
+        found = fontfaces.face(path, bold, italic)
+        family = fontfaces.font(path).family
+    except (OSError, fontfaces.FontError) as e:
+        raise OncemoreError(f"cannot read the font {os.path.basename(path)}: {e}")
+    if not found:
+        style = " ".join(w for w, on in (("bold", bold), ("italic", italic)) if on)
+        raise OncemoreError(
+            f"the font family {family!r} has no {style} face",
+            hint=f"Put the {style} font file of {family} next to "
+                 f"{os.path.basename(path)} (or install it), or turn {style} off.")
+    return found
+
+
+def check_element_fonts(project, font=None):
     """Texts and buttons with their own font: that font must exist and cover
-    their characters (drawtext has no fallback)."""
+    their characters (drawtext has no fallback); bold and italic ones need
+    that face of their family (`font`: the disc's font)."""
     for m in project.menus:
         for el in list(m.texts) + [b for b in m.buttons if not b.image]:
-            if not el.font:
-                continue
             text = el.text if hasattr(el, "text") else el.label
-            if not os.path.isfile(el.font):
-                raise OncemoreError(f"menu {m.id!r}: font not found: {el.font}")
-            lack = _missing(el.font, text)
-            if lack:
-                raise OncemoreError(f"menu {m.id!r}: font {os.path.basename(el.font)} has no "
-                                    f"glyphs for: {_quote_chars(lack)}",
-                                    hint="Pick a font that covers these characters.")
+            if el.font:
+                if not os.path.isfile(el.font):
+                    raise OncemoreError(f"menu {m.id!r}: font not found: {el.font}")
+                lack = _missing(el.font, text)
+                if lack:
+                    raise OncemoreError(f"menu {m.id!r}: font {os.path.basename(el.font)} has "
+                                        f"no glyphs for: {_quote_chars(lack)}",
+                                        hint="Pick a font that covers these characters.")
+            path = el.font or font
+            if path and (el.bold or el.italic):
+                try:
+                    face = face_of(path, el)
+                except OncemoreError as e:
+                    raise OncemoreError(f"menu {m.id!r}: {e}", hint=e.hint) from None
+                lack = _missing(face, text)
+                if lack:
+                    raise OncemoreError(f"menu {m.id!r}: font {os.path.basename(face)} has "
+                                        f"no glyphs for: {_quote_chars(lack)}",
+                                        hint="Pick a font that covers these characters.")
 
 
 def drawtext_probe():
@@ -257,6 +288,17 @@ def _hex(color):
     return f"0x{r:02X}{g:02X}{b:02X}@{a / 255:.3f}"
 
 
+def _ink_rows(gray, width, threshold=110):
+    """The rows of a gray frame with any pixel lit."""
+    rows = len(gray) // width
+    return [r for r in range(rows) if max(gray[r * width:(r + 1) * width]) > threshold]
+
+
+def _top_row(gray, width):
+    rows = _ink_rows(gray, width)
+    return rows[0] if rows else None
+
+
 class MenuBuilder:
     def __init__(self, project, work, reporter=None, font=None):
         self.project = project
@@ -270,9 +312,11 @@ class MenuBuilder:
         self.dw = display_width(self.disc)
         self.sx = self.dw / self.disc.width  # storage -> display x factor
         self._font_link = None
+        self.font_source = None    # the disc's font file, once linked
         self._font_links = {}      # own fonts of elements: path -> linked name
         self._probe_cache = {}
         self._glyphs = {}          # rendered texts: their glyph masks
+        self._metrics = {}         # texts drawn a character at a time: (ascent, line pitch)
         self._align_warned = False
 
     # -- font ------------------------------------------------------------------
@@ -299,10 +343,18 @@ class MenuBuilder:
             f.write(text)
         return name
 
+    def face_path(self, el=None):
+        """The font file a text or button is drawn with (its own font or the
+        disc's, in the face it asks for)."""
+        own = getattr(el, "font", None)
+        if not own:
+            self.font()
+        return face_of(own or self.font_source, el)
+
     def font_for(self, el=None):
         """Linked font name for a text/button (its own font, or the disc's)."""
-        path = getattr(el, "font", None)
-        if not path:
+        path = self.face_path(el)
+        if path == self.font_source and not getattr(el, "font", None):
             return self.font()
         if path not in self._font_links:
             ext = os.path.splitext(path)[1].lower() or ".ttf"
@@ -316,15 +368,23 @@ class MenuBuilder:
             self._font_links[path] = os.path.basename(link)
         return self._font_links[path]
 
-    def _drawtext(self, textfile, x, y, size, color, el=None, style=True):
-        # x/y are storage pixels; the canvas is display pixels
-        f = (f"drawtext=fontfile={self.font_for(el)}:textfile={textfile}:expansion=none:"
-             f"fontsize={size}:fontcolor={_hex(color)}:x={round(x * self.sx)}:y={y}")
+    @staticmethod
+    def _dressing(el, style):
+        f = ""
         if style and getattr(el, "outline", None):
             f += f":borderw={el.outline_width}:bordercolor={_hex(el.outline)}"
         if style and getattr(el, "shadow", None):
             f += (f":shadowx={el.shadow_offset}:shadowy={el.shadow_offset}"
                   f":shadowcolor={_hex(el.shadow)}")
+        return f
+
+    def _drawtext(self, textfile, x, y, size, color, el=None, style=True):
+        # x/y are storage pixels; the canvas is display pixels
+        if getattr(el, "letter_spacing", 0) or getattr(el, "kerning", True) is False:
+            return self._spaced(textfile, x, y, size, color, el, style)
+        f = (f"drawtext=fontfile={self.font_for(el)}:textfile={textfile}:expansion=none:"
+             f"fontsize={size}:fontcolor={_hex(color)}:x={round(x * self.sx)}:y={y}")
+        f += self._dressing(el, style)
         if getattr(el, "line_spacing", 0):
             f += f":line_spacing={el.line_spacing}"
         if getattr(el, "align", "left") != "left" and "\n" in getattr(el, "text", ""):
@@ -336,6 +396,84 @@ class MenuBuilder:
                     self.reporter.warn("this ffmpeg's drawtext cannot align lines (text_align "
                                        "came in ffmpeg 6.1): paragraphs are drawn left-aligned")
         return f
+
+    def _spaced(self, textfile, x, y, size, color, el, style):
+        """The text drawn a character at a time: letter spacing, and kerning
+        switched off, which drawtext cannot do. Each character goes where
+        the font's advances (and, with kerning, its kerning pairs) put it,
+        on the baseline drawtext would give the whole text, so a text
+        looks the same with no spacing either way. (Characters drawn alone
+        are not shaped together: scripts that join letters want neither.)"""
+        with open(os.path.join(self.work, textfile), encoding="utf-8") as fh:
+            text = fh.read()
+        fontname = self.font_for(el)
+        try:
+            font = fontfaces.font(self.face_path(el))
+        except (OSError, fontfaces.FontError) as e:
+            raise OncemoreError(f"cannot read the font for {text[:20]!r}: {e}")
+        lines = text.split("\n")
+        ascent, pitch = self._line_metrics(fontname, size, text, getattr(el, "line_spacing", 0))
+        layouts = [font.offsets(line, size, getattr(el, "letter_spacing", 0),
+                                getattr(el, "kerning", True)) for line in lines]
+        block = max(w for _, w in layouts)
+        align = getattr(el, "align", "left") if len(lines) > 1 else "left"
+        x0, stem, out = round(x * self.sx), os.path.splitext(textfile)[0], []
+        for k, (line, (offs, width)) in enumerate(zip(lines, layouts)):
+            shift = {"center": (block - width) / 2, "right": block - width}.get(align, 0)
+            base = y + ascent + k * pitch
+            for j, (ch, off) in enumerate(zip(line, offs)):
+                if ch.isspace():
+                    continue
+                cf = self._textfile(f"{stem}.{k}.{j}.txt", ch)
+                out.append(f"drawtext=fontfile={fontname}:textfile={cf}:expansion=none:"
+                           f"fontsize={size}:fontcolor={_hex(color)}:"
+                           f"x={x0 + round(shift + off)}:y={base}-ascent"
+                           + self._dressing(el, style))
+        return ",".join(out) or "null"
+
+    def _line_metrics(self, fontname, size, text, line_spacing):
+        """(ascent, line pitch) of a text as drawtext lays it out: where its
+        first baseline is below the y it is drawn at (the first line's top
+        is at y), and how far apart its baselines are (the same for every
+        line). Read off renders: the first line at y=0 and at y=K-ascent
+        sits K-ascent apart, and two lines of one character a pitch apart."""
+        key = (fontname, size, text, line_spacing)
+        if key in self._metrics:
+            return self._metrics[key]
+        H = self.disc.height
+        k = H // 2
+        first = text.split("\n")[0]
+        probe = self._textfile("metrics.txt", first if first.strip() else "H")
+        a = self._render_gray(f"drawtext=fontfile={fontname}:textfile={probe}:expansion=none:"
+                              f"fontsize={size}:fontcolor=white:x=0:y=0")
+        b = self._render_gray(f"drawtext=fontfile={fontname}:textfile={probe}:expansion=none:"
+                              f"fontsize={size}:fontcolor=white:x=0:y={k}-ascent")
+        ta, tb = _top_row(a, self.dw), _top_row(b, self.dw)
+        ascent = k + ta - tb if ta is not None and tb is not None else size
+        pitch = size + line_spacing
+        if "\n" in text:
+            two = self._textfile("metrics2.txt", "H\nH")
+            c = self._render_gray(f"drawtext=fontfile={fontname}:textfile={two}:expansion=none:"
+                                  f"fontsize={size}:fontcolor=white:x=0:y=0"
+                                  f":line_spacing={line_spacing}")
+            rows = _ink_rows(c, self.dw)
+            starts = [r for i, r in enumerate(rows) if i == 0 or r != rows[i - 1] + 1]
+            if len(starts) >= 2:
+                pitch = starts[1] - starts[0]
+        self._metrics[key] = (ascent, pitch)
+        return ascent, pitch
+
+    def _render_gray(self, vf):
+        """One display-sized frame of white-on-black drawing, in gray bytes."""
+        H = self.disc.height
+        cmd = [self.ffmpeg, "-hide_banner", "-nostdin", "-v", "error", "-f", "lavfi", "-i",
+               f"color=c=black:s={self.dw}x{H}:r=1:d=1", "-vf", vf + ",format=gray",
+               "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1"]
+        p = subprocess.run(cmd, cwd=self.work, capture_output=True, timeout=300)
+        if p.returncode != 0 or len(p.stdout) < self.dw * H:
+            raise ToolFailedError("ffmpeg could not render menu text",
+                                  details={"output": tools.tail(p.stderr.decode("utf-8", "replace"))})
+        return p.stdout[:self.dw * H]
 
     def _squeeze(self):
         return f"scale={self.disc.width}:{self.disc.height}:flags=lanczos,setsar=1"
@@ -353,7 +491,9 @@ class MenuBuilder:
         """The glyph Mask (storage pixels) of `text` drawn as `el` places it,
         without its outline or shadow."""
         key = (name, text, el.x, el.y, el.size, getattr(el, "font", None),
-               getattr(el, "align", None), getattr(el, "line_spacing", 0))
+               getattr(el, "align", None), getattr(el, "line_spacing", 0),
+               getattr(el, "bold", False), getattr(el, "italic", False),
+               getattr(el, "letter_spacing", 0), getattr(el, "kerning", True))
         if key in self._glyphs:
             return self._glyphs[key]
         tf = self._textfile(f"{name}.txt", text)
@@ -501,6 +641,16 @@ class MenuBuilder:
         W, H = self.disc.width, self.disc.height
         geoms = []
         for b in menu.buttons:
+            if b.highlight == "drawn":
+                a = b.area
+                shape = self.area_shape(a)
+                x0, y0 = max(0, a.x - 2), max(0, a.y - 2)
+                x1, y1 = min(W - 1, a.x + a.w + 1), min(H - 2, a.y + a.h + 1)
+                y0 -= y0 % 2
+                y1 += y1 % 2
+                geoms.append(ButtonGeom(b.id, (x0, y0, x1, y1), [shape], b.action,
+                                        auto=b.auto_activate))
+                continue
             if b.highlight_image:
                 hl = self.image_mask(menu.id, b, b.highlight_image)
                 hb = hl.bbox()
@@ -544,14 +694,20 @@ class MenuBuilder:
                 continue
             mask = self.measure(menu.id, b)
             x0, y0, x1, y1 = mask.bbox()
-            shapes = [mask]
+            # the letters ("shape"), with a line under them ("underline"), or
+            # a frame around them ("frame")
+            shapes = [mask] if b.highlight != "frame" else []
+            if b.highlight == "frame":
+                x0, y0, x1, y1 = x0 - 4, y0 - 4, x1 + 4, y1 + 4
+                shapes.append(("frame", (x0, y0, x1, y1)))
             if b.thumb:
                 t = b.thumb
                 frame = (t.x - 4, t.y - 4, t.x + t.w + 4, t.y + t.h + 4)
-                shapes.append(("frame", frame))
+                if b.highlight != "shape":
+                    shapes.append(("frame", frame))
                 x0, y0 = min(x0, frame[0]), min(y0, frame[1])
                 x1, y1 = max(x1, frame[2]), max(y1, frame[3])
-            else:
+            elif b.highlight == "underline":
                 ul = (x0, y1 + 3, x1, y1 + 6)
                 shapes.append(("fill", ul))
                 y1 = ul[3]
@@ -562,7 +718,7 @@ class MenuBuilder:
             geoms.append(ButtonGeom(b.id, (x0, y0, x1, y1), shapes, b.action,
                                     auto=b.auto_activate))
         for g, b in zip(geoms, menu.buttons):
-            if self.turned(b):
+            if self.turned(b) and b.highlight != "drawn":     # (a drawn one stays as drawn)
                 self._turn_geom(menu, g, b)
         for i, a in enumerate(geoms):
             for b in geoms[i + 1:]:
@@ -578,6 +734,34 @@ class MenuBuilder:
         for g in geoms:
             g.nav = nav[g.id]
         return geoms
+
+    @staticmethod
+    def area_shape(a):
+        """The shape of a drawn highlight (storage pixels): a rectangle, or an
+        ellipse as a mask; filled, or its outline 3 pixels thick."""
+        if a.form == "rectangle":
+            return ("fill" if a.filled else "frame", (a.x, a.y, a.x + a.w, a.y + a.h))
+        cx, cy = a.x + a.w / 2, a.y + a.h / 2
+
+        def span(rx, ry, y):
+            d = (y + 0.5 - cy) / ry if ry > 0 else 2
+            if abs(d) > 1:
+                return None
+            half = rx * math.sqrt(1 - d * d)
+            x0, x1 = round(cx - half), round(cx + half)
+            return (x0, x1) if x1 > x0 else None
+
+        runs = []
+        for y in range(a.y, a.y + a.h):
+            outer = span(a.w / 2, a.h / 2, y)
+            if outer is None:
+                continue
+            inner = None if a.filled else span(a.w / 2 - 3, a.h / 2 - 3, y)
+            if inner is None:
+                runs.append((y, *outer))
+            else:
+                runs += [(y, outer[0], inner[0]), (y, inner[1], outer[1])]
+        return png4.Mask(a.x + a.w, a.y + a.h, [r for r in runs if r[2] > r[1]])
 
     def _turn_geom(self, menu, g, b):
         """A turned button: its highlight turned with it (not its thumbnail's
