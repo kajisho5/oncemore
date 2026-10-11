@@ -13,7 +13,8 @@ colours its subpictures draw with.
 
 An image script's subtitles are pictures instead (Cue.image): read in their
 own colours (a picture without transparency has its corner colour keyed
-out), fitted to the frame and reduced to the colours the disc allows.
+out), fitted to the frame (or to the place the script gives: Display_Area,
+a FAB script's corners) and reduced to the colours the disc allows.
 """
 
 import collections
@@ -42,6 +43,7 @@ class Cue:
     color: str = None      # "#RRGGBB" fill colour from the cue itself, or None
     style_color: str = None  # the subtitle file's style colour (after the track's)
     image: str = None      # an image script's picture (absolute path): no text
+    area: tuple = None     # ... placed in (left, top, right, bottom) of the frame (§104)
 
 
 _AN = re.compile(r"\\an?(\d)")
@@ -178,6 +180,15 @@ _TC = TIMECODE = re.compile(r"^(\d{1,2})([:;])(\d{1,2})([:;])(\d{1,2})([:;.,])(\
 _SCRIPT_LINE = re.compile(r"^\s*(\d+)[ \t]+(\S+)[ \t]+(\S+)(?:[ \t]+(.*))?$")
 # an image script: the same lines with a picture file instead of the text
 #   1 00;00;02;02 00;00;03;15 sub0001.png
+# the image script of the classic apps' manual opens with where every picture
+# goes and the folder they are in:
+#   Display_Area (000 000 720 480)
+#   Directory C:\Subtitles\Image Files\
+_DISPLAY_AREA = re.compile(r"^display_area\s*\(\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\)$", re.I)
+_DIRECTORY = re.compile(r"^directory[ \t]+(.+)$", re.I)
+# a FAB image script: one picture a line, with its own place
+#   RACE001.TIF 00;00;02;02 00;00;03;15 000 000 720 480
+_FAB_LINE = re.compile(r"^(.+?)[ \t]+(\S+)[ \t]+(\S+)[ \t]+(\d+)[ \t]+(\d+)[ \t]+(\d+)[ \t]+(\d+)$")
 IMAGE_FILE = re.compile(r"\.(png|bmp|tiff?|jpe?g|webp|gif|tga)$", re.I)
 
 
@@ -218,13 +229,40 @@ def seconds_timecode(t, standard="NTSC"):
     return f"{s // 3600:02d};{s // 60 % 60:02d};{s % 60:02d};{f:02d}"
 
 
+def _area(n, left, top, right, bottom):
+    area = tuple(int(v) for v in (left, top, right, bottom))
+    if area[2] <= area[0] or area[3] <= area[1]:
+        raise ValueError(f"line {n}: the area's right and bottom must be past its left and top")
+    return area
+
+
+def _picture(name, folders, n):
+    for folder in folders:
+        path = os.path.normpath(os.path.join(folder, name))
+        if os.path.isfile(path):
+            return path
+    raise ValueError(f"subtitle {n}: picture {name!r} not found next to the script")
+
+
 def parse_text_script(text, standard="NTSC", base=None):
     """Cues of a text script. With `base` (the script's folder), a subtitle
     whose text is just a picture file's name (relative to it) is that
-    picture: an image script."""
-    cues, cur = [], None
+    picture: an image script. An image script may open with a
+    `Display_Area (left top right bottom)` line, where every picture goes,
+    and a `Directory` line, the folder of the pictures; that folder is
+    tried first and the script's own after it (an absolute path written on
+    another computer is not there)."""
+    cues, cur, area, folders = [], None, None, [base]
     for n, raw in enumerate(text.splitlines(), 1):
         line = raw.strip()
+        if cur is None and (h := _DISPLAY_AREA.match(line)):
+            area = _area(n, *h.groups())
+            continue
+        if cur is None and (h := _DIRECTORY.match(line)):
+            folder = h[1].strip()
+            if base is not None and os.path.isdir(folder):
+                folders = [folder, base]
+            continue
         m = _SCRIPT_LINE.match(line)
         if m and _TC.match(m[2]) and _TC.match(m[3]):
             try:
@@ -244,16 +282,52 @@ def parse_text_script(text, standard="NTSC", base=None):
     if base is not None:
         for n, c in enumerate(cues, 1):
             if len(c.lines) == 1 and IMAGE_FILE.search(c.lines[0]):
-                path = os.path.normpath(os.path.join(base, c.lines[0]))
-                if not os.path.isfile(path):
-                    raise ValueError(f"subtitle {n}: picture {c.lines[0]!r} not found next to "
-                                     "the script")
-                c.image, c.lines = path, []
+                c.image, c.lines, c.area = _picture(c.lines[0], folders, n), [], area
     return _tidy([c for c in cues if c.lines or c.image])
 
 
+def is_fab_script(text):
+    """A FAB image script: its first line is a picture, two timecodes and
+    four numbers."""
+    first = next((line.strip() for line in text.splitlines() if line.strip()), "")
+    m = _FAB_LINE.match(first)
+    return bool(m and IMAGE_FILE.search(m[1]) and _TC.match(m[2]) and _TC.match(m[3]))
+
+
+def parse_fab_script(text, standard="NTSC", base="."):
+    """Cues of a FAB image script: each line a picture (in the script's
+    folder), its start and end timecode and the frame's pixels it covers
+    (left top right bottom)."""
+    cues = []
+    for n, raw in enumerate(text.splitlines(), 1):
+        line = raw.strip()
+        if not line:
+            continue
+        m = _FAB_LINE.match(line)
+        if not (m and _TC.match(m[2]) and _TC.match(m[3])):
+            raise ValueError(f"line {n}: expected \"picture start end left top right bottom\", "
+                             f"got {line[:40]!r}")
+        try:
+            start, end = timecode_seconds(m[2], standard), timecode_seconds(m[3], standard)
+        except ValueError as e:
+            raise ValueError(f"line {n}: {e}")
+        if end <= start:
+            raise ValueError(f"line {n}: {m[1]} ends before it starts")
+        cues.append(Cue(start, end, [], image=_picture(m[1], [base], len(cues) + 1),
+                        area=_area(n, *m.groups()[3:])))
+    if not cues:
+        raise ValueError("no subtitles")
+    return _tidy(cues)
+
+
 def to_text_script(cues, standard="NTSC"):
-    """Cues -> a text script (no positions or colours: a script has none)."""
+    """Cues -> a text script (no positions or colours: a script has none).
+    Pictures that each have their own place are written as a FAB image
+    script, which keeps it."""
+    if cues and all(c.image and c.area for c in cues):
+        return "".join(f"{os.path.basename(c.image)}\t{seconds_timecode(c.start, standard)}\t"
+                       f"{seconds_timecode(c.end, standard)}\t"
+                       + " ".join(f"{v:03d}" for v in c.area) + "\n" for c in cues)
     out = []
     for n, c in enumerate(cues, 1):
         # (a picture: its file name, as an image script has it)
@@ -288,10 +362,11 @@ def load_subtitles(path, standard="NTSC"):
     parse = PARSERS.get(ext, parse_srt)
     if ext == ".txt":
         base = os.path.dirname(os.path.abspath(path))
-        parse = lambda text: parse_text_script(text, standard, base)     # noqa: E731
+        parse = lambda text: (parse_fab_script if is_fab_script(text)      # noqa: E731
+                              else parse_text_script)(text, standard, base)
     with open(path, "rb") as f:
         raw = f.read()
-    for enc in ("utf-8-sig", "cp932", "latin-1"):
+    for enc in _encodings(raw):
         try:
             return parse(raw.decode(enc))
         except UnicodeDecodeError:
@@ -299,6 +374,21 @@ def load_subtitles(path, standard="NTSC"):
         except ValueError as e:
             raise ProjectError(f"{path}: {e}")
     raise ProjectError(f"{path}: cannot decode subtitle file")
+
+
+def _encodings(raw):
+    """The encodings to try on a subtitle file: UTF-16 when it has a byte
+    order mark or its every other byte is 0 (the classic apps' manual asks
+    for scripts saved as UTF-8 or UTF-16), else UTF-8, Shift_JIS, Latin-1."""
+    if raw[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        return ("utf-16",)
+    if len(raw) >= 4:
+        half = len(raw) // 2
+        if raw[1::2].count(0) > half * 0.4 and not raw[0::2].count(0):
+            return ("utf-16-le",)
+        if raw[0::2].count(0) > half * 0.4 and not raw[1::2].count(0):
+            return ("utf-16-be",)
+    return ("utf-8-sig", "cp932", "latin-1")
 
 
 load_srt = load_subtitles   # older name
@@ -397,10 +487,11 @@ class SubtitleRenderer:
 
     def image_rgba(self, cue, position="bottom"):
         """An image script's picture on a transparent frame (RGBA bytes, disc
-        width x height): a picture the size of a video frame (480, 576, 720
-        or 1080 lines, at least as wide as high) fills the frame; a smaller
-        one keeps its size (in square pixels) and is centred at the bottom
-        (or top) margin. One with no transparency has the colour of its top
+        width x height): a picture with a place from its script (`area`)
+        is fitted to that rectangle; else a picture the size of a video
+        frame (480, 576, 720 or 1080 lines, at least as wide as high) fills
+        the frame, and a smaller one keeps its size (in square pixels) and
+        is centred at the bottom (or top) margin. One with no transparency has the colour of its top
         left corner keyed out, as subtitle pictures usually do."""
         W, H = self.disc.width, self.disc.height
         w, h, rgba = read_picture(cue.image)
@@ -409,7 +500,18 @@ class SubtitleRenderer:
         chain = ["format=rgba"]
         if key:
             chain.append(f"colorkey=0x{key.hex()}:0.01:0")
-        if h in (480, 576, 720, 1080) and w >= h:
+        if cue.area:
+            # the place the script gives, in the DVD frame's pixels (720 x
+            # 480 / 576), or an HD frame's when it reaches past them
+            left, top, right, bottom = cue.area
+            fw, fh = ((1920, 1080) if right > 720 or bottom > 576
+                      else (720, 576 if self.disc.standard == "PAL" else 480))
+            x, y = min(W - 2, round(left * W / fw)), min(H - 2, round(top * H / fh))
+            aw = max(2, min(W - x, round((right - left) * W / fw)))
+            ah = max(2, min(H - y, round((bottom - top) * H / fh)))
+            chain += [f"scale={aw}:{ah}:flags=bicubic",
+                      f"pad={W}:{H}:{x}:{y}:color=black@0.0"]
+        elif h in (480, 576, 720, 1080) and w >= h:
             chain.append(f"scale={W}:{H}:flags=bicubic")
         else:
             # square pixels to the frame's (DVD pixels are not square)
