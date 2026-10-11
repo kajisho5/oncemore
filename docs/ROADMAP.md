@@ -245,6 +245,12 @@ browser) and lands only with green CI.
   its link (menu, title, chapter, playlist, play all), on DVD and Blu-ray;
   drawn in the flowchart, played in the simulator
 
+**P55 — DTS sound** (done)
+- [x] `audio.codec: "dts"`: DTS copied from the sources unchanged (the DTS
+  core of a DTS-HD source), on DVD (its own titleset; a warning that DVD
+  players need not decode DTS) and Blu-ray; checked at build time (48 kHz
+  DTS, the channels, 1536k at most on a DVD); DTS in the app's codec list
+
 **P54 — Button numbers** (done)
 - [x] Properties > Number renumbers a button (the others close up); a menu's
   button number offset for the number keys, on DVD (the navigation packs'

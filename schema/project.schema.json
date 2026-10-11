@@ -372,13 +372,15 @@
             "codec": {
               "enum": [
                 "ac3",
-                "lpcm"
+                "lpcm",
+                "dts"
               ],
-              "default": "ac3"
+              "default": "ac3",
+              "description": "ac3 and lpcm are encoded (or AC-3 copied, passthrough); dts is always copied from the sources (48 kHz DTS; a DTS-HD source gives its DTS core)."
             },
             "bitrate": {
               "$ref": "#/$defs/bitrate",
-              "description": "AC-3 only. Default 192k (448k for 5.1)."
+              "description": "AC-3 only. Default 192k (448k for 5.1). DTS keeps the source's own rate."
             },
             "channels": {
               "enum": [
@@ -386,7 +388,7 @@
                 6
               ],
               "default": 2,
-              "description": "2 = stereo (sources are down-mixed), 6 = 5.1 (AC-3 only)."
+              "description": "2 = stereo (sources are down-mixed), 6 = 5.1 (AC-3 or DTS). Default 2 (DTS: 6); copied sound must match its source."
             },
             "lang": {
               "$ref": "#/$defs/lang"

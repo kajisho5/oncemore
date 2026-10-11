@@ -1611,6 +1611,16 @@ class TestGuiBrowser(unittest.TestCase):
             self.wait_saved(page)
             t = self.project()["titles"][0]
             self.assertEqual((t["video_bitrate"], t["audio"]["passthrough"]), ("4M", True))
+            # DTS: always copied (5.1 unless told), at the source's own rate
+            page.select_option("#inspector select[data-k='audio.codec']", "dts")
+            self.poll(lambda: self.project()["titles"][0]["audio"] == {"codec": "dts"})
+            page.locator("#inspector select[data-k='audio.bitrate']:disabled").wait_for(timeout=60000)
+            box = page.locator("#inspector [data-k='audio.passthrough']")
+            self.assertTrue(box.is_checked() and box.is_disabled())
+            self.assertEqual(page.locator("#inspector select[data-k='audio.channels']").input_value(), "6")
+            page.select_option("#inspector select[data-k='audio.codec']", "ac3")
+            self.poll(lambda: "audio" not in self.project()["titles"][0]
+                      or self.project()["titles"][0]["audio"] == {"codec": "ac3"})
             # film with 3:2 pulldown, then back to automatic
             page.select_option("#inspector select[data-k=scan]", "pulldown")
             self.wait_saved(page)

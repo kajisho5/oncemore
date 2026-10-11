@@ -18,6 +18,11 @@ from .project import parse_action, retime_thumbs
 from .menu import (MenuBuilder, check_element_fonts, display_width, find_font, link_font,
                    menu_seconds, menu_text)
 
+# DTS without extensions (the source's bitrate is the core's); a DVD takes
+# DTS up to 1536 kbit/s (1509.75k "full rate" is the usual)
+DTS_PLAIN = ("DTS", "DTS-ES", "DTS 96/24")
+DVD_DTS_MAX = 1_536_000
+
 
 def inspect(project, reporter=None, prepare=True, bd=False):
     """Probe every source and plan the bitrate. Used by validate and build.
@@ -78,17 +83,30 @@ def inspect(project, reporter=None, prepare=True, bd=False):
                                           f"stream(s); stream {tr.stream} does not exist"})
             elif t.audio_passthrough:
                 a = (probe(tr.source).get("audio") or [{}] * (tr.stream + 1))[tr.stream]
-                if a.get("codec") != "ac3" or a.get("rate") != 48000:
+                name = "DTS" if t.audio_codec == "dts" else "AC-3"
+                if a.get("codec") != t.audio_codec or a.get("rate") != 48000:
                     issues.append({"path": f"{where}.audio_tracks[{j}]",
                                    "message": f"{os.path.basename(tr.source)} audio stream "
                                               f"{tr.stream} is {a.get('codec')} "
-                                              f"{a.get('rate')} Hz; only 48 kHz AC-3 can be "
-                                              "copied (turn off audio.passthrough)"})
+                                              f"{a.get('rate')} Hz; only 48 kHz {name} can be "
+                                              "copied" + (" (choose AC-3 or LPCM to encode it)"
+                                                          if t.audio_codec == "dts" else
+                                                          " (turn off audio.passthrough)")})
                 elif a.get("channels") != t.audio_channels:
                     issues.append({"path": f"{where}.audio.channels",
-                                   "message": f"the AC-3 source has {a.get('channels')} "
+                                   "message": f"the {name} source has {a.get('channels')} "
                                               f"channel(s); set audio.channels to "
                                               f"{a.get('channels')} to copy it"})
+                elif t.audio_codec == "dts":
+                    # (the DTS core is what goes on the disc: DTS-HD extensions
+                    # are dropped, encode.DTS_CORE)
+                    if a.get("bit_rate") and (a.get("profile") or "DTS") in DTS_PLAIN:
+                        t.audio_bitrate = a["bit_rate"]
+                    if not bd and t.audio_bitrate > DVD_DTS_MAX:
+                        issues.append({"path": f"{where}.audio_tracks[{j}]",
+                                       "message": f"{os.path.basename(tr.source)}: DTS at "
+                                                  f"{t.audio_bitrate // 1000}k; a DVD takes "
+                                                  "DTS up to 1536k"})
                 elif a.get("bit_rate"):
                     t.audio_bitrate = max(t.audio_bitrate, a["bit_rate"])
             elif t.audio_channels == 6 and tr.stream == 0 \
@@ -96,6 +114,10 @@ def inspect(project, reporter=None, prepare=True, bd=False):
                 warnings.append(f"{where}.audio_tracks[{j}]: {os.path.basename(tr.source)} has "
                                 f"{probe(tr.source)['audio_channels']} channel(s); the 5.1 "
                                 "track will only use the front speakers")
+        if t.audio_codec == "dts" and not bd:
+            warnings.append(f"{where}.audio.codec: DTS only: a DVD player without a DTS decoder "
+                            "plays no sound unless it passes DTS on to an amplifier (DVDs "
+                            "normally carry an AC-3 or LPCM track too)")
         for j, sub in enumerate(t.subtitles):
             cues[(t.id, j)] = subtitles.shifted(
                 subtitles.load_subtitles(sub.file, project.disc.standard), sub.offset)

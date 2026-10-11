@@ -575,7 +575,7 @@ def audio_tags(project, titles=None):
     titles = titles or project.titles
     codec = titles[0].audio_codec
     base = ('format="pcm" quant="16bps" samplerate="48khz" channels="2"' if codec == "lpcm"
-            else f'format="ac3" channels="{titles[0].audio_channels}"')
+            else f'format="{codec}" channels="{titles[0].audio_channels}"')
     n = max(len(t.audio_tracks) for t in titles) or 1
     langs = (project.audio_langs + [None] * n)[:n]
     return [f'<audio {base}' + (f' lang="{lang}"' if lang else "") + "/>" for lang in langs]

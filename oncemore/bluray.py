@@ -49,7 +49,8 @@ FORMATS = {
     (25, 1): (4, 3),           # 1080i 25
     (30000, 1001): (4, 4),     # 1080i 29.97
 }
-CODING_H264, CODING_LPCM, CODING_AC3, CODING_PG, CODING_IG = 0x1B, 0x80, 0x81, 0x90, 0x91
+CODING_H264, CODING_LPCM, CODING_AC3, CODING_DTS = 0x1B, 0x80, 0x81, 0x82
+CODING_PG, CODING_IG = 0x90, 0x91
 
 # ISO 639-1 (the project's codes) -> ISO 639-2/B (the disc's)
 LANGS = {
@@ -110,7 +111,8 @@ def plan(items, capacity):
 def audio_codec_args(title, k):
     """Encoder options for audio output stream k of a title."""
     if title.audio_passthrough:
-        return [f"-c:a:{k}", "copy"]
+        return [f"-c:a:{k}", "copy"] + ([f"-bsf:a:{k}", "dca_core"] if title.audio_codec == "dts"
+                                        else [])
     if title.audio_codec == "lpcm":
         return [f"-c:a:{k}", "pcm_bluray", f"-sample_fmt:a:{k}", "s16", f"-ar:a:{k}", "48000",
                 f"-ac:a:{k}", "2"]
@@ -828,6 +830,8 @@ def navigation(project, menus=None):
 def audio_streams(title):
     if title.audio_codec == "lpcm" and not title.audio_passthrough:
         coding, channels = CODING_LPCM, 2
+    elif title.audio_codec == "dts":
+        coding, channels = CODING_DTS, title.audio_channels
     else:
         coding, channels = CODING_AC3, title.audio_channels
     n = 1 if title.clips else len(title.audio_tracks)

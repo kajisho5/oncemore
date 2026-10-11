@@ -356,7 +356,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
       "name": "Sample Title A",                     // used as chapter-menu heading
       "source": "media/sample_a.mp4",
       "chapters": ["00:00:00", "00:00:08", 16],     // "HH:MM:SS[.ms]", "MM:SS" or seconds
-      "audio": { "codec": "ac3", "bitrate": "192k" },// ac3 | lpcm (48 kHz/16-bit); "channels": 6 = 5.1
+      "audio": { "codec": "ac3", "bitrate": "192k" },// ac3 | lpcm (48 kHz/16-bit) | dts (copied); "channels": 6 = 5.1
       "end_action": "menu:main",                    // menu:<id> | title:<id> | stop
       "auto_chapter_menu": { "id": "chapters", "back": "menu:main" }  // or true
     }
@@ -406,7 +406,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `slideshow` | a title made from pictures (below) | none |
 | `clips` | a title made of parts of several videos (below) | none |
 | `chapters` | list of times, or `{time, name, poster}` objects (`name` labels the chapter-menu button, `poster` is the time of its thumbnail); `0` is added if missing | `[0]` |
-| `audio.codec` | `ac3` \| `lpcm` | `ac3` |
+| `audio.codec` | `ac3` \| `lpcm` \| `dts` (48 kHz DTS copied from the sources, never encoded; 5.1 unless `channels` says 2; a DTS-HD source gives its DTS core; a DVD takes up to 1536k) | `ac3` |
 | `audio.bitrate` | AC-3 only, 64k–448k | `192k` (`448k` for 5.1) |
 | `audio.passthrough` | copy 48 kHz AC-3 from the sources unchanged (channels must match) | `false` |
 | `video_bitrate` | this title's own video bitrate; the other titles share the rest | shared |
@@ -763,7 +763,8 @@ all made again by the next build).
 * Motion menus loop one video (with an optional intro); only chapter thumbnails
   animate, and there are no transitions between menus.
 * Audio is stereo or 5.1 (AC-3), re-encoded unless `audio.passthrough` copies
-  48 kHz AC-3 sources.
+  48 kHz AC-3 sources; DTS is copied only (`audio.codec: "dts"`), and a title's
+  tracks share one format (no DTS track beside an AC-3 one).
   Subtitles: one font and size per disc, lines centred at the top or bottom
   (no free positioning); at most 16 subpicture colours per title.
 * Audio/subtitle stream *n* has one language for the whole disc. Menus have

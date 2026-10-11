@@ -334,7 +334,7 @@ class Title:
     chapters: list
     audio_codec: str = "ac3"
     audio_bitrate: int = 192_000
-    audio_channels: int = 2  # 2 = stereo, 6 = 5.1 (AC-3 only)
+    audio_channels: int = 2  # 2 = stereo, 6 = 5.1 (AC-3 or DTS)
     end_action: str = "stop"
     number: int = 0  # 1-based title number on the disc
     audio_tracks: list = field(default_factory=list)
@@ -345,7 +345,7 @@ class Title:
     remote_menu: str = None  # menu id the Menu key opens during this title
     slideshow: object = None  # slideshow.Slideshow when made from pictures
     video_bitrate: int = None   # this title's own video bitrate (None = shared)
-    audio_passthrough: bool = False   # copy AC-3 from the sources
+    audio_passthrough: bool = False   # copy AC-3 (DTS: always) from the sources
     chapter_names: list = field(default_factory=list)    # per chapter, or None
     chapter_posters: list = field(default_factory=list)  # thumbnail time per chapter, or None
     scan: str = "auto"       # "auto" | "progressive" | "interlaced" | "pulldown" | "ivtc"
@@ -819,8 +819,22 @@ class _Builder:
             self.err(f"{where}.chapters", "chapter times must be strictly increasing")
         audio = t.get("audio", {})
         codec = audio.get("codec", "ac3")
-        channels = audio.get("channels", 2)
-        bitrate = parse_bitrate(audio.get("bitrate", "448k" if channels == 6 else "192k"))
+        if codec not in ("ac3", "lpcm", "dts"):
+            self.err(f"{where}.audio.codec", "must be ac3, lpcm or dts")
+        # DTS is copied from the sources (never encoded): 5.1 by default, and
+        # its bitrate (1536k at most on a DVD, refined from the source at
+        # build time) is the source's
+        channels = audio.get("channels", 6 if codec == "dts" else 2)
+        if codec == "dts":
+            bitrate = 1_536_000
+            if "bitrate" in audio:
+                self.warnings.append(f"{where}.audio.bitrate is ignored for dts (the source's "
+                                     "own rate)")
+            if audio.get("passthrough") is False:
+                self.err(f"{where}.audio.passthrough", "DTS is copied from the sources; it "
+                         "cannot be encoded")
+        else:
+            bitrate = parse_bitrate(audio.get("bitrate", "448k" if channels == 6 else "192k"))
         if codec == "ac3" and not 64_000 <= bitrate <= 448_000:
             self.err(f"{where}.audio.bitrate", "AC-3 bitrate must be between 64k and 448k")
         if codec == "lpcm" and channels != 2:
@@ -865,9 +879,10 @@ class _Builder:
             if "audio_tracks" in t:
                 self.err(f"{where}.audio_tracks", "a title made of clips uses the clips' own "
                          "sound (one track)")
-            if audio.get("passthrough"):
-                self.err(f"{where}.audio.passthrough", "clips are joined, so their sound is "
-                         "encoded again")
+            if audio.get("passthrough") or codec == "dts":
+                self.err(f"{where}.audio.passthrough" if audio.get("passthrough")
+                         else f"{where}.audio.codec", "clips are joined, so their sound is "
+                         "encoded again (AC-3 or LPCM)")
         elif "slideshow" in t:
             show = self.slideshow(where, t["slideshow"])
             # the picture show is rendered into the cache; that file is the source
@@ -907,7 +922,7 @@ class _Builder:
             remote_menu=t.get("remote_menu"), chapter_names=names, chapter_posters=posters,
             slideshow=show, clips=clips, clip_chapters=bool(clips) and "chapters" not in t,
             video_bitrate=parse_bitrate(t["video_bitrate"]) if "video_bitrate" in t else None,
-            audio_passthrough=bool(audio.get("passthrough")),
+            audio_passthrough=bool(audio.get("passthrough")) or codec == "dts",
             aspect=t.get("aspect"),
             scan=t.get("scan", "auto"),
             transcode=t.get("transcode", True),
@@ -927,8 +942,9 @@ class _Builder:
             self.err(f"{where}.scan", "3:2 pulldown is for NTSC discs (PAL plays film at 25 fps)")
         if title.video_bitrate is not None and not 1_000_000 <= title.video_bitrate <= 8_000_000:
             self.err(f"{where}.video_bitrate", "must be between 1M and 8M")
-        if title.audio_passthrough and codec != "ac3":
-            self.err(f"{where}.audio.passthrough", "only AC-3 audio can be copied unchanged")
+        if title.audio_passthrough and codec == "lpcm":
+            self.err(f"{where}.audio.passthrough", "only AC-3 or DTS audio can be copied "
+                                                   "unchanged")
         if title.audio_bps > 8_800_000:
             self.err(f"{where}.audio_tracks",
                      f"{len(tracks)} {codec} tracks need {title.audio_bps / 1e6:.2f} Mbit/s; "

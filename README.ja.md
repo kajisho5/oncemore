@@ -297,7 +297,7 @@ Claude Desktop（`claude_desktop_config.json`）などの MCP クライアント
       "name": "Sample Title A",                     // チャプターメニューの見出し
       "source": "media/sample_a.mp4",
       "chapters": ["00:00:00", "00:00:08", 16],     // "HH:MM:SS[.ms]"、"MM:SS"、秒数
-      "audio": { "codec": "ac3", "bitrate": "192k" },// ac3 | lpcm（48kHz/16bit）。"channels": 6 で 5.1ch
+      "audio": { "codec": "ac3", "bitrate": "192k" },// ac3 | lpcm（48kHz/16bit）| dts（コピー）。"channels": 6 で 5.1ch
       "end_action": "menu:main",                    // menu:<id> | title:<id> | stop
       "auto_chapter_menu": { "id": "chapters", "back": "menu:main" }  // または true
     }
@@ -347,7 +347,7 @@ Claude Desktop（`claude_desktop_config.json`）などの MCP クライアント
 | `slideshow` | 写真から作るタイトル（下記） | なし |
 | `clips` | 複数の動画の一部をつないだタイトル（下記） | なし |
 | `chapters` | 時刻のリスト、または `{time, name, poster}`（`name` はチャプターメニューのボタン名、`poster` はサムネイルにする時刻）。0 が無ければ自動追加 | `[0]` |
-| `audio.codec` | `ac3` \| `lpcm` | `ac3` |
+| `audio.codec` | `ac3` \| `lpcm` \| `dts`（48kHz の DTS 素材をそのままコピー。エンコードはしない。`channels` で 2 を指定しなければ 5.1ch。DTS-HD 素材は DTS コア部分。DVD は 1536k まで） | `ac3` |
 | `audio.bitrate` | AC-3 のみ、64k〜448k | `192k`（5.1ch は `448k`） |
 | `audio.passthrough` | 48kHz の AC-3 素材をそのままコピー（チャンネル数は素材と同じに） | `false` |
 | `scan` | `auto` \| `progressive` \| `interlaced` \| `pulldown`（NTSC のフィルム）\| `ivtc`（NTSC：29.97i にテレシネ済みのフィルム。逆テレシネでフィルムのコマに戻し、ソフトプルダウンで収録）：映像の収録方式。「既知の制限」参照 | `auto` |
@@ -661,7 +661,7 @@ DVD ナビゲーションライブラリ）でメニューのボタンを実際�
 ## 既知の制限
 
 * モーションメニューは動画 1 本のループ（イントロ付きも可）。動くのはチャプターのサムネイルだけで、メニュー間の遷移効果はなし。
-* 音声はステレオまたは 5.1ch（AC-3）。`audio.passthrough` で 48kHz の AC-3 素材をそのままコピーする場合以外は再エンコード。
+* 音声はステレオまたは 5.1ch（AC-3）。`audio.passthrough` で 48kHz の AC-3 素材をそのままコピーする場合以外は再エンコード。DTS はコピーのみ（`audio.codec: "dts"`）で、1 タイトルの音声トラックはすべて同じ形式（AC-3 と DTS の併記は不可）。
   字幕のフォントとサイズはディスク全体で 1 つ、行は上か下の中央（自由な位置指定はなし）。字幕の色は 1 タイトルで 16 色（サブピクチャ）まで。
 * 音声・字幕の n 番目のストリームの言語はディスク全体で 1 つ。メニューのアスペクト比は
   1 種類（`disc.aspect`）で、タイトルは個別に指定できます。
