@@ -20,7 +20,7 @@ const I18N = {
     loop_point: "Repeat from (s)", buttons_at_loop: "Buttons appear at the loop point (the intro plays out)", fade_in: "Fade in from black (s)", menu_end: "After the last time", default_button: "Button highlighted first",
     remember_button: "Come back to the button used last", auto_activate: "Run on selection (no Enter needed)",
     chapter_menu: "Chapter menu", chapter_menu_on: "Generate a chapter menu with thumbnails",
-    subtitles: "Subtitles", audio_tracks: "Audio tracks", default_on: "on at start",
+    subtitles: "Subtitles", audio_tracks: "Audio tracks", audio_default: "start with this", audio_default_hint: "The disc starts with this audio track (once, at first play; a viewer's choice later stays)", subtitles_off: "Subtitles off at start", subtitles_off_hint: "Start with subtitles off instead of the player's language setting (a subtitle track marked on at start still wins)", default_on: "on at start",
     add_chapter: "Add chapter here", chapters: "Chapters", delete: "Delete",
     add_shape: "+ Rectangle", add_picture: "+ Picture", picture: "Picture", pictures: "Pictures",
     place_on_menu: "Place on the menu", picture_hint: "A picture on the menu that is not a button: a logo, a photo. PNG keeps its transparency.",
@@ -296,7 +296,7 @@ const I18N = {
     loop_point: "繰り返しの開始位置（秒）", buttons_at_loop: "ボタンを繰り返しの開始位置から表示（イントロは最後まで再生）", fade_in: "黒からのフェードイン（秒）", menu_end: "最後の再生のあと", default_button: "最初に選ばれるボタン",
     remember_button: "戻ってきたら前に使ったボタンを選ぶ", auto_activate: "選んだだけで実行（決定キー不要）",
     chapter_menu: "チャプターメニュー", chapter_menu_on: "サムネイル付きチャプターメニューを自動生成",
-    subtitles: "字幕", audio_tracks: "音声トラック", default_on: "最初から表示",
+    subtitles: "字幕", audio_tracks: "音声トラック", audio_default: "最初はこの音声", audio_default_hint: "ディスクをこの音声トラックで始めます（最初の再生で 1 回だけ。後で視聴者が選んだものはそのまま）", subtitles_off: "最初は字幕オフ", subtitles_off_hint: "プレーヤーの言語設定に任せず、字幕オフで始めます（「最初から表示」の字幕トラックがあればそちらが優先）", default_on: "最初から表示",
     add_chapter: "ここにチャプター", chapters: "チャプター", delete: "削除",
     add_shape: "＋四角形", add_picture: "＋画像", picture: "画像", pictures: "画像",
     place_on_menu: "メニューに配置", picture_hint: "ボタンではない画像（ロゴ・写真）。PNG は透明部分がそのまま残ります。",
@@ -1454,6 +1454,7 @@ function renderDisc(m) {
     ${d.target === "DVD9" ? `<label class="field"><span>${t("layer_break")}</span>${selectHtml("layer_break", [["__none__", t("auto")], ...(P().titles || []).flatMap((ti) => chaptersOf(ti).map((_, k) => [`${ti.id}:${k + 1}`, t("layer_break_at", { t: ti.name || ti.id, n: k + 1 })]))], d.layer_break || "__none__")}<div class="hint">${esc(t("layer_break_hint"))}</div></label>` : ""}
     <label class="field"><span>${t("first_play")} ${whipHtml("first_play")}</span>${selectHtml("first_play", [["__none__", t("auto")], ...fp], d.first_play || "__none__")}</label>
     <label class="field"><span>${t("title_key")}</span>${selectHtml("title_key", [["__none__", t("first_menu")], ...fp], d.title_key || "__none__")}</label>
+    <label class="field"><span></span><label title="${esc(t("subtitles_off_hint"))}"><input type="checkbox" data-k="subtitles_off" ${d.subtitles_off ? "checked" : ""}> ${t("subtitles_off")}</label></label>
     <label class="field" data-nobind><span>${t("rom_files")}</span><textarea id="rom-files" rows="3" placeholder="extras/">${esc((d.rom_files || []).join("\n"))}</textarea><div class="hint">${esc(t("rom_hint"))}</div></label>
     <h3>${t("sub_style")}</h3>
     <div class="grid2">
@@ -1471,6 +1472,7 @@ function renderDisc(m) {
       const st = p.disc.subtitle_style;
       if (st && (key.endsWith(".color") || key.endsWith(".outline"))) st[key.split(".")[1]] = val.toUpperCase();
       if (st && !Object.keys(st).length) delete p.disc.subtitle_style;
+      if (key === "subtitles_off" && !val) delete p.disc.subtitles_off;
     },
   });
   $("#rom-files").onchange = (e) => commit((p) => {
@@ -2141,6 +2143,7 @@ function renderTitleInspector(el) {
         ${selectHtml("source", [["", ti.source], ...mediaOf("audio").map((a) => [a, a]), ...mediaOf("video").filter((v) => v !== ti.source).map((v) => [v, v])], tr.source || "")}
         <input type="number" min="0" class="shrink" style="width:52px" data-k="stream" value="${tr.stream || 0}" title="${t("stream")}">
         ${selectHtml("lang", langs, tr.lang || "", 'class="shrink" style="width:90px"')}
+        <label class="shrink" title="${esc(t("audio_default_hint"))}"><input type="checkbox" data-k="default" ${tr.default ? "checked" : ""}> ${t("audio_default")}</label>
         <button class="small danger shrink" data-del-track="${i}">✕</button></div>`).join("")}
     <button class="small" id="add-track" ${ti.clips ? "disabled" : ""}>${t("add_track")}</button>
     ${anglesHtml(ti)}
@@ -2195,7 +2198,12 @@ function renderTitleInspector(el) {
     const i = Number(row.dataset.track);
     row.querySelectorAll("[data-k]").forEach((inp) => inp.addEventListener("change", () => {
       commit((p) => {
-        const tr = find(p).audio_tracks[i], k = inp.dataset.k;
+        const list = find(p).audio_tracks, tr = list[i], k = inp.dataset.k;
+        if (k === "default") {                  // (one per title: the disc starts with it)
+          list.forEach((x, j) => { if (j !== i) delete x.default; });
+          if (inp.checked) tr.default = true; else delete tr.default;
+          return;
+        }
         const v = k === "stream" ? Number(inp.value) : inp.value;
         if (v === "" || (k === "stream" && v === 0)) delete tr[k]; else tr[k] = v;
       });

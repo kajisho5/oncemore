@@ -471,6 +471,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `layer_break` | DVD9: where the second layer starts: `auto` \| `<title id>:<chapter>` | `auto` (the first chapter past the middle) |
 | `first_play` | `menu:<id>` \| `title:<id>` \| `playall` | first menu, else first title |
 | `title_key` | what the remote's Title / Top Menu key opens: `menu:<id>` \| `title:<id>` \| `playall` | first menu |
+| `subtitles_off` | `true`: the disc starts with subtitles off instead of leaving it to the player's language setting (a subtitle track marked `default` still wins); set once at first play | `false` |
 | `font` | path or `null` | auto: Hiragino (macOS) → Noto Sans CJK → DejaVu Sans |
 | `video_bitrate` | `"auto"` or bitrate (`"6M"`, `5500000`), 1–8 Mbit/s | `auto` |
 | `rom_files` | files / folders put next to VIDEO_TS (DVD-ROM content for computers) | none |
@@ -502,7 +503,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `prohibit` | remote keys that do nothing during this title (user operations), e.g. a notice that cannot be skipped: `["next", "fast_forward", "menu"]`; any of `next` `prev` (chapter skip), `fast_forward` `rewind`, `pause`, `stop`, `search` (number keys: title, chapter and time search), `menu` (Menu / Pop-up key), `title` (Title / Top Menu key), `audio`, `subtitle` | none |
 | `aspect` | `4:3` \| `16:9` for this title | `disc.aspect` |
 | `audio.lang` | ISO 639-1 code of the (single) audio track | none |
-| `audio_tracks` | 1–8 `{source?, stream?, lang?}`: several audio streams (below) | one track from `source` |
+| `audio_tracks` | 1–8 `{source?, stream?, lang?, default?}`: several audio streams (below); `default: true` (one per title): the disc starts with that track, set once at first play so a viewer's later choice stays | one track from `source` |
 | `subtitles` | up to 32 `{file, lang?, default?}` SRT files (below) | none |
 | `captions` | closed captions (line 21, CEA-608) on an NTSC DVD: a Scenarist `.scc` file used as it is, or a subtitle file sent as pop-on captions; or `{file, offset}` (below) | none |
 | `auto_chapter_menu` | `true` or object (below) | off |

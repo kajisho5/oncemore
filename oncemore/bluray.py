@@ -1020,7 +1020,12 @@ class Nav:
                                                 len(start)) + ends)
                 continue
             out.append(start + [play_pl(n)] + ends)
-        out.append(self.go(p.disc.first_play) or [jump_title(1)])
+        # first play: the disc's starting audio track, once (titles set their
+        # own subtitles as they start, _start; DECISIONS §101)
+        aud = next((j for t in p.titles for j, tr in enumerate(t.audio_tracks, 1) if tr.default),
+                   None)
+        out.append(([set_streams(audio=aud)] if aud else []) +
+                   (self.go(p.disc.first_play) or [jump_title(1)]))
         top = p.disc.title_key or (f"menu:{p.menus[0].id}" if p.menus else None)
         out.append(self.go(top) or [jump_title(1)])
         for (tid, n), _ in sorted(self.chapter_objects.items(), key=lambda kv: kv[1]):
