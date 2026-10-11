@@ -1130,6 +1130,28 @@ class TestGuiBrowser(unittest.TestCase):
             browser.close()
         self.assertEqual(errors, [])
 
+    def test_sponsor_link(self):
+        """Help > Support oncemore and the About box open the project's
+        GitHub Sponsors page."""
+        self.s.call("/api/new", "POST", {"sample": True})
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click(".nav-item[data-view=title][data-id=t1]", timeout=120000)
+            # (a value, not the function: evaluate would call a function it gets back)
+            page.evaluate("window.__opened = []; window.open = (u) => { window.__opened.push(u); }; 0")
+            page.click("#menubar > button:has-text('Help')")
+            page.click(".popup.from-bar button:has-text('Support oncemore (GitHub Sponsors)')")
+            page.evaluate("window.oncemoreCommand('about')")
+            page.click("#about-sponsor")
+            self.assertEqual(page.evaluate("window.__opened"),
+                             ["https://github.com/sponsors/kajisho5"] * 2)
+            browser.close()
+        self.assertEqual(errors, [])
+
     def test_menu_bar_commands(self):
         """Edit, Object, Menu, Timeline and View commands on the sample disc."""
         self.s.call("/api/new", "POST", {"sample": True})
