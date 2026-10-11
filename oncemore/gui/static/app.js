@@ -2486,7 +2486,7 @@ function renderMenu(m) {
       // Shift / ⌘ / Ctrl-click adds it to the selection, or takes it out if it was in (on a click,
       // not a drag); a drag moves the selection, Shift-drag in a straight line, as in the classic apps
       const add = addsToSelection(ev), unpick = add && isSel(k);
-      const changedSel = !isSel(k) && (add || S.sels.length > 1);
+      const changedSel = !isSel(k);          // (the align bar and the resize handles follow the selection)
       if (!isSel(k)) S.sels = add ? [...S.sels, k] : [k];
       S.element = k;
       stage.querySelectorAll(".el.selected").forEach((n) => n.classList.remove("selected"));
@@ -2554,7 +2554,7 @@ function renderMenu(m) {
           renderMain(); renderInspector(); return;
         }
         if (!dx && !dy && !add && S.sels.length > 1) { S.sels = [k]; S.element = k; renderMain(); renderInspector(); return; }
-        if (!dx && !dy && changedSel) { renderMain(); return; }      // the align bar comes or goes
+        if (!dx && !dy && changedSel) { renderMain(); return; }
         if (dx || dy) commit((p) => {
           const mm = p.menus.find((x) => x.id === menu.id);
           for (const g of group) {
@@ -2568,6 +2568,42 @@ function renderMenu(m) {
       node.addEventListener("pointermove", move); node.addEventListener("pointerup", up);
     });
   });
+  // a single selected rectangle or picture gets handles: drag one to resize it, with Shift
+  // keeping its proportions and Alt (⌥) from its centre, as in the classic apps
+  const one = S.sels.length === 1 ? els.find((e) => e.kind === S.sels[0].kind && e.i === S.sels[0].i) : null;
+  if (one && (one.kind === "shape" || one.kind === "image") && !one.rot && tool === "select") {
+    const node = nodeOf(one), rz = document.createElement("div");
+    rz.className = "rz";
+    Object.assign(rz.style, { left: one.x * sx * scale + "px", top: one.y * scale + "px", width: one.w * sx * scale + "px", height: one.h * scale + "px" });
+    rz.innerHTML = ["nw", "n", "ne", "e", "se", "s", "sw", "w"].map((h) => `<span class="rz-h" data-h="${h}"></span>`).join("");
+    stage.appendChild(rz);
+    rz.querySelectorAll(".rz-h").forEach((hd) => hd.addEventListener("pointerdown", (ev) => {
+      if (secondaryClick(ev)) return;
+      ev.preventDefault(); ev.stopPropagation();
+      const h = hd.dataset.h, b0 = { x: one.x, y: one.y, w: one.w, h: one.h }, x0 = ev.clientX, y0 = ev.clientY;
+      const sxDir = h.includes("w") ? -1 : h.includes("e") ? 1 : 0, syDir = h.includes("n") ? -1 : h.includes("s") ? 1 : 0;
+      let b = b0;
+      hd.setPointerCapture(ev.pointerId);
+      hd.onpointermove = (e2) => {
+        const dx = (e2.clientX - x0) / scale / sx, dy = (e2.clientY - y0) / scale, k = e2.altKey ? 2 : 1;
+        let w = b0.w + sxDir * dx * k, hh = b0.h + syDir * dy * k;
+        if (e2.shiftKey) {                    // keep the proportions (from the side dragged most)
+          const f = !sxDir ? hh / b0.h : !syDir ? w / b0.w : Math.max(w / b0.w, hh / b0.h);
+          w = b0.w * f; hh = b0.h * f;
+        }
+        w = Math.max(2, Math.round(w)); hh = Math.max(2, Math.round(hh));
+        // the opposite side stays put, or with Alt the centre
+        const x = e2.altKey || (!sxDir && e2.shiftKey) ? b0.x + (b0.w - w) / 2 : sxDir < 0 ? b0.x + b0.w - w : b0.x;
+        const y = e2.altKey || (!syDir && e2.shiftKey) ? b0.y + (b0.h - hh) / 2 : syDir < 0 ? b0.y + b0.h - hh : b0.y;
+        b = { x: Math.round(x), y: Math.round(y), w, h: hh };
+        for (const el of [node, rz]) Object.assign(el.style, { left: b.x * sx * scale + "px", top: b.y * scale + "px", width: b.w * sx * scale + "px", height: b.h * scale + "px" });
+      };
+      hd.onpointerup = () => {
+        hd.onpointermove = hd.onpointerup = null;
+        if (b !== b0) commit((p) => Object.assign(listOf(p.menus.find((x) => x.id === menu.id), one.kind)[one.i], b));
+      };
+    }));
+  }
   stage.addEventListener("pointerdown", (ev) => {
     if (secondaryClick(ev)) return;
     const empty = ev.target === stage || ev.target.classList.contains("bg");
@@ -3842,18 +3878,39 @@ async function renderTimeline() {
   tlPlayhead(S.playhead[ti.id] || 0);
   const at = (ev, el) => Math.max(0, Math.min(dur, (ev.clientX - el.getBoundingClientRect().left) / pps));
   const seek = (time) => (S.titleSeek ? S.titleSeek(time) : (S.playhead[ti.id] = time, tlPlayhead(time)));
-  $("#tl-ruler").onpointerdown = (ev) => secondaryClick(ev) || seek(at(ev, $("#tl-ruler")));
-  box.querySelector(".tl-lane.video").onpointerdown = (ev) => secondaryClick(ev) || seek(at(ev, ev.currentTarget));
+  // click in the ruler or the picture to put the current-time indicator there, drag to scrub
+  const scrubFrom = (el) => (ev) => {
+    if (secondaryClick(ev)) return;
+    ev.preventDefault();
+    seek(at(ev, el));
+    el.setPointerCapture(ev.pointerId);
+    el.onpointermove = (e) => seek(at(e, el));
+    el.onpointerup = el.onlostpointercapture = () => { el.onpointermove = el.onpointerup = el.onlostpointercapture = null; };
+  };
+  $("#tl-ruler").onpointerdown = scrubFrom($("#tl-ruler"));
+  box.querySelector(".tl-lane.video").onpointerdown = scrubFrom(box.querySelector(".tl-lane.video"));
   box.querySelectorAll(".tl-clip.clip").forEach((c) => (c.onclick = () => seek(Number(c.dataset.cstart))));
   box.querySelectorAll(".tl-wave").forEach((img) => (img.onerror = () => img.remove()));     // no sound
   // drag a chapter mark (not the first) to move it, frame-accurately
   const fps = (() => { const [a, b] = String(info.fps || "30").split(/[/:]/).map(Number); return b ? a / b : a || 30; })();
+  S.tl.fps = fps;
+  // the wheel scrolls the timeline; with ⌘ / Ctrl it moves the current-time indicator a frame
+  box.onwheel = (ev) => {
+    if (modKey(ev)) {
+      ev.preventDefault();
+      const now = S.playhead[ti.id] || 0, d = Math.sign(ev.deltaY || ev.deltaX);
+      if (d) seek(Math.round((now + d / fps) * fps) / fps);
+    } else if (!ev.shiftKey && !ev.deltaX && box.scrollWidth > box.clientWidth) {
+      ev.preventDefault(); box.scrollLeft += ev.deltaY;
+    }
+  };
   box.querySelectorAll(".tl-chapter[data-tlch]").forEach((mk) => {
     const i = Number(mk.dataset.tlch);
     mk.onpointerdown = (ev) => {
       ev.stopPropagation();
       if (secondaryClick(ev)) return;
       const track = mk.parentElement;
+      if (modKey(ev) && ev.altKey) return posterDrag(ev, mk, track, i);
       if (!i) { seek(entries[0].time); return; }
       mk.setPointerCapture(ev.pointerId);
       let time = entries[i].time;
@@ -3867,6 +3924,26 @@ async function renderTimeline() {
       };
     };
   });
+  // ⌘ / Ctrl + Alt-drag from a chapter mark to a frame of that chapter: its poster frame (the
+  // thumbnail chapter menus show), as in the classic apps
+  function posterDrag(ev, mk, track, i) {
+    ev.preventDefault();
+    const lo = entries[i].time, hi = Math.max(lo, (entries[i + 1]?.time ?? dur) - 1 / fps);
+    const ghost = document.createElement("div");
+    ghost.className = "tl-poster-drag"; track.appendChild(ghost);
+    let time = entries[i].poster ?? lo;
+    const place = (e) => {
+      time = Math.round(Math.max(lo, Math.min(hi, at(e, track))) * fps) / fps;
+      ghost.style.left = `${time * pps}px`; seek(time);
+    };
+    place(ev);
+    mk.setPointerCapture(ev.pointerId);
+    mk.onpointermove = place;
+    mk.onpointerup = () => {
+      mk.onpointermove = mk.onpointerup = null; ghost.remove();
+      commit((p) => { const x = p.titles.find((y) => y.id === ti.id), list = chapterEntries(x); list[i].poster = time; setChapters(x, list); });
+    };
+  }
   // subtitle cues as clips
   subs.forEach(async (s, k) => {
     let data;
@@ -5283,6 +5360,25 @@ function watchPsd() {
     watchPsd();
   }, 2000);
 }
+// Keys of the Timeline viewer as the classic apps' help lists them (not in the menus): Home / End,
+// ← / → a frame, ⇧* on the keypad or ⌘⇧8 / Ctrl+Shift+8 the poster frame, ⌘. / keypad + − zoom
+function timelineKeys(e) {
+  if (!inTitle() || !S.titleSeek || !S.tl?.fps) return false;
+  const ti = curTitle(), now = S.playhead[ti.id] || 0, fps = S.tl.fps, plain = !(e.metaKey || e.ctrlKey || e.altKey);
+  const go = (time) => { e.preventDefault(); S.titleSeek(Math.round(time * fps) / fps); return true; };
+  if (plain && !e.shiftKey && e.key === "Home") return go(0);
+  if (plain && !e.shiftKey && e.key === "End") return go(Math.max(0, S.tl.dur - 1 / fps));
+  if (plain && !e.shiftKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) return go(now + (e.key === "ArrowLeft" ? -1 : 1) / fps);
+  if ((e.shiftKey && e.code === "NumpadMultiply" && plain) || (modKey(e) && e.shiftKey && !e.altKey && e.code === "Digit8")) {
+    if (ti.slideshow) return false;
+    e.preventDefault(); setPosterFrame(); return true;
+  }
+  const zoom = (f) => { e.preventDefault(); S.tlZoom = Math.max(1, Math.min(64, (S.tlZoom || 1) * f)); renderTimeline(); return true; };
+  if (modKey(e) && !e.shiftKey && !e.altKey && e.code === "Period") return zoom(2);
+  if (plain && e.code === "NumpadAdd") return zoom(2);
+  if (plain && e.code === "NumpadSubtract") return zoom(0.5);
+  return false;
+}
 function jumpChapter(dir) {
   const ti = curTitle(), chapters = chaptersOf(ti), now = S.playhead[ti.id] || 0;
   const to = dir > 0 ? chapters.find((c) => c > now + 0.01) : [...chapters].reverse().find((c) => c < now - 0.01);
@@ -5318,7 +5414,9 @@ function keyLabel(spec) {
 function keyMatches(spec, e) {
   const parts = keyParts(spec), key = parts[parts.length - 1];
   const want = { mod: parts.includes("mod"), shift: parts.includes("shift"), alt: parts.includes("alt") };
-  if (["?", "*", "+", "-"].includes(key)) return e.key === key && !(e.metaKey || e.ctrlKey || e.altKey);
+  if (key === "*") return !(e.metaKey || e.ctrlKey || e.altKey) && !(e.shiftKey && e.code === "NumpadMultiply")
+    && (e.key === "*" || (e.shiftKey && e.code === "Digit8"));      // (Shift+8, as the classic apps' help has it)
+  if (["?", "+", "-"].includes(key)) return e.key === key && !(e.metaKey || e.ctrlKey || e.altKey);
   if (want.mod !== modKey(e) || want.shift !== e.shiftKey || want.alt !== e.altKey) return false;
   if (IS_MAC && parts.includes("ctrl") !== e.ctrlKey) return false;        // (⌃ is a key of its own there)
   if (key === "delete") return e.key === "Delete" || e.key === "Backspace";
@@ -5483,6 +5581,7 @@ window.addEventListener("keydown", (e) => {
   if (document.activeElement?.closest?.("#sim-screen")) return;     // the simulator's remote keys
   if (P() && commandKeys(e)) return;
   if (!P() && e.key === "?") { shortcutsSheet(); return; }
+  if (P() && timelineKeys(e)) return;
   stageKeys(e);
 });
 window.addEventListener("resize", () => { if (S.sel.view === "menu") renderMain(); });

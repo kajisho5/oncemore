@@ -186,6 +186,55 @@ class TestEncoreDrag(unittest.TestCase):
             browser.close()
         self.assertEqual(errors, [])
 
+    def test_resize_handles(self):
+        # a rectangle's handles: the corner resizes it from the opposite corner,
+        # Shift keeps its proportions, Alt resizes it from its centre
+        data = self.project()
+        data["menus"][0].setdefault("shapes", []).append({"x": 480, "y": 300, "w": 100, "h": 50, "color": "#FF000080"})
+        self.s.call("/api/project", "PUT", {"project": data})
+        shape = lambda: {k: self.menu()["shapes"][-1][k] for k in ("x", "y", "w", "h")}  # noqa: E731
+        with sync_playwright() as p:
+            browser, page, errors = self.open(p)
+            n = len(self.menu()["shapes"]) - 1
+            page.locator(f".stage .el[data-kind=shape][data-i='{n}']").click()
+            st = page.locator("#stage").bounding_box()
+            kx = st["width"] / 720                                   # (screen px per grid px, across)
+            ky = st["height"] / (self.project()["disc"].get("height") or 480)
+
+            def drag(h, dx, dy, keys=()):
+                hb = page.locator(f".stage .rz-h[data-h={h}]").bounding_box()
+                x, y = hb["x"] + hb["width"] / 2, hb["y"] + hb["height"] / 2
+                page.mouse.move(x, y)
+                for k in keys:
+                    page.keyboard.down(k)
+                page.mouse.down()
+                page.mouse.move(x + dx * kx, y + dy * ky, steps=5)
+                page.mouse.up()
+                for k in keys:
+                    page.keyboard.up(k)
+            drag("se", 50, 30)
+            self.until(lambda: shape()["w"] != 100, "resized")
+            b = shape()
+            self.assertEqual((b["x"], b["y"]), (480, 300))
+            self.assertLess(abs(b["w"] - 150), 3)
+            self.assertLess(abs(b["h"] - 80), 3)
+            # Shift: the proportions stay (150:80)
+            drag("se", 75, 10, ["Shift"])
+            self.until(lambda: shape()["w"] != b["w"], "resized again")
+            c = shape()
+            self.assertLess(abs(c["w"] / c["h"] - b["w"] / b["h"]), 0.05)
+            self.assertEqual((c["x"], c["y"]), (480, 300))
+            # Alt: from the centre (the left edge moves out as far as the right)
+            cx = c["x"] + c["w"] / 2
+            drag("e", 20, 0, ["Alt"])
+            self.until(lambda: shape()["w"] != c["w"], "from the centre")
+            d = shape()
+            self.assertLess(abs(d["x"] + d["w"] / 2 - cx), 1.5)
+            self.assertLess(d["x"], c["x"])
+            self.assertEqual(d["h"], c["h"])
+            browser.close()
+        self.assertEqual(errors, [])
+
     def test_photoshop_file_becomes_a_menu(self):
         from .test_psdmenu import design
         with sync_playwright() as p:

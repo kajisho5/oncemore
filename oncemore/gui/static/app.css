@@ -144,6 +144,7 @@ h3 { font-size: 12px; margin: 18px 0 8px; color: var(--muted); text-transform: u
 .tl-chapter { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--c-kind-chapter); cursor: ew-resize; z-index: 2; }
 .tl-chapter span { position: absolute; top: 2px; left: 4px; font-size: 10px; color: var(--c-kind-chapter); white-space: nowrap; pointer-events: none; }
 .tl-chapter.first { cursor: default; }
+.tl-poster-drag { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--focus); z-index: 3; pointer-events: none; }
 .tl-playhead { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--c-danger); z-index: 4; pointer-events: none; }
 .kind-menu { background: var(--c-kind-menu); }
 .kind-title { background: var(--c-kind-title); }
@@ -231,6 +232,12 @@ h3 { font-size: 12px; margin: 18px 0 8px; color: var(--muted); text-transform: u
 }
 .stage .el:hover { outline-color: rgba(255,255,255,.35); }
 .stage .el.selected { outline: 1px solid var(--focus); }
+.stage .rz { position: absolute; pointer-events: none; outline: 1px solid var(--focus); z-index: 6; }
+.stage .rz-h { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; background: var(--c-bg-0); border: 1px solid var(--focus); pointer-events: auto; }
+.stage .rz-h[data-h=nw] { left: 0; top: 0; cursor: nwse-resize; } .stage .rz-h[data-h=n] { left: 50%; top: 0; cursor: ns-resize; }
+.stage .rz-h[data-h=ne] { left: 100%; top: 0; cursor: nesw-resize; } .stage .rz-h[data-h=e] { left: 100%; top: 50%; cursor: ew-resize; }
+.stage .rz-h[data-h=se] { left: 100%; top: 100%; cursor: nwse-resize; } .stage .rz-h[data-h=s] { left: 50%; top: 100%; cursor: ns-resize; }
+.stage .rz-h[data-h=sw] { left: 0; top: 100%; cursor: nesw-resize; } .stage .rz-h[data-h=w] { left: 0; top: 50%; cursor: ew-resize; }
 .stage .marquee { position: absolute; border: 1px dashed var(--focus); background: color-mix(in srgb, var(--focus) 12%, transparent); pointer-events: none; z-index: 5; }
 .stage .el.button.highlight { text-decoration: underline; text-underline-offset: 3px; }
 .stage .el.shape { outline-offset: -1px; }

@@ -1785,7 +1785,42 @@ held. oncemore follows it where it has the same objects:
 * `tests/test_encore_drag.py` checks each of these in a browser. Playwright
   cannot hold Alt during its own drag, so those drops are sent as the
   browser would send them, with the key held.
-* Still to come: resize handles and Shift / Alt on them; dragging the
-  current-time indicator and its keys; poster frames by drag; dropping on the
-  flowchart; reordering by drag; Library drags; routing arrows by drag; and
-  the remaining small keys (listed in the ROADMAP).
+* The rest is listed in the ROADMAP; the Timeline viewer and resize
+  handles are §97.
+
+## 97. The Timeline viewer's keys, and resize handles (2)
+
+From the same tables of the classic apps' help ("Keys for working in the
+Timeline Viewer", "Keys for working in the Menu Viewer"):
+
+* **The current-time indicator** follows a click or a drag in the ruler or
+  the picture track. Home goes to the start and End to the last frame. ← / →
+  move one frame, and so does the wheel with ⌘ (Ctrl elsewhere). The wheel
+  alone scrolls the timeline sideways.
+* **Chapters and poster frames**:
+  * Shift+8 adds a chapter. It is matched by the key, not the character,
+    so it works on keyboards where Shift+8 is not `*`; the keypad's `*`
+    still works.
+  * ⇧* on the keypad or ⌘⇧8 / Ctrl+Shift+8 sets the poster frame of the
+    chapter the indicator is in, as Timeline > Set poster frame does.
+  * ⌘⌥-drag (Ctrl+Alt) from a chapter mark puts that chapter's poster
+    frame where it is let go, inside the chapter. The mark itself stays.
+* **Zoom**: ⌘. (Ctrl+.) and the keypad's + / − zoom the timeline. The help
+  also gives ⌘, for zooming out. oncemore keeps ⌘, for Preferences, as every
+  Mac app does, so the keypad − and the zoom buttons are how to zoom out.
+* These keys are not in the menus (the help says the same of its tables).
+  They are handled by the page, so the Mac app's menu bar does not see
+  them.
+* **Resize handles**: a single selected rectangle or picture shows eight
+  handles. Dragging one resizes the object from the opposite side. With
+  Shift it keeps its proportions; with Alt (⌥) it grows or shrinks around
+  its centre. A turned object has no handles; its size is set in
+  Properties. Text and buttons are sized by their type, which is not done
+  by handles yet.
+* Ripple delete (Shift+Backspace) and slipping a clip's sound (Alt-drag)
+  have no counterpart. A timeline of clips is a list of parts of files
+  (each with its own in and out) played one after another. There are no
+  gaps to close, because removing a clip already closes up the rest, and
+  each clip's sound belongs to its picture, so there is nothing to slip.
+* `tests/test_encore_timeline.py` and `test_encore_drag.test_resize_handles`
+  check each of these in a browser.

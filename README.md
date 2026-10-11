@@ -144,7 +144,9 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   Shift-click (or ⌘-click) or a box dragged around them selects several, with
   align / distribute buttons, snapping guides, arrow-key nudging and ⌘D to
   duplicate. Shift-drag moves in a straight line, Alt (⌥)-drag leaves a copy,
-  and holding ⌘ / Ctrl while dragging turns snapping off. Choose
+  and holding ⌘ / Ctrl while dragging turns snapping off. A selected
+  rectangle or picture has handles to resize it (Shift: keep the
+  proportions, Alt: from the centre). Choose
   each button's target (a menu, a title, a chapter, an audio or subtitle
   stream). A button can be a picture instead of text (*Image*, highlighted by a
   frame or by its shape). Use an image or a video as the background. **Exact preview**
@@ -240,7 +242,10 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   ⇧⌘] stacking order, ⌘0 fit, ⌘L link of the selected button, V / R / T / Z
   selection, rotate, text and zoom tools, ⌘; / ⌥⌘; / ⇧⌘; show / lock / snap to
   guides, + / − zoom, `*` (Shift+8) chapter at the
-  playhead, PgUp / PgDn previous / next chapter, Space play / pause, ⇧Space
+  playhead, PgUp / PgDn previous / next chapter, Space play / pause, Home /
+  End and ← / → (a frame; ⌘ + wheel too) to move the playhead (or drag it in
+  the ruler), ⇧* on the keypad or ⇧⌘8 poster frame (⌘⌥-drag from a chapter
+  mark: that chapter's), ⌘. / keypad + − timeline zoom, ⇧Space
   preview, ⌥⇧1–4 workspaces, ? the list (Ctrl instead of ⌘ on other systems).
 * **The menu editor**: a tools strip (selection, rotate — drag an object
   around its centre, text — click where it goes, zoom, new button /
