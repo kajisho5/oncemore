@@ -53,6 +53,49 @@ FORMATS = {
     (25, 1): (4, 3),           # 1080i 25
     (30000, 1001): (4, 4),     # 1080i 29.97
 }
+# disc.bluray.video "720": 1280 x 720 progressive, at twice the disc's rate so
+# that 50 / 59.94 frames a second stay as they are (film stays 23.976). The
+# codes are libbluray's bd_video_format_e / bd_video_rate_e (720P = 5;
+# 23.976 = 1, 50 = 6, 59.94 = 7)
+FORMATS_720 = {
+    (24000, 1001): (5, 1),     # 720p 23.976
+    (50, 1): (5, 6),           # 720p 50
+    (60000, 1001): (5, 7),     # 720p 59.94
+}
+FRAMES = {"1080": (WIDTH, HEIGHT), "720": (1280, 720)}
+
+
+def frame_size(disc):
+    """(width, height) of the disc's Blu-ray picture."""
+    return FRAMES[getattr(disc, "bluray_video", "1080")]
+
+
+def bd_fps(fps, disc):
+    """The rate a picture at `fps` (the disc's or a film title's) goes on the
+    Blu-ray at: 720p doubles 25 and 29.97 (50 / 59.94 progressive)."""
+    if getattr(disc, "bluray_video", "1080") == "720" and fps in ((25, 1), (30000, 1001)):
+        return (2 * fps[0], fps[1])
+    return fps
+
+
+def bd_format(fps, disc):
+    """(video_format, frame_rate) codes of a picture at `fps` (before bd_fps)."""
+    table = FORMATS_720 if getattr(disc, "bluray_video", "1080") == "720" else FORMATS
+    rate = bd_fps(fps, disc)
+    if rate not in table:
+        raise OncemoreError(f"{rate[0]}/{rate[1]} fps has no Blu-ray format")
+    return table[rate]
+
+
+def interlaced_format(fps, disc):
+    """Whether pictures at `fps` go on the disc as 1080i (fields)."""
+    return bd_format(fps, disc)[0] == 4
+
+
+def hd_frame(disc, fps=None):
+    """The HD picture of the disc's Blu-ray (an HDFrame) for pictures at `fps`."""
+    w, h = frame_size(disc)
+    return HDFrame(disc.standard, bd_fps(fps or disc.fps, disc), w, h)
 CODING_H264, CODING_LPCM, CODING_AC3, CODING_DTS = 0x1B, 0x80, 0x81, 0x82
 CODING_PG, CODING_IG = 0x90, 0x91
 
@@ -216,13 +259,15 @@ def coded_for_fields(path):
 COPY_BSF = "h264_mp4toannexb,filter_units=remove_types=9,dump_extra=freq=keyframe"
 
 
-def copy_compliance(info, fps):
+def copy_compliance(info, fps, disc=None):
     """Why the picture of `info` (probe, with "gop" from encode.longest_gop
     and "fields" from coded_for_fields) cannot go on a Blu-ray as it is, at
     the title's rate `fps` (an empty list when it can): H.264 High or Main
-    profile up to level 4.1, 4:2:0, 1920x1080 square pixels, one of the
-    rates oncemore writes (23.976 progressive; 25 and 29.97 as 1080i, coded
-    for fields), a key frame at least every second, at most 40 Mbit/s."""
+    profile up to level 4.1, 4:2:0, the disc's frame (1920x1080 square pixels
+    or 1440x1080 at 4:3 pixels, as AVCHD cameras record; 1280x720 for a 720
+    disc), one of the rates oncemore writes (23.976 progressive; 25 and 29.97
+    as 1080i, coded for fields; 50 and 59.94 for 720p), a key frame at least
+    every second, at most 40 Mbit/s."""
     out = []
     if info.get("codec") != "h264":
         return [f"the video is {info.get('codec')}, not H.264"]
@@ -232,15 +277,18 @@ def copy_compliance(info, fps):
         out.append(f"the H.264 level is {info['level'] / 10:.1f} (at most 4.1)")
     if info.get("pix_fmt") and info["pix_fmt"] != "yuv420p":
         out.append(f"the picture is {info['pix_fmt']}, not 4:2:0 (yuv420p)")
-    if (info.get("width"), info.get("height")) != (WIDTH, HEIGHT) or \
-            float(info.get("sar") or 1) != 1:
-        out.append(f"the frame is {info.get('width')}x{info.get('height')}, not 1920x1080 "
-                   "with square pixels")
-    num, den = fps
+    w, h = frame_size(disc)
+    size, sar = (info.get("width"), info.get("height")), float(info.get("sar") or 1)
+    if not ((size == (w, h) and sar == 1) or (h == 1080 and size == (1440, 1080) and
+                                             abs(sar - 4 / 3) < 0.01)):
+        out.append(f"the frame is {size[0]}x{size[1]}, not {w}x{h} with square pixels" +
+                   (" or 1440x1080 with 4:3 pixels" if h == 1080 else ""))
+    num, den = rate = bd_fps(fps, disc)
     src = float(info.get("fps") or 0)
-    if fps not in FORMATS or abs(src - num / den) > 0.01:
+    table = FORMATS_720 if h == 720 else FORMATS
+    if rate not in table or abs(src - num / den) > 0.01:
         out.append(f"the frame rate is {src:.3f}, not {num / den:.3f}")
-    elif FORMATS[fps][0] == 4 and info.get("fields") is not True:
+    elif table[rate][0] == 4 and info.get("fields") is not True:
         out.append(f"{num / den:.3f} fps goes on a Blu-ray as 1080i, and the video is not "
                    "coded for fields")
     gop = info.get("gop")
@@ -277,18 +325,24 @@ def key_times(chapters, fps):
 
 def video_args(title, disc, max_bps, fast):
     fps = title_fps(title, disc)
-    if fps not in FORMATS:
-        raise OncemoreError(f"title {title.id!r}: {fps[0]}/{fps[1]} fps has no Blu-ray format")
-    return stream_video_args(fps, max_bps, fast, key_times(title.chapters, fps))
+    try:
+        bd_format(fps, disc)
+    except OncemoreError as e:
+        raise OncemoreError(f"title {title.id!r}: {e}") from None
+    rate = bd_fps(fps, disc)
+    return stream_video_args(fps, max_bps, fast, key_times(title.chapters, rate), disc)
 
 
-def stream_video_args(fps, max_bps, fast, keys=()):
-    """x264 options for a Blu-ray video stream at `fps`; `keys`: times to make
+def stream_video_args(fps, max_bps, fast, keys=(), disc=None):
+    """x264 options for a Blu-ray video stream of pictures at `fps` (the disc's
+    or a film title's; a 720 disc doubles 25 and 29.97); `keys`: times to make
     key frames (chapters, a menu's loop point)."""
+    interlaced = interlaced_format(fps, disc)
+    fps = bd_fps(fps, disc)
     gop = round(fps[0] / fps[1])            # at most one second between key frames
     x264 = (f"bluray-compat=1:slices=4:aud=1:nal-hrd=vbr:keyint={gop}:min-keyint=1:"
             "force-cfr=1")
-    if FORMATS[fps][0] == 4:
+    if interlaced:
         x264 += ":fake-interlaced=1:pic-struct=1"
     args = ["-c:v", "libx264", "-preset", "ultrafast" if fast else "medium",
             "-crf", "24" if fast else "19", "-profile:v", "high", "-level", "4.1",
@@ -310,7 +364,7 @@ def encode_title(title, info, disc, max_bps, out_path, work, fast=False, on_prog
     if not info.get("has_video"):
         raise OncemoreError(f"title {title.id!r}: {title.source} has no video stream")
     duration = info["duration"]
-    hd = HDFrame(disc.standard, disc.fps)
+    hd = hd_frame(disc)
     # film stays at 23.976; everything else becomes progressive frames
     mode = "pulldown" if title.video_mode == "pulldown" else "progressive"
     probes = dict(probes or {})
@@ -332,7 +386,7 @@ def encode_title(title, info, disc, max_bps, out_path, work, fast=False, on_prog
         vin = "0:v:0"
         if "still" in info:
             # sound only: the picture comes from its own input, after the sound's
-            inputs += encode.still_input(info, disc.fps, duration, (WIDTH, HEIGHT))
+            inputs += encode.still_input(info, hd.fps, duration, (hd.width, hd.height))
             vin = f"{inputs.count('-i') - 1}:v:0"
         if title.audio_passthrough:
             sources = [title.source] + [extra[i + 1] for i in range(0, len(extra), 2)]
@@ -380,11 +434,11 @@ def encode_transition(path, info, disc, max_bps, out_path, work, fast=False, on_
     """A link transition as a clip of its own: the HD picture and its sound
     (or silence) in AC-3, like a menu's."""
     duration = info["duration"]
-    vf = encode.fit_filter(info, HDFrame(disc.standard, disc.fps))
+    vf = encode.fit_filter(info, hd_frame(disc))
     graph = f"[0:v:0]{vf}[v];" + ("[0:a:0]aresample=48000,apad[a]" if info.get("has_audio")
                                    else "anullsrc=channel_layout=stereo:sample_rate=48000[a]")
     encode.run_ffmpeg(["-i", path, "-filter_complex", graph, "-map", "[v]", "-map", "[a]"] +
-                      stream_video_args(disc.fps, max_bps, fast) +
+                      stream_video_args(disc.fps, max_bps, fast, disc=disc) +
                       ["-c:a", "ac3", "-b:a", "192000", "-ar", "48000", "-ac", "2",
                        "-streamid", f"0:{VIDEO_PID}", "-streamid", f"1:{AUDIO_PID}",
                        "-t", f"{duration:.3f}", "-f", "mpegts", "-mpegts_m2ts_mode", "1",
@@ -1065,7 +1119,7 @@ def write_bdmv(project, clips, out_dir, menus=None, popups=(), transitions=None)
     for n, t in enumerate(project.titles, 1):
         name = f"{n:05d}"
         scan = scan_m2ts(clips[t.id])
-        video_format, frame_rate = FORMATS[title_fps(t, project.disc)]
+        video_format, frame_rate = bd_format(title_fps(t, project.disc), project.disc)
         audio = audio_streams(t)
         pg = [lang3(sub.lang) for sub in t.subtitles]
         pieces[t.id] = Piece(name, video_format, frame_rate, audio, pg,
@@ -1081,7 +1135,7 @@ def write_bdmv(project, clips, out_dir, menus=None, popups=(), transitions=None)
     for k, m in enumerate(project.menus, len(project.titles) + 1):
         name, info = f"{k:05d}", menus[m.id]
         scan = scan_m2ts(info["m2ts"])
-        video_format, frame_rate = FORMATS[project.disc.fps]
+        video_format, frame_rate = bd_format(project.disc.fps, project.disc)
         audio = [(CODING_AC3, 2, "und")] if info.get("audio") else []
         marks = [scan.first_pts // 2]
         if info.get("loop_point"):
@@ -1101,7 +1155,7 @@ def write_bdmv(project, clips, out_dir, menus=None, popups=(), transitions=None)
     for k, path in enumerate(sorted({key[0] for key in project.link_transitions}), first):
         name = f"{k:05d}"
         scan = scan_m2ts(transitions[path])
-        video_format, frame_rate = FORMATS[project.disc.fps]
+        video_format, frame_rate = bd_format(project.disc.fps, project.disc)
         audio = [(CODING_AC3, 2, "und")]
         pieces[path] = Piece(name, video_format, frame_rate, audio, [], [scan.first_pts // 2],
                              scan.end_pts // 2)
