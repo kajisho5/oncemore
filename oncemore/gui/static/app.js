@@ -136,7 +136,7 @@ const I18N = {
     build_iso: "Disc image (.iso)", build_folder: "VIDEO_TS folder", build_disc: "DVD disc (the image, then burned)",
     build_format: "Format", format_dvd: "DVD", format_bluray: "Blu-ray", format_web: "Web (HTML5)", build_web_folder: "A folder with index.html (open it in a browser, or put it on a web server)",
     web_note: "The disc for browsers: the menus with their buttons, the titles as MP4 with chapters and subtitles, and the links as on the disc. One sound track per title.", build_bdmv: "BDMV folder", build_bd_disc: "Blu-ray disc (the image, then burned)", bd_size: "Disc size",
-    bd_note: "Blu-ray: titles in HD (1920×1080) with chapters, playlists and Play All. Menus and subtitles are DVD-only for now.",
+    bd_picture: "Picture", bd_1080: "1920×1080 (1080i 25 / 29.97, film 1080p 23.976)", bd_720: "1280×720 (720p 50 / 59.94: keeps 50 or 60 frames a second)", bd_note: "Blu-ray: titles in HD (1920×1080) with chapters, playlists and Play All. Menus and subtitles are DVD-only for now.",
     recorder: "Recorder", recorder_hint: "Empty: the first disc writer. Insert a blank disc (DVD, or BD for a Blu-ray) before you build.",
     burned: "Burned to the DVD", step_burn: "Burning the disc", fast: "Fast (1-pass) encoding",
     start_build: "Start", building: "Building…", build_done: "Done", build_failed: "Build failed",
@@ -410,7 +410,7 @@ const I18N = {
     build_iso: "ディスクイメージ（.iso）", build_folder: "VIDEO_TS フォルダ", build_disc: "DVD ディスク（イメージを作って書き込み）",
     build_format: "フォーマット", format_dvd: "DVD", format_bluray: "Blu-ray", format_web: "Web（HTML5）", build_web_folder: "index.html の入ったフォルダー（ブラウザで開くか、Web サーバーに置きます）",
     web_note: "ブラウザ向けのディスク：ボタン付きのメニュー、チャプターと字幕付きの MP4 のタイトル、ディスクと同じリンク。音声はタイトルごとに 1 本です。", build_bdmv: "BDMV フォルダ", build_bd_disc: "Blu-ray ディスク（イメージを作って書き込み）", bd_size: "ディスク容量",
-    bd_note: "Blu-ray: タイトルを HD（1920×1080）で、チャプター・プレイリスト・すべて再生付きで書き出します。メニューと字幕は今のところ DVD のみです。",
+    bd_picture: "映像", bd_1080: "1920×1080（1080i 25／29.97、フィルムは 1080p 23.976）", bd_720: "1280×720（720p 50／59.94：毎秒 50／60 コマのまま）", bd_note: "Blu-ray: タイトルを HD（1920×1080）で、チャプター・プレイリスト・すべて再生付きで書き出します。メニューと字幕は今のところ DVD のみです。",
     recorder: "ドライブ", recorder_hint: "空欄なら最初のドライブ。ビルドの前に空のディスク（Blu-ray なら BD）を入れてください。",
     burned: "DVD に書き込みました", step_burn: "ディスクに書き込み", fast: "高速（1パス）エンコード",
     start_build: "開始", building: "ビルド中…", build_done: "完了", build_failed: "ビルドに失敗",
@@ -3617,6 +3617,8 @@ function renderBuild(m) {
       ${fmt === "web" ? `<div class="frow"><span class="fl"></span><span class="hint">${esc(t("web_note"))}</span></div>` : ""}
       ${fmt === "bluray" ? `<label class="frow"><span class="fl">${t("bd_size")}</span><select id="bdsize">
         ${["BD25", "BD50"].map((v) => `<option ${(d.bluray?.target || "BD25") === v ? "selected" : ""}>${v}</option>`).join("")}</select></label>
+      <label class="frow"><span class="fl">${t("bd_picture")}</span><select id="bdvideo">
+        ${[["1080", t("bd_1080")], ["720", t("bd_720")]].map(([v, l]) => `<option value="${v}" ${(d.bluray?.video || "1080") === v ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></label>
       <div class="frow"><span class="fl"></span><span class="hint">${esc(t("bd_note"))}</span></div>` : ""}</fieldset>
     <fieldset class="group"><legend>${t("output")}</legend>
       ${fmt === "web" ? `<div class="frow"><span class="fl"></span><span>${t("build_web_folder")}</span></div>` : `
@@ -3652,9 +3654,14 @@ function renderBuild(m) {
   ${logs.length ? `<div class="card" style="max-width:720px"><div class="log">${esc(logs.join("\n"))}</div></div>` : ""}`;
   m.querySelectorAll("input[name=kind]").forEach((r) => (r.onchange = () => { S.buildKind = r.value; renderSidebar(); }));
   $("#bformat").onchange = (e) => { S.buildFormat = e.target.value; renderSidebar(); };
-  if ($("#bdsize")) $("#bdsize").onchange = (e) => {
-    commit(() => { if (e.target.value === "BD25") delete d.bluray; else d.bluray = { target: e.target.value }; });
-  };
+  // (each setting kept apart: BD25 and 1080 are the defaults and leave no key)
+  const setBluray = (key, value, dflt) => commit(() => {
+    const b = { ...(d.bluray || {}) };
+    if (value === dflt) delete b[key]; else b[key] = value;
+    if (Object.keys(b).length) d.bluray = b; else delete d.bluray;
+  });
+  if ($("#bdsize")) $("#bdsize").onchange = (e) => setBluray("target", e.target.value, "BD25");
+  if ($("#bdvideo")) $("#bdvideo").onchange = (e) => setBluray("video", e.target.value, "1080");
   if ($("#recorder")) $("#recorder").onchange = (e) => (S.recorder = e.target.value.trim());
   $("#fast").onchange = (e) => (S.buildFast = e.target.checked);
   $("#nocache").onchange = (e) => (S.buildNoCache = e.target.checked);

@@ -221,7 +221,12 @@
               ],
               "default": "BD25",
               "description": "Disc size: single layer (25 GB) or dual layer (50 GB)."
-            }
+            },
+        "video": {
+          "enum": ["1080", "720"],
+          "default": "1080",
+          "description": "The picture: 1920x1080 (1080i at 25 / 29.97, film at 1080p 23.976) or 1280x720 progressive at twice the disc's rate (720p 50 / 59.94, so 50 or 60 frames a second are kept; film at 720p 23.976)."
+        }
           }
         }
       }

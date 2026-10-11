@@ -194,7 +194,7 @@ def inspect(project, reporter=None, prepare=True, bd=False):
             src = dict(info, gop=encode.longest_gop(t.source))
             if src.get("codec") == "h264":
                 src["fields"] = bluray.coded_for_fields(t.source)
-            why = bluray.copy_compliance(src, title_fps(t, project.disc))
+            why = bluray.copy_compliance(src, title_fps(t, project.disc), project.disc)
             t.bd_copy = not why
             if why:
                 warnings.append(f"{where}.transcode: the picture is encoded for the Blu-ray "
@@ -735,7 +735,7 @@ def build_bluray(project, out_dir, reporter, fast=False, keep_work=False, work=N
             return nav.button(b) + ([bluray.popup_off()] if stays else [])
         popups[m_id] = bdmenu.popup_stream(
             hd, hd.menu(m_id), work, plan["font"], popup_commands,
-            bluray.FORMATS[project.disc.fps][1])
+            bluray.bd_format(project.disc.fps, project.disc)[1])
     clips = {}
     for t in project.titles:
         out = os.path.join(work, "titles", f"{t.id}.m2ts")
@@ -743,6 +743,7 @@ def build_bluray(project, out_dir, reporter, fast=False, keep_work=False, work=N
         popup = popups.get(t.remote_menu)
         key = _cache_key("bluray-title", {
             "title": title_cache_key(project, t, infos[t.id], plan["max_bps"], fast),
+            "frame": project.disc.bluray_video,
             "subtitles": [_digest(p) for p in sups],
             **({"popup": _digest(popup)} if popup else {})})
         if _cache_get(cache, key, out):
@@ -770,6 +771,7 @@ def build_bluray(project, out_dir, reporter, fast=False, keep_work=False, work=N
         out = os.path.join(work, "titles", f"transition{k}.m2ts")
         name = os.path.basename(path)
         key = _cache_key("bluray-transition", {"file": _file_sig(path), "fps": project.disc.fps,
+                                               "frame": project.disc.bluray_video,
                                                "max_bps": plan["max_bps"], "fast": fast})
         if _cache_get(cache, key, out):
             reporter.step("menu", f"Transition '{name}' unchanged (cached)", item=name)
@@ -820,7 +822,7 @@ def bluray_subtitles(project, title, plan, work, reporter):
     disc's subtitle style scaled up from its standard). Returns .sup paths."""
     subdir = os.path.join(work, "subs", title.id)
     os.makedirs(subdir, exist_ok=True)
-    hd = bluray.HDFrame(project.disc.standard, project.disc.fps)
+    hd = bluray.hd_frame(project.disc)
     k = hd.height / project.disc.height
     style = dict(project.disc.subtitle_style)
     for key in ("size", "margin", "outline_width"):

@@ -39,11 +39,11 @@ class HDDisc(Disc):
 
     @property
     def width(self):
-        return bluray.WIDTH
+        return bluray.frame_size(self)[0]
 
     @property
     def height(self):
-        return bluray.HEIGHT
+        return bluray.frame_size(self)[1]
 
     @property
     def dar(self):
@@ -59,11 +59,12 @@ def hd_disc(disc):
 def frame_map(disc):
     """(kx, ox, ky): menu coordinates (720 x 480/576 storage pixels) to HD:
     x' = ox + x * kx, y' = y * ky. A 4:3 menu sits pillarboxed in the frame."""
-    ky = bluray.HEIGHT / disc.height
+    fw, fh = bluray.frame_size(disc)
+    ky = fh / disc.height
     if disc.aspect == "4:3":
-        kx = bluray.HEIGHT * 4 / 3 / 720
-        return kx, round((bluray.WIDTH - 720 * kx) / 2), ky
-    return bluray.WIDTH / 720, 0, ky
+        kx = fh * 4 / 3 / 720
+        return kx, round((fw - 720 * kx) / 2), ky
+    return fw / 720, 0, ky
 
 
 def scale_menu(menu, disc, probe):
@@ -287,7 +288,7 @@ def ig_stream(menu, geoms, canvas, commands, frame_rate, follow_selection=False,
     # multiplexed; always on, or a pop-up (the Pop-up key shows it); no timeouts
     body = bytes([0x40 if look is not None else 0x00]) + bytes(10)
     body += (0).to_bytes(3, "big") + bytes([1]) + page     # no user time-out; one page
-    ics = struct.pack(">HHB", bluray.WIDTH, bluray.HEIGHT, frame_rate << 4)
+    ics = struct.pack(">HHB", canvas.width, canvas.height, frame_rate << 4)
     ics += struct.pack(">HB", 0, 0x80)                     # composition 0, epoch start
     ics += bytes([0xC0]) + len(body).to_bytes(3, "big") + body
     if len(ics) > pgs.MAX_SEGMENT:
@@ -372,7 +373,7 @@ def encode_menu(project, menu, work, font, commands, max_bps, fast=False, on_pro
     canvas = mb.highlight_canvas(geoms)
     disc = project.disc
     fps = disc.fps
-    video_format, frame_rate = bluray.FORMATS[fps]
+    video_format, frame_rate = bluray.bd_format(fps, disc)
     sup = os.path.join(mb.work, f"{menu.id}.ig.sup")
     with open(sup, "wb") as f:
         f.write(ig_stream(menu, geoms, canvas, commands, frame_rate,
@@ -381,7 +382,7 @@ def encode_menu(project, menu, work, font, commands, max_bps, fast=False, on_pro
                            mb._probe(menu.background_video).get("has_audio") else None)
     still = not (menu.background_video or music or menu.fade_in)
     dur = STILL_SECONDS if still else mb.menu_duration(menu)
-    num, den = fps
+    num, den = bluray.bd_fps(fps, disc)
     finish = "scale=out_color_matrix=bt709:out_range=tv,format=yuv420p,setsar=1"
     if menu.fade_in and not still:
         finish = f"fade=t=in:st=0:d={menu.fade_in:.3f}," + finish
@@ -412,7 +413,7 @@ def encode_menu(project, menu, work, font, commands, max_bps, fast=False, on_pro
     inputs += ["-f", "sup", "-i", sup]
     maps += ["-map", f"{n}:0"]
     keys = [menu.loop_point] if menu.loop_point and not still else []
-    video = bluray.stream_video_args(fps, max_bps, fast, keys)
+    video = bluray.stream_video_args(fps, max_bps, fast, keys, disc)
     m2ts = os.path.join(mb.work, f"{menu.id}.m2ts")
     ig_index = 2 if music else 1
     encode.run_ffmpeg(inputs + ["-filter_complex", graph] + maps + video + audio +
