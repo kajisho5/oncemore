@@ -362,6 +362,26 @@ narrow it). Nothing leaves your computer except through the assistant you
 connected. Both protocol eras are spoken: revision 2026-07-28 and the earlier
 ones that open with `initialize`.
 
+### With ffmpeg-skill: getting the videos ready first
+
+oncemore makes the disc from the videos it is given; it does not edit them.
+For an assistant that should also prepare the footage, add
+[ffmpeg-skill](https://github.com/kajisho5/ffmpeg-skill) (local FFmpeg, no
+cloud, no API keys) next to it:
+
+```
+npx ffmpeg-skill        # Claude Code; --cursor, --codex or --all for the others
+```
+
+Then one request can cover both, e.g. "trim the start of these phone videos,
+even out their loudness and make a DVD with a chapter menu": ffmpeg-skill
+cuts (`cut.py`, `silence.py`), turns HDR phone video into SDR
+(`color.py --to-sdr`), evens out loudness (`loudness.py`, EBU R128) and makes
+subtitle files (`caption.py`); oncemore takes the results, adds the menus and
+builds the disc. Leave the final encode to oncemore: it encodes to what the
+DVD and Blu-ray rules allow. The two never call each other: the assistant
+uses both, and oncemore stays standard-library only and offline.
+
 ## Project file
 
 `project.oncemore.json` is the only input. JSON Schema:
