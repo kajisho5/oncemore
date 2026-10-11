@@ -18,6 +18,7 @@ API (all JSON unless noted):
   POST /api/preview                  exact menu render (PNG, data URL) + hit areas
   POST /api/build                    start iso/folder build -> job id
   GET  /api/jobs/ID?since=N          job events (same objects as --json)
+                                     (/api/state names the job running, if any)
   POST /api/reveal                   show a file in Finder / the file manager
   POST /api/clips                    a title made of clips: lengths + joined preview
   POST /api/routing                  a menu's computed remote-control routing
@@ -159,11 +160,16 @@ EXPORT_DIR = "exports"
 class App:
     """State shared by request handlers."""
 
+    FRAME_CACHE_BYTES = 64 * 2**20     # frames and waveforms kept in memory
+    PROXIES_AT_ONCE = 2                # previews made at the same time (ffmpeg each)
+    JOBS_KEPT = 20                     # finished jobs whose events can still be read
+
     def __init__(self, project_dir):
         self.token = secrets.token_urlsafe(18)
         self.port = None
         self.jobs = {}
         self.jobs_lock = threading.Lock()
+        self.proxy_slots = threading.BoundedSemaphore(self.PROXIES_AT_ONCE)
         self.open(project_dir)
 
     def open(self, project_dir):
@@ -173,6 +179,8 @@ class App:
         self.path = os.path.join(self.dir, PROJECT_FILENAME)
         self.probe_cache = {}
         self.frame_cache = {}
+        self.frame_bytes = 0
+        self.frame_lock = threading.Lock()
         self.proxies = {}          # proxy file -> {"state", "fraction", "error"}
         self.proxy_lock = threading.Lock()
         self._encoders = None
@@ -182,8 +190,11 @@ class App:
         self.clip_lock = threading.Lock()
 
     def busy(self):
+        return self.running_job() is not None
+
+    def running_job(self):
         with self.jobs_lock:
-            return any(not j.done for j in self.jobs.values())
+            return next((j for j in self.jobs.values() if not j.done), None)
 
     # -- paths -----------------------------------------------------------------
     def resolve(self, rel):
@@ -290,10 +301,24 @@ class App:
             self.probe_cache[key] = info
         return self.probe_cache[key]
 
+    def _cached(self, key):
+        with self.frame_lock:
+            return self.frame_cache.get(key)
+
+    def _remember(self, key, data):
+        """Keep a frame or waveform, dropping the oldest past FRAME_CACHE_BYTES."""
+        with self.frame_lock:
+            old = self.frame_cache.pop(key, None)
+            self.frame_bytes -= len(old) if old else 0
+            while self.frame_cache and self.frame_bytes + len(data) > self.FRAME_CACHE_BYTES:
+                self.frame_bytes -= len(self.frame_cache.pop(next(iter(self.frame_cache))))
+            self.frame_cache[key] = data
+            self.frame_bytes += len(data)
+
     def frame(self, full, t, width):
         key = (full, os.path.getmtime(full), round(t, 2), width)
-        if key in self.frame_cache:
-            return self.frame_cache[key]
+        if (hit := self._cached(key)) is not None:
+            return hit
         vf = (f"scale=trunc(iw*sar/2)*2:ih,setsar=1,scale={width}:-2")
         cmd = [tools.find("ffmpeg"), "-hide_banner", "-nostdin", "-v", "error",
                "-ss", f"{max(0.0, t):.3f}", "-i", full, "-frames:v", "1", "-vf", vf,
@@ -302,15 +327,13 @@ class App:
         if p.returncode != 0 or not p.stdout:
             raise OncemoreError("cannot read a frame",
                                 details={"output": tools.tail(p.stderr.decode("utf-8", "replace"))})
-        if len(self.frame_cache) > 400:
-            self.frame_cache.clear()
-        self.frame_cache[key] = p.stdout
+        self._remember(key, p.stdout)
         return p.stdout
 
     def waveform(self, full, w, h, stream=0):
         key = ("wave", full, os.path.getmtime(full), w, h, stream)
-        if key in self.frame_cache:
-            return self.frame_cache[key]
+        if (hit := self._cached(key)) is not None:
+            return hit
         cmd = [tools.find("ffmpeg"), "-hide_banner", "-nostdin", "-v", "error", "-i", full,
                "-filter_complex",
                f"[0:a:{stream}]aformat=channel_layouts=mono,showwavespic=s={w}x{h}:colors=white:"
@@ -319,9 +342,7 @@ class App:
         if p.returncode != 0 or not p.stdout:
             raise OncemoreError("no sound to draw",
                                 details={"output": tools.tail(p.stderr.decode("utf-8", "replace"))})
-        if len(self.frame_cache) > 400:
-            self.frame_cache.clear()
-        self.frame_cache[key] = p.stdout
+        self._remember(key, p.stdout)
         return p.stdout
 
     # -- playback proxies ----------------------------------------------------------
@@ -377,25 +398,29 @@ class App:
         return dict(st or {"state": "none", "fraction": 0.0}), out
 
     def _make_proxy(self, full, fmt, out, st):
+        # a few at a time (each is an ffmpeg); the rest wait their turn
+        tmp = f"{out}.{os.getpid()}-{threading.get_ident()}.part"   # (one per writer)
         try:
-            codecs = self.proxy_codecs(fmt)
-            info = self.probe(full)
-            os.makedirs(os.path.dirname(out), exist_ok=True)
-            tmp = f"{out}.part"
-            args = ["-i", full, "-map", "0:v:0", "-map", "0:a:0?", "-sn", "-dn",
-                    "-vf", f"scale=trunc(iw*sar/2)*2:ih,setsar=1,"
-                           f"scale=-2:'min({self.PROXY_HEIGHT},ih)':flags=bicubic",
-                    "-ac", "2"] + codecs + ["-f", fmt, tmp]
-            encode.run_ffmpeg(args, info.get("duration"),
-                              os.path.join(os.path.dirname(out), "last.log"),
-                              lambda f: st.update(fraction=round(f, 3)),
-                              what="ffmpeg (preview)")
-            os.replace(tmp, out)
+            with self.proxy_slots:
+                codecs = self.proxy_codecs(fmt)
+                info = self.probe(full)
+                os.makedirs(os.path.dirname(out), exist_ok=True)
+                args = ["-i", full, "-map", "0:v:0", "-map", "0:a:0?", "-sn", "-dn",
+                        "-vf", f"scale=trunc(iw*sar/2)*2:ih,setsar=1,"
+                               f"scale=-2:'min({self.PROXY_HEIGHT},ih)':flags=bicubic",
+                        "-ac", "2"] + codecs + ["-f", fmt, tmp]
+                encode.run_ffmpeg(args, info.get("duration"), f"{out}.log",
+                                  lambda f: st.update(fraction=round(f, 3)),
+                                  what="ffmpeg (preview)")
+                os.replace(tmp, out)
             st.update(state="ready", fraction=1.0)
         except OncemoreError as e:
             st.update(state="error", error=e.message)
         except Exception as e:  # keep the server alive
             st.update(state="error", error=f"internal error: {e}")
+        finally:
+            if os.path.exists(tmp):
+                os.remove(tmp)
 
     # -- jobs --------------------------------------------------------------------
     def start_build(self, kind, fast, cache=True, device=None, fmt="dvd"):
@@ -432,6 +457,8 @@ class App:
         with self.jobs_lock:
             if any(not j.done for j in self.jobs.values()):
                 raise OncemoreError("a build is already running")
+            for old in list(self.jobs)[:max(0, len(self.jobs) + 1 - self.JOBS_KEPT)]:
+                del self.jobs[old]                  # (all done: the oldest first)
             job = Job(secrets.token_hex(4), kind)
             self.jobs[job.id] = job
 
@@ -585,6 +612,8 @@ class Handler(BaseHTTPRequestHandler):
                       "spumux": bool(tools.find("spumux")),
                       "iso": tools.iso_tool()[0], "install": tools.install_hint()},
             "platform": sys.platform,
+            # (a page opened again while a build runs picks it up)
+            "job": (lambda j: {"id": j.id, "kind": j.kind} if j else None)(self.app.running_job()),
         })
 
     def api_put_project(self, q):

@@ -245,6 +245,28 @@ browser) and lands only with green CI.
   its link (menu, title, chapter, playlist, play all), on DVD and Blu-ray;
   drawn in the flowchart, played in the simulator
 
+**P50 — Hardening from a code review** (done)
+- [x] Blu-ray: a menu link that picks audio / subtitles and plays a title
+  keeps them (the title's default subtitles no longer replace them);
+  `scan_m2ts` refuses broken streams instead of indexing them; a test
+  driving pop-up, loop, end-action override, last menu and button links
+  together through libbluray
+- [x] Encode cache: menu keys follow every thumbnail's picture (clips after
+  the first, a sound title's picture); `--no-cache` refreshes the cache;
+  writers of one entry at once each write their own file; all encoding
+  modules in the code hash; `oncemore clean`
+- [x] Timelines: chapters at clips land on the clip's first frame at
+  29.97 / 23.976; links and chapter menus can use every clip's chapter;
+  thumbnails follow chapters once clips are measured or a slideshow is
+  fitted to its music; long slideshows no longer drift from their chapters;
+  a warning when the music is too short for the pictures
+- [x] App: two previews made at a time, frames kept up to 64 MB, old jobs
+  dropped, a page opened again picks up the running build or transcode
+- [x] DVD: `transcode: false` checks 4:2:0, GOP length, VBR and total rates,
+  accepts half D1, and gives copied film its pulldown; "the last menu"
+  from a later titleset before any menu opens the Menu-key menu; subtitle
+  colours counted as drawn
+
 **P51 — AI assistants (MCP)** (done)
 - [x] `oncemore mcp`: an MCP server over stdio (revision 2026-07-28 and the
   earlier initialize-based ones) whose tools create, read and change

@@ -129,6 +129,33 @@ def keyframe_plan(chapter_frames, fps):
 FILM_FPS = (24000, 1001)
 
 
+def frame_at(t, fps):
+    """The first frame that starts at or after `t` seconds. (Times are
+    rounded to the microsecond, so a little slack: at 29.97 fps that rounding
+    alone moves a start by up to 1/60000 of a frame.)"""
+    num, den = fps
+    return math.ceil(t * num / den - 1e-3)
+
+
+def thumb_time(chapters, k):
+    """When a chapter's thumbnail is grabbed: a little after its start
+    (avoids black frames at cuts), within the chapter."""
+    start = chapters[k]
+    nxt = chapters[k + 1] if k + 1 < len(chapters) else start + 2.0
+    return start + min(1.0, (nxt - start) / 2)
+
+
+def retime_thumbs(project, title):
+    """Once a title's chapters are known (clips measured, a slideshow fitted
+    to its music), the thumbnails that follow a chapter start follow them."""
+    for m in project.menus:
+        for b in m.buttons:
+            th = b.thumb
+            if th and th.title_id == title.id and th.chapter is not None \
+                    and th.chapter < len(title.chapters):
+                th.time = thumb_time(title.chapters, th.chapter)
+
+
 def clip_starts(title):
     """Where each clip of a title begins on the title's timeline (seconds)."""
     out, t = [], 0.0
@@ -144,7 +171,7 @@ def source_at(title, time):
     if not title.clips:
         return title.source, time
     starts = clip_starts(title)
-    k = max(i for i, s in enumerate(starts) if s <= time + 1e-6) if starts else 0
+    k = max((i for i, s in enumerate(starts) if s <= time + 1e-6), default=0)
     c = title.clips[k]
     if c.still:
         return c.source, 0.0
@@ -165,7 +192,7 @@ def chapter_points(chapters, fps):
     VOBU starting at or before the given time, so we aim half a frame late.
     """
     num, den = fps
-    frames = [math.ceil(t * num / den - 1e-6) for t in chapters]
+    frames = [frame_at(t, fps) for t in chapters]
     keys = [f * den / num for f in keyframe_plan(frames, fps)]
     marks = [0.0 if f == 0 else (f + 0.5) * den / num for f in frames]
     return keys, marks
@@ -397,6 +424,7 @@ class Thumb:
     w: int
     h: int
     animated: bool = False     # plays the chapter (motion chapter menus)
+    chapter: int = None        # the chapter (0-based) whose start the time follows
 
 
 @dataclass
@@ -841,6 +869,11 @@ class _Builder:
                 names, posters = [None] * len(chapters), [None] * len(chapters)
         else:
             source = self.file(f"{where}.source", t["source"])
+        if clips and "chapters" not in t:
+            # a chapter at every clip; their times are known once the clips
+            # are measured (clips.apply), their number now
+            chapters = [float(k) for k in range(len(clips))]
+            names, posters = [None] * len(clips), [None] * len(clips)
         if "audio_tracks" in t:
             tracks = [AudioTrack(
                 source=self.file(f"{where}.audio_tracks[{j}].source", a["source"])
@@ -999,18 +1032,17 @@ class _Builder:
         chapter = (num or 1) - 1
         if chapter >= len(title.chapters):
             return None                       # (the action itself is reported)
-        start = title.chapters[chapter]
+        follows = None
         if "time" in spec:
             try:
                 time = parse_time(spec["time"])
             except ValueError as e:
                 self.err(f"{where}.time", str(e))
-                time = start
+                time = title.chapters[chapter]
         else:
-            nxt = title.chapters[chapter + 1] if chapter + 1 < len(title.chapters) else start + 2
-            time = start + min(1.0, (nxt - start) / 2)
+            time, follows = thumb_time(title.chapters, chapter), chapter
         return Thumb(title.id, time, spec["x"], spec["y"], spec["w"], spec["h"],
-                     animated=bool(spec.get("animated")))
+                     animated=bool(spec.get("animated")), chapter=follows)
 
     def slideshow(self, where, spec):
         slides = [slideshow.Slide(self.file(f"{where}.slideshow.slides[{j}].image", s["image"]),
@@ -1102,8 +1134,6 @@ class _Builder:
                 y = row_y[row]
                 # grab the thumbnail a little after the chapter start (avoids
                 # black frames at cuts); clamped to the media length later
-                start = title.chapters[ci]
-                nxt = title.chapters[ci + 1] if ci + 1 < n else start + 2.0
                 poster = title.chapter_posters[ci] if ci < len(title.chapter_posters) else None
                 name = title.chapter_names[ci] if ci < len(title.chapter_names) else None
                 buttons.append(Button(
@@ -1111,10 +1141,10 @@ class _Builder:
                     y=y + thumb_h + 10, action=f"chapter:{title.id}:{ci + 1}", size=22,
                     color=color,
                     thumb=Thumb(title.id,
-                                poster if poster is not None
-                                else start + min(1.0, (nxt - start) / 2),
+                                poster if poster is not None else thumb_time(title.chapters, ci),
                                 x, y, thumb_w, thumb_h,
-                                animated=bool(spec.get("animated_thumbnails")))))
+                                animated=bool(spec.get("animated_thumbnails")),
+                                chapter=None if poster is not None else ci)))
             nav_x = 54
             if back:
                 buttons.append(Button(id="back", label=spec.get("back_label", "BACK"), x=nav_x,

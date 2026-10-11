@@ -12,14 +12,13 @@ every disc back with libbluray.
 """
 
 import dataclasses
-import math
 import os
 import shutil
 import struct
 
 from . import encode, uops
 from .errors import OncemoreError, ProjectError
-from .project import parse_action, title_fps, transition_key
+from .project import frame_at, parse_action, title_fps, transition_key
 
 CAPACITY = {"BD25": 25_025_314_816, "BD50": 50_050_629_632}
 MAX_VIDEO_BPS = 40_000_000     # Blu-ray primary video limit
@@ -36,6 +35,7 @@ LAST_MENU_REG = 1              # GPR: title number of the menu shown last
 ENTRY_REG = 2                  # GPR: button a link highlights in the menu it opens (0 = none)
 LOOP_REG = 3                   # GPR: times the current menu has played (menus with a loop count)
 OVERRIDE_REG = 4               # GPR: end-action override k of the playing title (0 = none)
+STREAMS_REG = 5                # GPR: 1 = the link chose the streams, the title keeps them
 PMT_PID = 0x0100
 VERSION = b"0200"
 
@@ -121,7 +121,7 @@ def audio_codec_args(title, k):
 def key_times(chapters, fps):
     """Chapter starts snapped to frames: the pictures to make key frames."""
     num, den = fps
-    frames = sorted({math.ceil(t * num / den - 1e-6) for t in chapters if t > 0})
+    frames = sorted({frame_at(t, fps) for t in chapters if t > 0})
     return [f * den / num for f in frames]
 
 
@@ -292,7 +292,9 @@ def scan_m2ts(path, video_pid=VIDEO_PID):
                         if buf[q + 1] & 0x10:
                             pcr_pid = pid
                     q += 1 + alen
-                if not afc & 1 or buf[q:q + 3] != b"\0\0\1" or not buf[q + 7] & 0x80:
+                # (a PES header must start in this packet with its PTS: 14 bytes)
+                if not afc & 1 or q + 14 > p + 188 or buf[q:q + 3] != b"\0\0\1" \
+                        or not buf[q + 7] & 0x80:
                     continue
                 pts = _pts(buf, q + 9)
                 n = spn + off // 192
@@ -391,6 +393,9 @@ def play_pl_mark(playlist, mark):
 def goto(pc):
     """Goto command <pc> of the same object."""
     return _cmd(0x20, 0x81, pc)
+
+
+PLAYS = ("title", "chapter", "playlist", "playall")      # actions that start playing
 
 
 def move(reg, value):
@@ -642,6 +647,11 @@ class Nav:
         self.first_play = len(titles)
         self.top_menu = len(titles) + 1
         self.chapter_objects = {key: len(titles) + 2 + k for k, key in enumerate(chapters)}
+        # links that switch streams and then play: the title must not set its
+        # own default subtitles over the chosen ones (_start)
+        self.stream_links = any(
+            (b.audio or b.subtitle is not None) and parse_action(b.action)[0] in PLAYS
+            for m in p.menus for b in m.buttons)
 
     def menu_number(self, menu_id):
         return self.numbers.get(f"menu:{menu_id}")
@@ -679,6 +689,8 @@ class Nav:
         sub = n if kind == "subtitle" else subtitle
         if audio or sub is not None:
             cmds.append(set_streams(audio, sub))
+            if kind in PLAYS:
+                cmds.append(move(STREAMS_REG, 1))
         if kind not in ("audio", "subtitle"):
             if override:
                 # the title's object takes the override when it ends (_ends)
@@ -710,10 +722,14 @@ class Nav:
                 if_equal(ENTRY_REG, 0), set_button(default), move(ENTRY_REG, 0)]
 
     def _start(self, title):
-        """Subtitles as the title starts: its default track, or none."""
+        """Subtitles as the title starts: its default track, or none; unless
+        the link that started it chose them (a button with `subtitle`)."""
+        keep = [move(STREAMS_REG, 0)] if self.stream_links else []
         if not title.subtitles:
-            return []
+            return keep
         on = next((k for k, sub in enumerate(title.subtitles, 1) if sub.default), 0)
+        if keep:
+            return [if_equal(STREAMS_REG, 0), set_subtitles(on)] + keep
         return [set_subtitles(on)]
 
     def objects(self, menus=None):

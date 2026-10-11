@@ -1060,6 +1060,24 @@ class TestCacheRomPassthrough(unittest.TestCase):
         self.assertTrue(any(m == "Rendering menu 'main'" for m in steps), steps)
         self.assertEqual(sum("(cached)" in m for m in steps), 3 + 1, steps)
 
+    def test_no_cache_encodes_again_and_keeps_it(self):
+        """--no-cache does not reuse the cache but refreshes it: a stale entry
+        is replaced, so the next build uses the new encode."""
+        cache = os.path.join(self.proj, ".oncemore-cache", "encode")
+        before = {n: os.stat(os.path.join(cache, n)).st_ino for n in os.listdir(cache)
+                  if n.endswith(".mpg")}
+        again = os.path.join(self.tmp, "fresh.iso")
+        rc, out, err = run_cli("--json", "iso", self.path, "-o", again, "--fast", "--no-cache",
+                               cwd=self.tmp)
+        self.assertEqual(rc, 0, err + out)
+        steps = [e["message"] for e in json_lines(out) if e["event"] == "step"]
+        self.assertFalse([m for m in steps if "(cached)" in m], steps)
+        after = {n: os.stat(os.path.join(cache, n)).st_ino for n in os.listdir(cache)
+                 if n.endswith(".mpg")}
+        self.assertTrue(set(before) <= set(after))
+        self.assertTrue(all(after[n] != before[n] for n in before), (before, after))
+        self.assertFalse([n for n in os.listdir(cache) if n.endswith(".part")])
+
     def test_passthrough_needs_matching_ac3(self):
         data = json.loads(json.dumps(self.data))
         data["titles"][0]["audio"] = {"codec": "ac3", "passthrough": True}   # an AAC source
@@ -1195,6 +1213,46 @@ class TestSlideshow(unittest.TestCase):
 
 
 @unittest.skipUnless(TOOLS_OK, SKIP_REASON)
+class TestLastMenuBeforeAnyMenu(unittest.TestCase):
+    """A title in the second titleset that starts the disc and ends on "the
+    last menu": no menu was shown yet, so its Menu-key menu opens, not what
+    the Title key plays (the route through the VMGM reads 0 as the Title
+    key), as in the simulator."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-e2e-lastmenu-")
+        rc, _, err = run_cli("init", "lm", cwd=cls.tmp)
+        assert rc == 0, err
+        cls.path = os.path.join(cls.tmp, "lm", "project.oncemore.json")
+        with open(cls.path) as f:
+            data = json.load(f)
+        data["disc"].update({"first_play": "title:t2", "title_key": "title:t1"})
+        data["titles"][1].update({"aspect": "4:3", "audio": {"codec": "lpcm"},
+                                  "end_action": "lastmenu", "remote_menu": "chapters"})
+        with open(cls.path, "w") as f:
+            json.dump(data, f)
+        cls.iso = os.path.join(cls.tmp, "lm.iso")
+        rc, out, err = run_cli("--json", "iso", cls.path, "-o", cls.iso, "--fast", cwd=cls.tmp)
+        assert rc == 0, err + out
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def test_simulator(self):
+        rc, out, err = run_cli("--json", "simulate", self.path, "--keys", "end", cwd=self.tmp)
+        self.assertEqual(rc, 0, err)
+        self.assertEqual(json_lines(out)[-1]["steps"][-1]["view"][:2], ["menu", "chapters"])
+
+    @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
+    def test_on_the_disc(self):
+        with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
+            self.assertEqual(d.wait_title(), (2, 1))           # t2, titleset 2
+            self.assertEqual(d.play_to_end_of_title(), ("menu", 2))   # chapters, not t1
+
+
+@unittest.skipUnless(TOOLS_OK, SKIP_REASON)
 class TestNoTranscode(unittest.TestCase):
     """A source that already is DVD video: its picture goes on the disc as
     it is (the same MPEG-2 packets), while its sound is made anew; a source
@@ -1260,6 +1318,39 @@ class TestNoTranscode(unittest.TestCase):
         self.assertNotEqual(rc, 0)
         self.assertIn("titles[0].transcode", out + err)
         self.assertIn("not MPEG-2", out + err)
+
+    def test_film_gets_its_pulldown(self):
+        """23.976 MPEG-2 film copied as it is: on the disc it is 29.97 video
+        (soft pulldown flags, as an encode makes); without them dvdauthor
+        warns that it is not a DVD frame rate."""
+        proj = os.path.join(self.tmp, "c")
+        film = os.path.join(proj, "media", "film.mpg")
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
+                        "testsrc2=s=720x480:r=24000/1001:d=3", "-f", "lavfi", "-i",
+                        "sine=d=3", "-c:v", "mpeg2video", "-b:v", "5M", "-g", "12",
+                        "-aspect", "16:9", "-c:a", "mp2", "-f", "dvd", film], check=True)
+        data = json.loads(json.dumps(self.data))
+        data["titles"][0].update({"source": "media/film.mpg", "transcode": False,
+                                  "chapters": [0]})
+        data.pop("playlists", None)
+        path = os.path.join(proj, "film.oncemore.json")
+        with open(path, "w") as f:
+            json.dump(data, f)
+        rc, out, err = run_cli("--json", "iso", path, "-o", os.path.join(self.tmp, "film.iso"),
+                               "--fast", "--keep-work", cwd=self.tmp)
+        self.assertEqual(rc, 0, err + out)
+        build_dir = json_lines(out)[-1]["build_dir"]
+        mpg = os.path.join(build_dir, ".work", "titles", "t1.mpg")
+        v = [s for s in ffprobe_streams(mpg) if s["codec_type"] == "video"][0]
+        self.assertEqual(v["avg_frame_rate"], "30000/1001")
+        logs = ""
+        for root, _, files in os.walk(build_dir):
+            for name in files:
+                if name.endswith(".log"):
+                    with open(os.path.join(root, name), errors="replace") as f:
+                        logs += f.read()
+        self.assertIn("INFO: Video pts", logs)                   # (dvdauthor's log is read)
+        self.assertNotIn("not a valid DVD frame rate", logs)
 
 
 @unittest.skipUnless(TOOLS_OK, SKIP_REASON)

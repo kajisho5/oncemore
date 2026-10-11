@@ -386,7 +386,13 @@ def _end_command(project, action, ts):
         reg = f"{NAV_REG} = {last_menu_reg(project)};"
         if ts == 1:
             return f"{reg} call menu entry root;"
-        return f"{reg} call vmgm menu entry title;"
+        # (through the VMGM, where g1 == 0 means the Title key: before any
+        # menu was shown, the Menu-key target or the first menu, as the
+        # Menu key from this titleset)
+        none = (f"if ({NAV_REG} == 0) {{ {NAV_REG} = {MENUKEY_REG}; }} "
+                if project.uses_remote_menu else "")
+        return (f"{reg} {none}if ({NAV_REG} == 0) {{ {NAV_REG} = 1; }} "
+                "call vmgm menu entry title;")
     return "exit;"
 
 

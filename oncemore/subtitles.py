@@ -327,12 +327,11 @@ def quantise(rgba, W, H):
 
 def palette_size(tracks_cues, style):
     """Distinct subpicture colours a title needs: transparent, the outline,
-    and a fill + anti-aliasing colour per text colour. DVD allows 16."""
-    fills = set()
-    for color, cues in tracks_cues:
-        fills.add((color or style["color"]).upper())
-        fills.update((c.color or (None if color else c.style_color)).upper() for c in cues
-                     if c.color or (c.style_color and not color))
+    and a fill + anti-aliasing colour per text colour its cues are drawn in
+    (as render_cue picks it; a colour no cue is drawn in takes no room).
+    DVD allows 16."""
+    fills = {(c.color or color or c.style_color or style["color"]).upper()
+             for color, cues in tracks_cues for c in cues}
     return 2 + 2 * len(fills)
 
 

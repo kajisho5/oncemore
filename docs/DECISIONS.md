@@ -1140,3 +1140,73 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   are read or written; media are copied in, never linked from elsewhere.
   stdout carries protocol messages only: anything else that would print is
   sent to stderr.
+
+## 72. Hardening from a code review
+
+An outside review pointed at the parts most likely to break: Blu-ray
+navigation, the encode cache, clip and slideshow timelines, and the app
+server's resources. Each point was checked against the code, a test was
+written that fails before the fix, and then the fix:
+
+* **Blu-ray stream links.** A button that picks an audio or subtitle stream
+  and plays a title set the stream, and then the title's start set its
+  default subtitles over it. A register (5) now says "streams were just
+  chosen"; the title start sets its defaults only when it is clear, and
+  clears it. The registers in use (5 of 4096 general purpose) leave room.
+* **`scan_m2ts`.** A packet whose PES header does not fit, or without a PTS,
+  is not a key frame; a stream with no key frame is refused (an EP map
+  pointing at nothing makes players seek wrong) rather than indexed.
+* **Cache keys.** A menu's key covers what each thumbnail shows, not just
+  the title's first file. The code hash covers every module that shapes an
+  encode. Entries are written to a file of the writer's own and moved into
+  place, so two builds storing one entry cannot mix. `--no-cache` means
+  "encode again", so its results replace the old entries. Sources are still
+  known by path, size and modification time (a hash of every source would
+  read gigabytes before each build); a file replaced by one of the same
+  size and time (`cp -p`) needs `--no-cache` or `oncemore clean`.
+* **Frames.** Every place that turns a time into a frame uses one rule
+  (the first frame at or after it, with a thousandth of a frame of slack):
+  times are kept to the microsecond, and at 29.97 fps that rounding alone
+  pushed a clip's chapter one frame late.
+* **Chapters before lengths.** A title made of clips has a chapter at every
+  clip, but the clips' lengths are known only when their files are read,
+  after the project is checked. The number of chapters is known before
+  (one per clip), so links and chapter menus are checked against it; the
+  times are filled in later, and thumbnails that follow a chapter's start
+  (rather than a time given in the project) move with them. Slideshows
+  fitted to their music do the same.
+* **Slideshow frames.** Each picture was rendered for a whole number of
+  frames on its own, which adds up: a hundred five-second pictures at
+  29.97 fps ended half a second late, with chapters a picture early. Each
+  change is now on the frame nearest its time, counted from the start.
+* **A picture used as it is** (`transcode: false`). The check now also
+  refuses 4:2:2 MPEG-2, groups of pictures longer than DVD allows (read
+  from the first minute's packet flags, nothing decoded), a VBR stream
+  whose file rate shows it is over 9.8 Mbit/s (such a stream does not say
+  its own rate), and a picture and sound that together pass the
+  10.08 Mbit/s a player reads; it accepts half D1 (352 wide), which is
+  DVD video. 23.976 film was accepted but went on the disc without
+  pulldown flags, which dvdauthor marks as no DVD frame rate; it now gets
+  them, as an encoded film does.
+* **"The last menu" from another titleset.** The route back goes through
+  the VMGM, where "no menu" (0) means the Title key, so a title in the
+  second titleset that ended on "the last menu" before any menu was shown
+  played what the Title key plays. It now asks for the Menu-key menu (or
+  the first) there, as the simulator always did.
+* **Subtitle colours.** A title's palette was counted with the subtitle
+  style's colour even when every cue has its own, which refused subtitles
+  that fit; it now counts the colours cues are drawn in.
+* **Checked and fine.** The disc image writer splits files into extents
+  under 1 GiB and was read back by libudfread across 1, 2 and 3 GiB and
+  past 4 GiB, with non-Latin, long and punctuated names and deep folders;
+  a name outside Unicode's first plane (an emoji) stays written as a
+  surrogate pair, as decided for the writer (readers show it as two
+  unknown characters, and libudfread cannot open it by that name).
+* **App resources.** Previews are made two at a time (each is an ffmpeg);
+  frames and waveforms are kept up to 64 MB, the oldest dropped first;
+  finished jobs past the last 20 are forgotten; the state names the running
+  job, so a page opened again follows it, and a page stops following a job
+  the server no longer knows. Builds still cannot be cancelled from the
+  page: stopping dvdauthor or a burn halfway leaves files a person must not
+  mistake for a disc, so it waits for a design of its own.
+

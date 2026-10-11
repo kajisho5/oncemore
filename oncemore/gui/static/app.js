@@ -503,7 +503,7 @@ async function api(path, { method = "GET", body, raw } = {}) {
   else if (body !== undefined) { headers["Content-Type"] = "application/json"; payload = JSON.stringify(body); }
   const res = await fetch(path, { method, headers, body: payload });
   const data = res.headers.get("Content-Type")?.includes("json") ? await res.json() : null;
-  if (!res.ok) { const e = new Error((data && data.error) || res.statusText); e.data = data; throw e; }
+  if (!res.ok) { const e = new Error((data && data.error) || res.statusText); e.data = data; e.status = res.status; throw e; }
   return data;
 }
 const imgUrl = (endpoint, params) =>
@@ -799,11 +799,21 @@ async function transcode(ids) {
   let r;
   try { r = await api("/api/transcode", { method: "POST", body: { titles: ids || null } }); }
   catch (e) { alert(e.message); return; }
-  S.transcoding = { id: r.job, next: 0, text: t("transcoding"), done: false };
+  followTranscode(r.job);
+}
+// (also after the page is opened again while one runs)
+async function followTranscode(id) {
+  S.transcoding = { id, next: 0, text: t("transcoding"), done: false };
   renderStatus();
-  for (;;) {
+  for (let misses = 0; ;) {
     let j;
-    try { j = await api(`/api/jobs/${r.job}?since=${S.transcoding.next}`); } catch (e) { break; }
+    try { j = await api(`/api/jobs/${id}?since=${S.transcoding.next}`); misses = 0; }
+    catch (e) {
+      // gone (the app restarted): stop; not answering: try again for a while
+      if (e.status === 404 || ++misses > JOB_MISSES) { S.transcoding.error = e.message; break; }
+      await new Promise((res) => setTimeout(res, 1000));
+      continue;
+    }
     S.transcoding.next = j.next;
     for (const ev of j.events) {
       if (ev.event === "step" && ev.item) S.transcoding.text = `${t("transcoding")} ${ev.item}`;
@@ -2863,14 +2873,23 @@ async function startBuild() {
   } catch (e) { alert(e.message); }
   if (S.leftTab === "build") renderSidebar();
 }
+// a job the server cannot be reached about this many times in a row is given up
+const JOB_MISSES = 30;
 async function pollJob() {
   if (!S.job) return;
   try {
     const r = await api(`/api/jobs/${S.job.id}?since=${S.jobNext}`);
     S.jobEvents.push(...r.events); S.jobNext = r.next; S.job.done = r.done; S.job.ok = r.ok;
-  } catch (e) { console.error(e); }
+    S.job.misses = 0;
+  } catch (e) {
+    console.error(e);
+    if (e.status === 404 || (S.job.misses = (S.job.misses || 0) + 1) > JOB_MISSES) {
+      S.jobEvents.push({ event: "error", message: e.message });
+      S.job.done = true; S.job.ok = false;
+    }
+  }
   if (S.leftTab === "build") renderSidebar();
-  if (!S.job.done) setTimeout(pollJob, 500);
+  if (!S.job.done) setTimeout(pollJob, S.job.misses ? 1000 : 500);
 }
 
 // ---------------------------------------------------------------- workspace
@@ -3186,7 +3205,7 @@ function applyTheme() {
 // ---------------------------------------------------------------- boot
 function applyState(r) {
   S.project = r.project; S.dir = r.dir; S.media = r.media; S.check = r.check;
-  S.tools = r.tools; S.platform = r.platform; S.version = r.version;
+  S.tools = r.tools; S.platform = r.platform; S.version = r.version; S.runningJob = r.job;
 }
 async function boot() {
   const m = location.hash.match(/token=([\w-]+)/);
@@ -3197,6 +3216,15 @@ async function boot() {
   const first = P()?.menus?.[0];
   S.sel = first ? { view: "menu", id: first.id } : { view: "disc" };
   renderAll();
+  resumeJob(S.runningJob);
+}
+// the page was opened (or reloaded) while a build or transcode runs
+function resumeJob(job) {
+  if (!job) return;
+  if (job.kind === "transcode") { if (!S.transcoding) followTranscode(job.id); return; }
+  if (S.job && S.job.id === job.id) return;
+  S.job = { id: job.id, done: false }; S.jobEvents = []; S.jobNext = 0;
+  pollJob();
 }
 // ---------------------------------------------------------------- tools (menu viewer)
 // Selection (V) selects and moves, Text (T) places a text where you click,
