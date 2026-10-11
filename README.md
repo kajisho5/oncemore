@@ -141,8 +141,10 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   clip starts a chapter unless you set chapters yourself.
 * **Menus**: *+ Add* starts blank or from a template (classic, banner, minimal,
   setup), then drag buttons, text and rectangles where you want them —
-  Shift-click selects several, with align / distribute buttons, snapping guides,
-  arrow-key nudging and ⌘D to duplicate. Choose
+  Shift-click (or ⌘-click) or a box dragged around them selects several, with
+  align / distribute buttons, snapping guides, arrow-key nudging and ⌘D to
+  duplicate. Shift-drag moves in a straight line, Alt (⌥)-drag leaves a copy,
+  and holding ⌘ / Ctrl while dragging turns snapping off. Choose
   each button's target (a menu, a title, a chapter, an audio or subtitle
   stream). A button can be a picture instead of text (*Image*, highlighted by a
   frame or by its shape). Use an image or a video as the background. **Exact preview**
@@ -207,9 +209,13 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   a title, or the Disc menu); the build then reuses them. A filled dot next to
   a title in the project panel means it is transcoded. The timeline draws each
   sound track's waveform.
-* **Linking and routing**: drag a title, menu or playlist from the project
-  panel onto a button to link it, or onto an empty part of the menu to add a
-  button for it. *Routing* draws where the remote's arrow keys go from each
+* **Linking and routing**: drag a title, menu, playlist or chapter (from the
+  Timelines panel) onto a button to link it, or onto an empty part of the
+  menu to add a button for it. Assets drop onto a menu too: a video makes a
+  title and a button that plays it (on a button: that button plays it; with
+  Alt / ⌥: the motion background), a picture is placed where it lands (with
+  Alt: the background), a sound is the menu's music. A layered Photoshop file
+  dropped into the window becomes a menu (with Alt: just a picture). *Routing* draws where the remote's arrow keys go from each
   button (solid: set by you in Properties, dashed: automatic), exactly as the
   disc will have it.
 * **Menus and shortcuts**: the menu bar is laid out the way disc authoring

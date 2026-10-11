@@ -430,6 +430,16 @@ against their published help, not from memory)
 - [ ] Crop and adjust a menu's pictures: crop, brightness, contrast
 - [ ] Masks for button thumbnails (the shape of a frame, a circle)
 - [ ] A flicker filter for menus on interlaced TVs (thin horizontal lines)
+- [ ] Operation as the classic apps' help lists it, part 2 (part 1: drops
+  of assets and chapters onto a menu, box selection, Alt-drag copy,
+  Shift-drag in a line, Photoshop files dropped in; DECISIONS §96):
+  resize handles on objects (Shift: keep the proportions, Alt: from the
+  centre); drag the current-time indicator, Home / End / arrow keys on the
+  timeline; set a poster frame by dragging from a chapter mark; drop
+  titles and menus onto the flowchart; reorder slides, clips and lists by
+  drag; drag from the Library (Alt: replace the selected item); drag the
+  routing arrows; the remaining small keys (tool keys, Project panel
+  arrows, preview Space and Ctrl+arrows); type text in place on the menu
 
 **Beyond the classic apps**
 

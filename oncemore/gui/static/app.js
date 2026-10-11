@@ -28,7 +28,7 @@ const I18N = {
     align_left: "Align left edges", align_hcenter: "Centre horizontally", align_right: "Align right edges",
     align_top: "Align tops", align_vcenter: "Centre vertically", align_bottom: "Align bottoms",
     distribute_h: "Distribute horizontally", distribute_v: "Distribute vertically",
-    stage_keys: "Shift-click: select several · arrows: nudge · ⌘D: duplicate · ⌘C/⌘V · Alt: no snapping",
+    stage_keys: "Shift-click or drag a box: select several · arrows: nudge · Shift-drag: straight · Alt-drag: copy · ⌘-drag: no snapping · ⌘D: duplicate · ⌘C/⌘V",
     multi_hint: "Drag to move them together, or use the align buttons above the menu.",
     shape: "Rectangle", height: "Height", fill: "Fill", opacity: "Opacity",
     paragraph: "Paragraph", para_align: "Lines", para_left: "Left", para_center: "Centre", para_right: "Right", line_spacing: "Line spacing", paragraph_hint: "Each line of the text is a line on the menu (Return starts a new one); X is the paragraph's left edge.",
@@ -302,7 +302,7 @@ const I18N = {
     align_left: "左揃え", align_hcenter: "左右中央揃え", align_right: "右揃え",
     align_top: "上揃え", align_vcenter: "上下中央揃え", align_bottom: "下揃え",
     distribute_h: "左右に等間隔", distribute_v: "上下に等間隔",
-    stage_keys: "Shift+クリックで複数選択・矢印キーで移動・⌘D 複製・⌘C/⌘V・Alt でスナップなし",
+    stage_keys: "Shift+クリックか範囲ドラッグで複数選択・矢印キーで移動・Shift+ドラッグで直線移動・Alt(⌥)+ドラッグで複製・⌘+ドラッグでスナップなし・⌘D 複製・⌘C/⌘V",
     multi_hint: "ドラッグでまとめて移動、またはメニュー上の整列ボタンを使えます。",
     shape: "四角形", height: "高さ", fill: "塗り", opacity: "不透明度",
     paragraph: "段落", para_align: "行揃え", para_left: "左揃え", para_center: "中央揃え", para_right: "右揃え", line_spacing: "行間", paragraph_hint: "テキストの各行がメニューの 1 行になります（Return で改行）。X は段落の左端です。",
@@ -1102,7 +1102,7 @@ function renderSidebar() {
   const menus = (P().menus || []).map((m) => row("menu", m.id, "menu", m.id, t("menu"), t("n_buttons", { n: (m.buttons || []).length }))).join("");
   const gen = generatedMenus().map((g) => row("menu", g.id, "menu", g.id, t("type_chapter_menu"), "")).join("");
   const pls = (P().playlists || []).map((pl) => row("playlist", pl.id, "playlist", pl.name || pl.id, t("playlist"), t("n_items", { n: pl.items.length }))).join("");
-  const media = S.media.filter((m) => hit(m.path, t("kind_" + m.kind))).map((m) => `<div class="media-item prow ${S.selectedMedia === m.path ? "selected" : ""}" data-media="${esc(m.path)}" draggable="false">
+  const media = S.media.filter((m) => hit(m.path, t("kind_" + m.kind))).map((m) => `<div class="media-item prow ${S.selectedMedia === m.path ? "selected" : ""}" data-media="${esc(m.path)}" draggable="true">
       <span class="c-name"><span class="ico">${{ video: ICONS.video, audio: ICONS.audio, image: ICONS.image, subtitle: "≣", design: ICONS.psd, font: "Aa" }[m.kind] || "·"}</span><span class="name" title="${esc(m.path)}">${esc(m.path.replace(/^media\//, ""))}</span></span>
       <span class="c-type">${esc(t("kind_" + m.kind))}</span><span class="c-len">${len(m.kind === "video" || m.kind === "audio" ? m.path : null) || fmtBytes(m.bytes)}</span></div>`).join("");
   const ups = Object.entries(S.uploads).map(([n, pct]) => `<div class="media-item prow"><span class="c-name"><span class="name">${esc(n)}</span></span><span class="c-type">${t("importing")}</span><span class="c-len">${pct}%</span></div>`).join("");
@@ -1139,7 +1139,11 @@ function renderSidebar() {
     </div>`;
   sb.querySelectorAll(".nav-item").forEach((el) => (el.onclick = () => select(el.dataset.view, el.dataset.id)));
   bindLinkSources(sb);
-  sb.querySelectorAll(".media-item[data-media]").forEach((el) => (el.onclick = () => { S.selectedMedia = el.dataset.media; S.element = null; renderSidebar(); renderInspector(); }));
+  sb.querySelectorAll(".media-item[data-media]").forEach((el) => {
+    el.onclick = () => { S.selectedMedia = el.dataset.media; S.element = null; renderSidebar(); renderInspector(); };
+    // dragged onto a menu: a button for a video, a picture, the menu's music … (bindLinkDrop)
+    el.ondragstart = (e) => { e.dataTransfer.setData(MEDIA_TYPE, el.dataset.media); e.dataTransfer.effectAllowed = "copyLink"; };
+  });
   $("#add-menu").onclick = addMenu;
   $("#add-playlist").onclick = addPlaylist;
   $("#add-slideshow").onclick = addSlideshow;
@@ -1176,7 +1180,7 @@ function renderMenusPanel(sb) {
 }
 function renderTimelinesPanel(sb) {
   const v = S.sel, ts = P().titles || [];
-  const cur = v.view === "title" ? curTitle() : null;
+  const cur = v.view === "title" ? curTitle() : ts.find((x) => x.id === S.lastTitle) || null;
   sb.innerHTML = `<div class="proj-table">
       <div class="prow phead"><span class="c-name">${t("col_name")}</span><span class="c-type">${t("col_chapters")}</span><span class="c-len">${t("col_transcode")}</span></div>
       ${ts.map((ti) => `<div class="nav-item prow ${v.view === "title" && v.id === ti.id ? "active" : ""}" data-view="title" data-id="${esc(ti.id)}">
@@ -1184,7 +1188,7 @@ function renderTimelinesPanel(sb) {
         <span class="c-len">${ti.transcode === false ? t("status_no_transcode") : S.encStatus && ti.id in S.encStatus ? t(S.encStatus[ti.id] ? "status_transcoded" : "status_untranscoded") : ""}</span></div>`).join("")}
     </div>
     ${cur ? `<div class="sub-head">${esc(t("chapters_of", { t: cur.name || cur.id }))}</div><div class="proj-table">
-      ${chapterEntries(cur).map((c, i) => `<div class="prow crow" data-ct="${c.time}"><span class="c-name"><span class="ico k-chapter">◆</span>${i + 1}${c.name ? " · " + esc(c.name) : ""}</span><span class="c-type mono">${fmtTime(c.time)}</span><span class="c-len"></span></div>`).join("")}</div>` : ""}
+      ${chapterEntries(cur).map((c, i) => `<div class="prow crow" data-ct="${c.time}" data-link="chapter:${esc(cur.id)}:${i + 1}"><span class="c-name"><span class="ico k-chapter">◆</span>${i + 1}${c.name ? " · " + esc(c.name) : ""}</span><span class="c-type mono">${fmtTime(c.time)}</span><span class="c-len"></span></div>`).join("")}</div>` : ""}
     <div class="panel-foot"><button class="icon-text" id="add-slideshow">${t("add_slideshow")}</button></div>`;
   sb.querySelectorAll(".nav-item").forEach((el) => (el.onclick = () => select("title", el.dataset.id)));
   bindLinkSources(sb);
@@ -1281,6 +1285,7 @@ function bindPage(el, get) {
   };
 }
 function select(view, id) {
+  if (view === "title") S.lastTitle = id;       // (its chapters stay in the Timelines panel to drag onto menus)
   if (view === "build") {                       // Build is a panel in the Project frame
     S.leftTab = "build";
     if (S.sel.view === "sim") S.sel = S.lastAuthor || { view: "disc" };
@@ -2478,15 +2483,11 @@ function renderMenu(m) {
       stage.focus();
       const k = { kind: node.dataset.kind, i: Number(node.dataset.i) };
       if (secondaryClick(ev)) return;          // (its shortcut menu selects it)
-      if (addsToSelection(ev)) {
-        const on = isSel(k);
-        S.sels = on ? S.sels.filter((x) => !(x.kind === k.kind && x.i === k.i)) : [...S.sels, k];
-        S.element = S.sels[S.sels.length - 1] || null;
-        renderMain(); renderInspector();
-        return;
-      }
-      const changedSel = !isSel(k) && S.sels.length > 1;
-      if (!isSel(k)) S.sels = [k];
+      // Shift / ⌘ / Ctrl-click adds it to the selection, or takes it out if it was in (on a click,
+      // not a drag); a drag moves the selection, Shift-drag in a straight line, as in the classic apps
+      const add = addsToSelection(ev), unpick = add && isSel(k);
+      const changedSel = !isSel(k) && (add || S.sels.length > 1);
+      if (!isSel(k)) S.sels = add ? [...S.sels, k] : [k];
       S.element = k;
       stage.querySelectorAll(".el.selected").forEach((n) => n.classList.remove("selected"));
       S.sels.forEach((x) => nodeOf(x)?.classList.add("selected"));
@@ -2502,6 +2503,9 @@ function renderMenu(m) {
       const vy = [...(objs ? [0, H / 2, H, H * 0.05, H * 0.95, ...others.flatMap((o) => [o.y, o.y + o.h / 2, o.y + o.h])] : []), ...(gd.horizontal || [])];
       const gx = stage.querySelector(".gx"), gy = stage.querySelector(".gy");
       const startX = ev.clientX, startY = ev.clientY;
+      // Alt (⌥)-drag leaves the objects where they are and drops copies, as in the classic apps
+      const copy = ev.altKey;
+      if (copy) stage.style.cursor = "copy";
       let dx = 0, dy = 0;
       node.setPointerCapture(ev.pointerId);
       const snapTo = (pos, size, lines) => {
@@ -2514,9 +2518,15 @@ function renderMenu(m) {
       };
       const move = (e2) => {
         dx = Math.round((e2.clientX - startX) / scale / sx); dy = Math.round((e2.clientY - startY) / scale);
+        let freeX = true, freeY = true;
+        if (e2.shiftKey) {                    // Shift: across, down or at 45° only (snapping only along the line)
+          const len = Math.hypot(dx * sx, dy), a = Math.round(Math.atan2(dy, dx * sx) / (Math.PI / 4)) * (Math.PI / 4);
+          dx = Math.round(len * Math.cos(a) / sx); dy = Math.round(len * Math.sin(a));
+          freeX = !dy; freeY = !dx;
+        }
         gx.hidden = gy.hidden = true;
-        if (!e2.altKey) {
-          const sxp = snapTo(me.x + dx, me.w, vx), syp = snapTo(me.y + dy, me.h, vy);
+        if (!modKey(e2)) {                    // (⌘ / Ctrl held: no snapping)
+          const sxp = freeX && snapTo(me.x + dx, me.w, vx), syp = freeY && snapTo(me.y + dy, me.h, vy);
           if (sxp) { dx += Math.round(sxp.d); gx.hidden = false; gx.style.left = sxp.l * sx * scale + "px"; }
           if (syp) { dy += Math.round(syp.d); gy.hidden = false; gy.style.top = syp.l * scale + "px"; }
         }
@@ -2527,9 +2537,24 @@ function renderMenu(m) {
       };
       const up = () => {
         node.removeEventListener("pointermove", move); node.removeEventListener("pointerup", up);
-        gx.hidden = gy.hidden = true;
-        if (!dx && !dy && S.sels.length > 1) { S.sels = [k]; S.element = k; renderMain(); renderInspector(); return; }
-        if (!dx && !dy && changedSel) { renderMain(); return; }      // the align bar goes away
+        gx.hidden = gy.hidden = true; stage.style.cursor = "";
+        if (copy && (dx || dy)) return commit((p) => {
+          const mm = p.menus.find((x) => x.id === menu.id), added = [];
+          for (const g of group) {
+            const list = listOf(mm, g.k.kind), it = list[g.k.i], c = JSON.parse(JSON.stringify(it));
+            c.x = Math.max(0, Math.min(719, Math.round(g.b.x + dx))); c.y = Math.max(0, Math.min(H - 1, Math.round(g.b.y + dy)));
+            moveArea(c, it.x, it.y);
+            if (g.k.kind === "button") { c.id = uniqueId(c.id.replace(/\d+$/, "") || "button", mm.buttons.map((b) => b.id)); delete c.nav; }
+            list.push(c); added.push({ kind: g.k.kind, i: list.length - 1 });
+          }
+          S.sels = added; S.element = added[added.length - 1];
+        });
+        if (!dx && !dy && unpick) {
+          S.sels = S.sels.filter((x) => !(x.kind === k.kind && x.i === k.i)); S.element = S.sels[S.sels.length - 1] || null;
+          renderMain(); renderInspector(); return;
+        }
+        if (!dx && !dy && !add && S.sels.length > 1) { S.sels = [k]; S.element = k; renderMain(); renderInspector(); return; }
+        if (!dx && !dy && changedSel) { renderMain(); return; }      // the align bar comes or goes
         if (dx || dy) commit((p) => {
           const mm = p.menus.find((x) => x.id === menu.id);
           for (const g of group) {
@@ -2564,7 +2589,31 @@ function renderMenu(m) {
       setTimeout(() => { const f = $("#inspector [data-k=text]"); if (f) { f.focus(); f.select?.(); } }, 0);
       return;
     }
-    if (empty) { S.element = null; S.sels = []; renderMain(); renderInspector(); }
+    if (!empty) return;
+    // drag a box around objects to select them (Shift / ⌘ / Ctrl: add to the selection); a click clears it
+    ev.preventDefault();                  // (not the browser's own drag of the background picture)
+    const add = addsToSelection(ev), before = add ? [...S.sels] : [];
+    const mq = document.createElement("div"), x0 = ev.clientX, y0 = ev.clientY;
+    mq.className = "marquee"; stage.appendChild(mq);
+    let moved = false;
+    stage.setPointerCapture(ev.pointerId);
+    const rect = (e2) => ({ l: Math.min(x0, e2.clientX), t: Math.min(y0, e2.clientY), r: Math.max(x0, e2.clientX), b: Math.max(y0, e2.clientY) });
+    const mv = (e2) => {
+      const q = rect(e2);
+      moved = moved || Math.hypot(e2.clientX - x0, e2.clientY - y0) > 3;
+      Object.assign(mq.style, { left: q.l - r.left + "px", top: q.t - r.top + "px", width: q.r - q.l + "px", height: q.b - q.t + "px" });
+    };
+    const upm = (e2) => {
+      stage.removeEventListener("pointermove", mv); stage.removeEventListener("pointerup", upm);
+      mq.remove();
+      if (!moved) { if (!add) { S.element = null; S.sels = []; renderMain(); renderInspector(); } return; }
+      const q = rect(e2), g = { x0: (q.l - r.left) / scale / sx, x1: (q.r - r.left) / scale / sx, y0: (q.t - r.top) / scale, y1: (q.b - r.top) / scale };
+      const hits = els.filter((e) => { const b = box(e); return b.x < g.x1 && b.x + b.w > g.x0 && b.y < g.y1 && b.y + b.h > g.y0; })
+        .filter((e) => !before.some((x) => x.kind === e.kind && x.i === e.i)).map((e) => ({ kind: e.kind, i: e.i }));
+      S.sels = [...before, ...hits]; S.element = S.sels[S.sels.length - 1] || null;
+      renderMain(); renderInspector();
+    };
+    stage.addEventListener("pointermove", mv); stage.addEventListener("pointerup", upm);
   });
   // align / distribute the selection (also Object > Align and Distribute)
   const arrange = (fn) => commit((p) => {
@@ -2840,7 +2889,7 @@ function pickMenuPicture() {
     <div class="lib-grid">${imgs.map((x) => `<button class="lib-item" data-pic="${esc(x)}"><img src="${imgUrl("file", { path: x })}" alt=""><span>${esc(x.replace(/^media\//, ""))}</span></button>`).join("")}</div>`);
   document.querySelectorAll("[data-pic]").forEach((b) => (b.onclick = () => { closeModal(); placeMenuPicture(b.dataset.pic); }));
 }
-function placeMenuPicture(path) {
+function placeMenuPicture(path, at) {      // (at: {x, y} on the 720-wide grid, else centred)
   const menu = curMenu();
   if (!menu) return;
   const H = discH(), sx = displayW() / 720, im = new Image();
@@ -2850,7 +2899,9 @@ function placeMenuPicture(path) {
     w = Math.max(1, Math.round(w * k)); h = Math.max(1, Math.round(h * k));
     commit((p) => {
       const mm = p.menus.find((x) => x.id === menu.id);
-      (mm.images = mm.images || []).push({ file: path, x: Math.round((720 - w) / 2), y: Math.round((H - h) / 2), w, h, ...newOnPage(menu) });
+      const x = at ? Math.max(0, Math.min(720 - w, Math.round(at.x - w / 2))) : Math.round((720 - w) / 2);
+      const y = at ? Math.max(0, Math.min(H - h, Math.round(at.y - h / 2))) : Math.round((H - h) / 2);
+      (mm.images = mm.images || []).push({ file: path, x, y, w, h, ...newOnPage(menu) });
       S.element = { kind: "image", i: mm.images.length - 1 }; S.sels = [S.element];
     });
   };
@@ -3302,17 +3353,28 @@ async function renderMediaInspector(el) {
     <div style="display:flex;flex-direction:column;gap:8px">${actions.join("")}</div>`;
   el.querySelectorAll("[data-act]").forEach((b) => (b.onclick = () => mediaAction(b.dataset.act, path, b.dataset.title)));
 }
+// a title of a video or sound file (the project `p` being changed); returns its id
+function addTitleFrom(p, path) {
+  const id = uniqueId("t", (p.titles || []).map((x) => x.id));
+  (p.titles = p.titles || []).push({ id, name: path.split("/").pop().replace(/\.[^.]+$/, ""), source: path, chapters: ["00:00:00"] });
+  return id;
+}
+// chapter markers the file brings with it become the title's chapters
+function takeSourceChapters(id) {
+  const ti = (P().titles || []).find((x) => x.id === id);
+  if (!ti) return;
+  probe(ti.source).then(() => {
+    const cur = (P().titles || []).find((x) => x.id === id), list = cur && sourceChapters(cur);
+    if (cur && list.length > 1 && (cur.chapters || []).length === 1) commit((p) => setChapters(p.titles.find((x) => x.id === id), list));
+  });
+}
 function mediaAction(act, path, titleId) {
   const name = path.split("/").pop().replace(/\.[^.]+$/, "");
   if (act === "psd") return importPsd(path, uniqueId(name.replace(/[^A-Za-z0-9_-]+/g, "_").toLowerCase() || "menu", allMenuIds()));
   if (act === "title") {
-    const id = uniqueId("t", (P().titles || []).map((x) => x.id));
-    commit((p) => { (p.titles = p.titles || []).push({ id, name, source: path, chapters: ["00:00:00"] }); });
-    // chapter markers the file brings with it become the title's chapters
-    probe(path).then(() => {
-      const ti = (P().titles || []).find((x) => x.id === id), list = sourceChapters(ti);
-      if (ti && list.length > 1 && (ti.chapters || []).length === 1) commit((p) => setChapters(p.titles.find((x) => x.id === id), list));
-    });
+    let id;
+    commit((p) => { id = addTitleFrom(p, path); });
+    takeSourceChapters(id);
     S.selectedMedia = null; return select("title", id);
   }
   if (act === "pic") { S.selectedMedia = null; return placeMenuPicture(path); }
@@ -3353,7 +3415,7 @@ function uploadFiles(files) {
         const r = JSON.parse(xhr.responseText);
         if (xhr.status === 200) {
           S.media = r.media; S.selectedMedia = r.path;
-          if (S.psdAfterUpload === f.name) { S.psdAfterUpload = null; mediaAction("psd", r.path); }
+          if (S.psdAfterUpload?.has(f.name)) { S.psdAfterUpload.delete(f.name); mediaAction("psd", r.path); }
           resolve(r.path);
         }
         else { alert(r.error); resolve(null); }
@@ -3377,7 +3439,11 @@ window.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth =
 window.addEventListener("dragover", (e) => e.preventDefault());
 window.addEventListener("drop", (e) => {
   e.preventDefault(); dragDepth = 0; $("#drop-overlay").hidden = true;
-  if (P() && e.dataTransfer?.files?.length) uploadFiles([...e.dataTransfer.files]);
+  if (!P() || !e.dataTransfer?.files?.length) return;
+  // a layered Photoshop file dropped in becomes a menu, as in the classic apps; with Alt (⌥) it is just a picture
+  const files = [...e.dataTransfer.files];
+  if (!e.altKey) S.psdAfterUpload = new Set(files.filter((f) => /\.ps[db]$/i.test(f.name)).map((f) => f.name));
+  uploadFiles(files);
 });
 
 // ---------------------------------------------------------------- check & build
@@ -3768,7 +3834,7 @@ async function renderTimeline() {
     <div class="tl-row tl-top"><span class="tl-label tl-tcs"><span>${esc(t("timeline"))}:<br><b class="tc-amber" id="tl-tc">${fmtTime(S.playhead[ti.id] || 0)}</b></span><span>${esc(t("tc_source"))}:<br><b class="tc-amber">${fmtTime(dur)}</b></span></span><div class="tl-track tl-ruler" id="tl-ruler" style="width:${width}px">${ticks.join("")}</div></div>
     ${lane(t("video"), "video", `<span class="vname">${esc(join ? ti.name || ti.id : (ti.source || "").replace(/^media\//, ""))}</span>` + thumbs, "title")}
     ${join ? lane(t("clips"), "clips", join.clips.map((c, k) => `<div class="tl-clip clip ${k % 2 ? "alt" : ""}" data-cstart="${c.start}" style="left:${c.start * pps}px;width:${Math.max(3, c.duration * pps)}px" title="${esc(c.source)}">${k + 1} ${esc(c.source.replace(/^media\//, ""))}</div>`).join(""), "title") : ""}
-    ${lane(t("chapters"), "chapters", entries.map((c, i) => `<div class="tl-chapter ${i ? "" : "first"}" data-tlch="${i}" style="left:${c.time * pps}px" title="${esc(fmtTime(c.time))}"><span>${i + 1}${c.name ? " " + esc(c.name) : ""}</span></div>`).join(""), "chapter")}
+    ${lane(t("chapters"), "chapters", entries.map((c, i) => `<div class="tl-chapter ${i ? "" : "first"}" data-tlch="${i}" data-link="chapter:${esc(ti.id)}:${i + 1}" style="left:${c.time * pps}px" title="${esc(fmtTime(c.time))}"><span>${i + 1}${c.name ? " " + esc(c.name) : ""}</span></div>`).join(""), "chapter")}
     ${join ? lane(t("audio"), "", wave(join.path, 0, dur) + join.clips.map((c) => `<div class="tl-clip audio" style="left:${c.start * pps}px;width:${Math.max(3, c.duration * pps)}px">${esc(c.source.replace(/^media\//, ""))}</div>`).join(""), "audio")
       : tracks.map((a, k) => lane(`${t("audio")} ${k + 1}${a.lang ? " · " + a.lang : ""}`, "", wave(a.source || ti.source, a.stream || 0, dur) + `<div class="tl-clip audio" style="left:0;width:${dur * pps}px">${esc((a.source || ti.source).replace(/^media\//, ""))}${a.stream ? " #" + a.stream : ""}</div>`, "audio")).join("")}
     ${subs.map((s, k) => lane(`${t("subtitles")} ${k + 1}${s.lang ? " · " + s.lang : ""}`, "", `<span class="hint" data-subk="${k}"></span>`, "subtitle")).join("")}
@@ -3956,6 +4022,8 @@ function startWhip(ev, apply, origin) {
     const el = document.elementFromPoint(x, y);
     const nav = el?.closest?.(".nav-item[data-view]");
     if (nav && LISTS[nav.dataset.view]) return { el: nav, action: `${nav.dataset.view}:${nav.dataset.id}` };
+    const ch = el?.closest?.("[data-link^='chapter:']");          // a chapter row or a chapter marker in the timeline
+    if (ch) return { el: ch, action: ch.dataset.link };
     const node = el?.closest?.("[data-node]");
     if (node) {
       const id = node.dataset.node;
@@ -4085,6 +4153,7 @@ async function drawRouting(stage, menu, scale, sx) {
 // Drag a title, menu or playlist from the project panel onto a button to link
 // it, or onto an empty part of the menu to make a new button for it.
 const LINK_TYPE = "application/x-oncemore-link";
+const MEDIA_TYPE = "application/x-oncemore-media";      // an asset of the Project panel being dragged
 function bindLinkSources(root) {
   root.querySelectorAll(".nav-item[data-view]").forEach((el) => {
     const kind = el.dataset.view;
@@ -4092,19 +4161,29 @@ function bindLinkSources(root) {
     el.draggable = true;
     el.ondragstart = (e) => { e.dataTransfer.setData(LINK_TYPE, `${kind}:${el.dataset.id}`); e.dataTransfer.effectAllowed = "link"; };
   });
+  // a chapter (Timelines panel): dropped on a button, the button plays from it
+  root.querySelectorAll(".crow[data-link]").forEach((el) => {
+    el.draggable = true;
+    el.ondragstart = (e) => { e.dataTransfer.setData(LINK_TYPE, el.dataset.link); e.dataTransfer.effectAllowed = "link"; };
+  });
 }
 function linkLabel(action) {
-  const [kind, id] = action.split(":");
+  const [kind, id, n] = action.split(":");
+  if (kind === "chapter") {
+    const ti = P().titles.find((y) => y.id === id), c = ti && chapterEntries(ti)[Number(n) - 1];
+    return (c?.name || t("chapter_label", { n })).toUpperCase();
+  }
   if (kind === "title") { const x = P().titles.find((y) => y.id === id); return (x?.name || id).toUpperCase(); }
   if (kind === "playlist") { const x = (P().playlists || []).find((y) => y.id === id); return (x?.name || id).toUpperCase(); }
   return id.toUpperCase();
 }
 function bindLinkDrop(stage, menu, scale, sx) {
-  const isLink = (e) => [...(e.dataTransfer?.types || [])].includes(LINK_TYPE);
+  const isMedia = (e) => [...(e.dataTransfer?.types || [])].includes(MEDIA_TYPE);
+  const isLink = (e) => [...(e.dataTransfer?.types || [])].includes(LINK_TYPE) || isMedia(e);
   const clear = () => stage.querySelectorAll(".drop-target").forEach((x) => x.classList.remove("drop-target"));
   stage.addEventListener("dragover", (e) => {
     if (!isLink(e)) return;
-    e.preventDefault(); e.dataTransfer.dropEffect = "link";
+    e.preventDefault(); e.dataTransfer.dropEffect = isMedia(e) ? "copy" : "link";
     clear();
     e.target.closest?.(".el.button")?.classList.add("drop-target");
     stage.classList.add("drop-on");
@@ -4114,6 +4193,7 @@ function bindLinkDrop(stage, menu, scale, sx) {
     if (!isLink(e)) return;
     e.preventDefault(); e.stopPropagation();
     clear(); stage.classList.remove("drop-on");
+    if (isMedia(e)) return dropMedia(e, stage, menu, scale, sx);
     const action = e.dataTransfer.getData(LINK_TYPE);
     if (action === `menu:${menu.id}`) return;                  // a menu does not link to itself
     const btn = e.target.closest?.(".el.button");
@@ -4129,6 +4209,46 @@ function bindLinkDrop(stage, menu, scale, sx) {
     });
     S.sels = [S.element];
   });
+}
+
+// An asset dropped on a menu, as in the classic apps: a video makes a title and
+// a button that plays it (on a button: that button plays it); with Alt (⌥) it
+// is the menu's motion background instead. A picture is placed where it is
+// dropped (with Alt: the background, or on an image button its picture); a
+// sound is the menu's music; a layered Photoshop file becomes a menu.
+function dropMedia(e, stage, menu, scale, sx) {
+  const path = e.dataTransfer.getData(MEDIA_TYPE), item = S.media.find((m) => m.path === path);
+  if (!item) return;
+  const btn = e.target.closest?.(".el.button"), r = stage.getBoundingClientRect();
+  const at = { x: Math.round((e.clientX - r.left) / (sx * scale)), y: Math.round((e.clientY - r.top) / scale) };
+  const H = discH(), find = (p) => p.menus.find((x) => x.id === menu.id);
+  S.selectedMedia = null;
+  if (item.kind === "design") return mediaAction("psd", path);
+  if (item.kind === "audio") return commit((p) => { find(p).audio = path; });
+  if (item.kind === "image") {
+    if (!e.altKey) return placeMenuPicture(path, at);
+    return commit((p) => {
+      const mm = find(p);
+      if (btn && mm.buttons[Number(btn.dataset.i)].image) mm.buttons[Number(btn.dataset.i)].image = path;
+      else { mm.background = path; delete mm.background_video; }
+    });
+  }
+  if (item.kind !== "video") return;
+  if (e.altKey) return commit((p) => { find(p).background_video = path; });
+  let id;
+  commit((p) => {
+    id = addTitleFrom(p, path);
+    const mm = find(p), action = `title:${id}`;
+    if (btn) { const i = Number(btn.dataset.i); mm.buttons[i].action = action; S.element = { kind: "button", i }; }
+    else {
+      const bid = uniqueId(id + "_btn", mm.buttons.map((b) => b.id));
+      mm.buttons.push({ id: bid, label: p.titles.find((x) => x.id === id).name.toUpperCase(),
+        x: Math.max(0, Math.min(700, at.x)), y: Math.max(0, Math.min(H - 20, at.y)), action, ...newOnPage(menu) });
+      S.element = { kind: "button", i: mm.buttons.length - 1 };
+    }
+    S.sels = [S.element];
+  });
+  takeSourceChapters(id);
 }
 
 // ---------------------------------------------------------------- commands
@@ -4205,7 +4325,7 @@ function setFirstPlay(kind, id) { commit((p) => { p.disc.first_play = `${kind}:$
 function pickPsd() {
   const inp = document.createElement("input");
   inp.type = "file"; inp.accept = ".psd,.psb";
-  inp.onchange = () => { if (inp.files[0]) { S.psdAfterUpload = inp.files[0].name; uploadFiles([inp.files[0]]); } };
+  inp.onchange = () => { if (inp.files[0]) { S.psdAfterUpload = new Set([inp.files[0].name]); uploadFiles([inp.files[0]]); } };
   inp.click();
 }
 function revealProject() {

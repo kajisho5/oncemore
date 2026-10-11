@@ -1745,3 +1745,47 @@ written that fails before the fix, and then the fix:
 * `tests/test_rightclick.py` plays a Mac by giving the page a Mac platform
   and the events a Mac sends for Control-click (pointerdown with Control
   and the first button, then contextmenu).
+
+## 96. Dragging and dropping as the classic apps' help describes it (1)
+
+The help of the classic authoring apps lists what a drag does with each key
+held. oncemore follows it where it has the same objects:
+
+* **Assets onto a menu** (from the Project panel):
+  * A video makes a title, and a button for it where it lands. On a button,
+    that button plays the new title. With Alt (⌥), it is the menu's motion
+    background and no title is made.
+  * A picture is placed where it lands. With Alt, it is the background (on
+    an image button: that button's picture).
+  * A sound is the menu's music.
+  * A layered Photoshop file makes a menu from its layers.
+  * A video made into a title this way takes its source's chapter marks,
+    as "Title from file" does.
+* **Chapters**: a chapter in the Timelines panel (or on the timeline) is a
+  link source like a title. Drag it onto a button, or reach it with the pick
+  whip. The Timelines panel keeps the last title opened while a menu is
+  open, so its chapters are there to drag.
+* **On the menu**:
+  * A box dragged on empty space selects what it touches. With Shift, ⌘ or
+    Ctrl held, it adds to the selection. A click on empty space clears the
+    selection.
+  * Alt-drag leaves the objects where they are and drops copies. Copied
+    buttons get new ids and automatic routing.
+  * Shift-drag moves only across, down or at 45°. Snapping then works only
+    along that line, so the line stays straight.
+  * Shift / ⌘ / Ctrl-click still adds to the selection or takes from it.
+    Pressing on an object adds it at once, so a Shift-drag moves it with the
+    rest; a click without moving takes a selected object out.
+  * Before, Alt held while dragging turned snapping off. Alt is now the
+    copy, so turning snapping off moved to ⌘ (Ctrl elsewhere). The help says
+    nothing about a key for that; snapping is otherwise View > Snap.
+* **Files from the Finder**: a layered Photoshop file dropped into the
+  window becomes a menu, as it does in the classic apps. With Alt, it is
+  only imported, as a picture.
+* `tests/test_encore_drag.py` checks each of these in a browser. Playwright
+  cannot hold Alt during its own drag, so those drops are sent as the
+  browser would send them, with the key held.
+* Still to come: resize handles and Shift / Alt on them; dragging the
+  current-time indicator and its keys; poster frames by drag; dropping on the
+  flowchart; reordering by drag; Library drags; routing arrows by drag; and
+  the remaining small keys (listed in the ROADMAP).
