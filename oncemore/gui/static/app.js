@@ -244,6 +244,7 @@ const I18N = {
     fmt_srt: "SubRip (.srt)", fmt_script: "Text script (.txt)", script_import: "Import subtitles (text script)",
     script_hint: "A text script has a number, the start and end timecode and the text for each subtitle; its look comes from the subtitle style. Timecode hh;mm;ss;ff is NTSC drop frame. In an image script the text is a picture file next to the script (import them together); the pictures keep their own colours.",
     tc_absolute: "Absolute: the timecode is the title's", tc_relative: "Relative to", sub_offset: "Offset",
+    captions: "Closed captions", cc_hint: "Line-21 captions for TVs and players with a caption decoder: a Scenarist .scc file as it is, or a subtitle file sent as pop-on captions (32 characters a row, Latin letters). DVD only.", cc_pal: "Closed captions (line 21) are for NTSC discs.",
     sub_offset_hint: "Taken off every subtitle's time: the start of the source's own timecode (e.g. 01;00;00;00)",
     cmd_chapter_names: "Show chapter names", chapter_label: "Chapter {n}",
     button_number: "Number", number_on_remote: "{n} (number key {k})",
@@ -496,6 +497,7 @@ const I18N = {
     fmt_srt: "SubRip（.srt）", fmt_script: "テキストスクリプト（.txt）", script_import: "字幕を読み込み（テキストスクリプト）",
     script_hint: "テキストスクリプトは字幕ごとに番号・開始と終了のタイムコード・テキストを並べたファイルです。見た目は字幕スタイルに従います。タイムコード hh;mm;ss;ff は NTSC のドロップフレームです。画像スクリプトではテキストの代わりにスクリプトと同じ場所の画像ファイル名を書きます（スクリプトと一緒に読み込んでください）。画像は自分の色のまま使われます。",
     tc_absolute: "絶対：タイムコードがそのままタイトルの時間", tc_relative: "相対：基準", sub_offset: "オフセット",
+    captions: "クローズドキャプション", cc_hint: "キャプションデコーダー付きのテレビやプレーヤー向けの Line 21 キャプション：Scenarist の .scc はそのまま、字幕ファイルはポップオン方式で送ります（1 行 32 文字、ラテン文字のみ）。DVD のみ。", cc_pal: "クローズドキャプション（Line 21）は NTSC のディスク用です。",
     sub_offset_hint: "各字幕の時間から引く値：素材自身のタイムコードの開始（例 01;00;00;00）",
     cmd_chapter_names: "チャプター名を表示", chapter_label: "チャプター {n}",
     button_number: "番号", number_on_remote: "{n}（数字キー {k}）",
@@ -1837,6 +1839,7 @@ function renderTitleInspector(el) {
   const ends = actionOptions({ forButton: false, includeChapters: true, allowPlayAll: true, allowLast: true });
   const langs = [["", "—"], ["ja", "日本語 (ja)"], ["en", "English (en)"], ["fr", "Français (fr)"], ["de", "Deutsch (de)"], ["es", "Español (es)"], ["zh", "中文 (zh)"], ["ko", "한국어 (ko)"]];
   const subs = ti.subtitles || [], tracks = ti.audio_tracks || [];
+  const cap = typeof ti.captions === "string" ? { file: ti.captions } : (ti.captions || {});
   el.innerHTML = `<h2>${t("prop_title")}</h2>
     <label class="field"><span>${t("name")}</span><input data-k="name" value="${esc(ti.name || "")}"></label>
     <label class="field"><span>${t("id")}</span><input id="ti-id" value="${esc(ti.id)}"><div class="hint">${esc(t("rename_hint"))}</div></label>
@@ -1867,7 +1870,7 @@ function renderTitleInspector(el) {
     <button class="small" id="add-track" ${ti.clips ? "disabled" : ""}>${t("add_track")}</button>
     <h3>${t("subtitles")}</h3>
     ${subs.map((s, i) => `<div class="row" style="margin:6px 0 4px" data-sub="${i}" data-nobind>
-        ${selectHtml("file", mediaOf("subtitle").map((f) => [f, f.replace(/^media\//, "")]), s.file)}
+        ${selectHtml("file", mediaOf("subtitle").filter((f) => !/\.scc$/i.test(f)).map((f) => [f, f.replace(/^media\//, "")]), s.file)}
         <button class="small danger shrink" data-del-sub="${i}">✕</button></div>
         <div class="row" style="margin:0 0 4px" data-sub="${i}" data-nobind>
         ${selectHtml("lang", langs, s.lang || "", 'class="shrink" style="width:90px"')}
@@ -1879,6 +1882,12 @@ function renderTitleInspector(el) {
         <div class="row" style="margin:-6px 0 10px" data-sub="${i}" data-nobind><span class="shrink hint">${t("sub_offset")}</span>
         <input class="mono" data-k="offset" value="${esc(s.offset ?? "")}" placeholder="0" title="${esc(t("sub_offset_hint"))}"></div>`).join("")}
     <button class="small" id="add-sub" ${mediaOf("subtitle").length ? "" : "disabled"}>${t("add_sub")}</button>
+    <h3>${t("captions")}</h3>
+    <div class="row" style="margin:6px 0 4px" data-nobind>
+      ${selectHtml("captions_file", [["", t("none")], ...mediaOf("subtitle").map((f) => [f, f.replace(/^media\//, "")])], cap.file || "", `id="cc-file" ${P().disc.standard === "PAL" ? "disabled" : ""}`)}</div>
+    ${cap.file ? `<div class="row" style="margin:0 0 4px" data-nobind><span class="shrink hint">${t("sub_offset")}</span>
+      <input class="mono" id="cc-offset" value="${esc(cap.offset ?? "")}" placeholder="0" title="${esc(t("sub_offset_hint"))}"></div>` : ""}
+    <div class="hint">${esc(t(P().disc.standard === "PAL" ? "cc_pal" : "cc_hint"))}</div>
     <h3>${t("chapter_menu")}</h3>
     <label><input type="checkbox" id="cm-on" ${cm ? "checked" : ""}> ${t("chapter_menu_on")}</label>
     ${cm ? `<div style="margin-top:8px" data-nobind><label class="field"><span>BACK → </span>${selectHtml("back", [["__none__", t("auto")], ...actionOptions({ forButton: false, includeChapters: false })], (cm === true ? null : cm.back) || "__none__", 'id="cm-back"')}</label>
@@ -1936,7 +1945,15 @@ function renderTitleInspector(el) {
     const x = find(p); x.subtitles.splice(Number(b.dataset.delSub), 1); if (!x.subtitles.length) delete x.subtitles;
   })));
   $("#add-track").onclick = () => commit((p) => { const x = find(p); x.audio_tracks = x.audio_tracks || [{}]; x.audio_tracks.push({}); });
-  $("#add-sub").onclick = () => commit((p) => { const x = find(p); (x.subtitles = x.subtitles || []).push({ file: mediaOf("subtitle")[0] }); });
+  $("#add-sub").onclick = () => commit((p) => { const x = find(p); (x.subtitles = x.subtitles || []).push({ file: mediaOf("subtitle").find((f) => !/\.scc$/i.test(f)) }); });
+  // closed captions: a file, or {file, offset}
+  const ccSet = () => commit((p) => {
+    const x = find(p), file = $("#cc-file").value, off = $("#cc-offset")?.value.trim();
+    if (!file) delete x.captions;
+    else x.captions = off ? { file, offset: off } : file;
+  });
+  $("#cc-file").onchange = ccSet;
+  if ($("#cc-offset")) $("#cc-offset").onchange = ccSet;
   $("#cm-on").onchange = (e) => commit((p) => { const x = find(p); if (e.target.checked) x.auto_chapter_menu = true; else delete x.auto_chapter_menu; });
   const cmSet = (key, val) => commit((p) => {
     const x = find(p), spec = x.auto_chapter_menu === true ? {} : x.auto_chapter_menu;
@@ -4572,7 +4589,7 @@ function chaptersAtIntervals() {
   };
 }
 // File > Replace asset: every use of one file in the project points to another
-const MEDIA_RE = /\.(mp4|m4v|mov|mkv|avi|mpe?g|m2ts|mts|ts|vob|webm|dv|wav|aiff?|mp3|m4a|aac|ac3|dts|flac|png|jpe?g|bmp|tiff?|gif|webp|srt|vtt|ass|ssa|psd|psb|ttf|otf|ttc)$/i;
+const MEDIA_RE = /\.(mp4|m4v|mov|mkv|avi|mpe?g|m2ts|mts|ts|vob|webm|dv|wav|aiff?|mp3|m4a|aac|ac3|dts|flac|png|jpe?g|bmp|tiff?|gif|webp|srt|vtt|ass|ssa|scc|psd|psb|ttf|otf|ttc)$/i;
 function assetRefs(p = P()) {
   const uses = new Map();
   const walk = (v) => {

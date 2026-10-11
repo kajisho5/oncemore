@@ -565,9 +565,11 @@ def title_vob(project, title, path):
     return f"<vob file={quoteattr(path)}>{''.join(cells)}</vob>"
 
 
-def video_tag(disc):
+def video_tag(disc, caption=False):
     ws = ' widescreen="nopanscan"' if disc.aspect == "16:9" else ""
-    return f'<video format="{disc.standard.lower()}" aspect="{disc.aspect}"{ws}/>'
+    # (line-21 captions in the titles: the IFO says so, for players that look)
+    cc = ' caption="field1"' if caption else ""
+    return f'<video format="{disc.standard.lower()}" aspect="{disc.aspect}"{ws}{cc}/>'
 
 
 def audio_tags(project, titles=None):
@@ -648,7 +650,7 @@ def build_xml(project, menu_files, title_files, dest, transition_files=None):
             x += ["    <menus>", f"      {video_tag(project.disc_for(titles[0]))}",
                   f'      <pgc entry="root"><pre>{target} jump vmgm menu entry title;</pre></pgc>',
                   "    </menus>"]
-        x += ["    <titles>", f"      {video_tag(project.disc_for(titles[0]))}"]
+        x += ["    <titles>", f"      {video_tag(project.disc_for(titles[0]), any(t.captions for t in titles))}"]
         x += [f"      {tag}" for tag in audio_tags(project, titles)
               + subpicture_tags(project, titles)]
         for t in titles:

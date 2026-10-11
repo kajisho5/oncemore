@@ -9,7 +9,7 @@ from fractions import Fraction
 
 from . import tools
 from .errors import OncemoreError, ProjectError, ToolFailedError
-from . import pulldown
+from . import captions, pulldown
 from .project import FILM_FPS, chapter_points, gop_limits, title_fps
 
 # Upper limits we allow ourselves (DVD-Video allows 9.8 Mbit/s video and
@@ -584,9 +584,10 @@ def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
     if not getattr(title, "transcode", True):
         # already DVD video: the picture is copied, only the sound is made
         # (film gets its pulldown flags, as when it is encoded)
-        if is_film(info, disc):
+        if is_film(info, disc) or title.captions:
             _pulldown_mux(title, inputs, ["-map", "0:v:0", "-c:v", "copy"], amap, acodec,
-                          1 + len(extra) // 2, duration, out_path, work, on_progress)
+                          1 + len(extra) // 2, duration, out_path, work, on_progress,
+                          pulldown_flags=is_film(info, disc))
             return out_path
         run_ffmpeg(inputs + ["-map", "0:v:0", "-c:v", "copy"] + amap + acodec +
                    ["-f", "dvd", "-muxrate", "10080000", "-packetsize", "2048",
@@ -614,9 +615,9 @@ def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
                    duration, os.path.join(logdir, f"title-{title.id}-pass1.log"), prog(0),
                    cwd=work, what=f"ffmpeg (title {title.id}, pass 1)")
         video += ["-pass", "2", "-passlogfile", passlog]
-    if mode == "pulldown":
+    if mode == "pulldown" or title.captions:
         _pulldown_mux(title, inputs, video, amap, acodec, 1 + len(extra) // 2, duration,
-                      out_path, work, prog(passes - 1))
+                      out_path, work, prog(passes - 1), pulldown_flags=mode == "pulldown")
         return out_path
     run_ffmpeg(inputs + video + amap + acodec + ["-t", f"{duration:.3f}", out_path],
                duration, os.path.join(logdir, f"title-{title.id}.log"), prog(passes - 1),
@@ -649,9 +650,10 @@ def _encode_clips(title, disc, video_bps, out_path, work, two_pass, on_progress,
                    cwd=work, what=f"ffmpeg (title {title.id}, pass 1)")
         venc += ["-pass", "2", "-passlogfile", passlog]
         vonly += ["-pass", "2", "-passlogfile", passlog]
-    if mode == "pulldown":
+    if mode == "pulldown" or title.captions:
         _pulldown_mux(title, inputs, vonly, ["-filter_complex", agraph, "-map", "[a0]"],
-                      acodec, len(title.clips), duration, out_path, work, prog(passes - 1))
+                      acodec, len(title.clips), duration, out_path, work, prog(passes - 1),
+                      pulldown_flags=mode == "pulldown")
         return out_path
     run_ffmpeg(inputs + ["-filter_complex", graph, "-map", "[v]", "-map", "[a0]"] + venc +
                acodec + ["-t", f"{duration:.3f}", out_path],
@@ -681,15 +683,21 @@ def _video_args(title, disc, video_bps, target, mode):
     return video
 
 
-def _pulldown_mux(title, inputs, video, amap, acodec, n, duration, out_path, work, progress):
-    """Film frames go to an elementary stream, get their pulldown flags, and
-    are then muxed with the sound (input `n` is the patched stream)."""
+def _pulldown_mux(title, inputs, video, amap, acodec, n, duration, out_path, work, progress,
+                  pulldown_flags=True):
+    """The picture goes to an elementary stream, gets its film pulldown flags
+    (pulldown_flags) and its closed captions (title.captions), and is then
+    muxed with the sound (input `n` is the patched stream)."""
     logdir = os.path.join(work, "logs")
     m2v = os.path.join(work, f"{title.id}.m2v")
     run_ffmpeg(inputs + video + ["-an", "-t", f"{duration:.3f}", "-f", "mpeg2video", m2v],
                duration, os.path.join(logdir, f"title-{title.id}.log"), progress,
                cwd=work, what=f"ffmpeg (title {title.id})")
-    pulldown.patch_file(m2v)
+    if pulldown_flags:
+        pulldown.patch_file(m2v)
+    if title.captions:
+        schedule, _ = captions.load(title.captions, title.captions_offset)
+        captions.inject_file(m2v, schedule)
     run_ffmpeg(inputs + ["-fflags", "+genpts", "-i", m2v, "-map", f"{n}:v:0", "-c:v", "copy"]
                + amap + acodec + ["-f", "dvd", "-muxrate", "10080000", "-packetsize", "2048",
                                   "-t", f"{duration:.3f}", out_path],

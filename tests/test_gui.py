@@ -1611,6 +1611,31 @@ class TestGuiBrowser(unittest.TestCase):
             browser.close()
         self.assertEqual(errors, [])
 
+    def test_closed_captions(self):
+        """Title > Closed captions: a file, then an offset with it."""
+        self.s.call("/api/new", "POST", {"sample": True})
+        with open(os.path.join(self.dir, "media", "cc.scc"), "w") as f:
+            f.write("Scenarist_SCC V1.0\n\n00:00:01:00\t9420 9420\n")
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click(".nav-item[data-view=title][data-id=t1]", timeout=120000)
+            # (a .scc is captions only: not offered as a subtitle track)
+            page.select_option("#cc-file", "media/cc.scc")
+            self.poll(lambda: self.project()["titles"][0].get("captions") == "media/cc.scc")
+            page.fill("#cc-offset", "01;00;00;00")
+            page.press("#cc-offset", "Tab")
+            self.poll(lambda: self.project()["titles"][0].get("captions") ==
+                      {"file": "media/cc.scc", "offset": "01;00;00;00"})
+            self.assertTrue(self.s.app.check(self.project())["valid"])
+            page.select_option("#cc-file", "")
+            self.poll(lambda: "captions" not in self.project()["titles"][0])
+            browser.close()
+        self.assertEqual(errors, [])
+
     def test_button_numbers(self):
         """Properties > Number renumbers a button, the menu's button number
         offset shows in the routing view, and the preview's number keys
