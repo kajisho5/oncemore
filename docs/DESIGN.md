@@ -47,10 +47,11 @@ raw hex colour outside the tokens).
 | Group | Tokens |
 |---|---|
 | Surfaces | `--c-bg-0` gaps between frames, `--c-bg-1` panels, `--c-bg-2` tab strips / bars, `--c-bg-3` selected rows, `--c-bg-4` raised (headers, buttons, back tabs), `--c-bg-5` track headers, `--c-field` text fields, `--c-line`, `--c-line-strong`, `--c-scrim` |
-| Text | `--c-text`, `--c-text-2` (labels, hints), `--c-text-field` (in text fields), `--c-text-on-accent`, `--c-text-on-ui` |
+| Text | `--c-text`, `--c-text-2` (labels, hints), `--c-text-field` (in text fields), `--c-text-on-accent`, `--c-text-on-ui`, `--c-text-on-danger` |
 | Skin | `--raised`, `--raised-hi` (controls, headers), `--bevel`, `--field-shadow`, `--c-field-border`, `--r-field`, `--foot-h`; `:root[data-skin="classic"]` redefines these and the colours, type sizes, radii and bar heights |
 | Working | `--c-active-panel` (outline of the panel in use), `--c-timecode`, `--c-playhead`, `--c-clip`, `--c-clip-head`, `--c-clip-audio`, `--c-clip-text` (timeline clips), `--c-ui`, `--c-ui-soft` |
-| Accent | `--c-accent` (highlight yellow), `--c-accent-2` (activated orange), `--c-focus` |
+| Accent | `--c-accent` (highlight yellow), `--c-accent-2` (activated orange), `--c-accent-text` (the accent as text on panels), `--c-focus` |
+| Brand | `--brand-highlight`, `--brand-activated`, `--brand-ink`, `--brand-paper` (the logo and its ground; the same in every skin and theme) |
 | Status | `--c-success`, `--c-warning`, `--c-danger` |
 | Kinds | `--c-kind-menu`, `-title`, `-playlist`, `-remote`, `-audio`, `-subtitle`, `-chapter` |
 | Picture | `--c-picture` (black), `--c-on-picture`, `--c-guide` (snapping), `--c-hit` (hit areas) |
@@ -58,11 +59,42 @@ raw hex colour outside the tokens).
 | Space | `--sp-1` 2 … `--sp-7` 32 (4 px grid) |
 | Shape | `--r-sm` 4, `--r-md` 6, `--r-lg` 10, `--r-pill`, `--shadow-1`, `--shadow-2` |
 | Workspace | `--panel-head-h`, `--left-w`, `--right-w`, `--timeline-h`, `--splitter` (the three sizes follow the splitters and are remembered per browser) |
-| Motion | `--dur-fast` 120 ms, `--dur-med` 200 ms |
+| Motion | `--dur-fast` 120 ms, `--dur-med` 200 ms (0 when the system asks for reduced motion) |
 
 The light theme (`:root[data-theme="light"]`) redefines the colour tokens
-only; sizes and spacing never change between themes. Contrast: body text and
-labels stay at 4.5:1 or more on their surface in both themes.
+only; sizes and spacing never change between themes.
+
+**Contrast** (WCAG 2 AA), in both skins and both themes: text at 4.5:1 or
+more on the grounds it is used on, marks that carry meaning (the focus
+outline, a field's border or fill, the kind colours) at 3:1. The pairs are
+listed in `tests/test_gui.py` (`TestDesignSystem.test_contrast`), which
+fails when a token change breaks one. Where one hue cannot serve two
+grounds, it gets a second token: `--c-accent-text` for the accent as text
+(the Light theme's yellow is too pale to read), `--c-text-on-danger` for
+text on the danger colour. One known exception: on Classic's mid-grey
+panels no blue carries white text and also stands 3:1 off the panel, so
+there `--c-ui` only has to carry its text (Classic's tabs are boxed, so
+the underline is not what tells them apart).
+
+## Brand
+
+* **The mark** is a disc whose rim turns into a loop arrow: play it once
+  more. `--brand-highlight` (the DVD highlight yellow) on `--brand-ink`,
+  never on a light ground (it does not reach 3:1 there); on light grounds
+  use the app icon, which carries its own tile.
+* **The wordmark** is `oncemore`, always lower case, set in Outfit SemiBold
+  (SIL Open Font License) with -0.01 em tracking and converted to outlines:
+  `--brand-paper` on dark grounds, `--brand-ink` on light ones. The app
+  itself never loads Outfit; its interface uses the system font.
+* **Files**: `docs/images/logo/` (mark, app icon, lockup, wordmarks, and
+  `make_logo.py` that draws them), `oncemore/gui/static/favicon.svg` and
+  `brand-lockup.svg` (served by the app; the New Project dialog shows the
+  lockup on `--brand-ink`), `macos/AppIcon.png` (`appicon.svg` at 1024 px).
+* **Rules**: clear space of at least the height of the "o" around the logo;
+  the mark at 16 px or more, the lockup at 96 px wide or more; only the four
+  brand colours, no gradients, shadows or outlines; the mark is not rotated
+  or redrawn. The brand colours are the same in every skin and theme and
+  are not used for the interface's own surfaces.
 
 ## Workspace anatomy
 

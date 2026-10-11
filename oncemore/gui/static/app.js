@@ -1076,6 +1076,7 @@ function renderWelcome(m) {
     return t("np_transcode", { d: pal ? "720 × 576" : "720 × 480", f: pal ? "25" : "29.97" });
   };
   m.innerHTML = `<div class="welcome"><div class="dialog np-dialog" role="dialog" aria-label="${esc(t("new_project"))}">
+    <div class="np-brand"><img src="brand-lockup.svg" alt="oncemore"></div>
     <div class="dlg-title">${esc(t("new_project"))}</div>
     <div class="dlg-body">
       <div class="dlg-tabs"><span class="tab active">${t("basic")}</span></div>

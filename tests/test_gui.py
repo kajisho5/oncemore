@@ -445,6 +445,89 @@ class TestDesignSystem(unittest.TestCase):
                 if v not in ("--c-picture", "--c-on-picture", "--c-guide", "--c-hit")}
         self.assertEqual(need - set(re.findall(r"(--c-[\w-]+)\s*:", light)), set())
 
+    # (text, ground) pairs the interface uses: text needs 4.5:1 (WCAG 2 AA)
+    TEXT_PAIRS = [("c-text", g) for g in ("c-bg-1", "c-bg-2", "c-bg-3", "c-bg-4", "c-bg-5")] + [
+        ("c-text-2", "c-bg-1"), ("c-text-2", "c-bg-2"), ("c-text-field", "c-field"),
+        ("c-text-on-ui", "c-ui"), ("c-text-on-accent", "c-accent"), ("c-text-on-danger", "c-danger"),
+        ("c-clip-text", "c-clip"), ("c-clip-text", "c-clip-head"), ("c-clip-text", "c-clip-audio"),
+        ("c-timecode", "c-bg-1"), ("c-timecode", "c-bg-2"), ("c-danger", "c-bg-1"),
+        ("c-danger", "c-bg-2"), ("c-warning", "c-bg-2"), ("c-success", "c-bg-2"),
+        ("c-accent-text", "c-bg-1"), ("c-accent-text", "c-bg-2")]
+    # marks (focus, fields, kind icons) need 3:1; "a|b": either is enough (a field
+    # shows by its border or by its fill)
+    MARK_PAIRS = [("c-active-panel", "c-bg-1"), ("c-focus", "c-bg-1"), ("c-ui", "c-bg-1"),
+                  ("c-field-border|c-field", "c-bg-1")] + \
+        [(f"c-kind-{k}", "c-bg-1") for k in ("menu", "title", "playlist", "remote", "audio",
+                                              "subtitle", "chapter")]
+
+    def skins(self):
+        """Every token's value in each skin and theme (at the default Brightness)."""
+        css = self.read("tokens.css")
+
+        def block(sel):
+            i = css.index(sel + " {")
+            body = css[i:css.index("\n}", i)]
+            return {m[0]: " ".join(m[1].split()) for m in re.findall(r"--([\w-]+):\s*([^;]+);", body)}
+        base, classic = block(":root"), block(':root[data-skin="classic"]')
+        light = block(':root[data-theme="light"]')
+        return {"modern": base, "classic": {**base, **classic}, "light": {**base, **light},
+                "classic light": {**base, **classic, **light}}
+
+    @staticmethod
+    def luminance(value, tokens):
+        import colorsys
+        v = value.strip()
+        m = re.match(r"var\(--([\w-]+)\)$", v)
+        if m:
+            return TestDesignSystem.luminance(tokens[m[1]], tokens)
+        v = re.sub(r"calc\(([\d.]+)% \+ var\(--ui-b\)\)", r"\1%", v)
+        if v.startswith("#"):
+            rgb = [int(v[k:k + 2], 16) / 255 for k in (1, 3, 5)]
+        else:
+            h, s, li = map(float, re.match(r"hsl\(([\d.]+) ([\d.]+)% ([\d.]+)%\)", v).groups())
+            rgb = colorsys.hls_to_rgb(h / 360, li / 100, s / 100)
+        lin = [c / 12.92 if c <= .03928 else ((c + .055) / 1.055) ** 2.4 for c in rgb]
+        return .2126 * lin[0] + .7152 * lin[1] + .0722 * lin[2]
+
+    def test_contrast(self):
+        """Text 4.5:1 and marks 3:1 on the grounds they are used on, in both
+        skins and both themes. One exception: on Classic's mid-grey panels
+        no blue carries white text (4.5:1) and also stands 3:1 off the panel,
+        so there c-ui only has to carry its text (Classic's tabs are boxed;
+        the underline is not what tells them apart)."""
+        bad = []
+        for skin, tokens in self.skins().items():
+            for pairs, need in ((self.TEXT_PAIRS, 4.5), (self.MARK_PAIRS, 3.0)):
+                for fg, bg in pairs:
+                    if skin.startswith("classic") and skin != "classic light" and fg == "c-ui":
+                        continue
+                    lb = self.luminance(tokens[bg], tokens)
+                    best = 0
+                    for f in fg.split("|"):
+                        lf = self.luminance(tokens[f], tokens)
+                        best = max(best, (max(lf, lb) + .05) / (min(lf, lb) + .05))
+                    if best < need:
+                        bad.append(f"{skin}: {fg} on {bg} {best:.2f}:1")
+        self.assertEqual(bad, [])
+
+    def test_brand_files(self):
+        """The logo files the app serves: the brand colours, outlined (no
+        fonts needed), and linked from the pages."""
+        tokens = self.read("tokens.css")
+        for name in ("favicon.svg", "brand-lockup.svg"):
+            svg = self.read(name)
+            self.assertNotIn("<text", svg)
+            for colour in re.findall(r"#[0-9a-f]{6}", svg):
+                self.assertIn(colour, tokens, f"{name}: {colour} is not a brand token")
+        for page in ("index.html", "styleguide.html"):
+            self.assertIn('rel="icon" href="favicon.svg"', self.read(page))
+        self.assertIn("brand-lockup.svg", self.read("app.js"))
+        icon = os.path.join(self.STATIC, "..", "..", "..", "macos", "AppIcon.png")
+        with open(icon, "rb") as f:
+            head = f.read(24)
+        self.assertEqual((head[:8], int.from_bytes(head[16:20], "big"),
+                          int.from_bytes(head[20:24], "big")), (b"\x89PNG\r\n\x1a\n", 1024, 1024))
+
     def test_i18n_keys_match(self):
         js = self.read("app.js")
         start = js.index("const I18N = {")
