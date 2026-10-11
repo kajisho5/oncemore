@@ -1840,7 +1840,7 @@ async function renderFlow(m) {
     }
     return "";
   };
-  const buttonsOf = (n) => n.kind !== "menu" ? [] : ((P().menus || []).find((x) => "menu:" + x.id === n.id)?.buttons || []).filter((b) => !b.hidden).map((b) => b.label || b.id);
+  const buttonsOf = (n) => n.kind !== "menu" ? [] : ((P().menus || []).find((x) => "menu:" + x.id === n.id)?.buttons || []).map((b, i) => ({ b, i })).filter((x) => !x.b.hidden).map((x) => ({ label: x.b.label || x.b.id, i: x.i }));
   const card = (n) => {
     if (n.kind === "first_play") {
       return `<circle cx="${W / 2}" cy="${H / 2 - 2}" r="30" class="disc-ico"/><circle cx="${W / 2}" cy="${H / 2 - 2}" r="8" class="disc-hole"/>
@@ -1852,7 +1852,7 @@ async function renderFlow(m) {
     return `<rect width="${W}" height="${H}" rx="2"/>${pic}
       <rect class="lbl" y="${H}" width="${W}" height="18" rx="2"/><text x="6" y="${H + 13}" class="nl">${esc(label(n).slice(0, 20))}</text>
       ${n.kind === "title" || n.kind === "playlist" ? `<text x="6" y="${H + 30}" class="ns">${esc(sub(n))}</text>` : ""}
-      ${bs.length ? `<rect class="band" y="${H + 18}" width="${W}" height="4"/>${bs.slice(0, 4).map((b, k) => `<rect class="brow" y="${H + 22 + k * 15}" width="${W}" height="15"/><text x="8" y="${H + 33 + k * 15}" class="nb">${esc(String(b).slice(0, 20))}</text>`).join("")}${bs.length > 4 ? `<text x="8" y="${H + 33 + 4 * 15}" class="nb">…</text>` : ""}` : ""}`;
+      ${bs.length ? `<rect class="band" y="${H + 18}" width="${W}" height="4"/>${bs.slice(0, 4).map((b, k) => `<g class="bro" data-btn="${b.i}"><rect class="brow" y="${H + 22 + k * 15}" width="${W}" height="15"/><text x="8" y="${H + 33 + k * 15}" class="nb">${esc(String(b.label).slice(0, 20))}</text></g>`).join("")}${bs.length > 4 ? `<text x="8" y="${H + 33 + 4 * 15}" class="nb">…</text>` : ""}` : ""}`;
   };
   const path = (e, k) => {
     const a = pos[e.from], b = pos[e.to];
@@ -1887,26 +1887,60 @@ async function renderFlow(m) {
     else if (kind === "fp" || kind === "title_key") select("disc");
   };
   m.querySelectorAll("#flow-notes [data-node]").forEach((g) => (g.onclick = () => open(g.dataset.node)));
-  // click opens an item; dragging from it to another item links them
+  // click opens an item; dragging from it to another item links them (from one of a
+  // menu's buttons listed under it: that button)
   m.querySelectorAll("#flow g.node[data-node]").forEach((g) => {
     g.onpointerdown = (ev) => {
       if (secondaryClick(ev)) return;
       ev.preventDefault();                        // (no text selection while dragging)
-      const x0 = ev.clientX, y0 = ev.clientY, src = g.dataset.node;
+      const x0 = ev.clientX, y0 = ev.clientY, src = g.dataset.node, row = ev.target.closest("[data-btn]");
       const move = (e) => {
         if (Math.hypot(e.clientX - x0, e.clientY - y0) < 6) return;
         window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
-        startWhip(e, (action) => flowLink(src, action, e), g);
+        startWhip(e, (action) => flowLink(src, action, e, row ? Number(row.dataset.btn) : null), row || g);
       };
       const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); open(src); };
       window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
     };
   });
+  // a title, menu or playlist dragged in from the Project panel, as in the classic apps: onto
+  // the disc it plays first, onto a title or playlist it follows it, onto one of a menu's
+  // buttons that button plays it, onto a menu a new button does; onto empty space nothing
+  const flow = $("#flow"), isLink = (e) => [...(e.dataTransfer?.types || [])].includes(LINK_TYPE);
+  const clear = () => flow.querySelectorAll(".drop-target").forEach((x) => x.classList.remove("drop-target"));
+  flow.ondragover = (e) => {
+    if (!isLink(e)) return;
+    clear();
+    const at = e.target.closest?.("[data-btn]") || e.target.closest?.("g.node[data-node]");
+    if (!at) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = "link";
+    at.classList.add("drop-target");
+  };
+  flow.ondragleave = (e) => { if (!flow.contains(e.relatedTarget)) clear(); };
+  flow.ondrop = (e) => {
+    if (!isLink(e)) return;
+    e.preventDefault(); clear();
+    const node = e.target.closest?.("g.node[data-node]"), row = e.target.closest?.("[data-btn]");
+    if (node) flowDrop(node.dataset.node, row ? Number(row.dataset.btn) : null, e.dataTransfer.getData(LINK_TYPE));
+  };
+}
+function flowDrop(target, btn, action) {
+  const [kind, ...rest] = target.split(":"), id = rest.join(":");
+  if (target === action) return;
+  if (kind !== "menu") return flowLink(target, action);
+  const menu = (P().menus || []).find((x) => x.id === id);
+  if (!menu || action === target) return;
+  if (btn != null) return flowLink(target, action, null, btn);
+  commit((p) => {                                 // a new button under the last one
+    const mm = p.menus.find((x) => x.id === id), last = mm.buttons[mm.buttons.length - 1];
+    const bid = uniqueId(action.split(":")[1].replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 30) + "_btn", mm.buttons.map((b) => b.id));
+    mm.buttons.push({ id: bid, label: linkLabel(action), x: last?.x ?? 120, y: Math.min(discH() - 40, (last?.y ?? 160) + 60), action, ...(last?.page != null ? { page: last.page } : {}) });
+  });
 }
 
 // a link made in the flowchart: from first play, the Title key, a title's or
 // playlist's end, or a menu button (asked) to the dropped item
-function flowLink(src, action, ev) {
+function flowLink(src, action, ev, btn = null) {
   const [kind, ...rest] = src.split(":"), id = rest.join(":");
   if (src === action) return;
   if (kind === "fp") return commit((p) => { p.disc.first_play = action; });
@@ -1916,6 +1950,7 @@ function flowLink(src, action, ev) {
   if (kind === "menu") {
     const menu = (P().menus || []).find((x) => x.id === id);
     if (!menu || action === `menu:${id}`) return;
+    if (btn != null) return commit((p) => { p.menus.find((x) => x.id === id).buttons[btn].action = action; });
     openPopup(ev.clientX, ev.clientY, [{ label: t("pick_button"), disabled: true, run: () => {} }, "-",
       ...menu.buttons.map((b, i) => ({ label: `${i + 1}. ${b.label || b.id} → ${linkLabel(action)}`, run: () => commit((p) => { p.menus.find((x) => x.id === id).buttons[i].action = action; }) }))]);
   }
@@ -1961,7 +1996,9 @@ async function renderSim(m) {
       if (S.simDigits.length >= 2) go(); else S.simDigitTimer = setTimeout(go, 700);
       return;
     }
-    const k = { Home: "title", Insert: "menu", End: "end" }[e.key] || SIM_KEYS[e.key] || SIM_KEYS[e.key.toLowerCase?.()];
+    // (⌘ / Ctrl + ← → previous / next chapter and Space play, as in the classic apps' Project Preview)
+    const chap = modKey(e) && { ArrowLeft: "prev", ArrowRight: "next" }[e.key];
+    const k = chap || (e.code === "Space" ? "play" : null) || { Home: "title", Insert: "menu", End: "end" }[e.key] || SIM_KEYS[e.key] || SIM_KEYS[e.key.toLowerCase?.()];
     if (k) { e.preventDefault(); simCall(k); }
   };
   if (S.simFrom) { S.simProject = JSON.stringify(S.project); S.sim = null; S.simMenus = {}; await simCall(); }
@@ -2477,8 +2514,31 @@ function renderMenu(m) {
     return { x: e.x, y: e.y, w: bw, h: bh };
   };
   const listOf = elementList;
+  // double-click a text or a button's words to type them in place; Esc (or a click elsewhere)
+  // ends it, as in the classic apps
+  stage.addEventListener("dblclick", (ev) => {
+    const node = ev.target.closest?.(".el[data-kind]");
+    if (!node || tool !== "select" || node.isContentEditable) return;
+    const k = { kind: node.dataset.kind, i: Number(node.dataset.i) }, e = els.find((x) => x.kind === k.kind && x.i === k.i);
+    if (!e || !(k.kind === "text" || (k.kind === "button" && !e.image && !e.hl))) return;
+    ev.preventDefault();
+    const was = e.label;
+    node.contentEditable = "plaintext-only"; node.classList.add("editing"); node.focus();
+    getSelection().selectAllChildren(node);
+    node.onkeydown = (e2) => {
+      e2.stopPropagation();
+      if (e2.key === "Escape" || (e2.key === "Enter" && k.kind === "button")) { e2.preventDefault(); node.blur(); }
+    };
+    node.onblur = () => {
+      node.onblur = node.onkeydown = null; node.contentEditable = "false"; node.classList.remove("editing");
+      const v = node.innerText.replace(/\n+$/, "");
+      if (v === was || !v.trim()) { renderMain(); return; }
+      commit((p) => { const it = listOf(p.menus.find((x) => x.id === menu.id), k.kind)[k.i]; if (k.kind === "text") it.text = v; else it.label = v; });
+    };
+  });
   stage.querySelectorAll(".el").forEach((node) => {
     node.addEventListener("pointerdown", (ev) => {
+      if (node.isContentEditable) return;      // (typing in it: the caret, not a drag)
       ev.preventDefault();
       stage.focus();
       const k = { kind: node.dataset.kind, i: Number(node.dataset.i) };
@@ -4213,7 +4273,8 @@ async function drawRouting(stage, menu, scale, sx) {
         path = `M${x1.toFixed(1)},${y1.toFixed(1)} L${x2.toFixed(1)},${y2.toFixed(1)}`;
       }
       const manual = (r.manual[b.id] || []).includes(d);
-      paths.push(`<path class="${manual ? "manual" : ""} ${wraps ? "wrap" : ""}" data-route="${esc(b.id)}:${d}" d="${path}" marker-end="url(#route-arrow)"><title>${esc(b.id)} ${d} → ${esc(to.id)}</title></path>`);
+      paths.push(`<path class="${manual ? "manual" : ""} ${wraps ? "wrap" : ""}" data-route="${esc(b.id)}:${d}" d="${path}" marker-end="url(#route-arrow)"><title>${esc(b.id)} ${d} → ${esc(to.id)}</title></path>`,
+        `<path class="route-hit" data-hit="${esc(b.id)}:${d}" d="${path}"><title>${esc(b.id)} ${d} → ${esc(to.id)}</title></path>`);
     }
   }
   // each button's number on the remote (its place plus the menu's offset)
@@ -4226,6 +4287,31 @@ async function drawRouting(stage, menu, scale, sx) {
   svg.setAttribute("width", stage.clientWidth); svg.setAttribute("height", stage.clientHeight);
   svg.innerHTML = `<defs><marker id="route-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>${paths.join("")}`;
   stage.appendChild(svg);
+  // drag an arrow onto the button that key should go to, as in the classic apps (it is then
+  // set by you: solid; Properties > Navigation shows it)
+  svg.querySelectorAll(".route-hit").forEach((hit) => hit.addEventListener("pointerdown", (ev) => {
+    if (secondaryClick(ev)) return;
+    ev.preventDefault(); ev.stopPropagation();
+    const [bid, d] = hit.dataset.hit.split(":");
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line"), r = stage.getBoundingClientRect();
+    line.setAttribute("class", "route-drag"); line.setAttribute("marker-end", "url(#route-arrow)");
+    for (const [k, v] of [["x1", ev.clientX - r.left], ["y1", ev.clientY - r.top], ["x2", ev.clientX - r.left], ["y2", ev.clientY - r.top]]) line.setAttribute(k, v);
+    svg.appendChild(line);
+    let over = null;
+    const move = (e) => {
+      line.setAttribute("x2", e.clientX - r.left); line.setAttribute("y2", e.clientY - r.top);
+      const el = document.elementFromPoint(e.clientX, e.clientY)?.closest?.(".stage .el.button");
+      if (el !== over) { over?.classList.remove("drop-target"); el?.classList.add("drop-target"); over = el; }
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
+      line.remove(); over?.classList.remove("drop-target");
+      const to = over && menu.buttons[Number(over.dataset.i)];
+      if (!to || to.id === bid) return;
+      commit((p) => { const b = p.menus.find((x) => x.id === menu.id).buttons.find((x) => x.id === bid); b.nav = { ...(b.nav || {}), [d]: to.id }; });
+    };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+  }));
 }
 // Drag a title, menu or playlist from the project panel onto a button to link
 // it, or onto an empty part of the menu to make a new button for it.
@@ -5379,6 +5465,22 @@ function timelineKeys(e) {
   if (plain && e.code === "NumpadSubtract") return zoom(0.5);
   return false;
 }
+// Keys of the Project panel when it is the panel in use: ↑ / ↓ the item above / below (an
+// item opens as it is chosen, an asset shows its properties), Home / End the top / bottom
+function projectKeys(e) {
+  if (S.activeFrame !== "left" || (S.leftTab || "project") !== "project" || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return false;
+  const sb = $("#sidebar");
+  if (e.key === "Home" || e.key === "End") { e.preventDefault(); sb.scrollTop = e.key === "Home" ? 0 : sb.scrollHeight; return true; }
+  if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return false;
+  const rows = [...sb.querySelectorAll(".nav-item[data-view], .media-item[data-media]")];
+  if (!rows.length) return false;
+  e.preventDefault();
+  const at = rows.findIndex((r) => r.classList.contains("selected") || (r.classList.contains("active") && !S.selectedMedia));
+  const next = rows[Math.max(0, Math.min(rows.length - 1, at < 0 ? 0 : at + (e.key === "ArrowDown" ? 1 : -1)))];
+  next.click(); S.activeFrame = "left";
+  $("#sidebar").querySelector(".nav-item.active, .media-item.selected")?.scrollIntoView({ block: "nearest" });
+  return true;
+}
 function jumpChapter(dir) {
   const ti = curTitle(), chapters = chaptersOf(ti), now = S.playhead[ti.id] || 0;
   const to = dir > 0 ? chapters.find((c) => c > now + 0.01) : [...chapters].reverse().find((c) => c < now - 0.01);
@@ -5540,6 +5642,21 @@ function stageMenu(el) {
 }
 document.addEventListener("contextmenu", (ev) => {
   if (!P() || ev.target.closest("input, textarea, select")) return;
+  // ⌘-Control-click on a Mac, Ctrl + right click elsewhere: the objects under the pointer, to
+  // pick one that is covered (the classic apps' "Show menu layers")
+  if ((IS_MAC ? ev.metaKey && ev.ctrlKey : ev.ctrlKey) && ev.target.closest?.(".stage")) {
+    const under = document.elementsFromPoint(ev.clientX, ev.clientY).filter((n) => n.matches?.(".stage .el[data-kind]"));
+    const mm = curMenu();
+    if (under.length && mm) {
+      ev.preventDefault();
+      const name = (k, it) => ({ button: it.label || it.id, text: it.text, image: (it.file || "").replace(/^media\//, ""), shape: `${t("rectangle")} ${k.i + 1}` }[k.kind]);
+      openPopup(ev.clientX, ev.clientY, under.map((n) => {
+        const k = { kind: n.dataset.kind, i: Number(n.dataset.i) }, it = elementList(mm, k.kind)[k.i];
+        return { label: name(k, it), run: () => { S.element = k; S.sels = [k]; renderMain(); renderInspector(); } };
+      }));
+      return;
+    }
+  }
   const nav = ev.target.closest(".nav-item[data-view]"), media = ev.target.closest(".media-item[data-media]"), el = ev.target.closest(".stage .el[data-kind]");
   const items = nav && LISTS[nav.dataset.view] ? itemMenu(nav.dataset.view, nav.dataset.id) : media ? mediaMenu(media.dataset.media) : el ? stageMenu(el) : null;
   if (!items) {
@@ -5579,10 +5696,22 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "Escape") { closeModal(); closePopups(); }
   if (inField || !$("#modal").hidden && e.key !== "?") return;
   if (document.activeElement?.closest?.("#sim-screen")) return;     // the simulator's remote keys
-  if (P() && commandKeys(e)) return;
+  if (P() && projectKeys(e)) return;
+  const tool0 = S.tool || "select";
+  if (P() && commandKeys(e)) {
+    // a tool key held down chooses the tool only while it is held, as in the classic apps
+    if (!e.repeat && (S.tool || "select") !== tool0) S.spring = { code: e.code, from: tool0, at: Date.now() };
+    return;
+  }
   if (!P() && e.key === "?") { shortcutsSheet(); return; }
   if (P() && timelineKeys(e)) return;
   stageKeys(e);
+});
+window.addEventListener("keyup", (e) => {
+  const sp = S.spring;
+  if (!sp || e.code !== sp.code) return;
+  S.spring = null;
+  if (Date.now() - sp.at > 400 && inMenu()) setTool(sp.from);
 });
 window.addEventListener("resize", () => { if (S.sel.view === "menu") renderMain(); });
 // Re-rendering replaces panels with innerHTML. When that removes a text field

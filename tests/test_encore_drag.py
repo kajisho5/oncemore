@@ -235,6 +235,51 @@ class TestEncoreDrag(unittest.TestCase):
             browser.close()
         self.assertEqual(errors, [])
 
+    def test_routing_arrow_onto_a_button(self):
+        # with routing shown, an arrow dragged onto another button: that key goes there
+        with sync_playwright() as p:
+            browser, page, errors = self.open(p)
+            page.check("#routing")
+            bs = self.menu()["buttons"]
+            first, last = bs[0]["id"], bs[-1]["id"]
+            hit = page.locator(f".stage svg.routing path.route-hit[data-hit='{first}:down']")
+            hit.wait_for(timeout=60000)
+            # a point on the arrow: halfway along it
+            x, y = page.evaluate("""(sel) => { const p = document.querySelector(sel), l = p.getTotalLength(),
+                q = p.getPointAtLength(l / 2), m = p.getScreenCTM(); return [q.x * m.a + m.e, q.y * m.d + m.f]; }""",
+                                 f".stage svg.routing path.route-hit[data-hit='{first}:down']")
+            t = page.locator(".stage .el.button").last.bounding_box()
+            page.mouse.move(x, y)
+            page.mouse.down()
+            page.mouse.move(t["x"] + t["width"] / 2, t["y"] + t["height"] / 2, steps=8)
+            page.mouse.up()
+            self.until(lambda: self.menu()["buttons"][0].get("nav", {}).get("down") == last, "routed")
+            page.locator(f".stage svg.routing path.manual[data-route='{first}:down']").wait_for(timeout=60000)
+            browser.close()
+        self.assertEqual(errors, [])
+
+    def test_text_typed_in_place(self):
+        # double-click a text: type in it (Backspace does not delete the object); Esc ends it.
+        # A button's words: Enter ends it
+        with sync_playwright() as p:
+            browser, page, errors = self.open(p)
+            n_texts, n_buttons = len(self.menu().get("texts", [])), len(self.menu()["buttons"])
+            page.locator(".stage .el.text[data-i='0']").dblclick()
+            page.locator(".stage .el.text.editing").wait_for()
+            page.keyboard.type("HELLOX")
+            page.keyboard.press("Backspace")
+            page.keyboard.press("Escape")
+            self.until(lambda: self.menu()["texts"][0]["text"] == "HELLO", "text")
+            page.locator(".stage .el.button[data-i='1']").dblclick()
+            page.locator(".stage .el.button.editing").wait_for()
+            page.keyboard.type("GO ON")
+            page.keyboard.press("Enter")
+            self.until(lambda: self.menu()["buttons"][1]["label"] == "GO ON", "label")
+            m = self.menu()
+            self.assertEqual((len(m["texts"]), len(m["buttons"])), (n_texts, n_buttons))
+            browser.close()
+        self.assertEqual(errors, [])
+
     def test_photoshop_file_becomes_a_menu(self):
         from .test_psdmenu import design
         with sync_playwright() as p:
