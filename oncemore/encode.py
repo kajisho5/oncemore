@@ -66,6 +66,7 @@ def probe(path):
             "width": int(v["width"]), "height": int(v["height"]), "sar": sar,
             "fps": _ratio(v.get("avg_frame_rate")) or _ratio(v.get("r_frame_rate")),
             "codec": v.get("codec_name"),
+            "pix_fmt": v.get("pix_fmt"),
             "video_bit_rate": int(v.get("bit_rate", 0) or 0),
             "interlaced": v.get("field_order") in ("tt", "bb", "tb", "bt"),
             "field_order": v.get("field_order"),
@@ -463,17 +464,47 @@ def still_input(info, fps, duration, size):
 
 
 DVD_MAX_VIDEO_BPS = 9_800_000
+DVD_MAX_MUX_BPS = 10_080_000
 
 
-def dvd_compliance(info, disc):
+def is_film(info, disc):
+    """23.976 film on an NTSC disc (shown with pulldown)."""
+    return disc.standard == "NTSC" and abs(float(info.get("fps") or 0)
+                                           - FILM_FPS[0] / FILM_FPS[1]) < 0.01
+
+
+def longest_gop(path, seconds=60):
+    """The most pictures between two key frames in the first `seconds` of a
+    file's video (its packets' key flags: nothing is decoded); None when
+    ffprobe cannot tell."""
+    cmd = [tools.find("ffprobe"), "-v", "error", "-read_intervals", f"%+{seconds}",
+           "-select_streams", "v:0", "-show_entries", "packet=flags", "-of", "csv=p=0", path]
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    except subprocess.TimeoutExpired:
+        return None
+    flags = [line.strip() for line in p.stdout.splitlines() if line.strip()]
+    keys = [i for i, f in enumerate(flags) if "K" in f]
+    if p.returncode != 0 or not keys:
+        return None
+    # (the last group may be cut off by the interval: not counted)
+    return max([b - a for a, b in zip(keys, keys[1:])] or [len(flags) - keys[0]])
+
+
+def dvd_compliance(info, disc, audio_bps=0):
     """Why the picture of `info` (probe) cannot go on a `disc` DVD as it is
-    (an empty list when it can): MPEG-2 at the disc's frame size, frame
-    rate (or 23.976 film on NTSC) and aspect, at most 9.8 Mbit/s."""
+    (an empty list when it can): MPEG-2 4:2:0 at a DVD frame size of the
+    disc's standard, its frame rate (or 23.976 film on NTSC, which gets its
+    pulldown flags when copied) and aspect, GOPs no longer than DVD allows
+    (`info["gop"]`, from longest_gop), at most 9.8 Mbit/s, and with the
+    sound (`audio_bps`) within the 10.08 Mbit/s a DVD reads."""
     out = []
     if info.get("codec") != "mpeg2video":
         out.append(f"the video is {info.get('codec')}, not MPEG-2")
+    if info.get("pix_fmt") and info["pix_fmt"] != "yuv420p":
+        out.append(f"the picture is {info['pix_fmt']}, not 4:2:0 (yuv420p)")
     if (info.get("width"), info.get("height")) not in ((disc.width, disc.height),
-                                                        (704, disc.height)):
+                                                        (704, disc.height), (352, disc.height)):
         out.append(f"the frame is {info.get('width')}x{info.get('height')}, not "
                    f"{disc.width}x{disc.height}")
     num, den = disc.fps
@@ -485,8 +516,20 @@ def dvd_compliance(info, disc):
     dar = w * float(info.get("sar") or 1) / h
     if abs(dar - disc.dar) > 0.05 * disc.dar:
         out.append(f"the picture is {dar:.2f}:1, not {disc.aspect}")
-    if (info.get("video_bit_rate") or 0) > DVD_MAX_VIDEO_BPS:
-        out.append(f"the video bitrate is {info['video_bit_rate'] / 1e6:.1f} Mbit/s (at most 9.8)")
+    film = is_film(info, disc)
+    gop = info.get("gop")
+    most = gop_limits(FILM_FPS if film else disc.fps)[0]
+    if gop and gop > most:
+        out.append(f"a group of pictures is {gop} frames long (at most {most} on a DVD)")
+    # a VBR stream in a program stream does not say its own rate: the
+    # file's, less the sound's, is the most it can be
+    vbps = info.get("video_bit_rate") or max(
+        0, (info.get("bit_rate") or 0) - sum(a.get("bit_rate") or 0 for a in info.get("audio", [])))
+    if vbps > DVD_MAX_VIDEO_BPS:
+        out.append(f"the video bitrate is {vbps / 1e6:.1f} Mbit/s (at most 9.8)")
+    elif vbps and audio_bps and vbps + audio_bps > DVD_MAX_MUX_BPS:
+        out.append(f"the video ({vbps / 1e6:.2f} Mbit/s) and the sound "
+                   f"({audio_bps / 1e6:.2f} Mbit/s) are more than the 10.08 Mbit/s a DVD reads")
     return out
 
 
@@ -528,6 +571,11 @@ def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
                             channels=title.audio_channels)
     if not getattr(title, "transcode", True):
         # already DVD video: the picture is copied, only the sound is made
+        # (film gets its pulldown flags, as when it is encoded)
+        if is_film(info, disc):
+            _pulldown_mux(title, inputs, ["-map", "0:v:0", "-c:v", "copy"], amap, acodec,
+                          1 + len(extra) // 2, duration, out_path, work, on_progress)
+            return out_path
         run_ffmpeg(inputs + ["-map", "0:v:0", "-c:v", "copy"] + amap + acodec +
                    ["-f", "dvd", "-muxrate", "10080000", "-packetsize", "2048",
                     "-t", f"{duration:.3f}", out_path],

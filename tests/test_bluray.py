@@ -10,7 +10,7 @@ import tempfile
 import unittest
 
 from oncemore import bluray, pgs
-from oncemore.errors import ProjectError
+from oncemore.errors import OncemoreError, ProjectError
 from oncemore.project import build_project
 
 from .helpers import have, run_cli
@@ -67,6 +67,62 @@ def commands(obj):
     return out
 
 
+def _m2ts(pictures, pid=bluray.VIDEO_PID):
+    """A BDAV stream of one PES packet per picture: [(pts, key frame)]."""
+    out = b""
+    for k, (pts, key) in enumerate(pictures):
+        p = (0x2 << 4 | (pts >> 30) & 7) << 1 | 1
+        pes = b"\0\0\1\xe0\0\0\x80\x80\x05" + bytes([
+            p, pts >> 22 & 0xFF, (pts >> 14 & 0xFE) | 1, pts >> 7 & 0xFF, (pts << 1 & 0xFE) | 1])
+        adapt = bytes([0x40 if key else 0x00]) + b"\xff" * 6         # random access, stuffing
+        ts = bytes([0x47, 0x40 | pid >> 8, pid & 0xFF, 0x30 | k & 0xF, len(adapt)]) + adapt + pes
+        out += bytes(4) + ts + b"\xff" * (188 - len(ts))
+    return out
+
+
+class TestScanM2ts(unittest.TestCase):
+    """The key frames and the time span of a stream (for the clip info)."""
+
+    def scan(self, data):
+        with tempfile.NamedTemporaryFile(suffix=".m2ts", delete=False) as f:
+            f.write(data)
+        self.addCleanup(os.remove, f.name)
+        return bluray.scan_m2ts(f.name)
+
+    def test_key_frames_and_span(self):
+        # (pictures in coding order: B-frames come after the frame they follow)
+        s = self.scan(_m2ts([(9000, True), (15006, False), (12003, False), (18009, True)]))
+        self.assertEqual((s.packets, s.first_pts, s.end_pts), (4, 9000, 18009 + 3003))
+        # (a key frame's size: up to the next picture)
+        self.assertEqual(s.entries, [(9000, 0, 192), (18009, 3, 192)])
+
+    def test_one_picture(self):
+        s = self.scan(_m2ts([(9000, True)]))
+        self.assertEqual((s.first_pts, s.end_pts), (9000, 12003))
+
+    def test_other_streams_ignored(self):
+        data = _m2ts([(1000, True)], pid=bluray.AUDIO_PID) + _m2ts([(9000, True)])
+        self.assertEqual(self.scan(data).entries, [(9000, 1, 192)])
+
+    def test_refused(self):
+        with self.assertRaises(OncemoreError):                       # no key frame
+            self.scan(_m2ts([(9000, False), (12003, False)]))
+        with self.assertRaises(OncemoreError):                       # not 192-byte packets
+            self.scan(_m2ts([(9000, True)])[:-1])
+        bad = bytearray(_m2ts([(9000, True), (12003, True)]))
+        bad[196] = 0x46                                               # lost sync
+        with self.assertRaises(OncemoreError):
+            self.scan(bytes(bad))
+
+    def test_header_not_in_the_packet(self):
+        # a payload start whose PES header would run past its packet: not a picture
+        data = bytearray(_m2ts([(9000, True), (12003, True)]))
+        data[4 + 192 + 4] = 176                                       # adaptation field length
+        data[4 + 192 + 5 + 176:4 + 192 + 5 + 176 + 3] = b"\0\0\1"
+        s = self.scan(bytes(data))
+        self.assertEqual(s.entries, [(9000, 0, 2 * 192)])     # (the size runs to the end)
+
+
 class TestNavigationFiles(unittest.TestCase):
     def test_titles_playlists_and_play_all(self):
         p = project(disc={"first_play": "title:two", "title_key": "playall"},
@@ -100,20 +156,23 @@ class TestNavigationFiles(unittest.TestCase):
         nav = bluray.Nav(p)
         self.assertEqual(nav.numbers, {"title:one": 1, "title:two": 2, "menu:m": 3})
         objects = nav.objects({"m": (True, 0)})
+        # (a button here picks streams and plays: register 5 says so, and a
+        # title's start sets its own subtitles only when it is clear)
         self.assertEqual([commands(o) for o in objects[:3]], [
-            ["set_stream 0x0", "play_pl 1", "jump_title 3"],   # subtitles off; then the menu
-            ["play_pl 2", "jump_title_reg 1"],      # back to the menu shown last
+            ["if_eq 5 0", "set_stream 0x0", "move 5 0",        # subtitles off unless
+             "play_pl 1", "jump_title 3"],                    # picked; then the menu
+            ["move 5 0", "play_pl 2", "jump_title_reg 1"],    # back to the menu shown last
             ["move 1 3", "play_pl 3"],              # the menu notes itself, then shows
         ])
         self.assertEqual(commands(objects[nav.first_play]), ["jump_title 3"])
         self.assertEqual(commands(objects[nav.top_menu]), ["jump_title 3"])
         # chapter 3 of title one: its own object, played from mark 2
         obj = nav.chapter_objects[("one", 3)]
-        self.assertEqual(commands(objects[obj]), ["set_stream 0x0", "play_pl_mark 1 2",
-                                                  "jump_title 3"])
+        self.assertEqual(commands(objects[obj]), ["if_eq 5 0", "set_stream 0x0", "move 5 0",
+                                                  "play_pl_mark 1 2", "jump_title 3"])
         b, c, l = p.menu("m").buttons
         self.assertEqual(commands(nav.button(b)), ["jump_title 2"])
-        self.assertEqual(commands(nav.button(c)), [f"set_stream {0x80020000:#x}",
+        self.assertEqual(commands(nav.button(c)), [f"set_stream {0x80020000:#x}", "move 5 1",
                                                    f"jump_object {obj}"])
         self.assertEqual(commands(nav.button(l)), ["resume 0"])
         # a motion menu plays again from its loop point (mark 1)
@@ -739,6 +798,80 @@ class TestBlurayLinkTransitions(unittest.TestCase):
                                   ("key", "enter"), ("title", 7), ("title", 3),
                                   ("key", "enter"), ("title", 6), ("title", 1), ("title", 2),
                                   ("title", 3)])
+
+
+@unittest.skipUnless(ffmpeg_has_x264() and LIBBLURAY, "needs ffmpeg with libx264 and libbluray")
+class TestBlurayNavigationTogether(unittest.TestCase):
+    """The navigation features at once, as libbluray runs them: a button
+    that switches audio and subtitles and overrides the end action with the
+    last menu, a link back to a menu on a particular button, a pop-up menu,
+    and a title that ends on the last menu."""
+
+    @classmethod
+    def setUpClass(cls):
+        from oncemore.tools import has_drawtext
+        if not has_drawtext():
+            raise unittest.SkipTest("ffmpeg without drawtext")
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-bdmix-")
+        d = cls.tmp
+        for name, seconds, tone in (("a.mp4", 3, 440), ("b.mp4", 2, 660)):
+            subprocess.run(["ffmpeg", "-hide_banner", "-v", "error", "-y",
+                            "-f", "lavfi", "-i", f"testsrc2=size=640x360:rate=30000/1001:duration={seconds}",
+                            "-f", "lavfi", "-i", f"sine=frequency={tone}:sample_rate=48000:duration={seconds}",
+                            "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", "-shortest",
+                            os.path.join(d, name)], check=True)
+        with open(os.path.join(d, "one.srt"), "w") as f:
+            f.write("1\n00:00:00,500 --> 00:00:02,500\nHello\n")
+        project = {
+            "version": 1,
+            "disc": {"label": "BD_MIX", "standard": "NTSC", "aspect": "16:9", "first_play": "menu:main"},
+            "titles": [{"id": "one", "source": "a.mp4", "end_action": "title:two", "remote_menu": "pop",
+                        "audio_tracks": [{"lang": "en"}, {"source": "b.mp4", "lang": "ja"}],
+                        "subtitles": [{"file": "one.srt", "lang": "en"}]},
+                       {"id": "two", "source": "b.mp4", "end_action": "lastmenu"}],
+            "menus": [
+                {"id": "main", "buttons": [
+                    {"id": "play", "label": "PLAY", "x": 100, "y": 150, "action": "title:one",
+                     "override": "lastmenu", "audio": 2, "subtitle": 1},
+                    {"id": "setup", "label": "SETUP", "x": 100, "y": 220, "action": "menu:setup"}]},
+                {"id": "setup", "buttons": [
+                    {"id": "back", "label": "BACK", "x": 100, "y": 150, "action": "menu:main:setup"}]},
+                {"id": "pop", "background_color": "#203040", "buttons": [
+                    {"id": "two", "label": "SECOND", "x": 100, "y": 380, "action": "title:two"}]}],
+        }
+        with open(os.path.join(d, "project.oncemore.json"), "w") as f:
+            json.dump(project, f)
+        cls.out = os.path.join(d, "out")
+        cls.rc, cls.stdout, cls.stderr = run_cli("--json", "build", d, "-o", cls.out,
+                                                 "--format", "bluray", "--fast")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def test_all_together(self):
+        self.assertEqual(self.rc, 0, self.stderr + self.stdout)
+        keys = ("enter", "down", "enter", "enter", "enter", "enter", "up", "enter",
+                "live:popup", "live:enter")
+        with bluray_sim.Disc(LIBBLURAY, self.out) as disc:
+            events = [e for e in disc.play(keys=keys, audio=True) if e[1] != 0xFFFF]
+        path = [e for e in events if e[0] in ("title", "key")]
+        # titles: one 1, two 2, main 3, setup 4. PLAY: one, then (override) the
+        # last menu, not two; SETUP and BACK, which opens main on SETUP (so
+        # Enter there opens setup again); BACK, Up, PLAY, then the pop-up's
+        # SECOND: two, which ends on the last menu
+        self.assertEqual(path, [
+            ("title", 3), ("key", "enter"), ("title", 1), ("title", 3),
+            ("key", "down"), ("key", "enter"), ("title", 4), ("key", "enter"), ("title", 3),
+            ("key", "enter"), ("title", 4), ("key", "enter"), ("title", 3),
+            ("key", "up"), ("key", "enter"), ("title", 1),
+            ("key", "live:popup"), ("key", "live:enter"), ("title", 2), ("title", 3)])
+        # PLAY's streams: the second audio track, the subtitles shown, and still
+        # shown while title one plays (its own default, none, does not win)
+        first = events.index(("title", 1))
+        before, during = events[:first], events[first:events.index(("title", 3), first)]
+        self.assertIn(("audio_stream", 2), before + during)
+        self.assertEqual([v for k, v in during if k == "subtitles_shown"], [1])
 
 
 @unittest.skipUnless(ffmpeg_has_x264() and LIBBLURAY, "needs ffmpeg with libx264 and libbluray")

@@ -18,6 +18,7 @@ BD_EVENT_TITLE = 5
 BD_EVENT_PLAYLIST = 6
 BD_EVENT_CHAPTER = 8
 BD_EVENT_END_OF_TITLE = 10
+BD_EVENT_AUDIO_STREAM = 11
 BD_EVENT_PG_TEXTST_STREAM = 13
 BD_EVENT_PG_TEXTST = 17
 BD_EVENT_STILL = 25
@@ -220,15 +221,17 @@ class Disc:
         colour = max(counts, key=counts.get) if counts else None
         self.draws.append(("draw", o.x, o.y, o.w, o.h, colour))
 
-    def play(self, max_bytes=200 * 2**20, keys=()):
+    def play(self, max_bytes=200 * 2**20, keys=(), audio=False):
         """Run the disc from first play the way a player does, reading the
         streams and pressing `keys` ("up", "down", "enter" ...) one by one
         whenever the disc waits (a menu); "topmenu" is pressed while a title
         plays (once some of it was read); returns the navigation events in
         order as (name, value), with ("key", name) where a key was pressed
-        and ("menu", button graphics drawn) after each key."""
+        and ("menu", button graphics drawn) after each key; with `audio`,
+        also ("audio_stream", n) when the audio stream changes."""
         names = {BD_EVENT_TITLE: "title", BD_EVENT_PLAYLIST: "playlist",
                  BD_EVENT_CHAPTER: "chapter", BD_EVENT_END_OF_TITLE: "end",
+                 **({BD_EVENT_AUDIO_STREAM: "audio_stream"} if audio else {}),
                  BD_EVENT_ERROR: "error", BD_EVENT_PG_TEXTST_STREAM: "subtitle_stream",
                  BD_EVENT_PG_TEXTST: "subtitles_shown", BD_EVENT_UO_MASK_CHANGED: "uo"}
         self.draws = []

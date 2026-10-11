@@ -91,6 +91,76 @@ class TestGuiApi(unittest.TestCase):
         self.assertEqual(self.s.call("/api/file?path=project.oncemore.json")[0], 403)
         self.assertEqual(self.s.call("/", token=False)[0], 200)            # static page
 
+    def test_frames_kept_by_size(self):
+        app = self.s.app
+        app.FRAME_CACHE_BYTES = 1000
+        for k in range(5):
+            app._remember(k, b"x" * 300)
+        self.assertEqual(list(app.frame_cache), [2, 3, 4])          # the oldest go first
+        self.assertEqual(app.frame_bytes, 900)
+        app._remember(3, b"y" * 100)                                 # (replaced, not added)
+        self.assertEqual(app.frame_bytes, 700)
+        self.assertEqual(app._cached(3), b"y" * 100)
+        app._remember("big", b"z" * 5000)                            # alone, over the cap
+        self.assertEqual(list(app.frame_cache), ["big"])
+
+    def test_previews_a_few_at_a_time(self):
+        """Many titles asking for previews at once: two ffmpegs, not twelve."""
+        app = self.s.app
+        os.makedirs(os.path.join(self.dir, "media"))
+        files = []
+        for k in range(6):
+            files.append(os.path.join(self.dir, "media", f"v{k}.mp4"))
+            with open(files[-1], "wb") as f:
+                f.write(bytes([k]) * 64)
+        lock, running, most, go = threading.Lock(), [0], [0], threading.Event()
+
+        def ffmpeg(args, duration, log, on_progress, what=""):
+            with lock:
+                running[0] += 1
+                most[0] = max(most[0], running[0])
+            go.wait(10)
+            with open(args[-1], "wb") as f:
+                f.write(b"proxy")
+            with lock:
+                running[0] -= 1
+        with mock.patch.object(app, "proxy_codecs", return_value=[]), \
+                mock.patch.object(app, "probe", return_value={"duration": 1.0}), \
+                mock.patch("oncemore.encode.run_ffmpeg", side_effect=ffmpeg):
+            for f in files:
+                self.assertEqual(app.proxy_status(f, start=True)[0]["state"], "running")
+            time.sleep(0.5)
+            self.assertEqual(most[0], app.PROXIES_AT_ONCE)
+            go.set()
+            for f in files:
+                for _ in range(100):
+                    if app.proxy_status(f)[0]["state"] != "running":
+                        break
+                    time.sleep(0.05)
+                self.assertEqual(app.proxy_status(f)[0]["state"], "ready")
+        self.assertEqual(most[0], app.PROXIES_AT_ONCE)
+        left = os.listdir(os.path.join(self.dir, ".oncemore-cache", "proxy"))
+        self.assertFalse([n for n in left if n.endswith(".part")])
+
+    def test_running_job_and_old_jobs(self):
+        app = self.s.app
+        self.s.call("/api/new", "POST", {"label": "jobs", "sample": True})
+        app.JOBS_KEPT = 3
+        done = []
+        for _ in range(4):
+            done.append(app.start_job("transcode", lambda project, rep: {}))
+            done[-1].thread.join(10)
+        self.assertIsNone(self.s.call("/api/state")[1]["job"])
+        go = threading.Event()
+        job = app.start_job("iso", lambda project, rep: go.wait(10) and {})
+        self.assertEqual(self.s.call("/api/state")[1]["job"], {"id": job.id, "kind": "iso"})
+        self.assertEqual(len(app.jobs), 3)                          # the oldest done ones went
+        self.assertNotIn(done[0].id, app.jobs)
+        self.assertEqual(self.s.call(f"/api/jobs/{done[0].id}")[0], 404)
+        go.set()
+        job.thread.join(10)
+        self.assertIsNone(self.s.call("/api/state")[1]["job"])
+
     def test_backups(self):
         app = self.s.app
         self.assertEqual(self.s.call("/api/backups")[1]["backups"], [])
@@ -1284,6 +1354,29 @@ class TestGuiBrowser(unittest.TestCase):
             self.poll(lambda: os.path.isfile(os.path.join(other, "Fresh", "project.oncemore.json")))
             browser.close()
         self.assertEqual(errors, [])
+
+    def test_job_picked_up_again(self):
+        """A page opened while a transcode runs shows it, and its end."""
+        self.s.call("/api/new", "POST", {"label": "again", "sample": True})
+        go = threading.Event()
+
+        def work(project, rep):
+            rep.step("encode", "encoding", item="t1")
+            go.wait(30)
+            return {"titles": {}}
+        job = self.s.app.start_job("transcode", work)
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.locator("#st-transcode", has_text="t1").wait_for(timeout=30000)
+            go.set()
+            job.thread.join(10)
+            page.locator("#st-transcode").wait_for(state="detached", timeout=30000)
+            self.assertEqual(errors, [])
+            browser.close()
 
     def test_remote_keys_turned_off(self):
         """Properties > Remote keys turned off, for a title and a menu."""

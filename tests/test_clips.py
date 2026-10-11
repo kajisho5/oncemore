@@ -168,5 +168,65 @@ class TestClipProject(unittest.TestCase):
         self.assertTrue(g.endswith("asetnsamples=n=80:p=0[a0]"), g)
 
 
+class TestClipChapters(unittest.TestCase):
+    """A chapter at every clip: links and chapter menus can count on them
+    before the clips are measured, thumbnails follow them once they are, and
+    each lands on its clip's first frame."""
+
+    def test_linked_before_measured(self):
+        data = with_still()
+        data["titles"][1]["auto_chapter_menu"] = {"id": "scenes", "back": "menu:main"}
+        data["menus"][0]["buttons"].append({
+            "id": "c3", "label": "C3", "x": 100, "y": 300, "action": "chapter:t2:3",
+            "thumbnail": {"x": 400, "y": 300, "w": 160, "h": 90}})
+        data["menus"][0]["buttons"].append({
+            "id": "c2", "label": "C2", "x": 100, "y": 360, "action": "chapter:t2:2",
+            "thumbnail": {"x": 400, "y": 360, "w": 160, "h": 90, "time": 7}})
+        p = build(data)
+        t = p.title("t2")
+        self.assertEqual(len(t.chapters), 3)
+        self.assertEqual([b.id for b in p.menu("scenes").buttons if b.thumb],
+                         ["ch1", "ch2", "ch3"])
+        clips.apply(p, t, PROBES.__getitem__)
+        self.assertEqual(len(t.chapters), 3)
+        own, fixed = p.menu("main").buttons[-2:]
+        self.assertAlmostEqual(own.thumb.time, t.chapters[2] + 1.0)
+        self.assertEqual(fixed.thumb.time, 7.0)                  # (given: kept)
+        scenes = [b.thumb.time for b in p.menu("scenes").buttons if b.thumb]
+        self.assertEqual(scenes, [P.thumb_time(t.chapters, k) for k in range(3)])
+        self.assertGreater(scenes[1], t.chapters[1])
+
+    def test_on_the_clips_first_frame(self):
+        # 3.03 s: 91 frames at 29.97 (3.0363666... s, stored as 3.036367);
+        # the second chapter is frame 91, not the one after it
+        p = build(with_clips(clips=[{"source": "media/sample_a.mp4", "in": 2, "out": 5.03},
+                                    {"source": "media/sample_b.mp4"}]))
+        t = p.title("t2")
+        clips.apply(p, t, PROBES.__getitem__)
+        keys, marks = P.chapter_points(t.chapters, (30000, 1001))
+        f = 1001 / 30000
+        self.assertAlmostEqual(marks[1], 91.5 * f)        # (dvdauthor: half a frame on)
+        self.assertIn(round(91 * f, 6), [round(k, 6) for k in keys])
+        from oncemore import bluray
+        self.assertAlmostEqual(bluray.key_times(t.chapters, (30000, 1001))[0], 91 * f)
+
+    def test_before_the_title(self):
+        t = build(with_clips()).title("t2")
+        clips.apply(build(with_clips()), t, PROBES.__getitem__)
+        self.assertEqual(P.source_at(t, -0.5)[0], "/virtual/media/sample_a.mp4")
+
+    def test_an_empty_clip_has_no_chapter(self):
+        probes = dict(PROBES)
+        probes["/virtual/media/sample_b.mp4"] = dict(probes["/virtual/media/sample_b.mp4"],
+                                                     duration=0.0)
+        data = with_clips()
+        data["titles"][1]["clips"].append({"source": "media/sample_a.mp4"})
+        p = build(data)
+        t = p.title("t2")
+        clips.apply(p, t, probes.__getitem__)
+        self.assertEqual(len(t.chapters), 2)
+        self.assertEqual(t.chapters, sorted(set(t.chapters)))
+
+
 if __name__ == "__main__":
     unittest.main()

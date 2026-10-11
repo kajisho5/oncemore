@@ -12,9 +12,10 @@ import hashlib
 import json
 import math
 import os
+import threading
 
 from . import encode, tools
-from .project import clip_starts, title_fps
+from .project import clip_starts, retime_thumbs, title_fps
 
 CACHE_VERSION = 1
 
@@ -41,9 +42,14 @@ def apply(project, title, probe):
     clip. Returns the title's length."""
     total = resolve(title, project.disc_for(title), probe)
     if title.clip_chapters:
-        title.chapters = [s for s in clip_starts(title) if s < total] or [0.0]
+        starts = []
+        for s in clip_starts(title):
+            if s < total and (not starts or s > starts[-1]):   # (an empty clip: none)
+                starts.append(s)
+        title.chapters = starts or [0.0]
         title.chapter_names = [None] * len(title.chapters)
         title.chapter_posters = [None] * len(title.chapters)
+        retime_thumbs(project, title)
     return total
 
 
@@ -93,7 +99,7 @@ def render_preview(title, disc, out, log, on_progress=None):
     finally:
         title.video_mode = saved
     total = sum(c.duration for c in title.clips)
-    tmp = out + ".part"
+    tmp = f"{out}.{os.getpid()}-{threading.get_ident()}.part"   # (one per writer)
     encode.run_ffmpeg(inputs + ["-filter_complex", graph, "-map", "[v]", "-map", "[a0]",
                                 "-c:v", "mpeg4", "-q:v", "2", "-c:a", "pcm_s16le",
                                 "-t", f"{total:.3f}", "-f", "matroska", tmp],

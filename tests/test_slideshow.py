@@ -46,13 +46,28 @@ class TestGraph(unittest.TestCase):
         args, fc, has_audio = S.graph(show(4, 6, 2.5), disc())
         self.assertFalse(has_audio)
         self.assertEqual(args.count("-i"), 3)
-        # every slide but the last runs on for the fade
-        self.assertEqual(re.findall(r"trim=duration=([\d.]+)", fc), ["5.000", "7.000", "2.500"])
-        self.assertEqual(re.findall(r"xfade=transition=fade:duration=1.000:offset=([\d.]+)", fc),
-                         ["4.000", "10.000"])
+        # every slide but the last runs on for the fade; in whole frames of
+        # 29.97 fps, each change on the frame nearest its time (4 s: frame 120)
+        self.assertEqual(re.findall(r"trim=end_frame=(\d+)", fc), ["150", "210", "75"])
+        self.assertEqual(re.findall(r"xfade=transition=fade:duration=1.001000:offset=([\d.]+)",
+                                    fc), ["4.004000", "10.010000"])
         self.assertTrue(fc.endswith("[v]"))
         self.assertIn("scale=854:480", fc)
         self.assertIn("fps=30000/1001", fc)
+
+    def test_long_show_keeps_to_its_chapters(self):
+        """Whole frames per picture would add up: 100 five-second pictures at
+        29.97 fps are 150 frames each (5.005 s), and the hundredth would come
+        15 frames after its chapter. Each change is on its own frame instead,
+        and every chapter lands on its picture (at most a frame in)."""
+        s = show(*[5] * 100, transition="none")
+        _, fc, _ = S.graph(s, disc())
+        frames = [int(f) for f in re.findall(r"trim=end_frame=(\d+)", fc)]
+        change = [sum(frames[:k]) for k in range(len(frames))]
+        self.assertEqual(sum(frames), round(s.duration * 30000 / 1001))
+        for k, start in enumerate(s.starts()):
+            chapter = P.frame_at(start, (30000, 1001))
+            self.assertIn(chapter - change[k], (0, 1), k)
 
     def test_cuts_and_single_slide(self):
         _, fc, _ = S.graph(show(3, 3, transition="none"), disc())
@@ -106,18 +121,45 @@ class TestGraph(unittest.TestCase):
         self.assertNotEqual(t.source, before)
         self.assertTrue(t.source.startswith("/virtual/.oncemore-cache/slideshow/"))
         self.assertEqual(t.audio_tracks[0].source, t.source)
+        self.assertEqual(S.overrun(t.slideshow), 0.0)
+
+    def test_fitted_thumbnails_follow(self):
+        """A thumbnail of a fitted show's chapter is grabbed in that chapter
+        as it is after fitting, not as it was before."""
+        d = sample_project()
+        d["titles"].append({"id": "pics", "slideshow": {
+            "slides": [{"image": "media/a.jpg", "duration": 2}, {"image": "media/b.jpg"}],
+            "audio": "media/x.wav", "fit_to_audio": True}})
+        d["menus"][0]["buttons"].append({
+            "id": "two", "label": "TWO", "x": 100, "y": 300, "action": "chapter:pics:2",
+            "thumbnail": {"x": 400, "y": 300, "w": 160, "h": 90}})
+        p = P.build_project(d, "/virtual/project.oncemore.json", check_files=False)
+        t = p.titles[-1]
+        thumb = p.menu("main").buttons[-1].thumb
+        self.assertEqual(thumb.time, 3.0)                     # 2 s in, before fitting
+        S.apply(t, p.disc, {"/virtual/media/x.wav": {"duration": 28.0}}.__getitem__)
+        P.retime_thumbs(p, t)
+        self.assertEqual(t.chapters, [0.0, 8.0])
+        self.assertEqual(thumb.time, 9.0)
+
+    def test_music_too_short(self):
+        s = show(*[1] * 20, audio="/music/a.wav", fit_to_audio=True)      # 1 s fades
+        S.fit_to(s, 5.0)
+        s.music_length = 5.0
+        self.assertAlmostEqual(S.overrun(s), 20 * 1.1 - 5.0)
 
     def test_transition_kinds(self):
         s = show(3, 3, 3, 3, transition="wipeleft", transition_duration=0.5)
         s.slides[1].transition = "none"             # a cut after the second picture
         s.slides[2].transition = "slideup"
         _, fc, _ = S.graph(s, disc())
-        self.assertIn("[s0][s1]xfade=transition=wipeleft:duration=0.500:offset=3.000[x1]", fc)
+        self.assertIn("[s0][s1]xfade=transition=wipeleft:duration=0.500500:offset=3.003000[x1]",
+                      fc)
         self.assertIn("[x1][s2]concat=n=2:v=1:a=0[x2]", fc)
-        self.assertIn("[x2][s3]xfade=transition=slideup:duration=0.500:offset=9.000[v]", fc)
+        self.assertIn("[x2][s3]xfade=transition=slideup:duration=0.500500:offset=9.009000[v]",
+                      fc)
         # each picture runs on only under a transition that follows it
-        self.assertEqual(re.findall(r"trim=duration=([\d.]+)", fc),
-                         ["3.500", "3.000", "3.500", "3.000"])
+        self.assertEqual(re.findall(r"trim=end_frame=(\d+)", fc), ["105", "90", "105", "90"])
         self.assertEqual(s.duration, 12.0)
         # random: one kind per change, the same every time
         r = show(3, 3, 3, transition="random")

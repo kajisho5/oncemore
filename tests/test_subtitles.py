@@ -95,8 +95,20 @@ class TestFormatsAndStyles(unittest.TestCase):
     def test_palette_budget(self):
         style = {"color": "#FFFFFF"}
         cues = [subtitles.Cue(0, 1, ["a"], color=f"#0000{i:02X}") for i in range(10)]
-        self.assertEqual(subtitles.palette_size([(None, cues[:3])], style), 2 + 2 * 4)
+        # every cue has its own colour: the style's is not drawn, and takes no
+        # room (7 colours fit: dvdauthor builds them; 8 do not)
+        self.assertEqual(subtitles.palette_size([(None, cues[:3])], style), 2 + 2 * 3)
+        self.assertEqual(subtitles.palette_size([(None, cues[:4]), (None, cues[4:7])], style), 16)
+        self.assertGreater(subtitles.palette_size([(None, cues[:8])], style), 16)
         self.assertGreater(subtitles.palette_size([(None, cues)], style), 16)
+        # a cue without one is drawn in the track's colour, else its style's
+        plain = subtitles.Cue(0, 1, ["b"])
+        self.assertEqual(subtitles.palette_size([(None, cues[:3] + [plain])], style), 2 + 2 * 4)
+        self.assertEqual(subtitles.palette_size([("#0000FF", [plain]), (None, [plain])], style),
+                         2 + 2 * 2)
+        styled = subtitles.Cue(0, 1, ["c"], style_color="#00FF00")
+        self.assertEqual(subtitles.palette_size([(None, [styled])], style), 2 + 2)
+        self.assertEqual(subtitles.palette_size([("#0000FF", [styled])], style), 2 + 2)
 
 
 class TestQuantise(unittest.TestCase):

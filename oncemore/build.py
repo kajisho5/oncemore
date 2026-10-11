@@ -8,12 +8,13 @@ import json
 import os
 import shutil
 import tempfile
+import threading
 
 from . import (author, bdmenu, bluray, clips, encode, iso, lpcmfix, pgs, slideshow, subtitles,
                tools, udf250, uops)
 from . import menu as menu_module
 from .errors import OncemoreError, ProjectError
-from .project import parse_action
+from .project import parse_action, retime_thumbs
 from .menu import (MenuBuilder, check_element_fonts, display_width, find_font, link_font,
                    menu_seconds, menu_text)
 
@@ -40,6 +41,12 @@ def inspect(project, reporter=None, prepare=True, bd=False):
         if t.slideshow:
             # (fitted to its music: the durations, source and chapters follow it)
             slideshow.apply(t, project.disc_for(t), probe)
+            retime_thumbs(project, t)
+            if slideshow.overrun(t.slideshow):
+                show = t.slideshow
+                warnings.append(f"{where}.slideshow: {len(show.slides)} pictures need at least "
+                                f"{show.duration:.1f}s; the music ({show.music_length:.1f}s) "
+                                "ends before them")
         if t.slideshow and not prepare and not os.path.isfile(t.source):
             w, h = slideshow.canvas(project.disc_for(t))
             num, den = project.disc.fps
@@ -111,7 +118,14 @@ def inspect(project, reporter=None, prepare=True, bd=False):
             warnings.append(f"{where}.transcode: a Blu-ray needs H.264, so the picture is "
                             "encoded anyway")
         elif not t.transcode:
-            for why in encode.dvd_compliance(info, project.disc_for(t)):
+            def track_bps(tr):
+                if t.audio_passthrough:                 # (copied: its own rate)
+                    streams = probe(tr.source).get("audio") or [{}]
+                    return streams[min(tr.stream, len(streams) - 1)].get("bit_rate") or 448_000
+                return 1_536_000 if t.audio_codec == "lpcm" else t.audio_bitrate
+            audio_bps = sum(track_bps(tr) for tr in t.audio_tracks)
+            info = dict(info, gop=encode.longest_gop(t.source))
+            for why in encode.dvd_compliance(info, project.disc_for(t), audio_bps):
                 issues.append({"path": f"{where}.transcode",
                                "message": f"cannot use the picture as it is: {why}"})
         for j in range(len(t.subtitles)):
@@ -269,8 +283,9 @@ CACHE_VERSION = 1
 def _code_signature():
     """The encoding code itself is part of every key: a new oncemore that
     encodes differently never reuses old results."""
+    from . import pulldown, project as project_module
     h = hashlib.sha256()
-    for mod in (encode, menu_module, lpcmfix, bluray):
+    for mod in (encode, menu_module, lpcmfix, bluray, bdmenu, clips, pulldown, project_module):
         with open(mod.__file__, "rb") as f:
             h.update(f.read())
     return h.hexdigest()[:16]
@@ -305,11 +320,18 @@ def _cache_get(cache, key, dest):
 
 
 def _cache_put(cache, key, path):
+    """Keep `path` as the cache entry `key`. Each writer fills a file of its
+    own and renames it into place, so two builds storing the same entry at
+    once (the app and the command line) never leave a cut-off one."""
     if cache:
         os.makedirs(cache, exist_ok=True)
-        tmp = os.path.join(cache, key + ".part")
-        _link_or_copy(path, tmp)
-        os.replace(tmp, os.path.join(cache, key + ".mpg"))
+        tmp = os.path.join(cache, f"{key}.{os.getpid()}-{threading.get_ident()}.part")
+        try:
+            _link_or_copy(path, tmp)
+            os.replace(tmp, os.path.join(cache, key + ".mpg"))
+        finally:
+            if os.path.lexists(tmp):
+                os.remove(tmp)
 
 
 def _link_or_copy(src, dst):
@@ -405,7 +427,12 @@ def menu_cache_key(project, menu, font):
         [p.file for p in menu.images] + \
         [el.font for el in list(menu.texts) + list(menu.buttons)] + \
         [project.title(b.thumb.title_id).source for b in menu.buttons if b.thumb]
+    # a thumbnail shows the clip playing at its time, or a sound title's picture
+    thumbs = [[[clips.clip_key(c, _file_sig(c.source)) for c in t.clips],
+               _file_sig(t.picture) if t.picture else None]
+              for t in (project.title(b.thumb.title_id) for b in menu.buttons if b.thumb)]
     return _cache_key("menu", {
+        "thumbs": thumbs,
         "menu": dataclasses.asdict(menu), "files": [_file_sig(f) for f in files if f],
         "disc": [project.disc.standard, project.disc.aspect],
         "titles": {t.id: [t.aspect, t.titleset] for t in project.titles}})
@@ -427,7 +454,9 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None, ca
         reporter.warn(w)
     vbps = plan["video_bps"]
     title_bps = dict(zip([t.id for t in project.titles], plan["per_title"]))
-    cache = encode_cache_dir(project) if cache else None
+    # --no-cache encodes everything again and keeps that (a stale entry is replaced)
+    store = encode_cache_dir(project)
+    cache = store if cache else None
     reporter.info(f"    video {vbps / 1e6:.2f} Mbit/s average, estimated "
                   f"{plan['estimated_bytes'] / 2**30:.2f} of {plan['capacity'] / 2**30:.2f} GiB")
 
@@ -447,9 +476,9 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None, ca
             reporter.step("menu", f"Rendering menu '{m.id}'", item=m.id)
             assets = mb.prepare(m)
             mb.encode(m, assets, lambda f, mid=m.id: reporter.progress("menu", f, mid))
-            _cache_put(cache, key, assets.mpg)
+            _cache_put(store, key, assets.mpg)
             if assets.intro_mpg:
-                _cache_put(cache, key + "-intro", assets.intro_mpg)
+                _cache_put(store, key + "-intro", assets.intro_mpg)
                 menu_files[m.id] = (assets.intro_mpg, assets.mpg)
             else:
                 menu_files[m.id] = assets.mpg
@@ -465,7 +494,7 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None, ca
         else:
             reporter.step("menu", f"Encoding transition '{name}'", item=name)
             mb.encode_transition(path, out, lambda f, n=name: reporter.progress("menu", f, n))
-            _cache_put(cache, key, out)
+            _cache_put(store, key, out)
         transition_files[path] = out
 
     title_files = {}
@@ -486,7 +515,7 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None, ca
             if t.audio_codec == "lpcm":
                 n = lpcmfix.fix_file(out)
                 reporter.debug(f"fixed {n} LPCM packet headers in {t.id}")
-            _cache_put(cache, key, out)
+            _cache_put(store, key, out)
         if t.subtitles:
             out = add_subtitles(project, t, out, plan, work, reporter)
         title_files[t.id] = out
@@ -543,7 +572,9 @@ def build_bluray(project, out_dir, reporter, fast=False, keep_work=False, work=N
     reporter.info(f"    video up to {plan['max_bps'] / 1e6:.1f} Mbit/s, at most "
                   f"{plan['estimated_bytes'] / 2**30:.2f} of {capacity / 2**30:.2f} GiB "
                   f"({project.disc.bluray_target})")
-    cache = encode_cache_dir(project) if cache else None
+    # --no-cache encodes everything again and keeps that (a stale entry is replaced)
+    store = encode_cache_dir(project)
+    cache = store if cache else None
     os.makedirs(os.path.join(work, "titles"), exist_ok=True)
     nav = bluray.Nav(project) if project.menus else None
     hd = bdmenu.hd_project(project, lambda path: plan["_probes"].get(path)
@@ -578,7 +609,7 @@ def build_bluray(project, out_dir, reporter, fast=False, keep_work=False, work=N
                                 on_progress=lambda f, tid=t.id: reporter.progress("encode", f, tid))
             if popup:
                 bdmenu.patch_ig_stream_type(out)
-            _cache_put(cache, key, out)
+            _cache_put(store, key, out)
         clips[t.id] = out
     menus = {}
     if project.menus:
@@ -600,7 +631,7 @@ def build_bluray(project, out_dir, reporter, fast=False, keep_work=False, work=N
             bluray.encode_transition(path, plan["_probes"].get(path) or encode.probe(path),
                                      project.disc, plan["max_bps"], out, work, fast=fast,
                                      on_progress=lambda f, n=name: reporter.progress("menu", f, n))
-            _cache_put(cache, key, out)
+            _cache_put(store, key, out)
         transitions[path] = out
     reporter.step("author", "Writing BDMV")
     for sub in ("BDMV", "CERTIFICATE"):

@@ -276,6 +276,7 @@ oncemore import-psd <project> design.psd --menu main [--first-play]   # a menu f
 oncemore gui [<dir>] [--port N] [--no-browser] # the authoring app
 oncemore transcode <project> [--title ID] [--fast] [--status]  # encode titles ahead of the build
 oncemore burn out.iso [--device DEV]           # write the image to a blank DVD (macOS: hdiutil, else growisofs)
+oncemore clean <project>                       # delete the encode cache (made again by the next build)
 oncemore doctor                                # external tools, versions, ISO backend
 oncemore mcp [--root DIR]                      # tools for AI assistants (MCP, below)
 ```
@@ -739,7 +740,9 @@ Encoded titles and menus are kept in `<project>/.oncemore-cache/encode`, keyed
 by their sources (path, size, modification time), settings, bitrate, the ffmpeg
 version and oncemore's own encoding code. A rebuild after a menu tweak only
 renders that menu. Use `--no-cache` (or *Encode everything again* in the app)
-to ignore it, and delete the folder to reclaim the space.
+to encode everything again (the cache is refreshed with the new encodes), and
+`oncemore clean <project>` to delete the cache and reclaim the space (it is
+all made again by the next build).
 
 ## Known limitations
 

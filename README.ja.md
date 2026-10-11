@@ -228,6 +228,7 @@ oncemore import-psd <project> design.psd --menu main [--first-play]   # Photosho
 oncemore gui [<dir>] [--port N] [--no-browser] # オーサリングアプリ
 oncemore transcode <project> [--title ID] [--fast] [--status]  # 書き出し前にタイトルをエンコード
 oncemore burn out.iso [--device DEV]           # イメージを空の DVD に書き込み（macOS は hdiutil、他は growisofs）
+oncemore clean <プロジェクト>                   # エンコードキャッシュを削除（次のビルドで作り直し）
 oncemore doctor                                # 外部ツールの有無・バージョン・ISO バックエンド
 oncemore mcp [--root DIR]                      # AI アシスタント向けのツール（MCP、下記）
 ```
@@ -646,7 +647,8 @@ DVD ナビゲーションライブラリ）でメニューのボタンを実際�
 エンコード済みのタイトルとメニューは `<プロジェクト>/.oncemore-cache/encode` に保存されます。キーには素材
 （パス・サイズ・更新日時）、設定、ビットレート、ffmpeg のバージョン、oncemore 自身のエンコード処理を使うので、
 メニューを少し直した後の再ビルドではそのメニューだけを作り直します。`--no-cache`（アプリでは
-「すべてエンコードし直す」）で無視でき、フォルダを消せば容量を空けられます。
+「すべてエンコードし直す」）ですべてエンコードし直し（キャッシュも新しい結果に置き換わります）、
+`oncemore clean <プロジェクト>` でキャッシュを消して容量を空けられます（次のビルドで作り直されます）。
 
 ## 既知の制限
 

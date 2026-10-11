@@ -21,6 +21,7 @@ import hashlib
 import json
 import os
 import random
+import threading
 from dataclasses import dataclass, field
 
 from . import tools
@@ -58,6 +59,7 @@ class Slideshow:
     fit_to_audio: bool = False        # durations scaled to the music's length
     advance: str = "auto"             # "manual": each picture held until Next / Play
     auto_chapters: bool = True        # the title's chapters are the slides' starts
+    music_length: float = None        # (fitted to it: the music's length, once probed)
     extra: dict = field(default_factory=dict)
 
     @property
@@ -154,14 +156,23 @@ def graph(show, disc):
     """(input args, filter_complex, has_audio) for rendering `show`."""
     W, H = canvas(disc)
     num, den = disc.fps
-    fps = num / den
     fades, changes = show.fades(), show.changes()
     bg = _hex(show.background_color)
     args, chains = [], []
     n = len(show.slides)
+    # every picture change on the frame nearest its start, so the pictures
+    # do not drift from the chapters (whole frames per picture would add up)
+    times = [0.0]
+    for s in show.slides:
+        times.append(times[-1] + s.duration)
+    at = [int(round(t * num / den)) for t in times]
+    # (a transition: the next picture's change starts it)
+    fade_frames = [int(round((times[k + 1] + f) * num / den)) - at[k + 1] if f else 0
+                   for k, f in enumerate(fades)]
     for k, s in enumerate(show.slides):
-        length = s.duration + fades[k]          # running on under the next transition
-        frames = max(1, int(round(length * fps)))
+        # running on under the next transition
+        frames = max(1, at[k + 1] - at[k] + fade_frames[k])
+        length = frames * den / num
         if show.pan_zoom:
             # one picture in, `frames` pictures out; drawn at twice the size so
             # the slow zoom does not wobble on whole-pixel steps
@@ -171,24 +182,24 @@ def graph(show, disc):
                      f"zoompan=z='{z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
                      f"d={frames}:s={W}x{H}:fps={num}/{den}")
         else:
-            args += ["-loop", "1", "-framerate", f"{num}/{den}", "-t", f"{length:.3f}",
-                     "-i", s.image]
+            args += ["-loop", "1", "-framerate", f"{num}/{den}",
+                     "-t", f"{length + 2 * den / num:.3f}", "-i", s.image]
             chain = f"[{k}:v]{_framed(W, H, s.fit or show.fit, bg)}"
         chains.append(chain + f",fps={num}/{den},format=yuv420p,settb=AVTB,"
-                              f"setpts=PTS-STARTPTS,trim=duration={length:.3f}[s{k}]")
+                              f"setpts=PTS-STARTPTS,trim=end_frame={frames}[s{k}]")
     if n == 1:
         chains.append("[s0]null[v]")
     elif any(changes):
         # one change at a time: a transition overlaps the next picture, a cut
         # appends it
-        cur, offset = "s0", 0.0
+        cur = "s0"
         for k in range(1, n):
-            offset += show.slides[k - 1].duration
             out = "v" if k == n - 1 else f"x{k}"
             kind = changes[k - 1]
             if kind:
                 chains.append(f"[{cur}][s{k}]xfade=transition={kind}:"
-                              f"duration={fades[k - 1]:.3f}:offset={offset:.3f}[{out}]")
+                              f"duration={fade_frames[k - 1] * den / num:.6f}:"
+                              f"offset={at[k] * den / num:.6f}[{out}]")
             else:
                 chains.append(f"[{cur}][s{k}]concat=n=2:v=1:a=0[{out}]")
             cur = out
@@ -230,6 +241,15 @@ def fit_to(show, seconds):
     last.duration = max(least, round(last.duration + seconds - show.duration, 3))
 
 
+def overrun(show):
+    """Seconds the pictures run past the music they were fitted to (each
+    picture has a least length, so many pictures to short music can)."""
+    if not show.music_length:
+        return 0.0
+    over = show.duration - show.music_length
+    return over if over > 0.5 else 0.0
+
+
 def apply(title, disc, probe):
     """For a slideshow fitted to its music: scale its durations to the music
     (probed), then point the title at the matching render and, unless the
@@ -239,6 +259,7 @@ def apply(title, disc, probe):
         return
     seconds = sum(probe(a).get("duration") or 0.0 for a in show.music)
     fit_to(show, seconds)
+    show.music_length = seconds
     base = os.path.dirname(os.path.dirname(os.path.dirname(title.source)))
     old, title.source = title.source, output_path(base, show, disc)
     for tr in title.audio_tracks:
@@ -256,7 +277,7 @@ def render(show, disc, out, log, on_progress=None):
         raise OncemoreError("a slideshow needs at least one picture")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     args, fc, has_audio = graph(show, disc)
-    tmp = out + ".part"
+    tmp = f"{out}.{os.getpid()}-{threading.get_ident()}.part"   # (one per writer)
     cmd = args + ["-filter_complex", fc, "-map", "[v]"]
     if has_audio:
         cmd += ["-map", "[a]", "-c:a", "pcm_s16le"]

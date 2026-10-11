@@ -364,6 +364,22 @@ class TestAuthorXml(unittest.TestCase):
         self.assertEqual(len(bad), 4, bad)
         self.assertIn("not MPEG-2", bad[0])
         self.assertIn("not 16:9", encode.dvd_compliance(dict(ok, sar=8 / 9), d)[0])
+        # half D1 is DVD video too; 4:2:2 is not
+        self.assertEqual(encode.dvd_compliance(dict(ok, width=352, sar=64 / 27), d), [])
+        self.assertIn("4:2:0", encode.dvd_compliance(dict(ok, pix_fmt="yuv422p"), d)[0])
+        self.assertEqual(encode.dvd_compliance(dict(ok, pix_fmt="yuv420p"), d), [])
+        # groups of pictures: 18 at 29.97, 15 at 25, 14 film pictures
+        self.assertEqual(encode.dvd_compliance(dict(ok, gop=18), d), [])
+        self.assertIn("120 frames", encode.dvd_compliance(dict(ok, gop=120), d)[0])
+        self.assertIn("at most 14",
+                      encode.dvd_compliance(dict(ok, fps=24000 / 1001, gop=18), d)[0])
+        # a VBR stream that does not say its rate: the file's, less the sound's
+        vbr = dict(ok, video_bit_rate=0, bit_rate=14_600_000, audio=[{"bit_rate": 192_000}])
+        self.assertIn("14.4 Mbit/s", encode.dvd_compliance(vbr, d)[0])
+        # picture and sound together within what a DVD reads
+        hi = dict(ok, video_bit_rate=9_500_000)
+        self.assertEqual(encode.dvd_compliance(hi, d, 192_000), [])
+        self.assertIn("10.08", encode.dvd_compliance(hi, d, 1_536_000)[0])
         # the title option
         data = sample_project()
         data["titles"][0]["transcode"] = False

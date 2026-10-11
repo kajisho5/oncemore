@@ -180,6 +180,27 @@ def cmd_import_psd(args, rep):
     return 0
 
 
+def cmd_clean(args, rep):
+    """Delete what oncemore keeps to rebuild fast (encoded titles and menus,
+    rendered slideshows and clips, playback previews)."""
+    path = os.path.abspath(args.project)
+    base = path if os.path.isdir(path) else os.path.dirname(path)
+    if not os.path.exists(path) or not os.path.isfile(os.path.join(base, PROJECT_FILENAME)):
+        raise OncemoreError(f"{args.project}: project file not found")
+    cache = os.path.join(base, ".oncemore-cache")
+    size = 0
+    for root, _, files in os.walk(cache):
+        for f in files:
+            try:
+                size += os.path.getsize(os.path.join(root, f))
+            except OSError:
+                pass
+    shutil.rmtree(cache, ignore_errors=True)
+    rep.result({"removed": cache, "bytes": size},
+               f"Removed {cache} ({size / 2**20:.1f} MiB); the next build encodes everything again")
+    return 0
+
+
 def cmd_build(args, rep):
     project = load_project(args.project)
     if args.format == "bluray":
@@ -349,6 +370,11 @@ def make_parser():
     s.add_argument("--device", help="DVD writer (macOS: as `hdiutil burn -list` names it; "
                                     "elsewhere e.g. /dev/sr0; default: the first one)")
     s.set_defaults(func=cmd_burn)
+
+    s = sub.add_parser("clean", parents=[common],
+                       help="delete the encode cache (<project>/.oncemore-cache)")
+    s.add_argument("project", help=proj_help)
+    s.set_defaults(func=cmd_clean)
 
     s = sub.add_parser("transcode", parents=[common],
                        help="encode titles now; the next build or iso reuses them")
