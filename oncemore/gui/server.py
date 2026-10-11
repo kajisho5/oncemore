@@ -439,14 +439,15 @@ class App:
                     fast=fast, cache=cache)
                 if kind == "disc":
                     res.update(burn.burn(res["iso"], rep, device=device,
-                                         log=os.path.join(outdir, "burn.log")))
+                                         log=os.path.join(outdir, "burn.log"), layer_break=None))
                 return res
             if kind in ("iso", "disc"):
                 res = build.build_iso(project, os.path.join(outdir, f"{project.disc.label}.iso"),
                                       rep, fast=fast, cache=cache)
                 if kind == "disc":
+                    lb = (res.get("layer_break") or {}).get("sector")
                     res.update(burn.burn(res["iso"], rep, device=device,
-                                         log=os.path.join(outdir, "burn.log")))
+                                         log=os.path.join(outdir, "burn.log"), layer_break=lb))
                 return res
             return build.build(project, os.path.join(outdir, project.disc.label), rep,
                                fast=fast, cache=cache)

@@ -1418,3 +1418,33 @@ written that fails before the fix, and then the fix:
   style, not a mix); a shape has only a colour and takes that. The font is
   copied into the project's media/ the first time, reused after, and a
   different file of the same name is kept with the style's beside it.
+
+## 82. The layer break
+
+* A dual-layer DVD-Video is written opposite track path, and the player
+  jumps between the layers once; the picture may hold still for a moment
+  there, so authoring apps let the author place it, at a chapter. oncemore
+  takes `disc.layer_break` (a chapter, or auto: the first one past the
+  middle of the disc) and only for DVD9.
+* The rules: the break is on an ECC block (16 sectors), the first layer is
+  at least as large as the second, and no larger than a layer of a DVD-R DL
+  (2,085,856 sectors, half its 4,171,712; a DVD+R DL layer is a little
+  larger, so this fits both). The chapters and their sectors come from the
+  IFO files (the titles' chapter table, their program chains' cells, the
+  title VOBs' place in the titleset), read from the image itself, so images
+  from any ISO tool are checked the same way.
+* A chapter's sector depends on everything before it, which dvdauthor
+  decides. Rather than pad the video, the built-in writer moves the whole
+  of VIDEO_TS by up to 15 sectors: the IFO addresses are relative to
+  VIDEO_TS.IFO, so nothing inside changes, and the chapter lands on an ECC
+  block. Images from other tools are taken as they are; a chosen chapter
+  that does not fit is an error that says to use the built-in writer or
+  another chapter. With auto and nothing that fits, a warning: the burner
+  then folds the disc in the middle, as it did before.
+* The sector goes to growisofs (`-use-the-force-luke=break:N`). hdiutil has
+  no such option, so on macOS the burn warns and leaves it to hdiutil.
+  `oncemore burn` finds the break in the image when it is not given one.
+* A real DVD-9 image is over 4.38 GiB; the tests build the small sample
+  disc as if a layer held one sector, check that every chapter sector is a
+  navigation pack, that the break is on an ECC block, and that libdvdnav
+  still plays the moved image.

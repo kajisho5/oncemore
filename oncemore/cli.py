@@ -234,12 +234,25 @@ def cmd_iso(args, rep):
     res = build.build_iso(project, args.output, rep, fast=args.fast, keep_work=args.keep_work,
                           iso_tool=args.iso_tool, build_dir=args.build_dir,
                           cache=not args.no_cache)
-    rep.result(res, f"ISO written to {res['iso']} ({_gib(res['iso_bytes'])}, {res['iso_tool']})")
+    msg = f"ISO written to {res['iso']} ({_gib(res['iso_bytes'])}, {res['iso_tool']})"
+    lb = res.get("layer_break")
+    if lb:
+        msg += (f"\nLayer break: sector {lb['sector']} (title {lb['title']}, chapter "
+                f"{lb['chapter']}); give it to the burning tool, as `oncemore burn` does")
+    rep.result(res, msg)
     return 0
 
 
+def _layer_break_arg(v):
+    if v in ("auto", "none") or (v.isdigit() and int(v) > 0):
+        return v
+    raise argparse.ArgumentTypeError("a sector number, auto or none")
+
+
 def cmd_burn(args, rep):
-    res = burn.burn(args.iso, rep, device=args.device)
+    lb = args.layer_break
+    lb = None if lb == "none" else lb if lb == "auto" else int(lb)
+    res = burn.burn(args.iso, rep, device=args.device, layer_break=lb)
     rep.result(res, f"{res['burned']} written to the DVD")
     return 0
 
@@ -374,6 +387,10 @@ def make_parser():
     s.add_argument("iso", help="the .iso made by `oncemore iso`")
     s.add_argument("--device", help="DVD writer (macOS: as `hdiutil burn -list` names it; "
                                     "elsewhere e.g. /dev/sr0; default: the first one)")
+    s.add_argument("--layer-break", default="auto", type=_layer_break_arg,
+                   help="dual-layer disc: the sector where the second layer starts "
+                        "(as `oncemore iso` reports it), auto (the first chapter that can be "
+                        "one) or none")
     s.set_defaults(func=cmd_burn)
 
     s = sub.add_parser("clean", parents=[common],

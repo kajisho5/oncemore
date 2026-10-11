@@ -137,6 +137,12 @@
           ],
           "default": "DVD5"
         },
+        "layer_break": {
+          "type": "string",
+          "pattern": "^(auto|[A-Za-z0-9_-]{1,40}:[1-9][0-9]{0,2})$",
+          "default": "auto",
+          "description": "DVD9: where the disc goes on to its second layer. auto (the first chapter past the middle of the disc) or <title id>:<chapter>."
+        },
         "first_play": {
           "type": "string",
           "pattern": "^((menu|title):[A-Za-z0-9_-]{1,40}|playall|playlist:[A-Za-z0-9_-]{1,40})$",

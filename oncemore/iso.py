@@ -76,7 +76,8 @@ def command(name, path, src, out_iso, label):
     raise OncemoreError(f"unknown ISO tool {name!r}")
 
 
-def make_iso(dvd_dir, out_iso, label, tool="auto", log=None, reporter=None):
+def make_iso(dvd_dir, out_iso, label, tool="auto", log=None, reporter=None, shift=0):
+    """`shift`: empty sectors before VIDEO_TS (the built-in writer only)."""
     if not os.path.isdir(os.path.join(dvd_dir, "VIDEO_TS")):
         raise OncemoreError(f"{dvd_dir} has no VIDEO_TS directory")
     tools.require([], need_iso=True, iso_preference=tool)
@@ -88,7 +89,7 @@ def make_iso(dvd_dir, out_iso, label, tool="auto", log=None, reporter=None):
     if name == "builtin":
         # (hidden entries such as .work are left out by the writer itself)
         udfwriter.write_image(
-            dvd_dir, out_iso, label,
+            dvd_dir, out_iso, label, shift=shift,
             on_progress=(lambda f: reporter.progress("iso", f)) if reporter else None)
         return {"tool": name, "path": out_iso, "bytes": os.path.getsize(out_iso),
                 "udf": True, "volume_names": udfinfo.volume_names(out_iso), "warnings": []}

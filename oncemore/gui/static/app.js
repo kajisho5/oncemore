@@ -54,6 +54,7 @@ const I18N = {
     auto_shared: "Automatic (share the disc)", passthrough: "Copy AC-3 unchanged",
     passthrough_hint: "For AC-3 (48 kHz) sources: no re-encoding. Channels must match the source.",
     dts_copy: "DTS (copy)", dts_hint: "DTS is copied from the sources as it is (48 kHz; DTS-HD keeps its DTS core). Channels must match the source.",
+    layer_break: "Layer break", layer_break_hint: "Where a dual-layer disc goes on to its second layer: the start of a chapter past the middle of the disc. The built-in ISO writer puts it on an ECC block, and burning passes it to the writer.", layer_break_at: "{t}, chapter {n}",
     rom_files: "DVD-ROM files", rom_hint: "Files or folders (one per line, relative to the project) put next to VIDEO_TS for computers.",
     no_cache: "Encode everything again (ignore the cache)",
     sub_bottom: "Bottom", sub_top: "Top", sub_color: "Own colour",
@@ -307,6 +308,7 @@ const I18N = {
     auto_shared: "自動（ディスク全体で配分）", passthrough: "AC-3 をそのままコピー",
     passthrough_hint: "AC-3（48kHz）素材向け：再エンコードしません。チャンネル数は素材と同じにしてください。",
     dts_copy: "DTS（コピー）", dts_hint: "DTS は素材からそのままコピーします（48kHz。DTS-HD はコア部分のみ）。チャンネル数は素材と同じにしてください。",
+    layer_break: "レイヤーブレーク", layer_break_hint: "2 層ディスクが 2 層目へ移る位置です。ディスクの中ほどより後のチャプターの先頭に置きます。内蔵の ISO 書き出しが ECC ブロック境界に合わせ、書き込み時にドライブへ渡します。", layer_break_at: "{t}、チャプター {n}",
     rom_files: "DVD-ROM ファイル", rom_hint: "パソコン向けに VIDEO_TS と並べて入れるファイル／フォルダ（1 行に 1 つ、プロジェクトからの相対パス）。",
     no_cache: "すべてエンコードし直す（キャッシュを使わない）",
     sub_bottom: "下", sub_top: "上", sub_color: "色を指定",
@@ -1256,6 +1258,7 @@ function renderDisc(m) {
       <label class="field"><span>${t("target")}</span>${selectHtml("target", [["DVD5", "DVD-5 (4.7 GB)"], ["DVD9", "DVD-9 (8.5 GB)"]], d.target || "DVD5")}</label>
       <label class="field"><span>${t("video_bitrate")}</span>${selectHtml("video_bitrate", [["auto", t("auto")], ["4M", "4 Mbit/s"], ["5M", "5 Mbit/s"], ["6M", "6 Mbit/s"], ["7M", "7 Mbit/s"], ["8M", "8 Mbit/s"]], d.video_bitrate || "auto")}</label>
     </div>
+    ${d.target === "DVD9" ? `<label class="field"><span>${t("layer_break")}</span>${selectHtml("layer_break", [["__none__", t("auto")], ...(P().titles || []).flatMap((ti) => chaptersOf(ti).map((_, k) => [`${ti.id}:${k + 1}`, t("layer_break_at", { t: ti.name || ti.id, n: k + 1 })]))], d.layer_break || "__none__")}<div class="hint">${esc(t("layer_break_hint"))}</div></label>` : ""}
     <label class="field"><span>${t("first_play")} ${whipHtml("first_play")}</span>${selectHtml("first_play", [["__none__", t("auto")], ...fp], d.first_play || "__none__")}</label>
     <label class="field"><span>${t("title_key")}</span>${selectHtml("title_key", [["__none__", t("first_menu")], ...fp], d.title_key || "__none__")}</label>
     <label class="field" data-nobind><span>${t("rom_files")}</span><textarea id="rom-files" rows="3" placeholder="extras/">${esc((d.rom_files || []).join("\n"))}</textarea><div class="hint">${esc(t("rom_hint"))}</div></label>
