@@ -249,7 +249,7 @@ def disc_data(project, titles, menus, chapters):
         "order": [t.id for t in project.titles],
         "playlists": {pl.id: {"items": [{"title": it.title_id, "first": it.first,
                                          "last": it.last} for it in pl.items],
-                              "end_action": action(pl.end_action)}
+                              "end_action": action(pl.end_action), "order": pl.order}
                       for pl in project.playlists},
     }
 
