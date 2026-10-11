@@ -394,8 +394,9 @@ against their published help, not from memory)
 
 **Beyond the classic apps**
 
-- [ ] Update notice: the app says when a newer release is out, with its
-  notes, and opens the download (nothing is installed without asking)
+- [ ] Check for Updates (Help): says which version this is and opens the
+  releases page in the browser. oncemore itself makes no connection (no
+  network access is one of its promises), so it does not look by itself
 - [ ] Chapters from the picture: suggested chapter points where the scene
   changes, and the best thumbnail frame near each, to accept or drop
 - [ ] Loudness: measure each title's loudness and offer to even them out
