@@ -72,9 +72,8 @@ oncemore doctor
 
 インストールせずにチェックアウトから `python -m oncemore ...` でも実行できます。
 
-ツールの場所は `ONCEMORE_FFMPEG`、`ONCEMORE_FFPROBE`、`ONCEMORE_DVDAUTHOR`、
-`ONCEMORE_SPUMUX`、`ONCEMORE_GENISOIMAGE`、`ONCEMORE_MKISOFS`、`ONCEMORE_XORRISO`、
-メニューのフォントは `ONCEMORE_FONT` で上書きできます。
+ツールの場所は `ONCEMORE_FFMPEG`、`ONCEMORE_FFPROBE`、`ONCEMORE_GENISOIMAGE`、
+`ONCEMORE_MKISOFS`、`ONCEMORE_XORRISO`、メニューのフォントは `ONCEMORE_FONT` で上書きできます。
 足りないツールがあれば、何が無いかとインストールコマンドを表示して終了します。
 
 ## Mac アプリ

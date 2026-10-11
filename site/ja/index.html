@@ -109,14 +109,14 @@
   <section id="install">
     <div class="wrap">
       <h2>インストール</h2>
-      <p class="intro">oncemore は Python 3.11 以降の標準ライブラリだけで動きます。エンコードとオーサリングには ffmpeg と dvdauthor を使い、足りないものがあれば <code>oncemore doctor</code> が教えてくれます。</p>
+      <p class="intro">oncemore は Python 3.11 以降の標準ライブラリだけで動きます。エンコードには ffmpeg を使い、ディスクは自分で書き出します。足りないものがあれば <code>oncemore doctor</code> が教えてくれます。</p>
       <div class="install">
         <div><h3>macOS（Homebrew）</h3>
-<pre><code>brew install ffmpeg-full dvdauthor
+<pre><code>brew install ffmpeg-full
 pip install git+https://github.com/kajisho5/oncemore
 oncemore gui my-disc</code></pre></div>
         <div><h3>Debian / Ubuntu</h3>
-<pre><code>sudo apt-get install ffmpeg dvdauthor genisoimage
+<pre><code>sudo apt-get install ffmpeg genisoimage
 pip install git+https://github.com/kajisho5/oncemore
 oncemore gui my-disc</code></pre></div>
       </div>
