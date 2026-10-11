@@ -1340,8 +1340,31 @@ class TestAngles(unittest.TestCase):
     def tearDownClass(cls):
         shutil.rmtree(cls.tmp, ignore_errors=True)
 
+    @classmethod
+    def streams_report(cls):
+        """The title's and the angle's encoded streams side by side (their
+        pictures and VOBU start times), for the message of a failed build."""
+        from oncemore._vendor.vtskit import nav, ps
+        lines = []
+        for name in ("t2.mpg", "t2-angle2.mpg"):
+            path = os.path.join(cls.tmp, ".a.oncemore-build", ".work", "titles", name)
+            if not os.path.isfile(path):
+                lines.append(f"{name}: not written")
+                continue
+            with open(path, "rb") as f:
+                stream = ps.scan(ps.drop_padding(f.read()))
+            vobus = nav.vobus(stream)
+            first = vobus[0].s_ptm if vobus else 0
+            lines.append(f"{name}: {len(stream.pictures)} pictures, video_end {stream.video_end - first}, "
+                         f"VOBUs at {[v.s_ptm - first for v in vobus]}")
+            probe = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                                    "frame=pts,pict_type", "-of", "csv=p=0", path],
+                                   capture_output=True, text=True)
+            lines.append(f"  frames: {' '.join(l.strip(',').replace(',', ':') for l in probe.stdout.split())}")
+        return "\n".join(lines)
+
     def test_built(self):
-        self.assertEqual(self.rc, 0, self.err + self.out)
+        self.assertEqual(self.rc, 0, self.err + self.out + "\n" + self.streams_report())
         build_dir = json_lines(self.out)[-1]["build_dir"]
         titles = os.path.join(build_dir, ".work", "titles")
         self.assertTrue(os.path.isfile(os.path.join(titles, "t2.mpg")))
@@ -1350,7 +1373,7 @@ class TestAngles(unittest.TestCase):
 
     @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
     def test_angles_on_disc(self):
-        self.assertEqual(self.rc, 0, self.err + self.out)
+        self.assertEqual(self.rc, 0, self.err + self.out + "\n" + self.streams_report())
         with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
             self.assertEqual([d.num_angles(1), d.num_angles(2)], [1, 2])
             d.wait_menu()
