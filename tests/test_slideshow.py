@@ -67,6 +67,20 @@ class TestGraph(unittest.TestCase):
         self.assertIn("[2:a]aresample=48000,atrim=duration=8.000", fc)
         self.assertIn("afade=t=out:st=6.000:d=2.000", fc)
 
+    def test_fit_and_fill(self):
+        _, fc, _ = S.graph(show(4, 4), disc())
+        self.assertEqual(fc.count("force_original_aspect_ratio=decrease"), 2)
+        self.assertNotIn("crop=", fc)
+        s = show(4, 4, fit="fill")
+        s.slides[1].fit = "fit"                 # a picture of its own
+        _, fc, _ = S.graph(s, disc())
+        chains = fc.split(";")
+        self.assertIn("scale=854:480:force_original_aspect_ratio=increase,crop=854:480", chains[0])
+        self.assertNotIn("pad=", chains[0])
+        self.assertIn("force_original_aspect_ratio=decrease,pad=854:480", chains[1])
+        _, fc, _ = S.graph(show(4, fit="fill", pan_zoom=True), disc())
+        self.assertIn("crop=1708:960,setsar=1,zoompan", fc)
+
     def test_output_path_tracks_inputs(self):
         d = disc()
         a = S.output_path("/p", show(4, 6), d)
@@ -74,6 +88,10 @@ class TestGraph(unittest.TestCase):
         self.assertEqual(a, S.output_path("/p", show(4, 6), d))
         self.assertNotEqual(a, S.output_path("/p", show(4, 7), d))
         self.assertNotEqual(a, S.output_path("/p", show(4, 6, pan_zoom=True), d))
+        self.assertNotEqual(a, S.output_path("/p", show(4, 6, fit="fill"), d))
+        filled = show(4, 6)
+        filled.slides[0].fit = "fill"
+        self.assertNotEqual(a, S.output_path("/p", filled, d))
         self.assertNotEqual(a, S.output_path("/p", show(4, 6), dataclasses.replace(d, aspect="4:3")))
 
 
@@ -97,6 +115,11 @@ class TestProjectFields(unittest.TestCase):
     def test_title_from_pictures(self):
         p = self.build(self.data(audio="media/song.wav", pan_zoom=True))
         t = p.titles[-1]
+        self.assertEqual((t.slideshow.fit, t.slideshow.slides[0].fit), ("fit", None))
+        d = self.data(fit="fill")
+        d["titles"][-1]["slideshow"]["slides"][1]["fit"] = "fit"
+        s = self.build(d).titles[-1].slideshow
+        self.assertEqual((s.fit, s.slides[1].fit), ("fill", "fit"))
         self.assertEqual(t.chapters, [0.0, 3.0])            # a chapter per picture
         self.assertEqual(t.slideshow.duration, 8.0)
         self.assertEqual(t.slideshow.audio, "/virtual/media/song.wav")
@@ -113,6 +136,7 @@ class TestProjectFields(unittest.TestCase):
         d = self.data()
         d["titles"][-1]["slideshow"]["slides"] = []
         self.assertIn("slides", self.issues(d))
+        self.assertIn("fit", self.issues(self.data(fit="crop")))
         d = self.data()
         del d["titles"][-1]["slideshow"]
         self.issues(d)                                       # neither source nor slideshow

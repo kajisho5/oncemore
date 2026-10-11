@@ -300,15 +300,17 @@
           "type": "array",
           "minItems": 1,
           "maxItems": 99,
-          "description": "Make this title from several videos played one after another (each optionally trimmed), instead of one source. Every clip starts a chapter unless chapters are given.",
+          "description": "Make this title from several videos and still pictures played one after another (videos optionally trimmed), instead of one source. Every clip starts a chapter unless chapters are given.",
           "items": {
             "type": "object",
             "required": ["source"],
             "additionalProperties": false,
             "properties": {
-              "source": {"type": "string", "description": "Video file, relative to the project file."},
-              "in": {"$ref": "#/$defs/time", "description": "Start inside the file (default: its beginning)."},
-              "out": {"$ref": "#/$defs/time", "description": "End inside the file (default: its end)."}
+              "source": {"type": "string", "description": "Video file or still picture (.png, .jpg, .jpeg, .bmp, .tif, .tiff, .webp), relative to the project file."},
+              "in": {"$ref": "#/$defs/time", "description": "Start inside the video file (default: its beginning). Not for pictures."},
+              "out": {"$ref": "#/$defs/time", "description": "End inside the video file (default: its end). Not for pictures."},
+              "duration": {"$ref": "#/$defs/time", "description": "A still picture: how long it is shown, 0.5 s to 1 hour (default 5 s)."},
+              "fit": {"enum": ["fit", "fill"], "default": "fit", "description": "A still picture of another shape than the frame: fit shows all of it with black bars around; fill fills the frame and crops what is outside."}
             }
           }
         },
@@ -1006,6 +1008,10 @@
                 "minimum": 0.5,
                 "maximum": 600,
                 "default": 5
+              },
+              "fit": {
+                "enum": ["fit", "fill"],
+                "description": "This picture's own fit (default: the slideshow's)."
               }
             }
           }
@@ -1027,6 +1033,11 @@
           "type": "boolean",
           "default": false,
           "description": "A slow zoom in / out on every picture."
+        },
+        "fit": {
+          "enum": ["fit", "fill"],
+          "default": "fit",
+          "description": "Pictures of another shape than the frame: fit shows all of each with the background colour around; fill fills the frame and crops what is outside."
         },
         "audio": {
           "type": "string",

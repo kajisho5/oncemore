@@ -124,11 +124,12 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   duration and order, cross-fade or cut, slow zoom (pan & zoom) and music;
   **Render & play** shows it as it will be on the disc. Every picture starts a
   chapter.
-* **Clips**: under a title's picture, *Add a clip…* joins more videos into the
-  same title — parts of files (in / out), in any order, of different sizes,
-  frame rates and sound (or none). The title then shows and plays the joined
-  result, the timeline shows each clip, and every clip starts a chapter unless
-  you set chapters yourself.
+* **Clips**: under a title's picture, *Add a clip…* joins more videos and still
+  pictures into the same title — parts of files (in / out), in any order, of
+  different sizes, frame rates and sound (or none); a picture is shown for the
+  seconds you set, whole (fit) or filling the frame (fill). The title then
+  shows and plays the joined result, the timeline shows each clip, and every
+  clip starts a chapter unless you set chapters yourself.
 * **Menus**: *+ Add* starts blank or from a template (classic, banner, minimal,
   setup), then drag buttons, text and rectangles where you want them —
   Shift-click selects several, with align / distribute buttons, snapping guides,
@@ -480,6 +481,7 @@ end of its last chapter. Title, chapter and play-all buttons leave playlist mode
     "transition": "crossfade",        // or "none" (cuts)
     "transition_duration": 1,         // seconds, shorter than every slide
     "pan_zoom": true,                 // a slow zoom in / out on every picture
+    "fit": "fill",                    // fill the frame (edges cropped); default "fit"
     "audio": "media/music.m4a",       // trimmed to the show and faded out
     "background_color": "#000000"     // around pictures of another shape
   },
@@ -491,7 +493,10 @@ The pictures are fitted on the disc's square-pixel canvas (854 × 480 for NTSC
 16:9) and rendered once into a lossless video in `.oncemore-cache/slideshow`;
 that video is then encoded like any other title (and re-rendered only when a
 picture, a duration or a setting changes). Slide *k* starts at the sum of the
-earlier durations and is a chapter unless `chapters` is given.
+earlier durations and is a chapter unless `chapters` is given. `fit` decides
+what happens to pictures of another shape: `fit` shows all of each with the
+background colour around, `fill` fills the frame and crops what is outside;
+a slide can have its own `fit`.
 
 ### Titles made of clips
 
@@ -501,7 +506,8 @@ earlier durations and is a chapter unless `chapters` is given.
   "clips": [
     { "source": "media/arrival.mov", "in": "00:01:10", "out": "00:03:00" },
     { "source": "media/speech.mp4" },                  // the whole file
-    { "source": "media/phone.mp4", "out": 42.5 }       // seconds or HH:MM:SS(.mmm)
+    { "source": "media/phone.mp4", "out": 42.5 },      // seconds or HH:MM:SS(.mmm)
+    { "source": "media/group.jpg", "duration": 6, "fit": "fill" }  // a still picture
   ],
   "end_action": "menu:main"
 }]
@@ -516,6 +522,11 @@ unless `chapters` is given. All clips 23.976p film keep soft pulldown, all
 interlaced stay interlaced; a mix is made progressive. A clip title has one
 sound track (`audio_tracks` and `audio.passthrough` are not available).
 Menu thumbnails and poster frames pick the clip that plays at that time.
+
+A still picture (`.png`, `.jpg`, `.jpeg`, `.bmp`, `.tif`, `.tiff`, `.webp`) is
+shown for its `duration` (default 5 s, 0.5 s to 1 hour; no `in` / `out`) and
+is silent. `fit` (default) shows all of it with black bars where its shape
+differs from the frame; `fill` fills the frame and crops the edges.
 
 ### Audio tracks and subtitles
 

@@ -90,7 +90,8 @@ const I18N = {
     about_text: "Open-source DVD-Video authoring: menus, chapters, playlists and a disc image, on your own computer. No copy protection.",
     clips: "Clips", add_clip: "Add a clip…", clip_in: "In", clip_out: "Out", clip_end: "end",
     clips_hint: "The clips play one after another as one title. Without chapters of its own, every clip starts a chapter.",
-    joining: "Joining the clips…", clip_whole: "whole file", clips_n: "{n} clips", clip_source_hint: "Add a clip to join more videos into this title.",
+    joining: "Joining the clips…", clip_whole: "whole file", clips_n: "{n} clips", clip_source_hint: "Add a clip to join more videos and still pictures into this title.",
+    clip_still: "still", clip_duration: "Seconds the picture is shown", fit: "Scaling", fit_fit: "Fit (whole picture, bars around)", fit_fill: "Fill (crop the edges)", fit_own: "Slideshow's scaling",
     subtitle_editor: "Subtitle cues", no_sub_tracks: "No subtitle track yet.", new_srt: "+ New subtitle file",
     sub_readonly: "WebVTT / ASS files are shown read-only.", convert_srt: "Convert to .srt to edit",
     sub_track_pos: "Track", add_cue: "+ Cue at the playhead", new_cue_text: "New subtitle",
@@ -278,7 +279,8 @@ const I18N = {
     about_text: "オープンソースの DVD-Video オーサリング。メニュー・チャプター・プレイリスト・ディスクイメージを自分のコンピュータで作れます。コピーガードはありません。",
     clips: "クリップ", add_clip: "クリップを追加…", clip_in: "イン", clip_out: "アウト", clip_end: "最後",
     clips_hint: "クリップは順番に続けて 1 つのタイトルとして再生されます。チャプターを指定しなければ、クリップごとにチャプターになります。",
-    joining: "クリップをつないでいます…", clip_whole: "ファイル全体", clips_n: "{n} クリップ", clip_source_hint: "クリップを追加すると、複数の動画を 1 つのタイトルにつなげられます。",
+    joining: "クリップをつないでいます…", clip_whole: "ファイル全体", clips_n: "{n} クリップ", clip_source_hint: "クリップを追加すると、複数の動画や静止画を 1 つのタイトルにつなげられます。",
+    clip_still: "静止画", clip_duration: "静止画の表示秒数", fit: "拡大・縮小", fit_fit: "全体を表示（周囲に帯）", fit_fill: "画面いっぱい（端を切り抜き）", fit_own: "スライドショーの設定に従う",
     subtitle_editor: "字幕の編集", no_sub_tracks: "字幕トラックはまだありません。", new_srt: "＋新しい字幕ファイル",
     sub_readonly: "WebVTT / ASS は表示のみです。", convert_srt: ".srt に変換して編集",
     sub_track_pos: "トラック設定", add_cue: "＋再生位置に字幕を追加", new_cue_text: "新しい字幕",
@@ -461,17 +463,22 @@ function clipJoinNow(ti) {
   const r = S.clipJoins && S.clipJoins[clipKey(ti)];
   return r && !(r instanceof Promise) ? r : null;
 }
+const STILL_RE = /\.(png|jpe?g|bmp|tiff?|webp)$/i;
+const isStill = (c) => STILL_RE.test(c.source || "");
 function clipEditorHtml(ti, join) {
   const list = ti.clips || [];
-  const add = selectHtml("addclip", [["", t("add_clip")], ...mediaOf("video").map((v) => [v, v.replace(/^media\//, "")])], "", 'id="clip-add" class="shrink"');
+  const add = selectHtml("addclip", [["", t("add_clip")], ...mediaOf("video").map((v) => [v, v.replace(/^media\//, "")]),
+    ...mediaOf("image").filter((v) => STILL_RE.test(v)).map((v) => [v, `${v.replace(/^media\//, "")} (${t("clip_still")})`])], "", 'id="clip-add" class="shrink"');
   if (!list.length) return `<h3>${t("clips")}</h3><div class="row"><span class="hint">${esc(t("clip_source_hint"))}</span><span class="spacer"></span>${add}</div>`;
   return `<h3>${t("clips")} (${list.length})</h3><div class="hint">${esc(t("clips_hint"))}</div>
     <table class="clips"><tbody>${list.map((c, i) => {
       const j = join && join.clips[i];
       return `<tr data-clip="${i}"><td class="n">${i + 1}</td>
         <td class="src" ${j ? `data-cseek="${j.start}"` : ""}>${esc(c.source.replace(/^media\//, ""))}${j ? ` <span class="muted mono">${fmtTime(j.start)} · ${j.duration.toFixed(2)}s</span>` : ""}</td>
-        <td><input class="mono" data-cf="in" value="${c.in != null ? fmtTime(parseTime(c.in)) : ""}" placeholder="00:00:00.000" title="${esc(t("clip_in"))}"></td>
-        <td><input class="mono" data-cf="out" value="${c.out != null ? fmtTime(parseTime(c.out)) : ""}" placeholder="${esc(t("clip_end"))}" title="${esc(t("clip_out"))}"></td>
+        ${isStill(c) ? `<td><input type="number" class="mono" data-cd min="0.5" max="3600" step="0.5" value="${c.duration != null ? parseTime(c.duration) : 5}" title="${esc(t("clip_duration"))}"> s</td>
+        <td>${selectHtml("fit", [["fit", t("fit_fit")], ["fill", t("fit_fill")]], c.fit || "fit", `data-cfit title="${esc(t("fit"))}"`)}</td>`
+        : `<td><input class="mono" data-cf="in" value="${c.in != null ? fmtTime(parseTime(c.in)) : ""}" placeholder="00:00:00.000" title="${esc(t("clip_in"))}"></td>
+        <td><input class="mono" data-cf="out" value="${c.out != null ? fmtTime(parseTime(c.out)) : ""}" placeholder="${esc(t("clip_end"))}" title="${esc(t("clip_out"))}"></td>`}
         <td class="act"><button class="small" data-cmv="-1" ${i ? "" : "disabled"}>▲</button><button class="small" data-cmv="1" ${i + 1 < list.length ? "" : "disabled"}>▼</button><button class="small danger" data-crm ${list.length > 1 ? "" : "disabled"}>✕</button></td></tr>`;
     }).join("")}</tbody></table>
     <div class="row"><span class="spacer"></span>${add}</div>`;
@@ -480,8 +487,8 @@ function bindClipEditor(m, ti, seek) {
   const edit = (fn) => commit((p) => {
     const x = p.titles.find((y) => y.id === ti.id);
     fn(x);
-    // one whole clip left: an ordinary title again
-    if (x.clips && x.clips.length === 1 && x.clips[0].in == null && x.clips[0].out == null) { x.source = x.clips[0].source; delete x.clips; }
+    // one whole video clip left: an ordinary title again (a picture stays a clip)
+    if (x.clips && x.clips.length === 1 && x.clips[0].in == null && x.clips[0].out == null && !isStill(x.clips[0])) { x.source = x.clips[0].source; delete x.clips; }
   });
   const add = m.querySelector("#clip-add");
   if (add) add.onchange = () => {
@@ -503,6 +510,13 @@ function bindClipEditor(m, ti, seek) {
       const v = inp.value.trim();
       if (v) x.clips[i][inp.dataset.cf] = fmtTime(parseTime(v)); else delete x.clips[i][inp.dataset.cf];
     })));
+    const cd = row.querySelector("[data-cd]");
+    if (cd) cd.onchange = () => edit((x) => {
+      const v = Math.min(3600, Math.max(0.5, Number(cd.value) || 5));
+      if (v !== 5) x.clips[i].duration = v; else delete x.clips[i].duration;
+    });
+    const cf = row.querySelector("[data-cfit]");
+    if (cf) cf.onchange = () => edit((x) => { if (cf.value === "fill") x.clips[i].fit = "fill"; else delete x.clips[i].fit; });
     row.querySelectorAll("[data-cmv]").forEach((b) => (b.onclick = () => edit((x) => {
       const j = i + Number(b.dataset.cmv); [x.clips[i], x.clips[j]] = [x.clips[j], x.clips[i]];
     })));
@@ -1347,6 +1361,7 @@ function renderSlideshow(m, ti) {
     <div class="slides">${slides.map((s, i) => `<div class="slide" data-slide="${i}">
         <img src="${imgUrl("file", { path: s.image })}" alt="">
         <div class="row"><input type="number" min="0.5" max="600" step="0.5" data-f="duration" value="${s.duration || 5}" title="${esc(t("seconds"))}"> s</div>
+        <div class="row">${selectHtml("sfit", [["", t("fit_own")], ["fit", t("fit_fit")], ["fill", t("fit_fill")]], s.fit || "", `data-f="fit" title="${esc(t("fit"))}"`)}</div>
         <div class="row"><button class="small" data-mv="-1" ${i ? "" : "disabled"}>◀</button><button class="small" data-mv="1" ${i + 1 < slides.length ? "" : "disabled"}>▶</button><button class="small danger" data-rm ${slides.length > 1 ? "" : "disabled"}>✕</button></div></div>`).join("")}
       <div class="slide add">${selectHtml("addimg", [["", t("add_picture")], ...mediaOf("image").map((x) => [x, x.replace(/^media\//, "")])], "", 'id="ss-add"')}</div></div>
     <div class="grid2" style="margin-top:12px">
@@ -1354,12 +1369,14 @@ function renderSlideshow(m, ti) {
       <label class="field"><span>${t("transition_duration")}</span><input type="number" id="ss-td" min="0.1" max="5" step="0.1" value="${sh.transition_duration || 1}"></label>
       <label class="field"><span>${t("music")}</span>${selectHtml("audio", [["", t("none")], ...mediaOf("audio").map((x) => [x, x])], sh.audio || "", 'id="ss-audio"')}</label>
       <label class="field"><span></span><label><input type="checkbox" id="ss-pz" ${sh.pan_zoom ? "checked" : ""}> ${t("pan_zoom")}</label></label>
+      <label class="field"><span>${t("fit")}</span>${selectHtml("fit", [["fit", t("fit_fit")], ["fill", t("fit_fill")]], sh.fit || "fit", 'id="ss-fit"')}</label>
     </div>
     <div class="hint">${esc(t("slideshow_chapters"))}</div></div>`;
   const edit = (fn) => commit((p) => { fn(p.titles.find((x) => x.id === ti.id).slideshow); });
   m.querySelectorAll("[data-slide]").forEach((card) => {
     const i = Number(card.dataset.slide);
     card.querySelector("[data-f=duration]").onchange = (e) => edit((x) => { const v = Number(e.target.value); if (v && v !== 5) x.slides[i].duration = v; else delete x.slides[i].duration; });
+    card.querySelector("[data-f=fit]").onchange = (e) => edit((x) => { if (e.target.value) x.slides[i].fit = e.target.value; else delete x.slides[i].fit; });
     card.querySelectorAll("[data-mv]").forEach((b) => (b.onclick = () => edit((x) => { const j = i + Number(b.dataset.mv); [x.slides[i], x.slides[j]] = [x.slides[j], x.slides[i]]; })));
     card.querySelector("[data-rm]").onclick = () => edit((x) => { x.slides.splice(i, 1); });
   });
@@ -1368,6 +1385,7 @@ function renderSlideshow(m, ti) {
   $("#ss-td").onchange = (e) => edit((x) => { const v = Number(e.target.value); if (v && v !== 1) x.transition_duration = v; else delete x.transition_duration; });
   $("#ss-audio").onchange = (e) => edit((x) => { if (e.target.value) x.audio = e.target.value; else delete x.audio; });
   $("#ss-pz").onchange = (e) => edit((x) => { if (e.target.checked) x.pan_zoom = true; else delete x.pan_zoom; });
+  $("#ss-fit").onchange = (e) => edit((x) => { if (e.target.value === "fill") x.fit = "fill"; else delete x.fit; });
   $("#ss-play").onclick = async () => {
     const btn = $("#ss-play"), msg = $("#proxy-msg"), video = $("#player");
     btn.disabled = true; msg.hidden = false; msg.textContent = t("rendering");

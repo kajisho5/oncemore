@@ -25,9 +25,12 @@ def resolve(title, disc, probe):
     num, den = title_fps(title, disc)
     total = 0.0
     for c in title.clips:
-        dur = probe(c.source).get("duration") or 0.0
-        end = min(c.end, dur) if c.end is not None else dur
-        length = max(0.0, end - c.start)
+        if c.still:
+            length = c.hold
+        else:
+            dur = probe(c.source).get("duration") or 0.0
+            end = min(c.end, dur) if c.end is not None else dur
+            length = max(0.0, end - c.start)
         c.duration = math.ceil(length * num / den - 1e-6) * den / num
         total += c.duration
     return total
@@ -60,9 +63,14 @@ def _sig(path):
         return [path, None, None]
 
 
+def clip_key(c, sig):
+    """What a clip's picture depends on, for cache keys."""
+    return [sig, c.start, c.end] + ([c.hold, c.fit] if c.still else [])
+
+
 def preview_path(base_dir, title, disc):
     key = json.dumps({"v": CACHE_VERSION,
-                      "clips": [[_sig(c.source), c.start, c.end] for c in title.clips],
+                      "clips": [clip_key(c, _sig(c.source)) for c in title.clips],
                       "disc": [disc.standard, disc.aspect, disc.width, disc.height, disc.fps],
                       "mode": getattr(title, "video_mode", None)},
                      sort_keys=True, default=str)
