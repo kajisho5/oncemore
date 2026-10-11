@@ -179,13 +179,18 @@ def encode_title(title, info, disc, max_bps, out_path, work, fast=False, on_prog
         extra, agraph, alabels = encode.audio_graph(plain, probes)
         inputs = ["-i", title.source] + extra
         vf = encode.fit_filter(info, hd, mode=mode, ivtc=encode.is_ivtc(title))
+        vin = "0:v:0"
+        if "still" in info:
+            # sound only: the picture comes from its own input, after the sound's
+            inputs += encode.still_input(info, disc.fps, duration, (WIDTH, HEIGHT))
+            vin = f"{inputs.count('-i') - 1}:v:0"
         if title.audio_passthrough:
             sources = [title.source] + [extra[i + 1] for i in range(0, len(extra), 2)]
-            maps = ["-map", "0:v:0", "-vf", vf]
+            maps = ["-map", vin, "-vf", vf]
             for tr in title.audio_tracks:
                 maps += ["-map", f"{sources.index(tr.source)}:a:{tr.stream}"]
         else:
-            maps = ["-filter_complex", f"[0:v:0]{vf}[v];{agraph}", "-map", "[v]"]
+            maps = ["-filter_complex", f"[{vin}]{vf}[v];{agraph}", "-map", "[v]"]
             for lab in alabels:
                 maps += ["-map", lab]
         tracks = len(title.audio_tracks)

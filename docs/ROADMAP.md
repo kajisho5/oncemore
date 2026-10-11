@@ -236,6 +236,10 @@ browser) and lands only with green CI.
 - [x] `advance: manual`: every picture held until Next / Play, on DVD and
   Blu-ray
 
+**P44 — Titles from sound files** (done)
+- [x] A sound file as a title's source (music), shown with a still picture
+  or black, on DVD and Blu-ray; thumbnails show the picture
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

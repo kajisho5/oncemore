@@ -472,6 +472,10 @@
           "$ref": "#/$defs/bitrate",
           "description": "This title's own average video bitrate (1-8 Mbit/s); the other titles share what is left on the disc."
         },
+        "picture": {
+          "type": "string",
+          "description": "A still picture shown for the whole title when its source is sound only (music); without it the screen is black."
+        },
         "transcode": {
           "type": "boolean",
           "default": true,

@@ -113,6 +113,7 @@ const I18N = {
     new_menu_with_bg: "New menu with this background",
     menu_props: "Menu", background: "Background image", background_video: "Background video",
     background_color: "Background colour", music: "Music", duration: "Loop length (s)",
+    sound_picture: "Picture", black: "Black", sound_picture_hint: "The source is sound only: this still is shown while it plays.",
     advance_manual: "Advance by hand (each picture stays until Next / Play)",
     add_music: "+ Add music…", fit_to_music: "Fit the pictures to the music (their seconds become proportions)", fitted_to: "Fitted: {d}",
     font_size: "Text size", text_color: "Text colour", highlight: "Highlight", select_color: "Activated",
@@ -307,6 +308,7 @@ const I18N = {
     new_menu_with_bg: "この背景で新しいメニュー",
     menu_props: "メニュー", background: "背景画像", background_video: "背景動画",
     background_color: "背景色", music: "BGM", duration: "ループ長（秒）",
+    sound_picture: "画像", black: "黒", sound_picture_hint: "素材が音声のみなので、再生中はこの静止画を表示します。",
     advance_manual: "手動で送る（次へ／再生を押すまで写真を表示）",
     add_music: "＋BGM を追加…", fit_to_music: "写真の表示時間を BGM の長さに合わせる（秒数は比率になります）", fitted_to: "調整後：{d}",
     font_size: "文字サイズ", text_color: "文字色", highlight: "選択中の色", select_color: "決定時の色",
@@ -1680,7 +1682,8 @@ function renderTitleInspector(el) {
     <label class="field"><span>${t("name")}</span><input data-k="name" value="${esc(ti.name || "")}"></label>
     <label class="field"><span>${t("id")}</span><input id="ti-id" value="${esc(ti.id)}"><div class="hint">${esc(t("rename_hint"))}</div></label>
     ${ti.slideshow || ti.clips ? `<label class="field"><span>${t("source")}</span><div class="hint">${esc(ti.clips ? t("clips_n", { n: ti.clips.length }) : t("slideshow"))}</div></label>`
-      : `<label class="field"><span>${t("source")}</span>${selectHtml("source", mediaOf("video").map((v) => [v, v]), ti.source)}</label>`}
+      : `<label class="field"><span>${t("source")}</span>${selectHtml("source", [...mediaOf("video"), ...mediaOf("audio")].map((v) => [v, v]), ti.source)}</label>`}
+    ${mediaOf("audio").includes(ti.source) ? `<label class="field"><span>${t("sound_picture")}</span>${selectHtml("picture", [["__none__", t("black")], ...mediaOf("image").map((v) => [v, v.replace(/^media\//, "")])], ti.picture || "__none__")}<div class="hint">${esc(t("sound_picture_hint"))}</div></label>` : ""}
     <label class="field"><span>${t("aspect")}</span>${selectHtml("aspect", [["__none__", `${t("auto")} (${P().disc.aspect})`], ["16:9", "16:9"], ["4:3", "4:3"]], ti.aspect || "__none__")}</label>
     ${ti.slideshow || ti.clips ? "" : `<label class="field"><span></span><label><input type="checkbox" id="ti-copy" ${ti.transcode === false ? "checked" : ""}> ${t("no_transcode")}</label><div class="hint">${esc(t("no_transcode_hint"))}</div></label>`}
     ${ti.transcode === false ? "" : `<label class="field"><span>${t("scan")}</span>${selectHtml("scan", [["__none__", t("scan_auto")], ["progressive", t("scan_progressive")], ["interlaced", t("scan_interlaced")], ...(P().disc.standard === "NTSC" ? [["pulldown", t("scan_pulldown")], ["ivtc", t("scan_ivtc")]] : [])], ti.scan || "__none__")}<div class="hint">${esc(t("scan_hint"))}</div></label>`}
@@ -2564,6 +2567,7 @@ async function renderMediaInspector(el) {
     if (menu) actions.push(`<button class="primary" data-act="bg">${t("use_as_bg")}</button>`, `<button data-act="pic">${t("place_on_menu")}</button>`);
     actions.push(`<button data-act="newmenu">${t("new_menu_with_bg")}</button>`);
   }
+  if (item.kind === "audio") actions.push(`<button ${menu ? "" : 'class="primary"'} data-act="title">${t("add_as_title")}</button>`);
   if (item.kind === "audio" && menu) actions.push(`<button data-act="music">${t("use_as_music")}</button>`);
   if (item.kind === "design") actions.push(`<button class="primary" data-act="psd">${t("make_menu_from_psd")}</button><div class="hint">${esc(t("import_psd_hint"))}</div>`);
   if (item.kind === "subtitle" && (P().titles || []).length)
@@ -3759,6 +3763,7 @@ function mediaMenu(path) {
   const menu = S.sel.view === "menu" ? curMenu() : null, out = [];
   if (item.kind === "video") { out.push({ label: t("add_as_title"), run: () => mediaAction("title", path) }); if (menu) out.push({ label: t("use_as_video_bg"), run: () => mediaAction("vbg", path) }); }
   if (item.kind === "image") { if (menu) out.push({ label: t("use_as_bg"), run: () => mediaAction("bg", path) }, { label: t("place_on_menu"), run: () => placeMenuPicture(path) }); out.push({ label: t("new_menu_with_bg"), run: () => mediaAction("newmenu", path) }); }
+  if (item.kind === "audio") out.push({ label: t("add_as_title"), run: () => mediaAction("title", path) });
   if (item.kind === "audio" && menu) out.push({ label: t("use_as_music"), run: () => mediaAction("music", path) });
   if (item.kind === "design") out.push({ label: t("make_menu_from_psd"), run: () => mediaAction("psd", path) });
   if (out.length) out.push("-");
