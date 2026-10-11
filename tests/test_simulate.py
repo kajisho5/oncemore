@@ -60,7 +60,7 @@ def rich_project():
         {"id": "b4", "label": "B THEN BACK", "x": 120, "y": 400, "action": "title:t2",
          "override": "menu:setup:back"},
         {"id": "tail", "label": "TAIL", "x": 120, "y": 160, "action": "playlist:tail"},
-        {"id": "b5", "label": "B THEN ALL", "x": 300, "y": 160, "action": "title:t2",
+        {"id": "b5", "label": "B+ALL", "x": 300, "y": 160, "action": "title:t2",
          "override": "playall"}]
     d["menus"].append({"id": "setup", "remember_button": False, "buttons": [
         {"id": "a1", "label": "AUDIO 1", "x": 100, "y": 150, "action": "audio:1"},
@@ -407,7 +407,7 @@ class TestSimulatorMatchesDisc(unittest.TestCase):
 
     def test_end_actions_on_disc(self):
         """TAIL plays chapter 3 of title 2 (titleset 2), then chapter 3 of
-        title 1 (through the VMGM); B THEN ALL plays title 2, then all."""
+        title 1 (through the VMGM); B+ALL plays title 2, then all."""
         sim = Simulator(self.project, self.layouts)
         s = sim.start()
         with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
