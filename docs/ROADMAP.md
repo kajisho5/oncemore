@@ -365,8 +365,72 @@ browser) and lands only with green CI.
 - [x] Oncemore.app's native menu bar made from the page's (same items,
   language, keys, greyed and ticked state)
 
-Not planned: copy protection of any kind (never); DDP masters. Multi-angle
-titles are left for later.
+## Next
+
+What is still to do, in order. Each item becomes a numbered milestone (one
+pull request with tests) when it is started.
+
+**Parity: what the classic apps did that oncemore does not yet** (checked
+against their published help, not from memory)
+
+- [ ] Multi-page menus: one menu with several pages of buttons (a layer
+  group per page in a Photoshop file, or Menu > Add New Page), previous /
+  next page, a chapter index spread over pages. Pages of one menu on
+  Blu-ray and the web version; separate menus linked to each other on DVD
+- [ ] DTS-HD kept as it is on Blu-ray (today DTS is cut down to its core)
+- [ ] Chapter playlists played in random order or shuffled, on Blu-ray and
+  the web version (DVD keeps the order, as the classic apps did)
+- [ ] Slideshows of more than 99 pictures (the rest in the last chapter on
+  DVD; up to 999 on Blu-ray)
+- [ ] Text: letter spacing, kerning, bold and italic (of fonts that have
+  those faces)
+- [ ] Highlights: make a button's highlight layer from its own pixels or a
+  shape in the editor, and replace it with another picture
+- [ ] Replace a menu's background and layout with a template, keeping its
+  buttons' links
+- [ ] Media cache in a folder of your choosing (Preferences)
+- [ ] Bit budget: per title and menu, the bitrate and the space it takes
+  on the disc, as a bar of the whole disc, before anything is encoded
+
+**Beyond the classic apps**
+
+- [ ] Update notice: the app says when a newer release is out, with its
+  notes, and opens the download (nothing is installed without asking)
+- [ ] Chapters from the picture: suggested chapter points where the scene
+  changes, and the best thumbnail frame near each, to accept or drop
+- [ ] Loudness: measure each title's loudness and offer to even them out
+  (EBU R128), so menus and titles do not jump in level
+- [ ] Quality preview: encode a few seconds at the planned bitrate and show
+  them next to the source before the whole build
+- [ ] Player test disc: one command builds a disc that exercises menus,
+  remote keys, audio / subtitle switching and end actions, with a printed
+  checklist, so people with a set-top player can report what works
+- [ ] Share templates and styles: export menu templates and my styles as one
+  file, and import it on another computer (fonts included)
+- [ ] Accessibility of the app: keyboard reach for every panel, labels for
+  screen readers, a high-contrast theme
+- [ ] Accessible discs: menu templates with large, high-contrast buttons
+  and highlights; an audio description track marked as such
+- [ ] Watched marks: chapter menus that show which chapters were played,
+  kept in the player's registers while the disc is in
+- [ ] Batch builds: build several projects (a series) in one go from the
+  command line and the MCP server, with one shared template
+- [ ] Web version for hosting: an app manifest and offline caching when
+  it is served from a web site (opening the folder from disk works today)
+- [ ] Multi-angle titles, and DVD titlesets written by oncemore itself
+  instead of dvdauthor ([#75](https://github.com/kajisho5/oncemore/issues/75))
+
+**Not planned**
+
+- Copy protection and region codes of any kind (never).
+- DDP masters. The DDP format is not published: its specification comes
+  only under a licence agreement with its owner. A disc image or a DVD-R
+  master is what oncemore makes for replication.
+- Built-in AI services (menu design, subtitle translation). oncemore keeps
+  everything on your own computer; an AI assistant can already author
+  through `oncemore mcp`, which is where such help belongs.
+- Cloud builds and remote encoding (same reason: local first).
+- BD-J (Java) Blu-ray menus; the classic apps did not make them either.
 
 ## Phase 1 — core CLI and project format (done)
 
@@ -429,6 +493,6 @@ overrides (P38), pop-up menus (P42): done.
 
 ## Later
 
-* Replace dvdauthor with a built-in IFO/VOB writer.
+* Replace dvdauthor with a built-in IFO/VOB writer ([#75](https://github.com/kajisho5/oncemore/issues/75)).
 * Built-in UDF 1.02 + ISO 9660 bridge writer, so no external ISO tool is
   needed on any platform (xorriso cannot write UDF; see DECISIONS.md).
