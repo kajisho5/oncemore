@@ -301,6 +301,7 @@ class Disc:
     title_key: str = None      # target of the remote's Title key (None = first menu)
     rom_files: list = field(default_factory=list)   # DVD-ROM content next to VIDEO_TS
     bluray_target: str = "BD25"   # disc size when building a Blu-ray
+    bluray_video: str = "1080"    # the Blu-ray's picture: "1080" or "720" (50 / 59.94p)
     layer_break: tuple = None     # DVD9: (title id, chapter); None = the first that works
 
     @property
@@ -782,6 +783,7 @@ class _Builder:
             font=self.file("disc.font", dd["font"]) if dd.get("font") else None,
             video_bitrate=None if vb == "auto" else parse_bitrate(vb),
             bluray_target=dd.get("bluray", {}).get("target", "BD25"),
+            bluray_video=dd.get("bluray", {}).get("video", "1080"),
         )
         lb = dd.get("layer_break", "auto")
         if lb != "auto":
