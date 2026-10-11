@@ -455,8 +455,8 @@ def _link_or_copy(src, dst):
 
 def picture_count(mpg):
     """How many pictures an encoded title's program stream has."""
-    with open(mpg, "rb") as f:
-        return len(vtskit_ps.scan(vtskit_ps.drop_padding(f.read())).pictures)
+    with vtskit_ps.Mapped(mpg) as data:
+        return len(vtskit_ps.scan(data).pictures)
 
 
 def title_cache_key(project, title, info, vbps, fast):
