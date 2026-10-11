@@ -473,6 +473,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `video_bitrate` | `"auto"` or bitrate (`"6M"`, `5500000`), 1–8 Mbit/s | `auto` |
 | `rom_files` | files / folders put next to VIDEO_TS (DVD-ROM content for computers) | none |
 | `bluray.target` | `BD25` \| `BD50`: the disc size when the project is built as a Blu-ray | `BD25` |
+| `bluray.video` | `1080` \| `720`: the Blu-ray's picture. `1080`: 1920×1080 (1080i at 25 / 29.97, film at 1080p 23.976). `720`: 1280×720 progressive at 50 / 59.94 (twice the disc's rate, so 50p / 60p motion is kept; film at 720p 23.976) | `1080` |
 | `subtitle_style` | `{size, color, outline, outline_width, margin}` for all subtitles | 30 px (PAL 36), white, black outline 3 px, 36 px (PAL 43) from the bottom |
 
 **titles[]** (1–99)
@@ -492,7 +493,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `video_bitrate` | this title's own video bitrate; the other titles share the rest | shared |
 | `scan` | `auto` \| `progressive` \| `interlaced` \| `pulldown` (NTSC film) \| `ivtc` (NTSC: film already telecined to 29.97i — its film frames are recovered and stored with soft pulldown): how the picture is stored, see Known limitations | `auto` |
 | `picture` | a still shown for the whole title when its `source` is a sound file (music); without it the screen is black | none |
-| `transcode` | `false`: the source already is DVD video (MPEG-2 at the disc's frame size and rate or NTSC 23.976 film, the disc's aspect, at most 9.8 Mbit/s) and its picture goes on the disc as it is; the sound is still made to the title's settings, chapters start at key frames of the source (GOP starts), not exactly at their times. On a Blu-ray the same setting copies an H.264 picture that already is Blu-ray video (High or Main profile up to level 4.1, 1920x1080 4:2:0 square pixels, 23.976 progressive or 25 / 29.97 coded for fields as 1080i, a key frame at least every second, at most 40 Mbit/s); any other picture is encoded with a warning saying why | `true` |
+| `transcode` | `false`: the source already is DVD video (MPEG-2 at the disc's frame size and rate or NTSC 23.976 film, the disc's aspect, at most 9.8 Mbit/s) and its picture goes on the disc as it is; the sound is still made to the title's settings, chapters start at key frames of the source (GOP starts), not exactly at their times. On a Blu-ray the same setting copies an H.264 picture that already is Blu-ray video (High or Main profile up to level 4.1, 4:2:0, 1920x1080 square pixels or 1440x1080 with 4:3 pixels as AVCHD cameras record, 23.976 progressive or 25 / 29.97 coded for fields as 1080i; on a `720` disc 1280x720 at 50 / 59.94, a key frame at least every second, at most 40 Mbit/s); any other picture is encoded with a warning saying why | `true` |
 | `audio.channels` | `2` (stereo, sources are down-mixed) \| `6` (5.1, AC-3 only) | `2` |
 | `end_action` | `menu:<id>` \| `title:<id>` \| `chapter:<title id>:<n>` \| `playlist:<id>` \| `playall` \| `lastmenu` (back to the menu shown last) \| `stop` | first-play menu, else `stop` |
 | `remote_menu` | menu the remote's Menu key opens during this title | first menu |
@@ -789,7 +790,11 @@ metadata file and its mirror):
 
 * every title in HD (1920×1080, H.264 with x264's Blu-ray settings; film at
   23.976p, NTSC video as 29.97 and PAL as 25 frames per second in a 1080i
-  stream), with its audio tracks (AC-3 or LPCM) and their languages;
+  stream), with its audio tracks (AC-3 or LPCM) and their languages. With
+  `disc.bluray.video: "720"` (Build > Picture) the whole disc is 1280×720
+  progressive at 59.94 (NTSC) or 50 (PAL) frames a second instead, so 60p
+  and 50p sources and the fields of 1080i ones keep their motion (film stays
+  23.976p); menus and subtitles are drawn for the same frame;
 * chapters on frames made key frames, so they start exactly there;
 * first play, each title's end action when it starts another title, the
   project's playlists (chapter ranges included) and Play All as Blu-ray
