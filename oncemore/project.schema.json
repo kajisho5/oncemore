@@ -1040,8 +1040,16 @@
           "description": "Pictures of another shape than the frame: fit shows all of each with the background colour around; fill fills the frame and crops what is outside."
         },
         "audio": {
-          "type": "string",
-          "description": "Music, cut to the slideshow's length and faded out."
+          "anyOf": [
+            {"type": "string"},
+            {"type": "array", "minItems": 1, "maxItems": 20, "items": {"type": "string"}}
+          ],
+          "description": "Music: one file, or several played one after another; cut to the slideshow's length and faded out."
+        },
+        "fit_to_audio": {
+          "type": "boolean",
+          "default": false,
+          "description": "Stretch or shorten the pictures' durations (in proportion) so the slideshow is exactly as long as its music."
         },
         "background_color": {
           "$ref": "#/$defs/color",

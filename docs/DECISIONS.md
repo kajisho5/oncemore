@@ -971,3 +971,16 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   title's (and a chapter's) object checks it after playing: for k it jumps
   to override object k, which clears it and goes where the override says.
 
+## 62. Slideshows fitted to their music
+
+* The music's length is only known once it is probed, so a slideshow with
+  `fit_to_audio` is fitted where the build probes its sources (and when the
+  app renders it): the durations are scaled, then the title points at the
+  render for those durations and its chapters move to the new starts. In
+  the project file the durations stay what the author typed: proportions.
+* The project's check that every picture outlasts the cross-fade is left
+  to the fitting for such shows: it keeps each picture 0.1 s longer than
+  the fade.
+* Several pieces of music are each resampled to one format and joined with
+  concat before the usual trim and fade-out.
+

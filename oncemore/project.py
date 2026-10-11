@@ -799,6 +799,7 @@ class _Builder:
             # the picture show is rendered into the cache; that file is the source
             tdisc = dataclasses.replace(self._disc, aspect=t.get("aspect") or self._disc.aspect)
             source = slideshow.output_path(self.base, show, tdisc)
+            show.auto_chapters = "chapters" not in t
             if "chapters" not in t:
                 chapters = show.starts()
                 names, posters = [None] * len(chapters), [None] * len(chapters)
@@ -968,10 +969,17 @@ class _Builder:
             slides=slides, transition=spec.get("transition", "crossfade"),
             transition_duration=float(spec.get("transition_duration", 1.0)),
             pan_zoom=bool(spec.get("pan_zoom")),
-            audio=self.file(f"{where}.slideshow.audio", spec.get("audio")),
+            audio=([self.file(f"{where}.slideshow.audio[{j}]", a)
+                    for j, a in enumerate(spec["audio"])]
+                   if isinstance(spec.get("audio"), list)
+                   else self.file(f"{where}.slideshow.audio", spec.get("audio"))),
             background_color=spec.get("background_color", "#000000"),
-            fit=spec.get("fit", "fit"))
-        if show.fade and any(s.duration <= show.fade for s in slides):
+            fit=spec.get("fit", "fit"), fit_to_audio=bool(spec.get("fit_to_audio")))
+        if show.fit_to_audio and not show.music:
+            self.err(f"{where}.slideshow.fit_to_audio", "needs music (audio)")
+        # (fitted to the music the durations are proportions; fit_to keeps each
+        # longer than the fade)
+        if show.fade and not show.fit_to_audio and any(s.duration <= show.fade for s in slides):
             self.err(f"{where}.slideshow.transition_duration",
                      "every slide must be longer than the cross-fade")
         return show

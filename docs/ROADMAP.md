@@ -216,6 +216,10 @@ browser) and lands only with green CI.
   menus held for their length)
 - [x] End-action overrides on Blu-ray
 
+**P39 — Slideshow music** (done)
+- [x] Several pieces of music played one after another
+- [x] Fit the pictures to the music (durations as proportions)
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

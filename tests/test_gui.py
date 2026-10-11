@@ -1024,6 +1024,12 @@ class TestGuiBrowser(unittest.TestCase):
             page.goto(f"{self.s.base}/#token={self.s.app.token}")
             page.click("#np-sample")
             page.locator(".nav-item[data-view=title][data-id=t1]").wait_for(timeout=120000)
+            # two pieces of music in Media (3 s and 2 s)
+            for name, secs in (("song1.wav", 3), ("song2.wav", 2)):
+                subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
+                                f"sine=d={secs}", os.path.join(self.dir, "media", name)], check=True)
+            page.reload()
+            page.locator(".nav-item[data-view=title][data-id=t1]").wait_for(timeout=120000)
             # a slideshow from the pictures in Media
             page.click("#add-slideshow")
             page.locator("[data-slide='0']").wait_for()
@@ -1042,13 +1048,31 @@ class TestGuiBrowser(unittest.TestCase):
             page.select_option("[data-slide='1'] [data-f=fit]", "fit")
             self.poll(lambda: self.project()["titles"][-1]["slideshow"]["slides"][1].get("fit"))
             self.wait_saved(page)
+            # both pieces of music, the pictures fitted to them
+            page.select_option("#ss-audio", "media/song1.wav")
+            page.locator(".ss-music").first.wait_for()
+            self.wait_saved(page)
+            page.select_option("#ss-audio", "media/song2.wav")
+            page.locator(".ss-music").nth(1).wait_for()
+            self.wait_saved(page)
+            page.check("#ss-fitaudio")
+            self.wait_saved(page)
             sh = self.project()["titles"][-1]["slideshow"]
             self.assertEqual(sh, {"slides": [{"image": "media/menu_bg.png", "duration": 3},
                                              {"image": "media/menu_bg.png", "fit": "fit"}],
-                                  "pan_zoom": True, "transition": "none", "fit": "fill"})
+                                  "pan_zoom": True, "transition": "none", "fit": "fill",
+                                  "audio": ["media/song1.wav", "media/song2.wav"],
+                                  "fit_to_audio": True})
             self.assertTrue(self.s.app.check(self.project())["valid"])
             page.click("#ss-play")
             page.locator("#player:not([hidden])").wait_for(timeout=180000)
+            # 3 : 5 of the music's 5 s
+            self.assertEqual(page.inner_text("[data-slide='0'] [data-fitted]"), "Fitted: 1.9 s")
+            self.assertEqual(page.inner_text("[data-slide='1'] [data-fitted]"), "Fitted: 3.1 s")
+            # one piece removed: a single file again
+            page.click("[data-rmmusic='1']")
+            self.poll(lambda: self.project()["titles"][-1]["slideshow"].get("audio") ==
+                      "media/song1.wav")
             # subtitles: a new track, two cues typed in, one removed
             page.click(".nav-item[data-view=title][data-id=t1]")
             page.click("#sub-new")

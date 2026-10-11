@@ -67,6 +67,40 @@ class TestGraph(unittest.TestCase):
         self.assertIn("[2:a]aresample=48000,atrim=duration=8.000", fc)
         self.assertIn("afade=t=out:st=6.000:d=2.000", fc)
 
+    def test_several_pieces_of_music(self):
+        s = show(4, 4, audio=["/music/a.flac", "/music/b.mp3"])
+        args, fc, has_audio = S.graph(s, disc())
+        self.assertTrue(has_audio)
+        self.assertEqual(args[-4:], ["-i", "/music/a.flac", "-i", "/music/b.mp3"])
+        self.assertIn("[m0][m1]concat=n=2:v=0:a=1,atrim=duration=8.000", fc)
+        self.assertEqual(s.music, ["/music/a.flac", "/music/b.mp3"])
+        self.assertEqual(show(4, audio="/music/a.flac").music, ["/music/a.flac"])
+        self.assertNotEqual(S.output_path("/p", s, disc()),
+                            S.output_path("/p", show(4, 4, audio=["/music/a.flac"]), disc()))
+
+    def test_fit_to_audio(self):
+        s = show(1, 3, transition="none")
+        S.fit_to(s, 10)
+        self.assertEqual([x.duration for x in s.slides], [2.5, 7.5])
+        s = show(1, 1, 1)                       # 1 s cross-fades: each at least 1.1 s
+        S.fit_to(s, 1.5)
+        self.assertTrue(all(x.duration >= 1.1 for x in s.slides))
+        # a title: durations from the probed music, then its render and chapters
+        d = sample_project()
+        d["titles"].append({"id": "pics", "slideshow": {
+            "slides": [{"image": "media/a.jpg", "duration": 2}, {"image": "media/b.jpg"}],
+            "audio": ["media/x.wav", "media/y.wav"], "fit_to_audio": True}})
+        p = P.build_project(d, "/virtual/project.oncemore.json", check_files=False)
+        t = p.titles[-1]
+        before = t.source
+        S.apply(t, p.disc, {"/virtual/media/x.wav": {"duration": 9.0},
+                            "/virtual/media/y.wav": {"duration": 5.0}}.__getitem__)
+        self.assertEqual([x.duration for x in t.slideshow.slides], [4.0, 10.0])
+        self.assertEqual(t.chapters, [0.0, 4.0])
+        self.assertNotEqual(t.source, before)
+        self.assertTrue(t.source.startswith("/virtual/.oncemore-cache/slideshow/"))
+        self.assertEqual(t.audio_tracks[0].source, t.source)
+
     def test_fit_and_fill(self):
         _, fc, _ = S.graph(show(4, 4), disc())
         self.assertEqual(fc.count("force_original_aspect_ratio=decrease"), 2)
@@ -137,6 +171,7 @@ class TestProjectFields(unittest.TestCase):
         d["titles"][-1]["slideshow"]["slides"] = []
         self.assertIn("slides", self.issues(d))
         self.assertIn("fit", self.issues(self.data(fit="crop")))
+        self.assertIn("slideshow.fit_to_audio: needs music", self.issues(self.data(fit_to_audio=True)))
         d = self.data()
         del d["titles"][-1]["slideshow"]
         self.issues(d)                                       # neither source nor slideshow
