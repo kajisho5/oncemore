@@ -301,6 +301,7 @@ class Disc:
     title_key: str = None      # target of the remote's Title key (None = first menu)
     rom_files: list = field(default_factory=list)   # DVD-ROM content next to VIDEO_TS
     bluray_target: str = "BD25"   # disc size when building a Blu-ray
+    subtitles_off: bool = False   # subtitles off from the start (unless a track is the default)
     layer_break: tuple = None     # DVD9: (title id, chapter); None = the first that works
 
     @property
@@ -330,6 +331,7 @@ class AudioTrack:
     source: str          # file to take the audio from (default: the title source)
     stream: int = 0      # index among that file's audio streams
     lang: str = None     # ISO 639-1 code
+    default: bool = False  # the disc starts with this track (DECISIONS §101)
 
 
 @dataclass
@@ -782,6 +784,7 @@ class _Builder:
             font=self.file("disc.font", dd["font"]) if dd.get("font") else None,
             video_bitrate=None if vb == "auto" else parse_bitrate(vb),
             bluray_target=dd.get("bluray", {}).get("target", "BD25"),
+            subtitles_off=bool(dd.get("subtitles_off")),
         )
         lb = dd.get("layer_break", "auto")
         if lb != "auto":
@@ -1016,8 +1019,10 @@ class _Builder:
             tracks = [AudioTrack(
                 source=self.file(f"{where}.audio_tracks[{j}].source", a["source"])
                 if a.get("source") else source,
-                stream=a.get("stream", 0), lang=a.get("lang"))
+                stream=a.get("stream", 0), lang=a.get("lang"), default=bool(a.get("default")))
                 for j, a in enumerate(t["audio_tracks"])]
+            if sum(1 for a in tracks if a.default) > 1:
+                self.err(f"{where}.audio_tracks", "only one audio track can be the default")
         else:
             tracks = [AudioTrack(source=source, stream=0, lang=audio.get("lang"))]
         subs = [SubtitleTrack(file=self.file(f"{where}.subtitles[{j}].file", sub["file"]),

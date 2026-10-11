@@ -371,6 +371,7 @@ oncemore は標準ライブラリだけ・オフラインのままです。
 | `layer_break` | DVD9：2 層目が始まる位置：`auto` \| `<タイトル id>:<チャプター>` | `auto`（中ほどより後の最初のチャプター） |
 | `first_play` | `menu:<id>` \| `title:<id>` \| `playall` | 最初のメニュー、無ければ最初のタイトル |
 | `title_key` | リモコンのタイトル／トップメニューキーで開くもの：`menu:<id>` \| `title:<id>` \| `playall` | 最初のメニュー |
+| `subtitles_off` | `true`：プレーヤーの言語設定に任せず、字幕オフでディスクを始めます（`default` の字幕トラックがあればそちらが優先）。最初の再生で 1 回だけ設定 | `false` |
 | `font` | パス または `null` | 自動：ヒラギノ（macOS）→ Noto Sans CJK → DejaVu Sans |
 | `video_bitrate` | `"auto"` かビットレート（`"6M"`、`5500000`）、1〜8 Mbps | `auto` |
 | `rom_files` | VIDEO_TS と並べて入れるファイル／フォルダ（パソコン向けの DVD-ROM コンテンツ） | なし |
@@ -401,7 +402,7 @@ oncemore は標準ライブラリだけ・オフラインのままです。
 | `prohibit` | このタイトルの再生中は効かないリモコン操作（ユーザー操作）。例：飛ばせない注意書き `["next", "fast_forward", "menu"]`。指定できるのは `next` `prev`（チャプター送り・戻し）、`fast_forward` `rewind`、`pause`、`stop`、`search`（数字キー：タイトル・チャプター・時間の検索）、`menu`（メニュー／ポップアップキー）、`title`（タイトル／トップメニューキー）、`audio`、`subtitle` | なし |
 | `aspect` | このタイトルの `4:3` \| `16:9` | `disc.aspect` |
 | `audio.lang` | 音声（1 トラック時）の ISO 639-1 言語コード | なし |
-| `audio_tracks` | 1〜8 個の `{source?, stream?, lang?}`：複数音声（下記） | `source` の音声 1 本 |
+| `audio_tracks` | 1〜8 個の `{source?, stream?, lang?, default?}`：複数音声（下記）。`default: true`（タイトルごとに 1 つ）：ディスクをその音声トラックで始めます。最初の再生で 1 回だけ設定するので、後で視聴者が選んだものはそのまま | `source` の音声 1 本 |
 | `subtitles` | 32 個までの `{file, lang?, default?}` SRT ファイル（下記） | なし |
 | `captions` | NTSC の DVD のクローズドキャプション（Line 21、CEA-608）：Scenarist の `.scc` はそのまま、字幕ファイルはポップオン方式のキャプションとして。`{file, offset}` も可（下記） | なし |
 | `auto_chapter_menu` | `true` またはオブジェクト（下記） | なし |
