@@ -49,6 +49,7 @@ const I18N = {
     scan_interlaced: "Interlaced (keep fields)", scan_pulldown: "Film, 3:2 pulldown (23.976)",
     scan_ivtc: "Telecined film (29.97i → 23.976 + pulldown)",
     scan_hint: "Automatic keeps interlaced and 60p video as fields and stores 23.976 film with pulldown flags.",
+    no_transcode: "Don't transcode (the source already is DVD video)", no_transcode_hint: "MPEG-2 at the disc's frame size and rate goes on the disc as it is; the sound is still made to the settings below. The build says why when the file does not qualify.", status_no_transcode: "Don't transcode",
     auto_shared: "Automatic (share the disc)", passthrough: "Copy AC-3 unchanged",
     passthrough_hint: "For AC-3 (48 kHz) sources: no re-encoding. Channels must match the source.",
     rom_files: "DVD-ROM files", rom_hint: "Files or folders (one per line, relative to the project) put next to VIDEO_TS for computers.",
@@ -239,6 +240,7 @@ const I18N = {
     scan_interlaced: "インターレース（フィールドを保持）", scan_pulldown: "フィルム・3:2 プルダウン（23.976）",
     scan_ivtc: "テレシネ済みフィルム（29.97i → 23.976 + プルダウン）",
     scan_hint: "自動では、インターレースと 60p の映像はフィールドのまま、23.976 のフィルム素材はプルダウン指定で収録します。",
+    no_transcode: "トランスコードしない（素材がすでに DVD ビデオ）", no_transcode_hint: "ディスクと同じフレームサイズ・フレームレートの MPEG-2 をそのまま収録します。音声は下の設定で作り直します。条件を満たさないファイルはビルド時に理由を表示します。", status_no_transcode: "トランスコードしない",
     auto_shared: "自動（ディスク全体で配分）", passthrough: "AC-3 をそのままコピー",
     passthrough_hint: "AC-3（48kHz）素材向け：再エンコードしません。チャンネル数は素材と同じにしてください。",
     rom_files: "DVD-ROM ファイル", rom_hint: "パソコン向けに VIDEO_TS と並べて入れるファイル／フォルダ（1 行に 1 つ、プロジェクトからの相対パス）。",
@@ -939,7 +941,7 @@ function renderTimelinesPanel(sb) {
       <div class="prow phead"><span class="c-name">${t("col_name")}</span><span class="c-type">${t("col_chapters")}</span><span class="c-len">${t("col_transcode")}</span></div>
       ${ts.map((ti) => `<div class="nav-item prow ${v.view === "title" && v.id === ti.id ? "active" : ""}" data-view="title" data-id="${esc(ti.id)}">
         <span class="c-name"><span class="ico k-title">${ICONS.timeline}</span>${esc(ti.name || ti.id)}</span><span class="c-type">${chaptersOf(ti).length}</span>
-        <span class="c-len">${S.encStatus && ti.id in S.encStatus ? t(S.encStatus[ti.id] ? "status_transcoded" : "status_untranscoded") : ""}</span></div>`).join("")}
+        <span class="c-len">${ti.transcode === false ? t("status_no_transcode") : S.encStatus && ti.id in S.encStatus ? t(S.encStatus[ti.id] ? "status_transcoded" : "status_untranscoded") : ""}</span></div>`).join("")}
     </div>
     ${cur ? `<div class="sub-head">${esc(t("chapters_of", { t: cur.name || cur.id }))}</div><div class="proj-table">
       ${chapterEntries(cur).map((c, i) => `<div class="prow crow" data-ct="${c.time}"><span class="c-name"><span class="ico k-chapter">◆</span>${i + 1}${c.name ? " · " + esc(c.name) : ""}</span><span class="c-type mono">${fmtTime(c.time)}</span><span class="c-len"></span></div>`).join("")}</div>` : ""}
@@ -1660,7 +1662,8 @@ function renderTitleInspector(el) {
     ${ti.slideshow || ti.clips ? `<label class="field"><span>${t("source")}</span><div class="hint">${esc(ti.clips ? t("clips_n", { n: ti.clips.length }) : t("slideshow"))}</div></label>`
       : `<label class="field"><span>${t("source")}</span>${selectHtml("source", mediaOf("video").map((v) => [v, v]), ti.source)}</label>`}
     <label class="field"><span>${t("aspect")}</span>${selectHtml("aspect", [["__none__", `${t("auto")} (${P().disc.aspect})`], ["16:9", "16:9"], ["4:3", "4:3"]], ti.aspect || "__none__")}</label>
-    <label class="field"><span>${t("scan")}</span>${selectHtml("scan", [["__none__", t("scan_auto")], ["progressive", t("scan_progressive")], ["interlaced", t("scan_interlaced")], ...(P().disc.standard === "NTSC" ? [["pulldown", t("scan_pulldown")], ["ivtc", t("scan_ivtc")]] : [])], ti.scan || "__none__")}<div class="hint">${esc(t("scan_hint"))}</div></label>
+    ${ti.slideshow || ti.clips ? "" : `<label class="field"><span></span><label><input type="checkbox" id="ti-copy" ${ti.transcode === false ? "checked" : ""}> ${t("no_transcode")}</label><div class="hint">${esc(t("no_transcode_hint"))}</div></label>`}
+    ${ti.transcode === false ? "" : `<label class="field"><span>${t("scan")}</span>${selectHtml("scan", [["__none__", t("scan_auto")], ["progressive", t("scan_progressive")], ["interlaced", t("scan_interlaced")], ...(P().disc.standard === "NTSC" ? [["pulldown", t("scan_pulldown")], ["ivtc", t("scan_ivtc")]] : [])], ti.scan || "__none__")}<div class="hint">${esc(t("scan_hint"))}</div></label>`}
     <label class="field"><span>${t("end_action")} ${whipHtml("end_action")}</span>${selectHtml("end_action", [["__none__", t("auto")], ...ends], ti.end_action || "__none__")}</label>
     <label class="field"><span>${t("menu_key")}</span>${selectHtml("remote_menu", [["__none__", t("first_menu")], ...allMenuIds().map((id) => [id, t("menu_item", { m: id })])], ti.remote_menu || "__none__")}</label>
     <h3>${t("audio")}</h3>
@@ -1668,7 +1671,7 @@ function renderTitleInspector(el) {
       <label class="field"><span>${t("codec")}</span>${selectHtml("audio.codec", [["ac3", "AC-3"], ["lpcm", "LPCM"]], audio.codec || "ac3")}</label>
       <label class="field"><span>${t("bitrate")}</span>${selectHtml("audio.bitrate", [["128k", "128k"], ["192k", "192k"], ["224k", "224k"], ["256k", "256k"], ["384k", "384k"], ["448k", "448k"]], audio.bitrate || (audio.channels === 6 ? "448k" : "192k"), audio.codec === "lpcm" ? "disabled" : "")}</label>
       <label class="field"><span>${t("channels")}</span>${selectHtml("audio.channels", [["2", t("stereo")], ["6", t("surround")]], String(audio.channels || 2), audio.codec === "lpcm" ? "disabled" : "")}</label>
-      <label class="field"><span>${t("video_bitrate")}</span>${selectHtml("video_bitrate", [["__none__", t("auto_shared")], ...["3M", "4M", "5M", "6M", "7M", "8M"].map((b) => [b, b.replace("M", " Mbit/s")])], ti.video_bitrate || "__none__")}</label>
+      <label class="field"><span>${t("video_bitrate")}</span>${selectHtml("video_bitrate", [["__none__", t("auto_shared")], ...["3M", "4M", "5M", "6M", "7M", "8M"].map((b) => [b, b.replace("M", " Mbit/s")])], ti.video_bitrate || "__none__", ti.transcode === false ? "disabled" : "")}</label>
       <label class="field"><span></span><label title="${esc(t("passthrough_hint"))}"><input type="checkbox" data-k="audio.passthrough" ${audio.passthrough ? "checked" : ""} ${audio.codec === "lpcm" ? "disabled" : ""}> ${t("passthrough")}</label></label>
     </div>
     ${tracks.length ? "" : `<label class="field"><span>${t("language")}</span>${selectHtml("audio.lang", langs, audio.lang || "")}</label>`}
@@ -1710,6 +1713,12 @@ function renderTitleInspector(el) {
       if (a && (key === "audio.codec" && val === "lpcm" || key === "audio.channels" && val === 2)) delete a.channels;
       if (a && (key === "audio.codec" && val === "lpcm" || key === "audio.passthrough" && !val)) delete a.passthrough;
     },
+  });
+  // the picture used as it is: nothing about its encoding applies
+  const copy = el.querySelector("#ti-copy");
+  if (copy) copy.onchange = () => commit((p) => {
+    const x = find(p);
+    if (copy.checked) { x.transcode = false; delete x.scan; delete x.video_bitrate; } else delete x.transcode;
   });
   el.querySelectorAll("[data-track]").forEach((row) => {
     const i = Number(row.dataset.track);

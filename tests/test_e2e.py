@@ -1115,6 +1115,74 @@ class TestSlideshow(unittest.TestCase):
 
 
 @unittest.skipUnless(TOOLS_OK, SKIP_REASON)
+class TestNoTranscode(unittest.TestCase):
+    """A source that already is DVD video: its picture goes on the disc as
+    it is (the same MPEG-2 packets), while its sound is made anew; a source
+    that is not is refused with the reasons."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-e2e-copy-")
+        rc, _, err = run_cli("init", "c", cwd=cls.tmp)
+        assert rc == 0, err
+        proj = os.path.join(cls.tmp, "c")
+        cls.src = os.path.join(proj, "media", "dvd.mpg")
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
+                        "testsrc2=s=720x480:r=30000/1001:d=4", "-f", "lavfi", "-i",
+                        "sine=f=440:d=4", "-target", "ntsc-dvd", "-aspect", "16:9",
+                        "-b:v", "4000000", "-c:a", "mp2", "-b:a", "192k", cls.src], check=True)
+        cls.path = os.path.join(proj, "project.oncemore.json")
+        with open(cls.path) as f:
+            cls.data = json.load(f)
+        cls.data["titles"][1].update({"source": "media/dvd.mpg", "chapters": [0, 2],
+                                      "transcode": False})
+        with open(cls.path, "w") as f:
+            json.dump(cls.data, f)
+        cls.iso = os.path.join(cls.tmp, "c.iso")
+        cls.rc, cls.out, cls.err = run_cli("--json", "iso", cls.path, "-o", cls.iso, "--fast",
+                                           "--keep-work", cwd=cls.tmp)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def video_md5(self, path):
+        return subprocess.run([tools.find("ffmpeg"), "-v", "error", "-i", path, "-map", "0:v",
+                               "-c", "copy", "-f", "md5", "-"],
+                              capture_output=True, text=True, check=True).stdout.strip()
+
+    def test_picture_copied(self):
+        self.assertEqual(self.rc, 0, self.err + self.out)
+        build_dir = json_lines(self.out)[-1]["build_dir"]
+        mpg = os.path.join(build_dir, ".work", "titles", "t2.mpg")
+        self.assertEqual(self.video_md5(mpg), self.video_md5(self.src))
+        audio = [s for s in ffprobe_streams(mpg) if s["codec_type"] == "audio"]
+        self.assertEqual(audio[0]["codec_name"], "ac3")          # the title's audio setting
+        steps = " ".join(e.get("message", "") for e in json_lines(self.out))
+        self.assertNotIn("error", steps.lower())
+
+    @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
+    def test_chapters_on_disc(self):
+        with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
+            d.wait_menu()
+            n = d.button_count()
+            d.activate(n)                                        # SAMPLE TITLE B
+            title, part = d.wait_title()
+            self.assertEqual((part, d.num_parts(title)), (1, 2))
+
+    def test_not_dvd_video_is_refused(self):
+        data = json.loads(json.dumps(self.data))
+        data["titles"][0]["transcode"] = False                   # an MP4 (H.264)
+        path = os.path.join(self.tmp, "c", "bad.oncemore.json")
+        with open(path, "w") as f:
+            json.dump(data, f)
+        rc, out, err = run_cli("--json", "validate", path, cwd=self.tmp)
+        self.assertNotEqual(rc, 0)
+        self.assertIn("titles[0].transcode", out + err)
+        self.assertIn("not MPEG-2", out + err)
+
+
+@unittest.skipUnless(TOOLS_OK, SKIP_REASON)
 class TestScanModes(unittest.TestCase):
     """23.976p film gets soft 3:2 pulldown, 1080i and 59.94p sources stay
     interlaced, and a 25 fps source is converted to progressive 29.97."""

@@ -841,6 +841,17 @@ class TestGuiBrowser(unittest.TestCase):
             page.select_option("#inspector select[data-k=scan]", "__none__")
             self.wait_saved(page)
             self.assertNotIn("scan", self.project()["titles"][0])
+            # the picture used as it is: its encoding settings go away
+            page.check("#ti-copy")
+            self.wait_saved(page)
+            t = self.project()["titles"][0]
+            self.assertEqual(t.get("transcode"), False)
+            self.assertNotIn("video_bitrate", t)
+            self.assertEqual(page.locator("#inspector select[data-k=scan]").count(), 0)
+            self.assertTrue(page.locator("#inspector select[data-k=video_bitrate]").is_disabled())
+            page.uncheck("#ti-copy")
+            self.wait_saved(page)
+            self.assertNotIn("transcode", self.project()["titles"][0])
             # DVD-ROM content on the disc page
             page.click(".nav-item[data-view=disc]")
             page.fill("#rom-files", "extras/\nREADME.txt")

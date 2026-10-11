@@ -56,6 +56,7 @@ def probe(path):
                       "bit_rate": int(s.get("bit_rate", 0) or 0)}
                      for s in streams if s.get("codec_type") == "audio"],
            "duration": _float(fmt.get("duration")) or (_float(v.get("duration")) if v else None),
+           "bit_rate": int(fmt.get("bit_rate", 0) or 0),
            "format": fmt.get("format_name"),
            # chapter markers in the file (MP4, MOV, MKV ...): start and title
            "chapters": _chapters(info)}
@@ -65,6 +66,7 @@ def probe(path):
             "width": int(v["width"]), "height": int(v["height"]), "sar": sar,
             "fps": _ratio(v.get("avg_frame_rate")) or _ratio(v.get("r_frame_rate")),
             "codec": v.get("codec_name"),
+            "video_bit_rate": int(v.get("bit_rate", 0) or 0),
             "interlaced": v.get("field_order") in ("tt", "bb", "tb", "bt"),
             "field_order": v.get("field_order"),
         })
@@ -434,6 +436,40 @@ def clip_graph(title, probes, disc, mode, video=True, audio=True):
     return inputs, ";".join(chains), labels
 
 
+DVD_MAX_VIDEO_BPS = 9_800_000
+
+
+def dvd_compliance(info, disc):
+    """Why the picture of `info` (probe) cannot go on a `disc` DVD as it is
+    (an empty list when it can): MPEG-2 at the disc's frame size, frame
+    rate (or 23.976 film on NTSC) and aspect, at most 9.8 Mbit/s."""
+    out = []
+    if info.get("codec") != "mpeg2video":
+        out.append(f"the video is {info.get('codec')}, not MPEG-2")
+    if (info.get("width"), info.get("height")) not in ((disc.width, disc.height),
+                                                        (704, disc.height)):
+        out.append(f"the frame is {info.get('width')}x{info.get('height')}, not "
+                   f"{disc.width}x{disc.height}")
+    num, den = disc.fps
+    rates = [num / den] + ([FILM_FPS[0] / FILM_FPS[1]] if disc.standard == "NTSC" else [])
+    fps = float(info.get("fps") or 0)
+    if not any(abs(fps - r) < 0.01 for r in rates):
+        out.append(f"the frame rate is {fps:.3f}, not {num / den:.3f}")
+    w, h = info.get("width") or 0, info.get("height") or 1
+    dar = w * float(info.get("sar") or 1) / h
+    if abs(dar - disc.dar) > 0.05 * disc.dar:
+        out.append(f"the picture is {dar:.2f}:1, not {disc.aspect}")
+    if (info.get("video_bit_rate") or 0) > DVD_MAX_VIDEO_BPS:
+        out.append(f"the video bitrate is {info['video_bit_rate'] / 1e6:.1f} Mbit/s (at most 9.8)")
+    return out
+
+
+def source_video_bps(info):
+    """The video bitrate of a source used as it is (the whole file's rate
+    when the stream does not say)."""
+    return info.get("video_bit_rate") or info.get("bit_rate") or DVD_MAX_VIDEO_BPS
+
+
 def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
                  on_progress=None, probes=None):
     """Encode one title to a DVD-compliant MPEG-2 program stream."""
@@ -464,6 +500,14 @@ def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
             amap += ["-map", lab]
         acodec = audio_args(title.audio_codec, title.audio_bitrate, framing=False,
                             channels=title.audio_channels)
+    if not getattr(title, "transcode", True):
+        # already DVD video: the picture is copied, only the sound is made
+        run_ffmpeg(inputs + ["-map", "0:v:0", "-c:v", "copy"] + amap + acodec +
+                   ["-f", "dvd", "-muxrate", "10080000", "-packetsize", "2048",
+                    "-t", f"{duration:.3f}", out_path],
+                   duration, os.path.join(work, "logs", f"title-{title.id}.log"), on_progress,
+                   cwd=work, what=f"ffmpeg (title {title.id}, picture copied)")
+        return out_path
     video = ["-map", "0:v:0", "-vf", fit_filter(info, disc, mode=mode, ivtc=is_ivtc(title))] + \
         _video_args(title, disc, video_bps, target, mode)
     passlog = os.path.join(work, f"{title.id}-pass")

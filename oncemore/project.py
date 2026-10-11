@@ -312,6 +312,7 @@ class Title:
     chapter_names: list = field(default_factory=list)    # per chapter, or None
     chapter_posters: list = field(default_factory=list)  # thumbnail time per chapter, or None
     scan: str = "auto"       # "auto" | "progressive" | "interlaced" | "pulldown" | "ivtc"
+    transcode: bool = True   # False: a DVD-compliant MPEG-2 source's picture is used as it is
     clips: list = field(default_factory=list)   # Clip, when made of several videos
     clip_chapters: bool = False   # a chapter at every clip (set once clip lengths are known)
     video_mode: str = None   # what `scan` resolved to for the source (set by build.inspect)
@@ -829,7 +830,15 @@ class _Builder:
             audio_passthrough=bool(audio.get("passthrough")),
             aspect=t.get("aspect"),
             scan=t.get("scan", "auto"),
+            transcode=t.get("transcode", True),
         )
+        if not title.transcode:
+            if clips or show:
+                self.err(f"{where}.transcode", "only a title from one video file can use its "
+                                               "picture as it is")
+            for key in ("video_bitrate", "scan"):
+                if key in t:
+                    self.err(f"{where}.{key}", "the picture is not encoded (transcode: false)")
         if title.scan in ("pulldown", "ivtc") and self._disc.standard != "NTSC":
             self.err(f"{where}.scan", "3:2 pulldown is for NTSC discs (PAL plays film at 25 fps)")
         if title.video_bitrate is not None and not 1_000_000 <= title.video_bitrate <= 8_000_000:

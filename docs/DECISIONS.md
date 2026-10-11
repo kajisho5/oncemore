@@ -984,3 +984,16 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
 * Several pieces of music are each resampled to one format and joined with
   concat before the usual trim and fade-out.
 
+## 63. Sources used as they are (`transcode: false`)
+
+* The picture is copied (`-c:v copy`) into the DVD program stream; the
+  sound still goes through the title's audio settings, so tracks, LPCM
+  framing and 5.1 work as for any title. The check before building lists
+  every reason a file does not qualify (codec, frame size including 704,
+  frame rate or NTSC film, aspect, bitrate) instead of encoding anyway.
+* The title keeps its own video rate in the disc plan (the stream's rate,
+  else the file's), so the other titles share what is left.
+* Chapter cells can only start on the copied GOPs, so a chapter starts at
+  a key frame of the source rather than exactly at its time. Blu-ray needs H.264 and
+  encodes such titles anyway (with a warning).
+

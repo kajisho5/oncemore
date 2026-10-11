@@ -99,6 +99,13 @@ def inspect(project, reporter=None, prepare=True, bd=False):
         if not info.get("duration"):
             issues.append({"path": f"{where}.source", "message": "cannot determine duration"})
             continue
+        if not t.transcode and bd:
+            warnings.append(f"{where}.transcode: a Blu-ray needs H.264, so the picture is "
+                            "encoded anyway")
+        elif not t.transcode:
+            for why in encode.dvd_compliance(info, project.disc_for(t)):
+                issues.append({"path": f"{where}.transcode",
+                               "message": f"cannot use the picture as it is: {why}"})
         for j in range(len(t.subtitles)):
             late = [c for c in cues[(t.id, j)] if c.start >= info["duration"]]
             if late:
@@ -141,7 +148,10 @@ def inspect(project, reporter=None, prepare=True, bd=False):
                            bluray.CAPACITY[project.disc.bluray_target])
         plan.update(video_bps=plan["max_bps"], per_title=[plan["max_bps"]] * len(project.titles))
     else:
-        plan = encode.plan_bitrate([(infos[t.id]["duration"], t.audio_bps, t.video_bitrate)
+        # (a picture used as it is keeps its own rate)
+        plan = encode.plan_bitrate([(infos[t.id]["duration"], t.audio_bps,
+                                     t.video_bitrate if t.transcode
+                                     else encode.source_video_bps(infos[t.id]))
                                     for t in project.titles],
                                    project.disc.capacity, menu_total, project.disc.video_bitrate)
     plan["font"] = font
@@ -309,7 +319,8 @@ def title_cache_key(project, title, info, vbps, fast):
         "chapters": title.chapters, "vbps": vbps, "fast": fast, "scan": title.video_mode,
         "ivtc": encode.is_ivtc(title),
         "audio": [title.audio_codec, title.audio_bitrate, title.audio_channels,
-                  title.audio_passthrough]})
+                  title.audio_passthrough],
+        **({} if title.transcode else {"copy": True})})
 
 
 def encode_cache_dir(project):

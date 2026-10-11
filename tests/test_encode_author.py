@@ -305,6 +305,28 @@ class TestAuthorXml(unittest.TestCase):
         sim.press(s, "end")                              # its end: play all from t1
         self.assertEqual((sim.view(s), s["playall"]), (("title", 1, 1), 1))
 
+    def test_dvd_compliance(self):
+        d = build_project(sample_project(), "/v/project.oncemore.json", check_files=False).disc
+        ok = {"codec": "mpeg2video", "width": 720, "height": 480, "fps": 30000 / 1001,
+              "sar": 32 / 27, "video_bit_rate": 6_000_000}
+        self.assertEqual(encode.dvd_compliance(ok, d), [])
+        self.assertEqual(encode.dvd_compliance(dict(ok, fps=24000 / 1001), d), [])   # film
+        bad = encode.dvd_compliance(dict(ok, codec="h264", width=1280, height=720, sar=1,
+                                         fps=25, video_bit_rate=12_000_000), d)
+        self.assertEqual(len(bad), 4, bad)
+        self.assertIn("not MPEG-2", bad[0])
+        self.assertIn("not 16:9", encode.dvd_compliance(dict(ok, sar=8 / 9), d)[0])
+        # the title option
+        data = sample_project()
+        data["titles"][0]["transcode"] = False
+        data["titles"][0]["scan"] = "interlaced"
+        with self.assertRaises(ProjectError) as cm:
+            build_project(data, "/v/project.oncemore.json", check_files=False)
+        self.assertIn("titles[0].scan", json.dumps(cm.exception.issues))
+        del data["titles"][0]["scan"]
+        self.assertFalse(build_project(data, "/v/project.oncemore.json",
+                                       check_files=False).titles[0].transcode)
+
     def test_last_menu(self):
         d = sample_project()
         d["titles"][1]["end_action"] = "lastmenu"

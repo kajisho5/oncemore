@@ -356,6 +356,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `audio.passthrough` | copy 48 kHz AC-3 from the sources unchanged (channels must match) | `false` |
 | `video_bitrate` | this title's own video bitrate; the other titles share the rest | shared |
 | `scan` | `auto` \| `progressive` \| `interlaced` \| `pulldown` (NTSC film) \| `ivtc` (NTSC: film already telecined to 29.97i — its film frames are recovered and stored with soft pulldown): how the picture is stored, see Known limitations | `auto` |
+| `transcode` | `false`: the source already is DVD video (MPEG-2 at the disc's frame size and rate or NTSC 23.976 film, the disc's aspect, at most 9.8 Mbit/s) and its picture goes on the disc as it is; the sound is still made to the title's settings, chapters start at key frames of the source (GOP starts), not exactly at their times (DVD only) | `true` |
 | `audio.channels` | `2` (stereo, sources are down-mixed) \| `6` (5.1, AC-3 only) | `2` |
 | `end_action` | `menu:<id>` \| `title:<id>` \| `chapter:<title id>:<n>` \| `playlist:<id>` \| `playall` \| `lastmenu` (back to the menu shown last) \| `stop` | first-play menu, else `stop` |
 | `remote_menu` | menu the remote's Menu key opens during this title | first menu |

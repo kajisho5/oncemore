@@ -220,6 +220,10 @@ browser) and lands only with green CI.
 - [x] Several pieces of music played one after another
 - [x] Fit the pictures to the music (durations as proportions)
 
+**P40 — Don't transcode** (done)
+- [x] A source that already is DVD video goes on the disc as it is
+  (`transcode: false`), checked against the disc's format
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

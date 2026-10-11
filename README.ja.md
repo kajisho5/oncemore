@@ -308,6 +308,7 @@ oncemore doctor                                # 外部ツールの有無・バ�
 | `audio.bitrate` | AC-3 のみ、64k〜448k | `192k`（5.1ch は `448k`） |
 | `audio.passthrough` | 48kHz の AC-3 素材をそのままコピー（チャンネル数は素材と同じに） | `false` |
 | `scan` | `auto` \| `progressive` \| `interlaced` \| `pulldown`（NTSC のフィルム）\| `ivtc`（NTSC：29.97i にテレシネ済みのフィルム。逆テレシネでフィルムのコマに戻し、ソフトプルダウンで収録）：映像の収録方式。「既知の制限」参照 | `auto` |
+| `transcode` | `false`：素材がすでに DVD ビデオ（ディスクと同じフレームサイズ・フレームレート〈NTSC は 23.976 のフィルムも可〉・縦横比の MPEG-2、9.8 Mbit/s 以下）なら映像を再エンコードせずそのまま収録。音声はタイトルの設定で作り直し、チャプターは指定時刻ちょうどではなく素材のキーフレーム（GOP の先頭）から始まります（DVD のみ） | `true` |
 | `video_bitrate` | このタイトル専用の映像ビットレート。残りを他のタイトルで分け合う | 共有 |
 | `audio.channels` | `2`（ステレオ。素材はダウンミックス）\| `6`（5.1ch、AC-3 のみ） | `2` |
 | `end_action` | `menu:<id>` \| `title:<id>` \| `chapter:<タイトルid>:<番号>` \| `playlist:<id>` \| `playall` \| `lastmenu`（直前に表示したメニューへ戻る） \| `stop` | first_play のメニュー、無ければ `stop` |
