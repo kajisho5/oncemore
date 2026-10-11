@@ -224,6 +224,10 @@ browser) and lands only with green CI.
 - [x] A source that already is DVD video goes on the disc as it is
   (`transcode: false`), checked against the disc's format
 
+**P41 — Slideshow transitions** (done)
+- [x] Dissolves, fades through black / white, wipes, slides, circles, radial,
+  pixelate, random; per picture, mixed with cuts
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

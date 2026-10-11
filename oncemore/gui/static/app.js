@@ -59,7 +59,9 @@ const I18N = {
     slideshow_need_images: "Add some pictures to Media first (drop them onto the window).",
     slideshow_preview_hint: "Render & play shows the slideshow as it will be on the disc.",
     render_play: "Render & play", rendering: "Rendering…", add_picture: "+ Add a picture…", seconds: "Seconds on screen",
-    transition: "Transition", crossfade: "Cross-fade", cut: "Cut", transition_duration: "Cross-fade (s)",
+    transition: "Transition", crossfade: "Cross-fade", cut: "Cut", transition_duration: "Transition length (s)",
+    tr_dissolve: "Dissolve", tr_fadeblack: "Through black", tr_fadewhite: "Through white", tr_wipeleft: "Wipe left", tr_wiperight: "Wipe right", tr_wipeup: "Wipe up", tr_wipedown: "Wipe down",
+    tr_slideleft: "Slide left", tr_slideright: "Slide right", tr_slideup: "Slide up", tr_slidedown: "Slide down", tr_circleopen: "Circle open", tr_circleclose: "Circle close", tr_radial: "Radial", tr_pixelize: "Pixelate", tr_random: "Random", tr_own: "Slideshow's transition", tr_next: "To the next picture",
     pan_zoom: "Slow zoom in / out (pan & zoom)", slideshow_chapters: "Every picture starts a chapter.",
     routing: "Routing", routing_hint: "Show where the remote's arrow keys go from each button (solid: set by you, dashed: automatic)",
     link_hint: "Drag a title, menu or playlist from the project panel onto a button to link it, or onto the menu to add a button for it.",
@@ -250,7 +252,9 @@ const I18N = {
     slideshow_need_images: "先に写真を素材に追加してください（ウィンドウにドロップ）。",
     slideshow_preview_hint: "「書き出して再生」でディスクと同じ見え方を確認できます。",
     render_play: "書き出して再生", rendering: "書き出し中…", add_picture: "＋写真を追加…", seconds: "表示秒数",
-    transition: "切り替え", crossfade: "クロスフェード", cut: "カット", transition_duration: "クロスフェード（秒）",
+    transition: "切り替え", crossfade: "クロスフェード", cut: "カット", transition_duration: "切り替えの長さ（秒）",
+    tr_dissolve: "ディゾルブ", tr_fadeblack: "黒を経由", tr_fadewhite: "白を経由", tr_wipeleft: "ワイプ（左へ）", tr_wiperight: "ワイプ（右へ）", tr_wipeup: "ワイプ（上へ）", tr_wipedown: "ワイプ（下へ）",
+    tr_slideleft: "スライド（左へ）", tr_slideright: "スライド（右へ）", tr_slideup: "スライド（上へ）", tr_slidedown: "スライド（下へ）", tr_circleopen: "円形（開く）", tr_circleclose: "円形（閉じる）", tr_radial: "放射状", tr_pixelize: "ピクセル化", tr_random: "ランダム", tr_own: "スライドショーの設定に従う", tr_next: "次の写真への切り替え",
     pan_zoom: "ゆっくりズーム（パン＆ズーム）", slideshow_chapters: "写真ごとにチャプターになります。",
     routing: "ルーティング", routing_hint: "各ボタンからリモコンの矢印キーで移る先を表示（実線：指定、破線：自動）",
     link_hint: "プロジェクトパネルのタイトル・メニュー・プレイリストをボタンにドラッグするとリンク、メニューの空いた所にドラッグするとそのボタンを追加します。",
@@ -1377,6 +1381,8 @@ function addSlideshow() {
   commit((p) => { (p.titles = p.titles || []).push({ id, name: t("slideshow"), slideshow: { slides: images.map((image) => ({ image })) } }); });
   select("title", id);
 }
+const TRANSITION_KINDS = ["dissolve", "fadeblack", "fadewhite", "wipeleft", "wiperight", "wipeup", "wipedown", "slideleft", "slideright", "slideup", "slidedown", "circleopen", "circleclose", "radial", "pixelize"];
+const transitionOptions = () => [["crossfade", t("crossfade")], ...TRANSITION_KINDS.map((k) => [k, t("tr_" + k)]), ["random", t("tr_random")], ["none", t("cut")]];
 function renderSlideshow(m, ti) {
   const sh = ti.slideshow, slides = sh.slides || [];
   const music = sh.audio ? (Array.isArray(sh.audio) ? sh.audio : [sh.audio]) : [];
@@ -1391,10 +1397,11 @@ function renderSlideshow(m, ti) {
         <img src="${imgUrl("file", { path: s.image })}" alt="">
         <div class="row"><input type="number" min="0.5" max="600" step="0.5" data-f="duration" value="${s.duration || 5}" title="${esc(t("seconds"))}"> s <span class="muted" data-fitted></span></div>
         <div class="row">${selectHtml("sfit", [["", t("fit_own")], ["fit", t("fit_fit")], ["fill", t("fit_fill")]], s.fit || "", `data-f="fit" title="${esc(t("fit"))}"`)}</div>
+        ${i + 1 < slides.length ? `<div class="row">${selectHtml("str", [["", t("tr_own")], ...transitionOptions()], s.transition || "", `data-f="transition" title="${esc(t("tr_next"))}"`)}</div>` : ""}
         <div class="row"><button class="small" data-mv="-1" ${i ? "" : "disabled"}>◀</button><button class="small" data-mv="1" ${i + 1 < slides.length ? "" : "disabled"}>▶</button><button class="small danger" data-rm ${slides.length > 1 ? "" : "disabled"}>✕</button></div></div>`).join("")}
       <div class="slide add">${selectHtml("addimg", [["", t("add_picture")], ...mediaOf("image").map((x) => [x, x.replace(/^media\//, "")])], "", 'id="ss-add"')}</div></div>
     <div class="grid2" style="margin-top:12px">
-      <label class="field"><span>${t("transition")}</span>${selectHtml("transition", [["crossfade", t("crossfade")], ["none", t("cut")]], sh.transition || "crossfade", 'id="ss-tr"')}</label>
+      <label class="field"><span>${t("transition")}</span>${selectHtml("transition", transitionOptions(), sh.transition || "crossfade", 'id="ss-tr"')}</label>
       <label class="field"><span>${t("transition_duration")}</span><input type="number" id="ss-td" min="0.1" max="5" step="0.1" value="${sh.transition_duration || 1}"></label>
       <div class="field"><span>${t("music")}</span><div>${music.map((x, i) => `<div class="row ss-music"><span class="mono">${esc(x.replace(/^media\//, ""))}</span><span class="spacer"></span><button class="small danger" data-rmmusic="${i}">✕</button></div>`).join("")}
         ${selectHtml("addmusic", [["", t("add_music")], ...mediaOf("audio").map((x) => [x, x.replace(/^media\//, "")])], "", 'id="ss-audio"')}
@@ -1408,6 +1415,8 @@ function renderSlideshow(m, ti) {
     const i = Number(card.dataset.slide);
     card.querySelector("[data-f=duration]").onchange = (e) => edit((x) => { const v = Number(e.target.value); if (v && v !== 5) x.slides[i].duration = v; else delete x.slides[i].duration; });
     card.querySelector("[data-f=fit]").onchange = (e) => edit((x) => { if (e.target.value) x.slides[i].fit = e.target.value; else delete x.slides[i].fit; });
+    const tr = card.querySelector("[data-f=transition]");
+    if (tr) tr.onchange = (e) => edit((x) => { if (e.target.value) x.slides[i].transition = e.target.value; else delete x.slides[i].transition; });
     card.querySelectorAll("[data-mv]").forEach((b) => (b.onclick = () => edit((x) => { const j = i + Number(b.dataset.mv); [x.slides[i], x.slides[j]] = [x.slides[j], x.slides[i]]; })));
     card.querySelector("[data-rm]").onclick = () => edit((x) => { x.slides.splice(i, 1); });
   });

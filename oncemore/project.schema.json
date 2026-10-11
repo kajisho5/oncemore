@@ -1017,6 +1017,10 @@
               "fit": {
                 "enum": ["fit", "fill"],
                 "description": "This picture's own fit (default: the slideshow's)."
+              },
+              "transition": {
+                "enum": ["crossfade", "dissolve", "fadeblack", "fadewhite", "wipeleft", "wiperight", "wipeup", "wipedown", "slideleft", "slideright", "slideup", "slidedown", "circleopen", "circleclose", "radial", "pixelize", "random", "none"],
+                "description": "The change from this picture to the next (default: the slideshow's)."
               }
             }
           }
@@ -1024,9 +1028,26 @@
         "transition": {
           "enum": [
             "crossfade",
+            "dissolve",
+            "fadeblack",
+            "fadewhite",
+            "wipeleft",
+            "wiperight",
+            "wipeup",
+            "wipedown",
+            "slideleft",
+            "slideright",
+            "slideup",
+            "slidedown",
+            "circleopen",
+            "circleclose",
+            "radial",
+            "pixelize",
+            "random",
             "none"
           ],
-          "default": "crossfade"
+          "default": "crossfade",
+          "description": "Between the pictures: a cross-fade, a dissolve, through black or white, a wipe, slide, circle, radial sweep or pixelation; random picks one for each change (the same every build); none cuts."
         },
         "transition_duration": {
           "type": "number",

@@ -997,3 +997,14 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   a key frame of the source rather than exactly at its time. Blu-ray needs H.264 and
   encodes such titles anyway (with a warning).
 
+## 64. Slideshow transitions
+
+* Every change between two pictures is either an ffmpeg xfade transition
+  (cross-fade, dissolve, through black / white, wipes, slides, circles,
+  radial, pixelate: all in ffmpeg 4.4 and later) or a cut (concat). A
+  picture runs on for the transition's length only when a transition
+  follows it, so the starts (chapters) stay the sums of the durations.
+* `random` draws a kind for each change from a generator seeded with the
+  number of pictures and the change's place, so a build (and its cache
+  key) is the same every time.
+

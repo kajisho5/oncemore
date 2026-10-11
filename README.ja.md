@@ -424,7 +424,10 @@ oncemore doctor                                # 外部ツールの有無・バ�
   "slideshow": {
     "slides": [{ "image": "media/beach.jpg", "duration": 6 },   // 秒。既定 5
                { "image": "media/hills.png" }],
-    "transition": "crossfade",        // "none" でカット
+    "transition": "crossfade",        // dissolve・fadeblack・fadewhite・wipeleft/right/up/down・
+                                      // slideleft/right/up/down・circleopen/close・radial・
+                                      // pixelize・random、"none" でカット。写真ごとの
+                                      // "transition" で次の写真への切り替えを個別に指定
     "transition_duration": 1,         // 秒。どの写真の表示時間よりも短く
     "pan_zoom": true,                 // 写真ごとにゆっくりズームイン／アウト
     "fit": "fill",                    // 画面いっぱい（端を切り抜き）。既定は "fit"

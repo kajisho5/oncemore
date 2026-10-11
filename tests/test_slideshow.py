@@ -1,13 +1,19 @@
 """Slideshows: timing, the ffmpeg graph, the cache key and the project fields."""
 
 import dataclasses
+import os
 import re
+import shutil
+import subprocess
+import tempfile
 import unittest
 
 from oncemore import project as P
 from oncemore import slideshow as S
 from oncemore.errors import ProjectError
 from oncemore.scaffold import sample_project
+
+from .helpers import have
 
 
 def show(*durations, **kw):
@@ -100,6 +106,50 @@ class TestGraph(unittest.TestCase):
         self.assertNotEqual(t.source, before)
         self.assertTrue(t.source.startswith("/virtual/.oncemore-cache/slideshow/"))
         self.assertEqual(t.audio_tracks[0].source, t.source)
+
+    def test_transition_kinds(self):
+        s = show(3, 3, 3, 3, transition="wipeleft", transition_duration=0.5)
+        s.slides[1].transition = "none"             # a cut after the second picture
+        s.slides[2].transition = "slideup"
+        _, fc, _ = S.graph(s, disc())
+        self.assertIn("[s0][s1]xfade=transition=wipeleft:duration=0.500:offset=3.000[x1]", fc)
+        self.assertIn("[x1][s2]concat=n=2:v=1:a=0[x2]", fc)
+        self.assertIn("[x2][s3]xfade=transition=slideup:duration=0.500:offset=9.000[v]", fc)
+        # each picture runs on only under a transition that follows it
+        self.assertEqual(re.findall(r"trim=duration=([\d.]+)", fc),
+                         ["3.500", "3.000", "3.500", "3.000"])
+        self.assertEqual(s.duration, 12.0)
+        # random: one kind per change, the same every time
+        r = show(3, 3, 3, transition="random")
+        self.assertEqual(r.changes(), show(3, 3, 3, transition="random").changes())
+        self.assertTrue(all(c in S.TRANSITIONS.values() for c in r.changes()))
+        self.assertEqual(show(3, 3, transition="none").fade, 0.0)
+        # the per-picture choice is part of the render's key
+        self.assertNotEqual(S.output_path("/p", s, disc()),
+                            S.output_path("/p", show(3, 3, 3, 3, transition="wipeleft",
+                                                     transition_duration=0.5), disc()))
+
+    @unittest.skipUnless(have("ffmpeg"), "needs ffmpeg")
+    def test_renders(self):
+        tmp = tempfile.mkdtemp(prefix="oncemore-slides-")
+        try:
+            pics = []
+            for k, colour in enumerate(("red", "green", "blue")):
+                pics.append(os.path.join(tmp, f"{k}.png"))
+                subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
+                                f"color=c={colour}:s=320x240", "-frames:v", "1", pics[-1]],
+                               check=True)
+            s = S.Slideshow([S.Slide(p, 1.5) for p in pics], transition="random",
+                            transition_duration=0.5)
+            s.slides[0].transition = "circleopen"
+            out = os.path.join(tmp, "show.mkv")
+            S.render(s, disc(), out, os.path.join(tmp, "log"))
+            seconds = float(subprocess.run(
+                ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0",
+                 out], capture_output=True, text=True, check=True).stdout)
+            self.assertAlmostEqual(seconds, 4.5, delta=0.1)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
 
     def test_fit_and_fill(self):
         _, fc, _ = S.graph(show(4, 4), disc())

@@ -972,7 +972,7 @@ class _Builder:
 
     def slideshow(self, where, spec):
         slides = [slideshow.Slide(self.file(f"{where}.slideshow.slides[{j}].image", s["image"]),
-                                  float(s.get("duration", 5)), s.get("fit"))
+                                  float(s.get("duration", 5)), s.get("fit"), s.get("transition"))
                   for j, s in enumerate(spec["slides"])]
         show = slideshow.Slideshow(
             slides=slides, transition=spec.get("transition", "crossfade"),
