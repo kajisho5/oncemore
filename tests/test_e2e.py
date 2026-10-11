@@ -1610,8 +1610,9 @@ class TestScanModes(unittest.TestCase):
 
 @unittest.skipUnless(TOOLS_OK, SKIP_REASON)
 class TestSubtitleFormats(unittest.TestCase):
-    """A WebVTT track whose first cue is placed at the top, and an ASS track
-    with a red sign, rendered onto a disc."""
+    """A WebVTT track whose first cue is placed at the top, an ASS track
+    with a red sign, and a text script timed against a source starting at
+    01;00;00;00 (with that offset), rendered onto a disc."""
 
     VTT = ("WEBVTT\n\n00:01.000 --> 00:03.000 line:0\nAt the top\n\n"
            "00:04.000 --> 00:06.000\nAt the bottom\n")
@@ -1620,6 +1621,8 @@ class TestSubtitleFormats(unittest.TestCase):
            "Format: Layer, Start, End, Style, Text\n"
            "Dialogue: 0,0:00:01.00,0:00:03.00,Default,{\\c&H0000FF&}A red sign\n"
            "Dialogue: 0,0:00:04.00,0:00:06.00,Default,White again\n")
+    SCRIPT = ("1 01;00;01;00 01;00;02;15 From a script\nsecond line\n"
+              "2\t1;0;4;0\t1;0;6;0\tAnother one\n")
 
     @classmethod
     def setUpClass(cls):
@@ -1627,7 +1630,7 @@ class TestSubtitleFormats(unittest.TestCase):
         rc, _, err = run_cli("init", "s", cwd=cls.tmp)
         assert rc == 0, err
         proj = os.path.join(cls.tmp, "s")
-        for name, text in (("en.vtt", cls.VTT), ("signs.ass", cls.ASS)):
+        for name, text in (("en.vtt", cls.VTT), ("signs.ass", cls.ASS), ("fr.txt", cls.SCRIPT)):
             with open(os.path.join(proj, "media", name), "w", encoding="utf-8") as f:
                 f.write(text)
         path = os.path.join(proj, "project.oncemore.json")
@@ -1635,7 +1638,9 @@ class TestSubtitleFormats(unittest.TestCase):
             data = json.load(f)
         data["titles"][1]["subtitles"] = [{"file": "media/en.vtt", "lang": "en"},
                                           {"file": "media/signs.ass", "lang": "ja",
-                                           "position": "top", "color": "#FFFF00"}]
+                                           "position": "top", "color": "#FFFF00"},
+                                          {"file": "media/fr.txt", "lang": "fr",
+                                           "offset": "01;00;00;00"}]
         with open(path, "w") as f:
             json.dump(data, f)
         cls.iso = os.path.join(cls.tmp, "s.iso")
@@ -1680,7 +1685,18 @@ class TestSubtitleFormats(unittest.TestCase):
             d.wait_menu()
             d.activate(3)
             self.assertEqual(d.wait_title(), (2, 1))
-            self.assertEqual([d.subtitle_lang(0), d.subtitle_lang(1)], ["en", "ja"])
+            self.assertEqual([d.subtitle_lang(0), d.subtitle_lang(1), d.subtitle_lang(2)],
+                             ["en", "ja", "fr"])
+
+    def test_text_script(self):
+        import re as _re
+        xml = [f for f in os.listdir(self.subs) if f.startswith("sub2_")
+               and f.endswith(".spumux.xml")][0]
+        with open(os.path.join(self.subs, xml)) as f:
+            times = _re.findall(r'start="0:00:([\d.]+)" end="0:00:([\d.]+)"', f.read())
+        # (01;00;01;00 less 01;00;00;00: 30 frames of 29.97 = 1.001 s)
+        self.assertEqual([(float(a), float(b)) for a, b in times],
+                         [(1.001, 2.503), (4.004, 6.006)])
 
 
 @unittest.skipUnless(TOOLS_OK, SKIP_REASON)

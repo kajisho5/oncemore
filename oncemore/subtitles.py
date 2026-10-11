@@ -155,11 +155,114 @@ def parse_ass(text):
     return _tidy(cues)
 
 
-PARSERS = {".srt": parse_srt, ".vtt": parse_vtt, ".ass": parse_ass, ".ssa": parse_ass}
+# -- text scripts ---------------------------------------------------------------
+# The plain subtitle script of disc authoring tools: a number, the start and
+# end timecode, the text; lines after it (up to the next numbered line) are
+# more lines of the same subtitle. Spaces or tabs between the fields.
+#   1 00;00;02;02 00;00;03;15 The cat never came back.
+#   She just walked away.
+# Timecode: hh;mm;ss;ff is NTSC drop frame; hh:mm:ss:ff counts frames of 30
+# (NTSC, non drop frame) or 25 (PAL); leading zeros may be left out. A time
+# hh:mm:ss,mmm (or .mmm) is read too.
+_TC = TIMECODE = re.compile(r"^(\d{1,2})([:;])(\d{1,2})([:;])(\d{1,2})([:;.,])(\d{1,3})$")
+_SCRIPT_LINE = re.compile(r"^\s*(\d+)[ \t]+(\S+)[ \t]+(\S+)(?:[ \t]+(.*))?$")
 
 
-def load_subtitles(path):
-    parse = PARSERS.get(os.path.splitext(path)[1].lower(), parse_srt)
+def timecode_seconds(tc, standard="NTSC"):
+    """Seconds from a timecode of the disc's `standard`."""
+    m = _TC.match(str(tc).strip())
+    if not m:
+        raise ValueError(f"{tc!r} is not a timecode (hh;mm;ss;ff or hh:mm:ss:ff)")
+    h, mi, s, last, f = int(m[1]), int(m[3]), int(m[5]), m[6], m[7]
+    if mi > 59 or s > 59:
+        raise ValueError(f"{tc!r}: minutes and seconds go to 59")
+    if last in ".,":
+        return h * 3600 + mi * 60 + s + int(f.ljust(3, "0")) / 1000
+    f = int(f)
+    drop = ";" in (m[2], m[4], last)
+    base = 30 if drop or standard == "NTSC" else 25
+    if f >= base:
+        raise ValueError(f"{tc!r}: frame {f} of {base}")
+    frames = (h * 3600 + mi * 60 + s) * base + f
+    if drop:
+        # two frame numbers are left out every minute, except every tenth
+        minutes = h * 60 + mi
+        frames -= 2 * (minutes - minutes // 10)
+    return frames * 1001 / 30000 if base == 30 else frames / 25
+
+
+def seconds_timecode(t, standard="NTSC"):
+    """The timecode of a moment: drop frame on NTSC (;), frames of 25 on PAL (:)."""
+    if standard != "NTSC":
+        frames = int(round(t * 25))
+        f, s = frames % 25, frames // 25
+        return f"{s // 3600:02d}:{s // 60 % 60:02d}:{s % 60:02d}:{f:02d}"
+    frames = int(round(t * 30000 / 1001))
+    # (drop frame: 17982 frames per ten minutes, 1798 in each but the first minute)
+    tens, rest = divmod(frames, 17982)
+    frames += 18 * tens + (2 * ((rest - 2) // 1798) if rest > 1 else 0)
+    f, s = frames % 30, frames // 30
+    return f"{s // 3600:02d};{s // 60 % 60:02d};{s % 60:02d};{f:02d}"
+
+
+def parse_text_script(text, standard="NTSC"):
+    cues, cur = [], None
+    for n, raw in enumerate(text.splitlines(), 1):
+        line = raw.strip()
+        m = _SCRIPT_LINE.match(line)
+        if m and _TC.match(m[2]) and _TC.match(m[3]):
+            try:
+                start, end = timecode_seconds(m[2], standard), timecode_seconds(m[3], standard)
+            except ValueError as e:
+                raise ValueError(f"line {n}: {e}")
+            if end <= start:
+                raise ValueError(f"line {n}: subtitle {m[1]} ends before it starts")
+            cur = Cue(start, end, [m[4].strip()] if m[4] and m[4].strip() else [])
+            cues.append(cur)
+        elif line and cur is not None:
+            cur.lines.append(line)
+        elif line:
+            raise ValueError(f"line {n}: expected \"number start end text\", got {line[:40]!r}")
+    if not cues:
+        raise ValueError("no subtitles (lines of number, start and end timecode, text)")
+    return _tidy([c for c in cues if c.lines])
+
+
+def to_text_script(cues, standard="NTSC"):
+    """Cues -> a text script (no positions or colours: a script has none)."""
+    out = []
+    for n, c in enumerate(cues, 1):
+        lines = list(c.lines) or [""]
+        out.append(f"{n}\t{seconds_timecode(c.start, standard)}\t"
+                   f"{seconds_timecode(c.end, standard)}\t{lines[0]}")
+        out += lines[1:]
+    return "\n".join(out) + "\n"
+
+
+def shifted(cues, offset):
+    """Cues `offset` seconds earlier (a script timed against a source's own
+    timecode, e.g. one starting at 01;00;00;00); what ends before 0 goes."""
+    if not offset:
+        return cues
+    out = []
+    for c in cues:
+        if c.end - offset > 0:
+            out.append(Cue(max(0.0, c.start - offset), c.end - offset, c.lines, c.position,
+                           c.color, c.style_color))
+    return out
+
+
+PARSERS = {".srt": parse_srt, ".vtt": parse_vtt, ".ass": parse_ass, ".ssa": parse_ass,
+           ".txt": parse_text_script}
+
+
+def load_subtitles(path, standard="NTSC"):
+    """Cues of a subtitle file (timecodes of a text script are the disc
+    `standard`'s)."""
+    ext = os.path.splitext(path)[1].lower()
+    parse = PARSERS.get(ext, parse_srt)
+    if ext == ".txt":
+        parse = lambda text: parse_text_script(text, standard)     # noqa: E731
     with open(path, "rb") as f:
         raw = f.read()
     for enc in ("utf-8-sig", "cp932", "latin-1"):

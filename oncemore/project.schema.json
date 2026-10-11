@@ -459,7 +459,14 @@
             "properties": {
               "file": {
                 "type": "string",
-                "description": "Subtitle file: SubRip (.srt), WebVTT (.vtt) or ASS / SSA (.ass, .ssa)."
+                "description": "Subtitle file: SubRip (.srt), WebVTT (.vtt), ASS / SSA (.ass, .ssa), or a text script (.txt: number, start and end timecode, text)."
+              },
+              "offset": {
+                "anyOf": [
+                  {"type": "number", "minimum": 0},
+                  {"type": "string"}
+                ],
+                "description": "Subtracted from every subtitle's time: the start of the source's own timecode the file was timed against (seconds, \"HH:MM:SS[.mmm]\", or a timecode such as \"01;00;00;00\"). Default 0."
               },
               "lang": {
                 "$ref": "#/$defs/lang"

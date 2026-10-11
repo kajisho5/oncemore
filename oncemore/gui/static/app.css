@@ -653,6 +653,9 @@ input.tc-amber:focus { background: var(--c-field); color: var(--c-text-field); t
             box-shadow: inset 0 0 0 1px var(--c-bg-4); }
 .tl-ruler .tick { color: var(--c-text); border-left-color: var(--c-text-2); font-size: var(--fs-xs); padding-top: 2px; }
 .tl-ruler .tick::after { content: ""; position: absolute; left: -1px; bottom: 0; height: 8px; border-left: 1px solid var(--c-text); }
+/* View > Show chapter names: a flag at each chapter in the time ruler */
+.tl-ruler .ch-name { position: absolute; bottom: 0; padding: 0 3px; font-size: var(--fs-xs); line-height: 1.4;
+  color: var(--c-text); background: var(--c-bg-2); border-left: 2px solid var(--c-timecode); white-space: nowrap; pointer-events: none; }
 .tl-row { align-items: stretch; }
 .tl-label { height: auto; align-items: flex-start; padding-top: 3px; }
 .tl-label { width: 170px; background: var(--c-bg-5); color: var(--c-text); font-size: var(--fs-sm); border-right: 1px solid var(--c-bg-0);

@@ -97,7 +97,8 @@ def inspect(project, reporter=None, prepare=True, bd=False):
                                 f"{probe(tr.source)['audio_channels']} channel(s); the 5.1 "
                                 "track will only use the front speakers")
         for j, sub in enumerate(t.subtitles):
-            cues[(t.id, j)] = subtitles.load_subtitles(sub.file)
+            cues[(t.id, j)] = subtitles.shifted(
+                subtitles.load_subtitles(sub.file, project.disc.standard), sub.offset)
             if not cues[(t.id, j)]:
                 warnings.append(f"{where}.subtitles[{j}]: {os.path.basename(sub.file)} has no cues")
         if t.subtitles and not bd:

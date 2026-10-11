@@ -301,6 +301,7 @@ class SubtitleTrack:
     default: bool = False
     position: str = "bottom"
     color: str = None
+    offset: float = 0.0        # seconds taken off every subtitle's time
 
 
 @dataclass
@@ -892,7 +893,9 @@ class _Builder:
             tracks = [AudioTrack(source=source, stream=0, lang=audio.get("lang"))]
         subs = [SubtitleTrack(file=self.file(f"{where}.subtitles[{j}].file", sub["file"]),
                               lang=sub.get("lang"), default=bool(sub.get("default")),
-                              position=sub.get("position", "bottom"), color=sub.get("color"))
+                              position=sub.get("position", "bottom"), color=sub.get("color"),
+                              offset=self.subtitle_offset(f"{where}.subtitles[{j}].offset",
+                                                          sub.get("offset", 0)))
                 for j, sub in enumerate(t.get("subtitles", []))]
         if sum(1 for sub in subs if sub.default) > 1:
             self.err(f"{where}.subtitles", "only one subtitle track can be the default")
@@ -1094,6 +1097,17 @@ class _Builder:
                 "outline": spec.get("outline"), "outline_width": spec.get("outline_width", 2),
                 "shadow": spec.get("shadow"), "shadow_offset": spec.get("shadow_offset", 3),
                 **self.transform(spec)}
+
+    def subtitle_offset(self, where, value):
+        """Seconds from a time or a timecode of the disc's standard."""
+        from . import subtitles
+        try:
+            if isinstance(value, str) and subtitles.TIMECODE.match(value.strip()):
+                return subtitles.timecode_seconds(value, self._disc.standard)
+            return parse_time(value)
+        except ValueError as e:
+            self.err(where, str(e))
+            return 0.0
 
     @staticmethod
     def transform(spec):

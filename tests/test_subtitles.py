@@ -111,6 +111,102 @@ class TestFormatsAndStyles(unittest.TestCase):
         self.assertEqual(subtitles.palette_size([("#0000FF", [styled])], style), 2 + 2)
 
 
+class TestTextScripts(unittest.TestCase):
+    """The plain subtitle script of disc authoring tools: number, start and
+    end timecode, text, more lines of text."""
+
+    EXAMPLE = ("1 00;00;02;02 00;00;03;15 The cat never came back.\n"
+               "She just walked away.\n"
+               "2 00;00;05;18 00;00;09;20 I hope she's all right.\n"
+               "She always looked out the window with a special kind of longing.\n")
+
+    def test_timecodes(self):
+        tc = subtitles.timecode_seconds
+        f = 1001 / 30000
+        self.assertAlmostEqual(tc("00;00;02;02"), 62 * f)
+        self.assertAlmostEqual(tc("0;0;12;3"), 363 * f)               # (no leading zeros)
+        self.assertAlmostEqual(tc("00;01;00;02"), 1800 * f)          # drop frame: ;00 and ;01 skipped
+        self.assertAlmostEqual(tc("00;10;00;00"), 17982 * f)         # ... but not every tenth minute
+        self.assertAlmostEqual(tc("00:01:00:00"), 1800 * f)          # NTSC non drop frame
+        self.assertAlmostEqual(tc("00:01:00:00", "PAL"), 60.0)
+        self.assertAlmostEqual(tc("00:00:01:24", "PAL"), 1.96)
+        self.assertAlmostEqual(tc("01:02:03,250"), 3723.25)           # a time, not a timecode
+        for bad, std in (("00;00;01;30", "NTSC"), ("00:00:01:25", "PAL"), ("00;61;00;00", "NTSC"),
+                         ("12:00", "NTSC")):
+            with self.assertRaises(ValueError, msg=bad):
+                tc(bad, std)
+
+    def test_timecodes_written(self):
+        f = 1001 / 30000
+        for frame in (0, 1, 29, 30, 1799, 1800, 1801, 17981, 17982, 107892, 107893):
+            t = frame * f
+            code = subtitles.seconds_timecode(t)
+            self.assertAlmostEqual(subtitles.timecode_seconds(code), t, msg=code)
+        self.assertEqual(subtitles.seconds_timecode(1800 * f), "00;01;00;02")
+        self.assertEqual(subtitles.seconds_timecode(107892 * f), "01;00;00;00")
+        self.assertEqual(subtitles.seconds_timecode(61.96, "PAL"), "00:01:01:24")
+
+    def test_example(self):
+        cues = subtitles.parse_text_script(self.EXAMPLE)
+        self.assertEqual([c.lines for c in cues],
+                         [["The cat never came back.", "She just walked away."],
+                          ["I hope she's all right.",
+                           "She always looked out the window with a special kind of longing."]])
+        f = 1001 / 30000
+        self.assertAlmostEqual(cues[0].start, 62 * f)
+        self.assertAlmostEqual(cues[1].end, 290 * f)
+        # tabs, blank lines, a subtitle whose text starts on the next line
+        cues = subtitles.parse_text_script("1\t0:0:1:0\t0:0:2:0\n\nOnly below\n", "PAL")
+        self.assertEqual((cues[0].start, cues[0].end, cues[0].lines), (1.0, 2.0, ["Only below"]))
+
+    def test_refused(self):
+        for text, why in (("1 00;00;03;00 00;00;02;00 Backwards\n", "ends before it starts"),
+                          ("Just some notes\n", "expected"),
+                          ("\n\n", "no subtitles")):
+            with self.assertRaises(ValueError) as cm:
+                subtitles.parse_text_script(text)
+            self.assertIn(why, str(cm.exception))
+
+    def test_written_and_read_back(self):
+        cues = subtitles.parse_text_script(self.EXAMPLE)
+        again = subtitles.parse_text_script(subtitles.to_text_script(cues))
+        self.assertEqual([(round(c.start, 3), round(c.end, 3), c.lines) for c in again],
+                         [(round(c.start, 3), round(c.end, 3), c.lines) for c in cues])
+        pal = subtitles.to_text_script([subtitles.Cue(1.0, 2.5, ["A", "B"])], "PAL")
+        self.assertEqual(pal, "1\t00:00:01:00\t00:00:02:12\tA\nB\n")
+
+    def test_loaded_with_the_standard(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "script.txt")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("1 00:00:01:00 00:00:02:00 Hello\n")
+            self.assertAlmostEqual(subtitles.load_subtitles(path, "PAL")[0].start, 1.0)
+            self.assertAlmostEqual(subtitles.load_subtitles(path, "NTSC")[0].start, 1.001)
+
+    def test_offset(self):
+        cues = [subtitles.Cue(3600.5, 3602.0, ["a"]), subtitles.Cue(3599.0, 3600.2, ["b"]),
+                subtitles.Cue(3590.0, 3595.0, ["gone"])]
+        out = subtitles.shifted(cues, 3600.0)
+        self.assertEqual([(round(c.start, 3), round(c.end, 3), c.lines) for c in out],
+                         [(0.5, 2.0, ["a"]), (0.0, 0.2, ["b"])])
+        self.assertIs(subtitles.shifted(cues, 0), cues)
+
+    def test_project_offset(self):
+        from oncemore.project import build_project
+        from oncemore.scaffold import sample_project
+        d = sample_project()
+        d["titles"][0]["subtitles"] = [{"file": "media/a.txt", "offset": "01;00;00;00"},
+                                       {"file": "media/b.srt", "offset": "00:00:10.5"},
+                                       {"file": "media/c.srt", "offset": 3}]
+        t = build_project(d, "/v/project.oncemore.json", check_files=False).titles[0]
+        self.assertAlmostEqual(t.subtitles[0].offset, 107892 * 1001 / 30000)
+        self.assertEqual([s.offset for s in t.subtitles[1:]], [10.5, 3.0])
+        d["titles"][0]["subtitles"] = [{"file": "media/a.txt", "offset": "soon"}]
+        with self.assertRaises(ProjectError) as cm:
+            build_project(d, "/v/project.oncemore.json", check_files=False)
+        self.assertIn("subtitles[0].offset", str(cm.exception.issues))
+
+
 class TestQuantise(unittest.TestCase):
     def test_four_levels_and_crop(self):
         W, H = 20, 10

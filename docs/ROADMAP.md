@@ -245,6 +245,14 @@ browser) and lands only with green CI.
   its link (menu, title, chapter, playlist, play all), on DVD and Blu-ray;
   drawn in the flowchart, played in the simulator
 
+**P53 — Subtitle scripts, chapter names in the ruler** (done)
+- [x] Text-script subtitles (`.txt`: number, start and end timecode, text):
+  read as tracks (drop-frame and non-drop-frame NTSC, PAL timecode),
+  imported with an absolute or relative timecode (`subtitles[].offset`),
+  exported from any track as a text script or SubRip (Timeline > Export
+  subtitles ▸ SubRip / Text script)
+- [x] View > Show chapter names: chapter names in the timeline's time ruler
+
 **P52 — Guides, rotate and flip** (done)
 - [x] Guides on a menu: View > Show / Lock / Clear guides, New guide…, Snap
   to guides; dragged to move, off the menu to remove; kept with the menu and
