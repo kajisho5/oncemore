@@ -546,17 +546,22 @@ class MenuBuilder:
             out.append((path, round(t.x * self.sx), t.y))
         return out
 
-    def compose(self, menu):
+    def compose(self, menu, transparent=False):
         """ffmpeg inputs + filter_complex drawing the menu, ending in [out].
 
         Input 0 is the background: a still image, a colour, or (motion menu)
         a video converted to the disc frame rate. Thumbnails are single
         images; overlay keeps showing their last frame, so the same graph
-        works for one frame or a whole video.
+        works for one frame or a whole video. transparent: no background at
+        all, the rest drawn on a transparent RGBA picture (a pop-up menu).
         """
         H = self.disc.height
         inputs = []
-        if menu.background_video:
+        if transparent:
+            # (rgba chosen in the source itself, or its alpha is lost)
+            inputs += ["-f", "lavfi", "-i", f"color=c=black@0.0:s={self.dw}x{H}:d=1,format=rgba"]
+            bg = "[0:v]format=rgba"
+        elif menu.background_video:
             num, den = self.disc.fps
             inputs += ["-i", menu.background_video]
             # tpad: hold the last frame if `duration` is longer than the video
@@ -575,7 +580,14 @@ class MenuBuilder:
             bg = "[0:v]format=rgb24"
         chains = [bg + "[bg0]"]
         cur = "bg0"
-        if menu.shapes:
+        if menu.shapes and transparent:
+            # (drawbox leaves the alpha alone: shapes are overlaid instead)
+            for k, s in enumerate(menu.shapes):
+                w, h = max(1, round(s.w * self.sx)), s.h
+                chains.append(f"color=c={_hex(s.color)}:s={w}x{h}:d=1,format=rgba[shape{k}]")
+                chains.append(f"[{cur}][shape{k}]overlay={round(s.x * self.sx)}:{s.y}[shp{k}]")
+                cur = f"shp{k}"
+        elif menu.shapes:
             boxes = ",".join(
                 f"drawbox=x={round(s.x * self.sx)}:y={s.y}:w={max(1, round(s.w * self.sx))}:"
                 f"h={s.h}:color={_hex(s.color)}:t=fill" for s in menu.shapes)

@@ -24,7 +24,7 @@ BD_EVENT_STILL = 25
 BD_EVENT_STILL_TIME = 26
 
 # remote keys (bd_vk_key_e)
-KEYS = {"up": 12, "down": 13, "left": 14, "right": 15, "enter": 16}
+KEYS = {"popup": 11, "up": 12, "down": 13, "left": 14, "right": 15, "enter": 16}
 OVERLAY_IG, OVERLAY_DRAW, OVERLAY_CLEAR, OVERLAY_WIPE = 1, 3, 2, 4
 BD_EVENT_IDLE = 28
 
@@ -255,6 +255,16 @@ class Disc:
                 self.lib.bd_menu_call(self.bd, -1)
                 since = 0
                 continue
+            # "live:<key>": pressed while a title plays (the pop-up menu)
+            if keys and keys[0].startswith("live:") and since > 200_000:
+                key = keys.pop(0)
+                if self.draws:
+                    out.append(("menu", list(self.draws)))
+                    self.draws = []
+                out.append(("key", key))
+                self.lib.bd_user_input(self.bd, -1, KEYS[key[5:]])
+                since = 0
+                continue
             if ev.event == BD_EVENT_STILL_TIME and ev.param:
                 # a picture held for some seconds: let them pass at once
                 out.append(("still", ev.param))
@@ -274,7 +284,7 @@ class Disc:
                 if self.draws:
                     out.append(("menu", list(self.draws)))
                     self.draws = []
-                if keys[0] != "topmenu":
+                if keys[0] != "topmenu" and not keys[0].startswith("live:"):
                     key = keys.pop(0)
                     out.append(("key", key))
                     self.lib.bd_user_input(self.bd, -1, KEYS[key])

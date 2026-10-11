@@ -12,13 +12,19 @@ colour when the menu has one) and carrying the commands of its action.
 The highlights are the DVD menu's own button shapes (label glyphs, frames,
 underlines, highlight pictures), so a menu looks and behaves the same on
 both discs; on Blu-ray the colours are full colour with their opacity.
+
+A title's Menu-key menu (remote_menu) is its pop-up menu on Blu-ray: the
+menu drawn without its background on a transparent picture, each button's
+area of it (normal) and the same with the highlight shapes painted over
+(selected, activated) as the objects of a pop-up interactive composition,
+muxed into the title's clip (popup_stream).
 """
 
 import dataclasses
 import os
 import struct
 
-from . import bluray, encode, pgs, png4
+from . import bluray, encode, pgs, png4, tools
 from .errors import OncemoreError
 from .menu import MenuBuilder
 from .project import Disc
@@ -135,22 +141,112 @@ def _objects(oid, w, h, pixels):
     return out
 
 
-def ig_stream(menu, geoms, canvas, commands, frame_rate, follow_selection=False):
+def quantize(images):
+    """RGBA pictures -> (palette [(r, g, b, a)] for indices 1.., index
+    pictures) with at most 255 colours; fully transparent pixels are index
+    0. Fewer bits per channel are kept until the colours fit; past that the
+    rarest go to their nearest kept colour."""
+    for bits in (8, 7, 6, 5, 4, 3):
+        mask = (0xFF << (8 - bits)) & 0xFF
+        table = bytes(v & mask for v in range(256))
+        q = [im.translate(table) for im in images]
+        counts = {}
+        for qi in q:
+            for i in range(0, len(qi), 4):
+                c = qi[i:i + 4]
+                if c[3]:
+                    counts[c] = counts.get(c, 0) + 1
+        if len(counts) <= 255:
+            break
+    kept = sorted(counts, key=counts.get, reverse=True)[:255]
+    index = {c: k + 1 for k, c in enumerate(kept)}
+    for c in counts:
+        if c not in index:
+            index[c] = min(index.items(), key=lambda kv: sum((a - b) ** 2 for a, b in
+                                                           zip(kv[0], c)))[1]
+    half = (~mask & 0xFF) >> 1
+    palette = [tuple(v | half if v else v for v in c) for c in kept]
+    out = []
+    for qi in q:
+        out.append(bytes(index.get(qi[i:i + 4], 0) if qi[i + 3] else 0
+                         for i in range(0, len(qi), 4)))
+    return palette, out
+
+
+def _over(top, look):
+    """`top` (r, g, b, a) painted over the RGBA pixel `look`."""
+    a = top[3] / 255
+    la = look[3] / 255
+    out_a = a + la * (1 - a)
+    if out_a <= 0:
+        return (0, 0, 0, 0)
+    rgb = [round((t * a + c * la * (1 - a)) / out_a) for t, c in zip(top[:3], look[:3])]
+    return (*rgb, round(out_a * 255))
+
+
+def straight(px):
+    """An RGBA pixel drawn over transparent black (what drawtext and overlay
+    make: colour already multiplied by alpha) with its colour restored."""
+    r, g, b, a = px
+    if 0 < a < 255:
+        return (min(255, round(r * 255 / a)), min(255, round(g * 255 / a)),
+                min(255, round(b * 255 / a)), a)
+    return tuple(px)
+
+
+def popup_states(menu, geoms, canvas, look):
+    """For each button: its area of the transparent menu picture `look`
+    (RGBA bytes, canvas size, drawn over transparent black) as it is, and
+    with the highlight shapes in the highlight and select colours painted
+    over it: [(normal, selected, activated)] RGBA bytes."""
+    W = canvas.width
+    hl, sel = png4.parse_color(menu.highlight_color), png4.parse_color(menu.select_color)
+    out = []
+    for g in geoms:
+        x0, y0, x1, y1 = g.rect
+        w = x1 - x0 + 1
+        normal, selected, activated = bytearray(), bytearray(), bytearray()
+        for yy in range(y0, y1 + 1):
+            row = look[(yy * W + x0) * 4:(yy * W + x1 + 1) * 4]
+            shape = canvas.pixels[yy * W + x0:yy * W + x0 + w]
+            for i in range(w):
+                px = straight(row[4 * i:4 * i + 4])
+                normal += bytes(px)
+                if shape[i]:
+                    selected += bytes(_over(hl, px))
+                    activated += bytes(_over(sel, px))
+                else:
+                    selected += bytes(px)
+                    activated += bytes(px)
+        out.append((bytes(normal), bytes(selected), bytes(activated)))
+    return out
+
+
+def ig_stream(menu, geoms, canvas, commands, frame_rate, follow_selection=False, look=None):
     """The menu's buttons as an IG stream (.sup layout: "PG" segments).
 
     geoms: the builder's ButtonGeom list (HD pixels), canvas: its highlight
     canvas (index 1 where a button's shape is); commands(button) -> its
     navigation commands; frame_rate: the video's frame rate code;
-    follow_selection: no default button, the selected one (PSR 10) is kept."""
+    follow_selection: no default button, the selected one (PSR 10) is kept.
+    look: a pop-up menu: the menu's transparent RGBA picture, whose button
+    areas are the buttons (see popup_states)."""
     index = {g.id: k for k, g in enumerate(geoms)}
     by_id = {b.id: b for b in menu.buttons}
-    palette = [(0, 16, 128, 128, 0), _colour(1, menu.highlight_color),
-               _colour(2, menu.select_color)]
-    if menu.normal_color:
-        palette.append(_colour(3, menu.normal_color))
-    states = [(1, 1), (2, 2)] + ([(0, 3)] if menu.normal_color else [])
     objects, buttons = b"", b""
     W = canvas.width
+    if look is not None:
+        crops = popup_states(menu, geoms, canvas, look)
+        colours, pictures = quantize([c for trio in crops for c in trio])
+        palette = [(0, 16, 128, 128, 0)] + [
+            (k, *(lambda y, cb, cr: (y, cr, cb))(*pgs.ycbcr(c[:3])), c[3])
+            for k, c in enumerate(colours, 1)]
+    else:
+        palette = [(0, 16, 128, 128, 0), _colour(1, menu.highlight_color),
+                   _colour(2, menu.select_color)]
+        if menu.normal_color:
+            palette.append(_colour(3, menu.normal_color))
+    states = [(1, 1), (2, 2)] + ([(0, 3)] if menu.normal_color or look is not None else [])
     for k, g in enumerate(geoms):
         x0, y0, x1, y1 = g.rect
         w, h = x1 - x0 + 1, y1 - y0 + 1
@@ -159,8 +255,12 @@ def ig_stream(menu, geoms, canvas, commands, frame_rate, follow_selection=False)
         ids = {}
         for slot, idx in states:            # slot: 0 normal, 1 selected, 2 activated
             oid = 3 * k + slot
-            # (the canvas marks the shape with 1; each state draws it in its own colour)
-            objects += _objects(oid, w, h, crop.translate(bytes([0, idx]) + bytes(254)))
+            if look is not None:
+                pixels = pictures[3 * k + slot]
+            else:
+                # (the canvas marks the shape with 1; each state draws it in its own colour)
+                pixels = crop.translate(bytes([0, idx]) + bytes(254))
+            objects += _objects(oid, w, h, pixels)
             ids[slot] = oid
         nav = [index.get(g.nav.get(d), k) for d in ("up", "down", "left", "right")]
         cmds = commands(by_id[g.id])
@@ -179,7 +279,8 @@ def ig_stream(menu, geoms, canvas, commands, frame_rate, follow_selection=False)
     page = struct.pack(">BB", 0, 0) + bytes(8)           # page 0, no user-operation mask
     page += bytes([0, 0]) + bytes([0, 0])                  # no in / out effects
     page += struct.pack(">BHHBB", 0, default, NO_OBJECT, 0, len(geoms)) + buttons
-    body = bytes([0x00]) + bytes(10)                       # multiplexed, always on; no timeouts
+    # multiplexed; always on, or a pop-up (the Pop-up key shows it); no timeouts
+    body = bytes([0x40 if look is not None else 0x00]) + bytes(10)
     body += (0).to_bytes(3, "big") + bytes([1]) + page     # no user time-out; one page
     ics = struct.pack(">HHB", bluray.WIDTH, bluray.HEIGHT, frame_rate << 4)
     ics += struct.pack(">HB", 0, 0x80)                     # composition 0, epoch start
@@ -230,6 +331,29 @@ def _crc32(data):
             crc = ((crc << 1) ^ 0x04C11DB7) & 0xFFFFFFFF if crc & 0x80000000 else \
                 (crc << 1) & 0xFFFFFFFF
     return crc
+
+
+def popup_stream(project, menu, work, font, commands, frame_rate):
+    """`menu` (of the HD project) as a pop-up menu: drawn without its
+    background, its buttons an IG stream with a pop-up composition (.sup)."""
+    mb = MenuBuilder(project, work, font=font)
+    geoms = mb.layout(menu)
+    canvas = mb.highlight_canvas(geoms)
+    inputs, graph = mb.compose(menu, transparent=True)
+    raw = os.path.join(mb.work, f"{menu.id}.popup.rgba")
+    tools.run([mb.ffmpeg, "-hide_banner", "-nostdin", "-y"] + inputs +
+              ["-filter_complex", graph, "-map", "[out]", "-frames:v", "1",
+               "-f", "rawvideo", "-pix_fmt", "rgba", raw],
+              cwd=mb.work, log=os.path.join(mb.logs, f"menu-{menu.id}-popup.log"),
+              what=f"ffmpeg (pop-up menu {menu.id})", timeout=600)
+    with open(raw, "rb") as f:
+        look = f.read()
+    if len(look) != canvas.width * canvas.height * 4:
+        raise OncemoreError(f"menu {menu.id!r}: the pop-up picture has the wrong size")
+    sup = os.path.join(mb.work, f"{menu.id}.popup.sup")
+    with open(sup, "wb") as f:
+        f.write(ig_stream(menu, geoms, canvas, commands, frame_rate, look=look))
+    return sup
 
 
 def encode_menu(project, menu, work, font, commands, max_bps, fast=False, on_progress=None,
@@ -304,8 +428,4 @@ def encode_menu(project, menu, work, font, commands, max_bps, fast=False, on_pro
 
 def unsupported(project):
     """What the Blu-ray menus leave out (reported as build warnings)."""
-    out = []
-    if any(t.remote_menu for t in project.titles):
-        out.append("the Menu key during a title opens the top menu on Blu-ray "
-                   "(no menu per title)")
-    return out
+    return []
