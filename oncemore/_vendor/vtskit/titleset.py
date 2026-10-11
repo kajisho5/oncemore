@@ -105,16 +105,7 @@ class Title:
     choose from as (Y, Cr, Cb) (black where not given), and its program
     chain's commands: `pre` and `post` as lists of 8-byte commands
     (`vtskit.vm.assemble` makes them), `cell_commands` as {chapter number:
-    one 8-byte command run when the chapter's last cell ends}.
-
-    `next_pgc`, `prev_pgc` and `up_pgc` name the program chains (title
-    numbers in this titleset; 0: none) that follow, precede and contain
-    this one: the "next", "previous" and "goup PGCN" of the program chain
-    header (dvdinfo pgc.html, which says no more of them). dvdauthor
-    writes none (titles are chained with commands instead). Under
-    libdvdnav, a title whose post commands run out plays on into its next
-    program chain, and one without a next stops (tests/test_titleset.py);
-    what players make of them is otherwise not described."""
+    one 8-byte command run when the chapter's last cell ends}."""
     stream: str | None = None
     chapters: tuple = (0.0,)
     audio: tuple = ()
@@ -126,9 +117,6 @@ class Title:
     stills: dict = field(default_factory=dict)      # {chapter: seconds 1-254, or None: until Play}
     uops: int = 0                                   # user operations the title forbids (bit n: vtskit.vm.UOP_*)
     parts: tuple = ()
-    next_pgc: int = 0
-    prev_pgc: int = 0
-    up_pgc: int = 0
 
 
 @dataclass
@@ -177,7 +165,7 @@ class WrittenTitle:
     uops: int = 0
     programs: list = field(default_factory=list)    # the entry cell of each program
     angles: int = 1
-    chunks: list = field(default_factory=list)      # (sector, buffer, first byte, end) to lay on the disc
+    chunks: list = field(default_factory=list)      # (sector, bytes) to lay on the disc
     timeline: list = field(default_factory=list)    # (tick from the start, sector, cell number) of each VOBU played
     end: int = 0                                    # ticks from the start to the end, the sound included
     vobu_sectors: list = field(default_factory=list)
@@ -194,7 +182,6 @@ class Titleset:
     attributes: bytes = b""     # the VTS_MAT from 0x100 on, as VTS_ATRT copies it
     files: list = field(default_factory=list)
     menu_sectors: int = 0
-    menus: int = 0              # program chains in its menu domain (0: none)
 
     @property
     def sectors(self):
@@ -314,13 +301,11 @@ def _still(seconds):
     return seconds
 
 
-def _pgc(commands, written, frame, subs, palette, title=True, stills=None, uops=0, video=None,
-         links=(0, 0, 0)):
+def _pgc(commands, written, frame, subs, palette, title=True, stills=None, uops=0, video=None):
     """One program chain: `commands` = (pre, post, {chapter: command});
     `stills` {chapter: seconds or None} holds the picture at the chapter's
     last cell's end. `video`: the domain's video attribute bytes, for the
-    subpicture streams of a 16:9 picture. `links`: the next, previous and
-    group program chain numbers (0: none)."""
+    subpicture streams of a 16:9 picture."""
     pre, post, cell_commands = commands
     cells = written.cells
     programs = written.programs or [1]
@@ -367,7 +352,6 @@ def _pgc(commands, written, frame, subs, palette, title=True, stills=None, uops=
             else:
                 entry = (0x80 | k) << 24
             struct.pack_into(">I", head, 0x1C + 4 * n, entry)
-    struct.pack_into(">HHH", head, 0x9C, *links)
     head[0xA4:0xE4] = _palette(palette)
     table = struct.pack(">HHHH", len(pre), len(post), len(cell_list),
                         8 + 8 * (len(pre) + len(post) + len(cell_list)) - 1)
@@ -452,7 +436,7 @@ def _prepare(number, vob_id, path, cell_times, offset, extra=None, hli=None):
     bounds = starts + [len(vs)]
     cells = []
     for c, (a, b) in enumerate(zip(bounds, bounds[1:]), 1):
-        end = vs[b].s_ptm if b < len(vs) else stream.end       # (the sound may outlast the picture)
+        end = vs[b].s_ptm if b < len(vs) else stream.video_end
         cells.append(Cell(c, vob_id, c, a, b - 1, offset + vs[a].start, 0, offset + vs[b - 1].start,
                           offset + vs[b - 1].end, vs[a].s_ptm, end, stc_discontinuity=c == 1,
                           seamless=c > 1, last_of_program=c == len(starts)))
@@ -462,32 +446,18 @@ def _prepare(number, vob_id, path, cell_times, offset, extra=None, hli=None):
     timeline = [(v.s_ptm - s0, offset + v.start, c.number) for c in cells
                 for v in vs[c.first_vobu:c.last_vobu + 1]]
     w = WrittenTitle(number, vob_id, stream.sectors, offset, cells, vs, stream, programs=[1],
-                     chunks=[(offset, vob, 0, len(vob))], timeline=timeline, end=vs[-1].e_ptm - s0,
+                     chunks=[(offset, vob)], timeline=timeline, end=vs[-1].e_ptm - s0,
                      vobu_sectors=[offset + v.start for v in vs])
     return w, vob
 
 
 
 def _load(path):
-    """A title's stream: mapped from its file, its navigation packs to be
-    filled aside (ps.Mapped), unless it has packs of padding alone to drop,
-    which takes a copy in memory."""
-    vob = ps.Mapped(path)
-    try:
-        if ps.has_padding(vob):
-            vob, mapped = ps.drop_padding(vob), vob
-            mapped.close()
-        stream = ps.scan(vob)
-        vs = nav.vobus(stream)
-    except BaseException:
-        _close(vob)
-        raise
+    with open(path, "rb") as f:
+        vob = ps.drop_padding(f.read())
+    stream = ps.scan(vob)
+    vs = nav.vobus(stream)
     return stream, vs, vob
-
-
-def _close(buffer):
-    if isinstance(buffer, ps.Mapped):
-        buffer.close()
 
 
 def _aligned(loaded, where):
@@ -539,7 +509,7 @@ def _title(number, title, offset, vob_id):
     for part in loaded:
         part_start.append(tick)
         st, vs, _ = part[0]
-        tick += st.end - vs[0].s_ptm
+        tick += st.video_end - vs[0].s_ptm
     end = sum(a[0].end - a[1][0].s_ptm for a in (part[0] for part in loaded))
     starts = [(part_start[k] + v.s_ptm - part[0][1][0].s_ptm, k, i)
               for k, part in enumerate(loaded) for i, v in enumerate(part[0][1])]
@@ -582,7 +552,7 @@ def _title(number, title, offset, vob_id):
                     vobu_sectors.append(sector)
                     preceding.append((k, 0, i))
                     sector += vs[i].end - vs[i].start + 1
-                e = vs[i1].s_ptm if i1 < len(vs) else st.end
+                e = vs[i1].s_ptm if i1 < len(vs) else st.video_end
                 lay = layouts[(k, 0)]
                 cells.append(Cell(len(cells) + 1, vob_id, seg, i0, i1 - 1, lay[i0], 0, lay[i1 - 1],
                                   lay[i1 - 1] + vs[i1 - 1].end - vs[i1 - 1].start, vs[i0].s_ptm, e,
@@ -649,7 +619,7 @@ def _title(number, title, offset, vob_id):
                                     nsml.append(d if d >= 0 else 0x80000000 | -d)
                             nsml_info[(k, a)][i] = nsml
                     st = part[a][0]
-                    e = vs[i1].s_ptm if i1 < len(vs) else st.end
+                    e = vs[i1].s_ptm if i1 < len(vs) else st.video_end
                     first_end = unit_start[(a, 0)] + unit_size[(a, 0)] - 1
                     cells.append(Cell(len(cells) + 1, vob_id + a, seg, i0, i1 - 1, lay[i0], first_end,
                                       lay[i1 - 1], lay[i1 - 1] + vs[i1 - 1].end - vs[i1 - 1].start,
@@ -668,10 +638,10 @@ def _title(number, title, offset, vob_id):
                  nsml=nsml_info[(k, a)])
         lay = layouts[(k, a)]
         if len(loaded[k]) == 1:
-            chunks.append((lay[0], vob, 0, len(vob)))
+            chunks.append((lay[0], vob))
         else:
             for i, v in enumerate(vs):
-                chunks.append((lay[i], vob, v.start * SECTOR, (v.end + 1) * SECTOR))
+                chunks.append((lay[i], vob[v.start * SECTOR:(v.end + 1) * SECTOR]))
     # a chapter's last cells: those of its last stretch (every angle of it)
     last = {}
     for c in cells:
@@ -707,25 +677,13 @@ def _attributes(written, pan_scan, letterbox, audio, subpictures, what, captions
 
 
 def menu_domain(menus, language, offset=0, pan_scan=True, letterbox=True, frame=None,
-                video=None, domain="vtsm"):
-    """The VOBs and tables of a menu domain (a titleset's, or the VMG's with
-    `domain` "vmgm"): (written menus, their bytes, VTSM/VMGM_PGCI_UT,
-    C_ADT, VOBU_ADMAP, attributes (video, audio count, audio, subpicture
-    count, subpictures)). `frame` (ticks a frame) and `video` (the 2 video
-    attribute bytes) stand in when no menu has a stream.
-
-    From dvdauthor's output: a domain always has its main menu, the root
-    (the title menu in the VMG). When no menu is marked so, the first menu
-    becomes it, whatever it was marked, and the key it was marked for
-    (audio, subpicture, angle) gets a program chain of its own that links
-    to the first menu; a titleset without a PTT (chapter) menu gets one
-    that links to the first menu too."""
+                video=None):
+    """The VOBs and tables of a menu domain (a titleset's or the VMG's):
+    (written menus, their bytes, VTSM/VMGM_PGCI_UT, C_ADT, VOBU_ADMAP,
+    attributes (video, audio count, audio, subpicture count, subpictures)).
+    `frame` (ticks a frame) and `video` (the 2 video attribute bytes) stand
+    in when no menu has a stream."""
     lang = _lang(language)
-    main = "title" if domain == "vmgm" else "root"
-    entries = [m.entry for m in menus]
-    displaced = None
-    if menus and main not in entries:
-        displaced, entries[0] = entries[0], main
     written, data = [], []
     for n, m in enumerate(menus, 1):
         if not isinstance(m, menus_.Menu):
@@ -753,7 +711,7 @@ def menu_domain(menus, language, offset=0, pan_scan=True, letterbox=True, frame=
         written.append(w)
         data.append(vob)
         offset += w.sectors
-    kinds = [k for k in entries if k]
+    kinds = [m.entry for m in menus if m.entry]
     if len(kinds) != len(set(kinds)):
         raise VtsError("two menus answer the same key")
     with_vob = [w for w in written if w.stream is not None]
@@ -767,25 +725,19 @@ def menu_domain(menus, language, offset=0, pan_scan=True, letterbox=True, frame=
         video_attr, audio_count, audio_bytes, sp_count, sp_bytes, subs = \
             video, 0, bytes(64), 0, bytes(192), []
     pgcs, cats = [], []
-    for m, w, entry in zip(menus, written, entries):
-        cat = (0x80 | menus_.ENTRY_TYPES[entry]) << 24 if entry else 0
+    for m, w in zip(menus, written):
+        cat = (0x80 | menus_.ENTRY_TYPES[m.entry]) << 24 if m.entry else 0
         pgcs.append(_pgc((m.pre, m.post or (EXIT,), {}), w, frame, subs, menus_.palette(m), title=False,
                          uops=m.uops, video=video_attr))
         cats.append(cat)
     flags = 0
     for k in kinds:
         flags |= menus_.ENTRY_FLAGS[k]
-    pads = []
-    if displaced not in (None, "ptt"):
-        pads.append(displaced)                     # (served by the root menu, which was it)
-    if domain != "vmgm" and "ptt" not in kinds:
-        pads.append("ptt")
-    for kind in pads:
-        # (LinkPGCN 1: dvdauthor links these to the first menu, whichever
-        # it is, not to the root menu when that comes later)
-        pgcs.append(_empty_pgc([struct.pack(">BBHHH", 0x20, 4, 0, 0, 1)]))
-        cats.append((0x80 | menus_.ENTRY_TYPES[kind]) << 24)
-        flags |= menus_.ENTRY_FLAGS[kind]
+    if "root" in kinds and "ptt" not in kinds:
+        root = next(n for n, m in enumerate(menus, 1) if m.entry == "root")
+        pgcs.append(_empty_pgc([struct.pack(">BBHHH", 0x20, 4, 0, 0, root)]))   # LinkPGCN root
+        cats.append((0x80 | menus_.ENTRY_TYPES["ptt"]) << 24)
+        flags |= menus_.ENTRY_FLAGS["ptt"]
     lu = struct.pack(">HHI", len(pgcs), 0, 0)
     o = 8 + 8 * len(pgcs)
     for cat, p in zip(cats, pgcs):
@@ -817,19 +769,10 @@ def write(folder, vts, titles, menus=(), language="en", pan_scan=True, letterbox
     if not titles or len(titles) > 99:
         raise VtsError("a titleset holds 1 to 99 titles")
     written = []
-    try:
-        offset, vob_id = 0, 1
-        for n, title in enumerate(titles, 1):
-            w, offset, vob_id = _title(n, title, offset, vob_id)
-            written.append(w)
-        return _write(folder, vts, titles, written, menus, language, pan_scan, letterbox, captions)
-    finally:
-        for w in written:
-            for _, buffer, _, _ in w.chunks:
-                _close(buffer)
-
-
-def _write(folder, vts, titles, written, menus, language, pan_scan, letterbox, captions):
+    offset, vob_id = 0, 1
+    for n, title in enumerate(titles, 1):
+        w, offset, vob_id = _title(n, title, offset, vob_id)
+        written.append(w)
     frame = written[0].stream.frame
     video, audio_count, audio, sp_count, subpictures, subs = _attributes(
         written, pan_scan, letterbox, [t.audio for t in titles], [t.subpictures for t in titles],
@@ -845,13 +788,8 @@ def _write(folder, vts, titles, written, menus, language, pan_scan, letterbox, c
     ptt = _table(lambda n, end: struct.pack(">HHI", n, 0, end), 8,
                  [b"".join(struct.pack(">HH", w.number, k) for k in range(1, len(w.programs) + 1))
                   for w in written])
-    for n, t in enumerate(titles, 1):
-        for name in ("next_pgc", "prev_pgc", "up_pgc"):
-            if not 0 <= getattr(t, name) <= len(titles):
-                raise VtsError(f"title {n}: {name} {getattr(t, name)}: the titleset has {len(titles)} program chains")
     pgcs = [_pgc((t.pre, t.post, t.cell_commands), w, frame, sorted(w.stream.subpictures), t.palette,
-                 stills=t.stills, uops=t.uops, video=video, links=(t.next_pgc, t.prev_pgc, t.up_pgc))
-            for t, w in zip(titles, written)]
+                 stills=t.stills, uops=t.uops, video=video) for t, w in zip(titles, written)]
     pgci = struct.pack(">HHI", len(pgcs), 0, 0)
     o = 8 + 8 * len(pgcs)
     for w, p in zip(written, pgcs):
@@ -874,7 +812,7 @@ def _write(folder, vts, titles, written, menus, language, pan_scan, letterbox, c
     for (name, _), t in zip(order, tables):
         pointers[name] = sectors
         sectors += len(t) // SECTOR
-    vob_sectors = written[-1].first_sector + written[-1].sectors
+    vob_sectors = offset
     mat = bytearray(SECTOR)
     mat[:12] = b"DVDVIDEO-VTS"
     struct.pack_into(">I", mat, 0x0C, 2 * sectors + menu_sectors + vob_sectors - 1)
@@ -911,8 +849,7 @@ def _write(folder, vts, titles, written, menus, language, pan_scan, letterbox, c
     files += _write_vobs(folder, vts, written)
     for t, w in zip(titles, written):
         w.uops = t.uops
-    return Titleset(vts, folder, sectors, vob_sectors, written, ifo[0x100:0x400], files, menu_sectors,
-                    len(menu_written))
+    return Titleset(vts, folder, sectors, vob_sectors, written, ifo[0x100:0x400], files, menu_sectors)
 
 
 def _address_tables(written):
@@ -943,25 +880,13 @@ def _write_vobs(folder, vts, written):
     if len(cuts) - 1 > 9:
         raise VtsError("the titles need more than 9 VOB files (over 9 GiB)")
     chunks = sorted((c for w in written for c in w.chunks), key=lambda c: c[0])
-    at = 0
-    for sector, _, start, stop in chunks:
-        if sector != at or (stop - start) % SECTOR:
-            raise VtsError("the VOBUs do not fill the title VOBs")
-        at += (stop - start) // SECTOR
-    if at != total:
+    whole = b"".join(bytes(c[1]) for c in chunks)       # (a copy; titles are read whole as it is)
+    if len(whole) != total * SECTOR:
         raise VtsError("the VOBUs do not fill the title VOBs")
     names = []
     for k, (a, b) in enumerate(zip(cuts, cuts[1:]), 1):
         name = f"VTS_{vts:02d}_{k}.VOB"
         with open(os.path.join(folder, name), "wb") as f:
-            for sector, buffer, start, stop in chunks:
-                lo = max(a * SECTOR, sector * SECTOR) - sector * SECTOR + start
-                hi = min(b * SECTOR, sector * SECTOR + stop - start) - sector * SECTOR + start
-                if lo >= hi:
-                    continue
-                if isinstance(buffer, ps.Mapped):
-                    buffer.write(f, lo, hi)
-                else:
-                    f.write(memoryview(buffer)[lo:hi])
+            f.write(whole[a * SECTOR:b * SECTOR])
         names.append(name)
     return names
