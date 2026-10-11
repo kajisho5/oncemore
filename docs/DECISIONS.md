@@ -1966,6 +1966,32 @@ plain forms only.
   UTF-16 FAB track and a Display_Area track, checking the picture's colour
   inside its rectangle and nothing at the bottom centre.
 
+## 101. The disc's starting audio track, and subtitles off from the start
+
+* A disc with several audio tracks played whichever the player picked (its
+  language setting). An audio track marked `default` now starts the disc,
+  as `subtitles[].default` already did for subtitles (§18). It is set once
+  at first play (DVD: `audio = n` in the first-play program; Blu-ray: a Set
+  Stream for the primary audio in the first-play object). A viewer who
+  changes the track later, by remote or with a menu button, keeps it.
+* Track numbers are the same on every title (§18), so the first title with
+  a default track decides it, as for subtitles. One default per title.
+* `disc.subtitles_off` starts a DVD with subtitles off (`subtitle = 0`)
+  instead of the player's language choice. A subtitle track marked
+  `default` wins over it. A Blu-ray title that has subtitles already sets
+  its own default, or none, as it starts (§55), so a Blu-ray starts with
+  them off either way.
+* The simulator starts with the same streams.
+* Still to come (ROADMAP): a menu's default button following the audio or
+  subtitle track playing, streams per playlist item, and playlists inside
+  playlists. The first needs the player's stream registers in a menu's
+  commands; that is left until it can be checked against libdvdnav and
+  libbluray.
+* `tests/test_default_streams.py` checks the commands. It also builds a
+  DVD read with libdvdnav (English audio, the second track, and subtitles
+  off) and a Blu-ray read with libbluray (audio stream 2 before the title
+  plays, no subtitles shown). The DVD check fails without the change.
+
 ## 102. More source formats: .m2v, .mp2, .mpa, .wma, .gif, .tga
 
 The classic app's manual lists sources oncemore turned away or could not

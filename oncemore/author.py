@@ -334,6 +334,26 @@ def default_subtitle(project):
     return None
 
 
+def default_audio(project):
+    """0-based audio stream to start with, or None (the player's choice)."""
+    for t in project.titles:
+        for j, tr in enumerate(t.audio_tracks):
+            if tr.default:
+                return j
+    return None
+
+
+def start_streams(project):
+    """The first-play commands setting the disc's starting streams (§18, §101)."""
+    sub, aud = default_subtitle(project), default_audio(project)
+    pre = f"audio = {aud}; " if aud is not None else ""
+    if sub is not None:
+        pre += f"subtitle = {64 + sub}; "
+    elif project.disc.subtitles_off:
+        pre += "subtitle = 0; "
+    return pre
+
+
 def end_command(project, action, title=None):
     """<post> of `title` (default: one in titleset 1)."""
     lists = playlist_dispatch(project, title) if title is not None else ""
@@ -416,8 +436,7 @@ def end_chapters(project):
 
 def first_play_command(project):
     kind, target, num = parse_action(project.disc.first_play)
-    sub = default_subtitle(project)
-    pre = f"subtitle = {64 + sub}; " if sub is not None else ""
+    pre = start_streams(project)
     if kind == "menu":
         n = _menu_number(project, target)
         return f"{pre}{_entry(project, target, num)}{NAV_REG} = {n}; jump titleset 1 menu entry root;"
