@@ -1465,3 +1465,27 @@ written that fails before the fix, and then the fix:
 * The tests draw a long line over a short one and check where the short
   one's pixels are for each alignment, and that the spacing moves the
   second line down by as much.
+
+## 86. Slideshows of more than 99 pictures
+
+* A slideshow takes up to 999 pictures, as many chapters as a Blu-ray
+  playlist can mark. A DVD title has at most 99 chapters, so there the
+  pictures after the 98th are part of chapter 99, with a warning, as the
+  classic apps did; a slideshow advanced by hand has a chapter (and a
+  still) per picture, so on a DVD it is refused past 99.
+* The slideshow is drawn by one ffmpeg graph with every picture an input
+  of its own, which does not scale to hundreds (open files, memory). A
+  show of more than 60 pictures is drawn in pieces of 60: each piece
+  begins where the transition into its first picture ends (the piece
+  before draws that, with the start of the picture), and the pieces are
+  joined frame by frame into the same lossless video. Joining them by
+  stream copy (the concat demuxer) put frames out of place, so they are
+  decoded and joined by the concat filter, FFV1 again.
+* The tests draw a show of 13 pictures at once and in pieces of 4, with
+  cross-fades, cuts across the joins, random transitions and pan & zoom,
+  and compare every frame (framemd5): they are the same. A 120-picture
+  show built as a DVD has 99 chapters (libdvdnav) and as a Blu-ray 120
+  (libbluray).
+* That test found pan & zoom pictures one frame short each: zoompan makes
+  its frames at the disc's rate already, and the fps filter after it
+  dropped the last one. It is left out after zoompan now.
