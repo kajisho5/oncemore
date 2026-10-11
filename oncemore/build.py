@@ -14,7 +14,7 @@ from . import (author, bdmenu, bluray, clips, encode, iso, lpcmfix, pgs, slidesh
                tools, udf250, uops)
 from . import menu as menu_module
 from .errors import OncemoreError, ProjectError
-from .project import parse_action, retime_thumbs
+from .project import parse_action, retime_thumbs, title_fps
 from .menu import (MenuBuilder, check_element_fonts, display_width, find_font, link_font,
                    menu_seconds, menu_text)
 
@@ -138,8 +138,16 @@ def inspect(project, reporter=None, prepare=True, bd=False):
             issues.append({"path": f"{where}.source", "message": "cannot determine duration"})
             continue
         if not t.transcode and bd:
-            warnings.append(f"{where}.transcode: a Blu-ray needs H.264, so the picture is "
-                            "encoded anyway")
+            # a Blu-ray H.264 picture is copied; any other is encoded anyway
+            # (the setting is about the DVD's MPEG-2 as much)
+            src = dict(info, gop=encode.longest_gop(t.source))
+            if src.get("codec") == "h264":
+                src["fields"] = bluray.coded_for_fields(t.source)
+            why = bluray.copy_compliance(src, title_fps(t, project.disc))
+            t.bd_copy = not why
+            if why:
+                warnings.append(f"{where}.transcode: the picture is encoded for the Blu-ray "
+                                f"anyway: {'; '.join(why)}")
         elif not t.transcode:
             def track_bps(tr):
                 if t.audio_passthrough:                 # (copied: its own rate)
@@ -195,7 +203,10 @@ def inspect(project, reporter=None, prepare=True, bd=False):
         font = find_font(project.disc.font, text)
     check_element_fonts(project)
     if bd:
-        plan = bluray.plan([(infos[t.id]["duration"], t.audio_bps) for t in project.titles],
+        # (a picture used as it is keeps its own rate)
+        plan = bluray.plan([(infos[t.id]["duration"], t.audio_bps) +
+                            ((encode.source_video_bps(infos[t.id]),) if t.bd_copy else ())
+                            for t in project.titles],
                            bluray.CAPACITY[project.disc.bluray_target])
         plan.update(video_bps=plan["max_bps"], per_title=[plan["max_bps"]] * len(project.titles))
     else:
@@ -628,7 +639,8 @@ def build_bluray(project, out_dir, reporter, fast=False, keep_work=False, work=N
             reporter.step("encode", f"Title '{t.id}' unchanged (cached)", item=t.id)
         else:
             reporter.step("encode", f"Encoding title '{t.id}' in HD "
-                          f"({infos[t.id]['duration']:.1f}s)", item=t.id)
+                          f"({infos[t.id]['duration']:.1f}s"
+                          f"{', picture copied' if t.bd_copy else ''})", item=t.id)
             bluray.encode_title(t, infos[t.id], project.disc, plan["max_bps"], out, work,
                                 fast=fast, probes=plan["_probes"], sups=sups, popup=popup,
                                 on_progress=lambda f, tid=t.id: reporter.progress("encode", f, tid))

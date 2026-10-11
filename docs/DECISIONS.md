@@ -995,7 +995,8 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   else the file's), so the other titles share what is left.
 * Chapter cells can only start on the copied GOPs, so a chapter starts at
   a key frame of the source rather than exactly at its time. Blu-ray needs H.264 and
-  encodes such titles anyway (with a warning).
+  encodes such titles anyway (with a warning); an H.264 source that already
+  is Blu-ray video is copied there (§77).
 
 ## 64. Slideshow transitions
 
@@ -1300,3 +1301,31 @@ written that fails before the fix, and then the fix:
   track alongside it), and oncemore keeps one format for all of a title's
   tracks, so a DVD title with DTS gets a warning. Blu-ray players decode the
   DTS core, so there is none there.
+
+## 77. H.264 used as it is on a Blu-ray
+
+* `transcode: false` already meant "this picture is ready for the disc" for
+  a DVD; on a Blu-ray it now means the same for H.264 (it used to be
+  ignored there, with a warning). A picture that does not qualify is still
+  encoded, with a warning naming every reason: a project made for a DVD
+  with MPEG-2 sources keeps building as a Blu-ray.
+* What is checked is what ffprobe and the stream say: High or Main profile
+  up to level 4.1, 4:2:0, 1920x1080 with square pixels, a rate oncemore
+  writes (23.976 progressive; 25 and 29.97 as 1080i), a key frame at least
+  every second (the entry points and chapters need them), at most
+  40 Mbit/s. 1080i needs a stream coded for fields, which ffprobe does not
+  tell (a progressive picture coded as 1080i reads "progressive"), so the
+  sequence parameter set's frame_mbs_only_flag is read. What is not checked
+  (slices per picture, the buffer model, B-pyramid) is left to the encoder
+  that made the file.
+* An MP4 or MKV keeps the parameter sets aside and the SEI in the pictures;
+  ffmpeg's conversion to a stream put them after the SEI, one even before
+  the access unit delimiter. ffmpeg's own decoder then complains about a
+  buffering period naming an unknown SPS, and a Blu-ray stream wants
+  AUD, SPS, PPS, SEI, slices. So the delimiters are dropped, the parameter
+  sets put at the start of every key picture, and the muxer starts each
+  picture with a new delimiter (`COPY_BSF`); the tests decode the copy to
+  the source's very frames and read that order back.
+* Chapters land on the copied key frames (at most a second off, as on a
+  DVD), and the plan keeps the copied picture's rate so the encoded titles
+  share what is left.

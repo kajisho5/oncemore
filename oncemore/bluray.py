@@ -15,8 +15,9 @@ import dataclasses
 import os
 import shutil
 import struct
+import subprocess
 
-from . import encode, uops
+from . import encode, tools, uops
 from .errors import OncemoreError, ProjectError
 from .project import frame_at, parse_action, title_fps, transition_key
 
@@ -90,22 +91,161 @@ class HDFrame:
 def plan(items, capacity):
     """Highest video rate the titles may peak at so that they fit.
 
-    items: (duration, audio bps) per title. Pictures are encoded at a
-    constant quality and capped at this rate, so the disc is never
+    items: (duration, audio bps) per title, or (duration, audio bps, video
+    bps) for a picture used as it is (its own rate). Pictures are encoded at
+    a constant quality and capped at this rate, so the disc is never
     overfilled. Returns {"max_bps", "estimated_bytes", "capacity", "warnings"}."""
-    total = sum(d for d, _ in items)
-    if total <= 0:
+    items = [(d, a, rest[0] if rest else None) for d, a, *rest in items]
+    if sum(d for d, _, _ in items) <= 0:
         raise ProjectError("titles have zero total duration")
-    usable = capacity * (1 - DISC_SAFETY) * 8 - sum(d * a for d, a in items)
-    fit = usable / total
+    total = sum(d for d, _, v in items if v is None)
+    usable = capacity * (1 - DISC_SAFETY) * 8 - sum(d * (a + (v or 0)) for d, a, v in items)
+    fit = usable / total if total else (MAX_VIDEO_BPS if usable >= 0 else -1)
     if fit < MIN_VIDEO_BPS:
         raise ProjectError(f"content does not fit: {total / 60:.1f} min would need a video "
                            f"bitrate of {max(fit, 0) / 1e6:.2f} Mbit/s (minimum "
                            f"{MIN_VIDEO_BPS / 1e6:.0f}). Use BD50 or shorter titles.")
     peak = int(min(MAX_VIDEO_BPS, fit))
-    est = sum(d * (peak + a) for d, a in items) / 8 * (1 + DISC_SAFETY)
+    est = sum(d * ((peak if v is None else v) + a) for d, a, v in items) / 8 * (1 + DISC_SAFETY)
     return {"max_bps": peak, "estimated_bytes": int(min(est, capacity)), "capacity": capacity,
             "total_seconds": total, "warnings": []}
+
+
+# --------------------------------------------------------------------------
+# a source's H.264 picture used as it is
+# --------------------------------------------------------------------------
+
+class _Bits:
+    """Reads an H.264 parameter set (emulation prevention bytes removed)."""
+
+    def __init__(self, data):
+        self.data, self.pos = data, 0
+
+    def u(self, n):
+        v = 0
+        for _ in range(n):
+            byte = self.data[self.pos >> 3] if self.pos >> 3 < len(self.data) else 0
+            v = v << 1 | (byte >> (7 - (self.pos & 7))) & 1
+            self.pos += 1
+        return v
+
+    def ue(self):
+        zeros = 0
+        while not self.u(1):
+            zeros += 1
+            if zeros > 31:
+                raise ValueError("bad exp-Golomb code")
+        return (1 << zeros) - 1 + self.u(zeros)
+
+    def se(self):
+        k = self.ue()
+        return (k + 1) // 2 if k & 1 else -(k // 2)
+
+
+HIGH_PROFILES = (100, 110, 122, 244, 44, 83, 86, 118, 128, 138, 139, 134, 135)
+
+
+def sps_frame_mbs_only(sps):
+    """frame_mbs_only_flag of an H.264 sequence parameter set (the NAL unit,
+    header byte included): 0 when the stream may hold fields, as a 1080i
+    Blu-ray stream does (fields, or progressive frames coded as such)."""
+    rbsp = sps[1:].replace(b"\0\0\3", b"\0\0")
+    b = _Bits(rbsp)
+    profile = b.u(8)
+    b.u(16)                                  # constraint flags, level
+    b.ue()                                   # seq_parameter_set_id
+    if profile in HIGH_PROFILES:
+        if b.ue() == 3:                      # chroma_format_idc
+            b.u(1)
+        b.ue(), b.ue()                       # bit depths
+        b.u(1)
+        if b.u(1):                           # seq_scaling_matrix_present_flag
+            for k in range(8):
+                if b.u(1):
+                    last = nxt = 8
+                    for _ in range(16 if k < 6 else 64):
+                        if nxt:
+                            nxt = (last + b.se()) % 256
+                        last = nxt or last
+    b.ue()                                   # log2_max_frame_num_minus4
+    poc = b.ue()
+    if poc == 0:
+        b.ue()
+    elif poc == 1:
+        b.u(1), b.se(), b.se()
+        for _ in range(b.ue()):
+            b.se()
+    b.ue(), b.u(1)                           # max_num_ref_frames, gaps allowed
+    b.ue(), b.ue()                           # picture size in macroblocks
+    return b.u(1)
+
+
+def coded_for_fields(path):
+    """True when the H.264 video of `path` may hold fields (see
+    sps_frame_mbs_only), False when it is frames only, None when it cannot
+    be read."""
+    cmd = [tools.find("ffmpeg"), "-v", "error", "-i", path, "-map", "0:v:0", "-c:v", "copy",
+           "-bsf:v", "h264_mp4toannexb", "-frames:v", "1", "-f", "h264", "-"]
+    try:
+        data = subprocess.run(cmd, capture_output=True, timeout=120).stdout
+    except subprocess.TimeoutExpired:
+        return None
+    for nal in data.replace(b"\0\0\0\1", b"\0\0\1").split(b"\0\0\1")[1:]:
+        if nal and nal[0] & 0x1F == 7:
+            try:
+                return not sps_frame_mbs_only(nal)
+            except (ValueError, IndexError):
+                return None
+    return None
+
+
+# A picture used as it is gets its parameter sets where a Blu-ray stream has
+# them: an MP4 / MKV source keeps them aside (and its SEI in the pictures),
+# and the plain Annex B conversion puts them after the SEI, even before the
+# delimiter. So the delimiters are dropped, the parameter sets put first in
+# every key picture, and the muxer starts each picture with a new delimiter:
+# AUD, SPS, PPS, SEI ..., slices (DECISIONS §77).
+COPY_BSF = "h264_mp4toannexb,filter_units=remove_types=9,dump_extra=freq=keyframe"
+
+
+def copy_compliance(info, fps):
+    """Why the picture of `info` (probe, with "gop" from encode.longest_gop
+    and "fields" from coded_for_fields) cannot go on a Blu-ray as it is, at
+    the title's rate `fps` (an empty list when it can): H.264 High or Main
+    profile up to level 4.1, 4:2:0, 1920x1080 square pixels, one of the
+    rates oncemore writes (23.976 progressive; 25 and 29.97 as 1080i, coded
+    for fields), a key frame at least every second, at most 40 Mbit/s."""
+    out = []
+    if info.get("codec") != "h264":
+        return [f"the video is {info.get('codec')}, not H.264"]
+    if info.get("profile") not in ("High", "Main"):
+        out.append(f"the H.264 profile is {info.get('profile')}, not High or Main")
+    if info.get("level", 0) > 41:
+        out.append(f"the H.264 level is {info['level'] / 10:.1f} (at most 4.1)")
+    if info.get("pix_fmt") and info["pix_fmt"] != "yuv420p":
+        out.append(f"the picture is {info['pix_fmt']}, not 4:2:0 (yuv420p)")
+    if (info.get("width"), info.get("height")) != (WIDTH, HEIGHT) or \
+            float(info.get("sar") or 1) != 1:
+        out.append(f"the frame is {info.get('width')}x{info.get('height')}, not 1920x1080 "
+                   "with square pixels")
+    num, den = fps
+    src = float(info.get("fps") or 0)
+    if fps not in FORMATS or abs(src - num / den) > 0.01:
+        out.append(f"the frame rate is {src:.3f}, not {num / den:.3f}")
+    elif FORMATS[fps][0] == 4 and info.get("fields") is not True:
+        out.append(f"{num / den:.3f} fps goes on a Blu-ray as 1080i, and the video is not "
+                   "coded for fields")
+    gop = info.get("gop")
+    if not gop:
+        out.append("its key frames cannot be found")
+    elif gop > round(num / den):
+        out.append(f"a group of pictures is {gop} frames long (a key frame at least every "
+                   "second)")
+    vbps = info.get("video_bit_rate") or max(
+        0, (info.get("bit_rate") or 0) - sum(a.get("bit_rate") or 0 for a in info.get("audio", [])))
+    if vbps > MAX_VIDEO_BPS:
+        out.append(f"the video bitrate is {vbps / 1e6:.1f} Mbit/s (at most 40)")
+    return out
 
 
 def audio_codec_args(title, k):
@@ -188,9 +328,13 @@ def encode_title(title, info, disc, max_bps, out_path, work, fast=False, on_prog
             vin = f"{inputs.count('-i') - 1}:v:0"
         if title.audio_passthrough:
             sources = [title.source] + [extra[i + 1] for i in range(0, len(extra), 2)]
-            maps = ["-map", vin, "-vf", vf]
+            maps = ["-map", vin] + ([] if title.bd_copy else ["-vf", vf])
             for tr in title.audio_tracks:
                 maps += ["-map", f"{sources.index(tr.source)}:a:{tr.stream}"]
+        elif title.bd_copy:
+            maps = ["-filter_complex", agraph, "-map", vin]
+            for lab in alabels:
+                maps += ["-map", lab]
         else:
             maps = ["-filter_complex", f"[{vin}]{vf}[v];{agraph}", "-map", "[v]"]
             for lab in alabels:
@@ -214,7 +358,9 @@ def encode_title(title, info, disc, max_bps, out_path, work, fast=False, on_prog
         pids += ["-streamid", f"{1 + tracks + len(sups)}:{IG_PID}"]
     if sups or popup:
         acodec += ["-c:s", "copy"]
-    encode.run_ffmpeg(inputs + maps + video_args(title, disc, max_bps, fast) + acodec + pids +
+    video = ["-c:v", "copy", "-bsf:v", COPY_BSF] if title.bd_copy else \
+        video_args(title, disc, max_bps, fast)
+    encode.run_ffmpeg(inputs + maps + video + acodec + pids +
                       ["-t", f"{duration:.3f}", "-f", "mpegts", "-mpegts_m2ts_mode", "1",
                        "-mpegts_pmt_start_pid", str(PMT_PID), out_path],
                       duration, os.path.join(work, "logs", f"title-{title.id}-bd.log"),
