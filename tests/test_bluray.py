@@ -117,6 +117,22 @@ class TestNavigationFiles(unittest.TestCase):
         self.assertEqual(commands(nav.objects({"m": (False, 1)})[2]),
                          ["move 1 3", "play_pl 3", "play_pl_mark 3 1", "goto 2"])
 
+    def test_end_actions_to_chapters_playlists_and_play_all(self):
+        p = project(titles=[{"id": "one", "source": "a.mp4", "chapters": [0, 2, 4],
+                             "end_action": "playlist:pl"},
+                            {"id": "two", "source": "b.mp4", "end_action": "chapter:one:3"}],
+                    playlists=[{"id": "pl", "items": ["two"], "end_action": "playall"}])
+        nav = bluray.Nav(p)
+        self.assertEqual(nav.numbers, {"title:one": 1, "title:two": 2, "playlist:pl": 3,
+                                       "playall": 4})
+        objects = nav.objects()
+        self.assertEqual(commands(objects[0]), ["play_pl 1", "jump_title 3"])
+        # chapter 3 of title one: its own object, as for a button
+        obj = nav.chapter_objects[("one", 3)]
+        self.assertEqual(commands(objects[1]), ["play_pl 2", f"jump_object {obj}"])
+        self.assertEqual(commands(objects[obj]), ["play_pl_mark 1 2", "jump_title 3"])
+        self.assertEqual(commands(objects[2]), ["play_pl 3", "jump_title 4"])
+
     def test_links_to_a_button(self):
         p = project(menus=[
             {"id": "m", "default_button": "c", "buttons": [

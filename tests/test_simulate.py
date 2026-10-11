@@ -39,7 +39,9 @@ def rich_project():
     """Two titlesets, a playlist across them, play all, remote keys, a
     remembered menu, an auto button, an intro that times out, stream buttons,
     a resume button, end-action overrides (one back to the last menu), links
-    that open a menu on a particular button (from a button and an override)."""
+    that open a menu on a particular button (from a button and an override),
+    a playlist that ends in a chapter of the other titleset, an override
+    that starts play all."""
     d = sample_project()
     t1, t2 = d["titles"]
     t1["remote_menu"] = "chapters"
@@ -56,7 +58,10 @@ def rich_project():
         {"id": "b3", "label": "CH 2 THEN BACK", "x": 470, "y": 400, "action": "chapter:t1:2",
          "override": "lastmenu"},
         {"id": "b4", "label": "B THEN BACK", "x": 120, "y": 400, "action": "title:t2",
-         "override": "menu:setup:back"}]
+         "override": "menu:setup:back"},
+        {"id": "tail", "label": "TAIL", "x": 120, "y": 160, "action": "playlist:tail"},
+        {"id": "b5", "label": "B THEN ALL", "x": 300, "y": 160, "action": "title:t2",
+         "override": "playall"}]
     d["menus"].append({"id": "setup", "remember_button": False, "buttons": [
         {"id": "a1", "label": "AUDIO 1", "x": 100, "y": 150, "action": "audio:1"},
         {"id": "off", "label": "SUBTITLES OFF", "x": 100, "y": 210, "action": "subtitle:off"},
@@ -70,7 +75,8 @@ def rich_project():
                        "buttons": [{"id": "skip", "label": "SKIP", "x": 80, "y": 380,
                                     "action": "chapter:t1:3"}]})
     d["playlists"] = [{"id": "best", "items": ["t1:2", "t2:2-3", "t1:1"],
-                       "end_action": "menu:setup"}]
+                       "end_action": "menu:setup"},
+                      {"id": "tail", "items": ["t2:3"], "end_action": "chapter:t1:3"}]
     return d
 
 
@@ -398,6 +404,33 @@ class TestSimulatorMatchesDisc(unittest.TestCase):
                              ("menu", "main", 3))
             self.assertEqual(press("select:b4", "enter"), ("title", 2, 1))
             self.assertEqual(press("end"), ("menu", "setup", 4))
+
+    def test_end_actions_on_disc(self):
+        """TAIL plays chapter 3 of title 2 (titleset 2), then chapter 3 of
+        title 1 (through the VMGM); B THEN ALL plays title 2, then all."""
+        sim = Simulator(self.project, self.layouts)
+        s = sim.start()
+        with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
+            self.settle(d)
+
+            def press(*keys):
+                for key in keys:
+                    before = sim.view(s)
+                    sim.press(s, key)
+                    if key.startswith("select:"):
+                        ids = [g["id"] for g in self.layouts[before[1]]]
+                        d.select(ids.index(key[7:]) + 1)
+                    else:
+                        self.player_key(d, key, before)
+                    self.assertEqual(self.view(d), sim.view(s), f"{before} --{key}-->")
+                return sim.view(s)
+
+            self.assertEqual(press("select:tail", "enter"), ("title", 2, 3))
+            self.assertEqual(press("end"), ("title", 1, 3))
+            self.assertEqual(press("end")[:2], ("menu", "main"))
+            self.assertEqual(press("select:b5", "enter"), ("title", 2, 1))
+            self.assertEqual(press("end"), ("title", 1, 1))
+            self.assertEqual(press("end"), ("title", 2, 1))      # play all goes on
 
     def test_override_on_disc(self):
         """B THEN SETUP plays title 2 and then the setup menu, instead of

@@ -207,6 +207,10 @@ browser) and lands only with green CI.
 - [x] `menu:<id>:<button id>`: any link opens the menu with that button
   highlighted, on DVD and Blu-ray, in the simulator, flowchart and link menus
 
+**P37 — More end actions** (done)
+- [x] Titles, playlists and overrides can end in a chapter, a playlist or
+  play all (DVD across titlesets too, and Blu-ray)
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

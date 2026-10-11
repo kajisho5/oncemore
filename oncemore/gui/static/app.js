@@ -1635,7 +1635,7 @@ function renderTitleInspector(el) {
   if (!ti) { el.innerHTML = ""; return; }
   const audio = ti.audio || {};
   const cm = ti.auto_chapter_menu;
-  const ends = actionOptions({ forButton: false, includeChapters: false, allowLast: true });
+  const ends = actionOptions({ forButton: false, includeChapters: true, allowPlayAll: true, allowLast: true });
   const langs = [["", "—"], ["ja", "日本語 (ja)"], ["en", "English (en)"], ["fr", "Français (fr)"], ["de", "Deutsch (de)"], ["es", "Español (es)"], ["zh", "中文 (zh)"], ["ko", "한국어 (ko)"]];
   const subs = ti.subtitles || [], tracks = ti.audio_tracks || [];
   el.innerHTML = `<h2>${t("prop_title")}</h2>
@@ -1827,7 +1827,7 @@ function renderPlaylist(m) {
   const pl = curPlaylist();
   if (!pl) return select("disc");
   const titles = P().titles || [];
-  const ends = actionOptions({ forButton: false, includeChapters: false, allowPlayAll: false, allowLast: true });
+  const ends = actionOptions({ forButton: false, includeChapters: true, allowPlayAll: true, allowLast: true });
   m.innerHTML = `<div class="card" style="max-width:760px"><h2>${esc(pl.name || pl.id)}</h2>
     <label class="field"><span>${t("name")}</span><input data-k="name" value="${esc(pl.name || "")}"></label>
     <h3>${t("items")}</h3>
@@ -2358,7 +2358,7 @@ function renderMenuInspector(el) {
     el.innerHTML = `<h2>${sel.kind === "button" ? t("button") : t("text")}</h2>
       ${sel.kind === "button" ? `<label class="field"><span>${t("text")}</span><input data-k="label" value="${esc(it.label)}"></label>
         <label class="field"><span>${t("action")} ${whipHtml("action")}</span>${selectHtml("action", actionOptions(), it.action)}</label>
-        ${/^(title|chapter):/.test(it.action || "") ? `<label class="field"><span>${t("override")}</span>${selectHtml("override", [["__none__", t("override_none")], ...actionOptions({ forButton: false, includeChapters: false, allowPlayAll: false, allowLast: true })], it.override || "__none__")}<div class="hint">${esc(t("override_hint"))}</div></label>` : ""}
+        ${/^(title|chapter):/.test(it.action || "") ? `<label class="field"><span>${t("override")}</span>${selectHtml("override", [["__none__", t("override_none")], ...actionOptions({ forButton: false, includeChapters: true, allowPlayAll: true, allowLast: true })], it.override || "__none__")}<div class="hint">${esc(t("override_hint"))}</div></label>` : ""}
         ${streamsHtml(it)}
         <label class="field"><span></span><label><input type="checkbox" data-k="auto_activate" ${it.auto_activate ? "checked" : ""}> ${t("auto_activate")}</label></label>
         <label class="field" data-nobind><span>${t("image")}</span>${selectHtml("image", [["__none__", t("none")], ...mediaOf("image").map((x) => [x, x])], it.image || "__none__")}

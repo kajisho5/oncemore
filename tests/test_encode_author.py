@@ -273,6 +273,38 @@ class TestAuthorXml(unittest.TestCase):
             build_project(d, "/v/project.oncemore.json", check_files=False)
         self.assertIn("menu 'main' has no button 'nope'", json.dumps(cm.exception.issues))
 
+    def test_end_actions_to_chapters_playlists_and_play_all(self):
+        d = sample_project()
+        d["titles"][1].update({"aspect": "4:3", "end_action": "chapter:t1:2"})   # titleset 2
+        d["titles"][0]["end_action"] = "playlist:pl"
+        d["playlists"] = [{"id": "pl", "items": ["t2"], "end_action": "playall"}]
+        p = build_project(d, "/v/project.oncemore.json", check_files=False)
+        self.assertEqual(author.end_chapters(p), [("t1", 2)])
+        x = author.build_xml(p, {"main": "m", "chapters": "c"}, {"t1": "a", "t2": "b"}, "/o")
+        # t2 (titleset 2) to a chapter of titleset 1: through the VMGM
+        self.assertIn("g1 = 2000; call vmgm menu entry title;</post>", x)
+        self.assertIn("if (g1 == 2000) { g1 = 0; jump titleset 1 title 1 chapter 2; }", x)
+        # t1 starts the playlist (its item is in titleset 2: the playlist route)
+        self.assertIn("g2 = 0; g0 = 1; g12 = 0; g1 = 1000; call vmgm menu entry title;</post>", x)
+        # the playlist ends with play all: the first title
+        self.assertIn("if (g0 == 1) { g0 = 0; g12 = 0; g2 = 1; jump titleset 1 title 1; }", x)
+        # in the same titleset a chapter is a plain jump
+        d["titles"][1].pop("aspect")
+        p = build_project(d, "/v/project.oncemore.json", check_files=False)
+        x = author.build_xml(p, {"main": "m", "chapters": "c"}, {"t1": "a", "t2": "b"}, "/o")
+        self.assertIn("jump title 1 chapter 2;</post>", x)
+        self.assertNotIn("2000", x)
+        sim = Simulator(p)
+        s = sim.start()
+        sim.press(s, "select:b")                         # t2
+        sim.press(s, "enter")
+        sim.press(s, "end")
+        self.assertEqual(sim.view(s), ("title", 1, 2))
+        sim.press(s, "end")                              # t1 -> the playlist: t2
+        self.assertEqual(sim.view(s), ("title", 2, 1))
+        sim.press(s, "end")                              # its end: play all from t1
+        self.assertEqual((sim.view(s), s["playall"]), (("title", 1, 1), 1))
+
     def test_last_menu(self):
         d = sample_project()
         d["titles"][1]["end_action"] = "lastmenu"
