@@ -243,7 +243,10 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   the chapter's first frame. It follows the same navigation rules as the
   built disc (checked against libdvdnav in the tests).
 * The **Build** panel (next to Project): **Check Project…** estimates the size
-  and finds problems; **Build** writes the `.iso` (or a VIDEO_TS folder) into
+  and finds problems, with the bit budget: a bar of the whole disc and, for
+  each title, its length, video and audio rates and the space it takes (and
+  the menus' and what is left), before anything is encoded (`oncemore
+  validate` prints it too); **Build** writes the `.iso` (or a VIDEO_TS folder) into
   `my-disc/output/`, with progress.
 * Everything is saved automatically to `my-disc/project.oncemore.json`;
   ⌘Z / Ctrl+Z undoes. The UI follows your browser language (English/日本語;

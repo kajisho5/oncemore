@@ -107,8 +107,13 @@ def plan(items, capacity):
                            f"{MIN_VIDEO_BPS / 1e6:.0f}). Use BD50 or shorter titles.")
     peak = int(min(MAX_VIDEO_BPS, fit))
     est = sum(d * ((peak if v is None else v) + a) for d, a, v in items) / 8 * (1 + DISC_SAFETY)
+    # the bit budget: each title at most (pictures are encoded at a constant
+    # quality, up to the peak rate)
+    titles = [int(d * ((peak if v is None else v) + a) / 8 * (1 + DISC_SAFETY))
+              for d, a, v in items]
     return {"max_bps": peak, "estimated_bytes": int(min(est, capacity)), "capacity": capacity,
-            "total_seconds": total, "warnings": []}
+            "total_seconds": total, "warnings": [],
+            "budget": {"titles": titles, "menus": 0, "other": 0}}
 
 
 # --------------------------------------------------------------------------

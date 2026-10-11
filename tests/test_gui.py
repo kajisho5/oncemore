@@ -1180,6 +1180,30 @@ class TestGuiBrowser(unittest.TestCase):
             browser.close()
         self.assertEqual(errors, [])
 
+    def test_bit_budget(self):
+        """File > Check: the bit budget, a bar of the disc and a row per title."""
+        self.s.call("/api/new", "POST", {"sample": True})
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.locator(".nav-item[data-view=menu][data-id=main]").wait_for(timeout=120000)
+            page.evaluate("window.oncemoreCommand('check')")
+            page.locator("#budget").wait_for(timeout=120000)
+            # the two titles, the menus and the disc's files
+            self.assertEqual(page.locator("#budget .seg.title").count(), 2)
+            self.assertEqual(page.locator("#budget .seg.menus").count(), 1)
+            rows = page.locator(".budget-table tr")
+            self.assertEqual(rows.count(), 1 + 2 + 2 + 1)        # head, titles, menus + files, free
+            first = rows.nth(1).inner_text()
+            self.assertIn("Sample Title A", first)
+            self.assertIn("24.0s", first)
+            self.assertIn("Free", rows.nth(5).inner_text())
+            browser.close()
+        self.assertEqual(errors, [])
+
     def test_check_updates(self):
         """Help > Check for Updates says which version this is and opens the
         releases page in the browser (the app itself connects to nothing)."""

@@ -1465,3 +1465,18 @@ written that fails before the fix, and then the fix:
 * The tests draw a long line over a short one and check where the short
   one's pixels are for each alignment, and that the spacing moves the
   second line down by as much.
+
+## 87. The bit budget
+
+* The size estimate was one number. The classic apps showed where the
+  space goes, so the plan now keeps its parts: each title (its length,
+  video rate as planned, audio rate, and bytes with the packet overhead),
+  the menus, the disc's own files (the IFO reserve) and what is left.
+  The parts add up to the estimate the plan already made, so the bar and
+  the number agree.
+* On a Blu-ray the pictures are encoded at a constant quality up to a peak
+  rate, so a title's part is the most it takes, not what it will take.
+* Check Project shows a bar of the whole disc (titles in turn, menus, disc
+  files) and a table; `oncemore validate` prints each title's rates and
+  size, and the free space. Changing a title's bitrate (Properties) and
+  checking again shows the effect before anything is encoded.
