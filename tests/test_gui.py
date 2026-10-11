@@ -14,6 +14,7 @@ import unittest
 import urllib.error
 import urllib.parse
 import urllib.request
+from unittest import mock
 
 from oncemore import tools
 from oncemore.gui.server import make_server, safe_name
@@ -133,6 +134,79 @@ class TestGuiApi(unittest.TestCase):
         self.assertEqual(self.s.call("/api/open", "POST", {"path": "../x.psd"})[0], 403)
         self.assertEqual(self.s.call("/api/open", "POST", {"path": "media/gone.psd"})[0], 404)
         self.assertEqual(self.s.call("/api/stat?path=/etc/passwd")[0], 403)
+
+    def test_projects_open_recent_save_as_and_exports(self):
+        """File > New / Open / Open recent / Save as, and the files the menus
+        export (here: subtitles as SubRip)."""
+        cfg, other = tempfile.mkdtemp(prefix="oncemore-cfg-"), tempfile.mkdtemp(prefix="oncemore-other-")
+        self.addCleanup(shutil.rmtree, cfg, True)
+        self.addCleanup(shutil.rmtree, other, True)
+        other = os.path.realpath(other)
+        q = lambda p: urllib.parse.quote(p)  # noqa: E731
+        with mock.patch.dict(os.environ, {"ONCEMORE_CONFIG": cfg}):
+            self.s.call("/api/new", "POST", {"label": "FIRST"})
+            # the folder chooser: folders only (no files, no hidden ones), projects marked
+            for d in ("b-project", "a-empty", ".hidden"):
+                os.makedirs(os.path.join(other, d))
+            with open(os.path.join(other, "b-project", "project.oncemore.json"), "w") as f:
+                f.write("{}")
+            with open(os.path.join(other, "file.txt"), "w") as f:
+                f.write("x")
+            status, r = self.s.call("/api/dirs?path=" + q(other))
+            self.assertEqual(status, 200)
+            self.assertEqual(r["dirs"], [{"name": "a-empty", "project": False}, {"name": "b-project", "project": True}])
+            self.assertEqual(r["parent"], os.path.dirname(other))
+            self.assertEqual(self.s.call("/api/dirs?path=relative/x")[0], 400)
+            self.assertEqual(self.s.call("/api/dirs?path=" + q(os.path.join(other, "nope")))[0], 404)
+            # Open: a folder that is not there is made only for a new project
+            new = os.path.join(other, "c-new")
+            self.assertEqual(self.s.call("/api/switch", "POST", {"path": new})[0], 404)
+            status, r = self.s.call("/api/switch", "POST", {"path": new, "create": True})
+            self.assertEqual((status, r["project"], r["dir"]), (200, None, new))
+            self.s.call("/api/new", "POST", {"label": "SECOND"})
+            self.assertTrue(os.path.isfile(os.path.join(new, "project.oncemore.json")))
+            status, r = self.s.call("/api/switch", "POST", {"path": self.dir})
+            self.assertEqual(r["project"]["disc"]["label"], "FIRST")
+            # Open recent: newest first
+            recent = self.s.call("/api/recent")[1]["recent"]
+            self.assertEqual([x["path"] for x in recent], [os.path.realpath(self.dir), new])
+            self.assertTrue(all(x["exists"] for x in recent))
+            # Save as: the project and its media, not what a build makes again;
+            # the copy is then the project (with the page's edits), the original stays
+            os.makedirs(os.path.join(self.dir, "output"))
+            os.makedirs(os.path.join(self.dir, ".oncemore-cache", "proxy"))
+            with open(os.path.join(self.dir, "media", "b.vtt"), "w", encoding="utf-8") as f:
+                f.write("WEBVTT\n\n00:00:01.000 --> 00:00:02.500\nHello\n")
+            with open(os.path.join(self.dir, "output", "disc.iso"), "w") as f:
+                f.write("iso")
+            with open(self.s.app.path) as f:
+                edited = json.load(f)
+            edited["disc"]["label"] = "COPY"
+            dest = os.path.join(other, "d-copy")
+            status, r = self.s.call("/api/save_as", "POST", {"path": dest, "project": edited})
+            self.assertEqual((status, r["dir"], r["project"]["disc"]["label"]), (200, dest, "COPY"))
+            # (the copy as it was before the page's edits is its first backup)
+            self.assertEqual(sorted(os.listdir(dest)), [".oncemore-backup", "media", "project.oncemore.json"])
+            self.assertEqual(sorted(os.listdir(os.path.join(dest, "media"))), ["b.vtt"])
+            with open(os.path.join(self.dir, "project.oncemore.json")) as f:
+                self.assertEqual(json.load(f)["disc"]["label"], "FIRST")
+            self.assertEqual(self.s.call("/api/recent")[1]["recent"][0]["path"], dest)
+            self.assertEqual(self.s.call("/api/save_as", "POST", {"path": new})[0], 422)        # not empty
+            self.assertEqual(self.s.call("/api/save_as", "POST", {"path": os.path.join(dest, "x")})[0], 400)
+            # Export subtitles: SubRip in exports/, never over an earlier one
+            status, r = self.s.call("/api/export", "POST", {"kind": "subtitles", "path": "media/b.vtt"})
+            self.assertEqual((status, r["path"]), (200, "exports/b.srt"))
+            with open(os.path.join(dest, "exports", "b.srt"), encoding="utf-8") as f:
+                self.assertEqual(f.read().strip(), "1\n00:00:01,000 --> 00:00:02,500\nHello")
+            self.assertEqual(self.s.call("/api/export", "POST", {"kind": "subtitles", "path": "media/b.vtt"})[1]["path"],
+                             "exports/b-2.srt")
+            self.assertEqual(self.s.call("/api/export", "POST", {"kind": "subtitles", "path": "../x.srt"})[0], 403)
+            self.assertEqual(self.s.call("/api/export", "POST", {"kind": "nothing"})[0], 400)
+            # nothing switches while a build runs
+            from oncemore.gui.server import Job
+            self.s.app.jobs["j"] = Job("j", "build")
+            self.assertEqual(self.s.call("/api/switch", "POST", {"path": self.dir})[0], 422)
+            self.assertEqual(self.s.app.dir, dest)
 
     def test_new_save_and_upload(self):
         status, st = self.s.call("/api/state")
@@ -867,31 +941,349 @@ class TestGuiBrowser(unittest.TestCase):
         self.assertEqual(errors, [])
 
     def test_native_menus_in_the_mac_app(self):
-        # Oncemore.app has a real menu bar: the page hides its own and its
-        # menu items call window.oncemoreCommand
+        # Oncemore.app's menu bar is the page's: the page hides its own and
+        # posts its menus (language, what can be done now) to the app, which
+        # makes the native ones from them; their items call window.oncemoreCommand
         with sync_playwright() as p:
             browser = self.launch(p)
             ctx = browser.new_context(viewport={"width": 1400, "height": 900}, locale="en-US",
                                       bypass_csp=True,
                                       user_agent="Mozilla/5.0 (Macintosh) AppleWebKit OncemoreApp")
+            # what WKWebView gives the page for the app's message handlers
+            ctx.add_init_script("""window.webkit = {messageHandlers: {
+                oncemoreMenu: {postMessage: (s) => { window.__specs = (window.__specs || 0) + 1; window.__spec = s; }},
+                oncemoreProject: {postMessage: (p) => { window.__project = p; }}}};""")
             page = ctx.new_page()
             page.goto(f"{self.s.base}/#token={self.s.app.token}")
             page.click("#np-sample")
             page.locator(".nav-item[data-view=title]").first.wait_for(timeout=120000)
             self.assertTrue(page.locator("#menubar").is_hidden())
+            spec = lambda: json.loads(page.evaluate("window.__spec") or "[]")  # noqa: E731
+            self.poll(lambda: [m["title"] for m in spec()] == ["File", "Edit", "Object", "Menu", "Timeline", "View",
+                                                                "Window", "Help"])
+            flat = lambda items: [y for x in items if x != "-" for y in ([x] + flat(x.get("sub", [])))]  # noqa: E731
+            items = {x["id"]: x for m in spec() for x in flat(m["items"]) if x.get("id")}
+            # the app's own items are there (only in the app), with their keys
+            self.assertEqual(items["close_window"]["key"], "mod+w")
+            self.assertEqual(items["full_screen"]["key"], "mod+ctrl+f")
+            self.assertEqual(items["undo"]["key"], "mod+z")
+            self.assertEqual([m["role"] for m in spec()][:2] + [spec()[6]["role"], spec()[7]["role"]], ["file", "edit", "window", "help"])
+            # what cannot be done now is greyed; what is on is ticked
+            self.assertTrue(items["align_left"]["disabled"])
+            page.click(".nav-item[data-view=menu][data-id=main]")
+            page.click(".stage .el.button >> nth=0")
+            now = lambda: {x["id"]: x for m in spec() for x in flat(m["items"]) if x.get("id")}  # noqa: E731
+            self.poll(lambda: not now()["bring_front"]["disabled"])
+            self.assertTrue(now()["safe_area"]["checked"])
+            # and in Japanese when the page is
+            page.evaluate("window.oncemoreCommand('language')")
+            self.poll(lambda: spec()[0]["title"] == "ファイル")
+            page.evaluate("window.oncemoreCommand('language')")
             page.evaluate("window.oncemoreCommand('ws_flow')")
             page.locator("#center-head", has_text="Flowchart").wait_for()
             page.evaluate("window.oncemoreCommand('new_slideshow')")
             self.wait_saved(page)
             self.assertTrue(any("slideshow" in t for t in self.project()["titles"]))
             browser.close()
-        swift = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                                  "macos", "Oncemore", "main.swift"), encoding="utf-8").read()
-        js = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                               "oncemore", "gui", "static", "app.js"), encoding="utf-8").read()
-        for cid in re.findall(r'cmd\("[^"]+", "(\w+)"', swift):
-            self.assertRegex(js, rf"[\n ] *{cid}: [{{a]", cid)  # every native item has a command
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(root, "macos", "Oncemore", "main.swift"), encoding="utf-8") as f:
+            swift = f.read()
+        with open(os.path.join(root, "oncemore", "gui", "static", "app.js"), encoding="utf-8") as f:
+            js = f.read()
+        natives = re.findall(r'^ +"(\w+)": Native\(', swift, re.M)
+        app_only = re.findall(r"^ +(\w+): \{ app: true", js, re.M)
+        self.assertEqual(sorted(app_only), ["close_window", "full_screen", "minimize", "reload", "zoom_window"])
+        for cid in natives:
+            self.assertRegex(js, rf"[\n ] *{cid}: [{{a]", cid)    # every item the app does itself is a page command
+        self.assertTrue(set(app_only) <= set(natives))
+        self.assertIn('add(self, name: "oncemoreMenu")', swift)
         self.assertIn('applicationNameForUserAgent = "OncemoreApp"', swift)
+
+    def test_every_menu_and_submenu(self):
+        """The menu bar in disc authoring order, every submenu opens, every
+        item has a label (English and Japanese), every command is reachable."""
+        self.s.call("/api/new", "POST", {"sample": True})
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.locator(".stage .el.button").first.wait_for(timeout=120000)
+            with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                   "oncemore", "gui", "static", "app.js"), encoding="utf-8") as f:
+                js = f.read()
+            commands = set(re.findall(r"^  (\w+): [{a-zA-Z]", js[js.index("const COMMANDS = {"):js.index("// The menu bar, in the order")], re.M))
+            flat = lambda items: [y for x in items if x != "-" for y in ([x] + flat(x.get("sub", [])))]  # noqa: E731
+            for lang, titles in (("en", ["File", "Edit", "Object", "Menu", "Timeline", "View", "Window", "Help"]),
+                                 ("ja", ["ファイル", "編集", "オブジェクト", "メニュー", "タイムライン", "表示", "ウィンドウ", "ヘルプ"])):
+                spec = json.loads(page.evaluate("JSON.stringify(window.oncemoreMenuSpec())"))
+                self.assertEqual([m["title"] for m in spec], titles, lang)
+                labels = [x["label"] for m in spec for x in flat(m["items"])]
+                self.assertFalse([x for x in labels if not x or re.match(r"^(cmd|m)_", x)], lang)
+                ids = {x["id"] for m in spec for x in flat(m["items"]) if x.get("id")}
+                # every command is in the menu bar (except the shortcut-only Convert)
+                self.assertEqual(sorted(commands - ids - {"convert"} - {f"recent_{i}" for i in range(1, 11)}
+                                        - {"close_window", "reload", "full_screen", "minimize", "zoom_window"}), [], lang)
+                self.assertEqual(page.locator("#menubar > button").all_inner_texts(), titles)
+                if lang == "en":
+                    page.evaluate("window.oncemoreCommand('language')")
+            page.evaluate("window.oncemoreCommand('language')")
+            # open every menu and every submenu
+            for k in range(8):
+                page.click(f"#menubar [data-mb='{k}']")
+                pop = page.locator(".popup.from-bar")
+                pop.wait_for()
+                subs = pop.locator("button.has-sub:not([disabled])")
+                for j in range(subs.count()):
+                    subs.nth(j).hover()
+                    page.locator(".popup.sub button").first.wait_for()
+                    self.assertGreater(page.locator(".popup.sub button").count(), 0)
+                page.keyboard.press("Escape")
+            self.assertEqual(page.locator(".popup").count(), 0)
+            # a submenu item runs: File > Build > Blu-ray folder… opens Build set up for it
+            page.click("#menubar > button:has-text('File')")
+            page.hover(".popup.from-bar button:has-text('Build')")
+            page.click(".popup.sub button:has-text('Blu-ray folder')")
+            page.locator("#sidebar #bformat").wait_for()
+            self.assertEqual(page.input_value("#sidebar #bformat"), "bluray")
+            self.assertTrue(page.is_checked("#sidebar input[name=kind][value=folder]"))
+            # ticks for what is on
+            page.evaluate("window.oncemoreCommand('win_project')")
+            page.click(".nav-item[data-view=menu][data-id=main]")
+            page.click("#menubar > button:has-text('View')")
+            self.assertEqual(page.get_attribute(".popup button:has-text('Show safe area')", "aria-checked"), "true")
+            page.click(".popup button:has-text('Show safe area')")
+            page.click("#menubar > button:has-text('View')")
+            self.assertEqual(page.get_attribute(".popup button:has-text('Show safe area')", "aria-checked"), "false")
+            page.keyboard.press("Escape")
+            browser.close()
+        self.assertEqual(errors, [])
+
+    def test_menu_bar_commands(self):
+        """Edit, Object, Menu, Timeline and View commands on the sample disc."""
+        self.s.call("/api/new", "POST", {"sample": True})
+        with open(os.path.join(self.dir, "media", "dialogue.srt"), "w", encoding="utf-8") as f:
+            f.write("1\n00:00:01,000 --> 00:00:02,000\nHello\n")
+        os.makedirs(os.path.join(self.dir, "extras"))
+        mod = "Meta" if sys.platform == "darwin" else "Control"
+        menu = lambda: self.project()["menus"][0]  # noqa: E731
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1440, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.on("dialog", lambda d: d.accept())
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.locator(".stage .el.button").first.wait_for(timeout=120000)
+            cmd = lambda c: page.evaluate(f"window.oncemoreCommand('{c}')")  # noqa: E731
+            # Edit > Select all / Deselect all
+            page.locator("#stage").focus()
+            page.keyboard.press(f"{mod}+a")
+            self.assertEqual(page.locator(".stage .el.selected").count(), 4)
+            page.keyboard.press(f"{mod}+Shift+a")
+            self.assertEqual(page.locator(".stage .el.selected").count(), 0)
+            # Object > Align: one object alone goes to the safe area
+            page.click(".stage .el.text")
+            page.click("#menubar > button:has-text('Object')")
+            page.hover(".popup.from-bar button:has-text('Align')")
+            page.click(".popup.sub button:has-text('Align left edges')")
+            self.poll(lambda: menu()["texts"][0]["x"] == 36)
+            # Object > Arrange: one step back and forward, within the buttons
+            page.click(".stage .el.button[data-i='2']")
+            page.locator("#stage").focus()
+            page.keyboard.press(f"{mod}+BracketLeft")
+            self.poll(lambda: [b["id"] for b in menu()["buttons"]] == ["play", "b", "ch"])
+            page.keyboard.press(f"{mod}+BracketRight")
+            self.poll(lambda: [b["id"] for b in menu()["buttons"]] == ["play", "ch", "b"])
+            # Menu > Set as default button
+            cmd("default_button")
+            self.poll(lambda: menu().get("default_button") == "b")
+            # Object > Drop shadow and stroke
+            page.click(".stage .el.text")
+            cmd("drop_shadow")
+            page.check("#ds-shadow-on")
+            page.fill("#ds-shadow_offset", "5")
+            page.click("#ds-ok")
+            self.poll(lambda: menu()["texts"][0].get("shadow") == "#000000" and menu()["texts"][0]["shadow_offset"] == 5)
+            # Convert: a text to a button, not the other way round here
+            page.click("#menubar > button:has-text('Object')")
+            self.assertFalse(page.locator(".popup button:has-text('Convert to button')").is_disabled())
+            self.assertTrue(page.locator(".popup button:has-text('Convert to object')").is_disabled())
+            page.keyboard.press("Escape")
+            # Edit > Copy, Paste, Cut: objects of the menu
+            page.click(".stage .el.button[data-i='0']")
+            page.locator("#stage").focus()
+            page.keyboard.press(f"{mod}+c")
+            page.keyboard.press(f"{mod}+v")
+            self.poll(lambda: len(menu()["buttons"]) == 4)
+            page.locator("#stage").focus()
+            page.keyboard.press(f"{mod}+x")
+            self.poll(lambda: len(menu()["buttons"]) == 3)
+            # … and titles in the project
+            page.click(".nav-item[data-view=title][data-id=t2]")
+            page.locator("#tc-input").wait_for(timeout=60000)
+            page.locator("#tc-input").blur()
+            cmd("copy")
+            cmd("paste")
+            self.poll(lambda: [x["id"] for x in self.project()["titles"]] == ["t1", "t2", "t2_copy1"])
+            # Edit > Rename: what points at the title follows
+            page.click(".nav-item[data-view=title][data-id=t2]")
+            cmd("rename")
+            page.fill("#rn-name", "Second")
+            page.fill("#rn-id", "t9")
+            page.click("#rn-ok")
+            self.poll(lambda: self.project()["titles"][1]["id"] == "t9")
+            self.assertEqual(self.project()["titles"][1]["name"], "Second")
+            self.assertEqual(menu()["buttons"][2]["action"], "title:t9")
+            # Timeline > New chapter playlist
+            cmd("chapter_playlist")
+            page.select_option("#cp-title", "t1")
+            page.click("#cp-ok")
+            n = len(self.project()["titles"][0]["chapters"])
+            self.poll(lambda: self.project()["playlists"][0]["items"] == [f"t1:{i}" for i in range(1, n + 1)])
+            # Timeline > Add subtitle track / audio track, Export subtitles
+            page.click(".nav-item[data-view=title][data-id=t1]")
+            page.locator("#tc-input").wait_for(timeout=60000)
+            cmd("add_subtitle_track")
+            page.select_option("#st-lang", "en")
+            page.click("#st-ok")
+            self.poll(lambda: self.project()["titles"][0].get("subtitles") == [{"file": "media/dialogue.srt", "lang": "en"}])
+            cmd("export_subtitles")
+            page.locator(".modal .mono, #modal .mono", has_text="exports/dialogue.srt").wait_for(timeout=30000)
+            self.assertTrue(os.path.isfile(os.path.join(self.dir, "exports", "dialogue.srt")))
+            page.keyboard.press("Escape")
+            cmd("add_audio_track")
+            page.fill("#at-stream", "1")
+            page.select_option("#at-lang", "ja")
+            page.click("#at-ok")
+            self.poll(lambda: self.project()["titles"][0].get("audio_tracks") == [{}, {"stream": 1, "lang": "ja"}])
+            # Timeline > Set poster frame at the playhead; Save frame as file
+            page.fill("#tc-input", "00:00:03.000")
+            page.press("#tc-input", "Enter")
+            page.locator("#tc-input").blur()
+            cmd("set_poster")
+            self.poll(lambda: any(isinstance(c, dict) and str(c.get("poster", "")).startswith("00:00:03")
+                                  for c in self.project()["titles"][0]["chapters"]))
+            cmd("save_frame")
+            page.locator("#modal .mono", has_text="exports/sample_a-00-00-03").wait_for(timeout=60000)
+            page.keyboard.press("Escape")
+            self.assertTrue([f for f in os.listdir(os.path.join(self.dir, "exports")) if f.endswith(".png")])
+            # File > Interpret footage / Transcode settings
+            cmd("interpret_footage")
+            page.select_option("#modal-body select[data-k=aspect]", "4:3")
+            page.click("#tf-ok")
+            self.poll(lambda: self.project()["titles"][0].get("aspect") == "4:3")
+            cmd("transcode_settings")
+            page.select_option("#modal-body select[data-k=video_bitrate]", "5M")
+            page.click("#tf-ok")
+            self.poll(lambda: self.project()["titles"][0].get("video_bitrate") == "5M")
+            # Timeline > Clear all chapter points
+            cmd("clear_chapters")
+            self.poll(lambda: len(self.project()["titles"][0]["chapters"]) == 1)
+            self.assertEqual(set(self.project()["playlists"][0]["items"]), {"t1"})       # (the whole title now)
+            # File > DVD-ROM content
+            cmd("rom_folder")
+            page.check("[data-rom='extras/']")
+            page.click("#rom-ok")
+            self.poll(lambda: self.project()["disc"].get("rom_files") == ["extras/"])
+            # Menu > Save menu as file; Edit menu colour set
+            page.click(".nav-item[data-view=menu][data-id=main]")
+            page.locator(".stage .el.button").first.wait_for()
+            cmd("save_menu_file")
+            page.locator("#modal .mono", has_text="exports/main.png").wait_for(timeout=120000)
+            page.keyboard.press("Escape")
+            cmd("colour_set")
+            page.locator("#modal [data-cs-a=highlight_color]").fill("50")
+            page.locator("#modal [data-cs-a=highlight_color]").dispatch_event("change")
+            self.poll(lambda: menu()["highlight_color"] == "#FFD40080")
+            page.click("#cs-ok")
+            # View > Snap; Show highlights > Normal
+            cmd("snap")
+            self.assertFalse(page.is_checked("#snap"))
+            cmd("view_normal")
+            page.locator("[data-sp=normal].on").wait_for()
+            # File > Save
+            page.keyboard.press(f"{mod}+s")
+            self.wait_saved(page)
+            # Menu > Add button / text / rectangle
+            n = len(menu()["buttons"])
+            cmd("add_button")
+            self.poll(lambda: len(menu()["buttons"]) == n + 1)
+            cmd("add_rectangle")
+            self.poll(lambda: len(menu().get("shapes", [])) == 1)
+            cmd("add_text")
+            self.poll(lambda: len(menu()["texts"]) == 2)
+            # File > Import as > Timeline / Slideshow: choose the files, then they are used
+            page.locator("#stage").focus()
+            for item, path in (("Timeline…", self.clip), ("Slideshow…", os.path.join(self.dir, "media", "menu_bg.png"))):
+                page.click("#menubar > button:has-text('File')")
+                page.hover(".popup.from-bar button:has-text('Import as')")
+                with page.expect_file_chooser() as fc:
+                    page.click(f".popup.sub button:has-text('{item}')")
+                fc.value.set_files(path)
+            self.poll(lambda: len(self.project()["titles"]) == 5)
+            self.assertTrue(self.project()["titles"][3]["source"].endswith("-clip.mp4"))
+            self.assertTrue(self.project()["titles"][4]["slideshow"]["slides"][0]["image"].startswith("media/menu_bg"))
+            # Help opens the guide (README) outside the app
+            page.evaluate("window.open = (u) => { window.__opened = u; }")
+            cmd("help")
+            self.assertIn("/README.md", page.evaluate("window.__opened"))
+            browser.close()
+        self.assertEqual(errors, [])
+        self.assertTrue(self.s.app.check(self.project())["valid"])
+
+    def test_projects_from_the_file_menu(self):
+        """File > Save as, Open recent, Open project and New project with the
+        page's folder chooser."""
+        cfg, other = tempfile.mkdtemp(prefix="oncemore-cfg-"), os.path.realpath(tempfile.mkdtemp(prefix="oncemore-other-"))
+        self.addCleanup(shutil.rmtree, cfg, True)
+        self.addCleanup(shutil.rmtree, other, True)
+        self.s.call("/api/new", "POST", {"sample": True})
+        with mock.patch.dict(os.environ, {"ONCEMORE_CONFIG": cfg}), sync_playwright() as p:
+            self.s.call("/api/switch", "POST", {"path": self.dir})       # (what `oncemore gui` notes first)
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.locator(".stage .el.button").first.wait_for(timeout=120000)
+            cmd = lambda c: page.evaluate(f"window.oncemoreCommand('{c}')")  # noqa: E731
+            # Save as: a new folder in another place, which is then the project
+            cmd("save_as")
+            page.fill("#fb-path", other)
+            page.locator("#fb-path").dispatch_event("change")
+            page.locator("#fb-list", has_text="No folders").wait_for()
+            page.fill("#fb-name", "Copy")
+            page.click("#fb-ok")
+            self.poll(lambda: self.s.app.dir == os.path.join(other, "Copy"))
+            page.locator("#modal").wait_for(state="hidden")
+            page.locator(".stage .el.button").first.wait_for()
+            self.assertTrue(os.path.isfile(os.path.join(other, "Copy", "media", "sample_a.mp4")))
+            # Open recent: the first project again
+            page.click("#menubar > button:has-text('File')")
+            page.hover(".popup.from-bar button:has-text('Open recent project')")
+            self.assertTrue(page.locator(".popup.sub button:has-text('Copy')").is_disabled())   # (open now)
+            page.click(f".popup.sub button:has-text('{os.path.basename(self.dir)}')")
+            self.poll(lambda: self.s.app.dir == os.path.realpath(self.dir))
+            # Open project: the chooser marks project folders; double-click opens
+            cmd("open_project")
+            page.fill("#fb-path", other)
+            page.locator("#fb-path").dispatch_event("change")
+            page.locator(".fb-item.is-project", has_text="Copy").dblclick()
+            self.poll(lambda: self.s.app.dir == os.path.join(other, "Copy"))
+            page.locator("#modal").wait_for(state="hidden")
+            # New project: a new folder, then the New Project dialog for it
+            cmd("new_project")
+            page.fill("#fb-path", other)
+            page.locator("#fb-path").dispatch_event("change")
+            page.fill("#fb-name", "Fresh")
+            page.click("#fb-ok")
+            page.locator("#np-empty").wait_for()
+            page.click("#np-empty")
+            self.poll(lambda: os.path.isfile(os.path.join(other, "Fresh", "project.oncemore.json")))
+            browser.close()
+        self.assertEqual(errors, [])
 
     def test_reorder_titles(self):
         with sync_playwright() as p:
@@ -1779,7 +2171,6 @@ class TestGuiBrowser(unittest.TestCase):
     def test_menu_tools(self):
         """Layer visibility, Save menu as template / a menu from it, Create
         chapter index."""
-        from unittest import mock
         lib = os.path.join(self.dir, "..", os.path.basename(self.dir) + "-templates")
         self.addCleanup(shutil.rmtree, lib, True)
         with mock.patch.dict(os.environ, {"ONCEMORE_TEMPLATES": lib}), sync_playwright() as p:

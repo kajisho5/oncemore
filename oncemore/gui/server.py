@@ -24,6 +24,11 @@ API (all JSON unless noted):
   POST /api/transcode                encode titles now (job), ahead of the build
   POST /api/encode_status            which titles are already transcoded
   GET  /api/waveform?path=REL&w&h&s  the sound of a file (stream s) as a PNG
+  GET  /api/recent                   recently opened project folders
+  GET  /api/dirs?path=ABS            the folders in a folder (folder chooser)
+  POST /api/switch                   open another project folder (or make one)
+  POST /api/save_as                  copy the project folder elsewhere and open it
+  POST /api/export                   a frame, a menu or subtitles as a file in exports/
 """
 
 import base64
@@ -62,7 +67,7 @@ MEDIA_EXT = {
     "font": {".ttf", ".otf", ".ttc"},
     "design": {".psd", ".psb"},
 }
-SKIP_DIRS = {"output", ".work", "__pycache__", "node_modules"}
+SKIP_DIRS = {"output", "exports", ".work", "__pycache__", "node_modules"}
 BACKUP_RE = re.compile(r"^project-\d{8}-\d{6}\.json$")
 
 
@@ -104,16 +109,68 @@ class Job:
         self.thread = None
 
 
+def config_dir():
+    """Where oncemore keeps what is not part of a project (the recent
+    projects list): ONCEMORE_CONFIG, else the platform's place for it."""
+    env = os.environ.get("ONCEMORE_CONFIG")
+    if env:
+        return env
+    if sys.platform == "darwin":
+        return os.path.expanduser("~/Library/Application Support/oncemore")
+    base = os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config")
+    return os.path.join(base, "oncemore")
+
+
+RECENT_KEEP = 10
+
+
+def recent_projects():
+    """File > Open recent: project folders, newest first."""
+    try:
+        with open(os.path.join(config_dir(), "recent.json"), encoding="utf-8") as f:
+            items = json.load(f)
+    except (OSError, ValueError):
+        return []
+    out = []
+    for p in items if isinstance(items, list) else []:
+        if isinstance(p, str) and os.path.isabs(p) and p not in (x["path"] for x in out):
+            out.append({"path": p, "name": os.path.basename(p) or p,
+                        "exists": os.path.isfile(os.path.join(p, PROJECT_FILENAME))})
+    return out[:RECENT_KEEP]
+
+
+def note_recent(path):
+    items = [path] + [x["path"] for x in recent_projects() if x["path"] != path]
+    try:
+        os.makedirs(config_dir(), exist_ok=True)
+        tmp = os.path.join(config_dir(), "recent.json.tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(items[:RECENT_KEEP], f, indent=1, ensure_ascii=False)
+        os.replace(tmp, os.path.join(config_dir(), "recent.json"))
+    except OSError:
+        pass                    # a list that cannot be written never stops opening
+
+
+# Save as copies the project folder without what can be made again
+SAVE_AS_SKIP = {"output", ".work", ".oncemore-cache", ".oncemore-backup", "__pycache__"}
+EXPORT_DIR = "exports"
+
+
 class App:
     """State shared by request handlers."""
 
     def __init__(self, project_dir):
-        self.dir = os.path.realpath(project_dir)
-        self.path = os.path.join(self.dir, PROJECT_FILENAME)
         self.token = secrets.token_urlsafe(18)
         self.port = None
         self.jobs = {}
         self.jobs_lock = threading.Lock()
+        self.open(project_dir)
+
+    def open(self, project_dir):
+        """Work on the project in this folder (File > Open project, Save as):
+        everything kept about the last one is dropped."""
+        self.dir = os.path.realpath(project_dir)
+        self.path = os.path.join(self.dir, PROJECT_FILENAME)
         self.probe_cache = {}
         self.frame_cache = {}
         self.proxies = {}          # proxy file -> {"state", "fraction", "error"}
@@ -123,6 +180,10 @@ class App:
         self.sim_cache = {}        # menu signature -> layout / images for the simulator
         self.sim_lock = threading.Lock()
         self.clip_lock = threading.Lock()
+
+    def busy(self):
+        with self.jobs_lock:
+            return any(not j.done for j in self.jobs.values())
 
     # -- paths -----------------------------------------------------------------
     def resolve(self, rel):
@@ -1017,6 +1078,128 @@ class Handler(BaseHTTPRequestHandler):
             return self.json({"exists": False, "mtime": None, "bytes": None})
         self.json({"exists": True, "mtime": st.st_mtime, "bytes": st.st_size})
 
+    # -- projects: open, recent, save as ------------------------------------------
+    def api_get_recent(self, q):
+        self.json({"recent": recent_projects(), "current": self.app.dir})
+
+    def _folder_arg(self, value):
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("missing folder")
+        path = os.path.expanduser(value.strip())
+        if not os.path.isabs(path):
+            raise ValueError("give the folder's full path")
+        return os.path.realpath(path)
+
+    def api_get_dirs(self, q):
+        """The folders in a folder (the page's folder chooser)."""
+        path = self._folder_arg(q.get("path") or os.path.dirname(self.app.dir))
+        if not os.path.isdir(path):
+            raise FileNotFoundError(path)
+        dirs = []
+        try:
+            names = sorted(os.listdir(path), key=str.lower)
+        except PermissionError:
+            names = []
+        for n in names:
+            full = os.path.join(path, n)
+            if n.startswith(".") or not os.path.isdir(full):
+                continue
+            dirs.append({"name": n, "project": os.path.isfile(os.path.join(full, PROJECT_FILENAME))})
+            if len(dirs) >= 500:
+                break
+        parent = os.path.dirname(path)
+        self.json({"path": path, "parent": parent if parent != path else None, "dirs": dirs,
+                   "project": os.path.isfile(os.path.join(path, PROJECT_FILENAME)),
+                   "home": os.path.expanduser("~")})
+
+    def api_post_switch(self, q):
+        """File > Open project / New project / Open recent: work on another
+        project folder (made when `create` is set)."""
+        body = self.body_json()
+        path = self._folder_arg(body.get("path"))
+        if self.app.busy():
+            raise OncemoreError("wait for the build or transcode to finish first")
+        if not os.path.isdir(path):
+            if not body.get("create"):
+                raise FileNotFoundError(path)
+            os.makedirs(path)
+        self.app.open(path)
+        note_recent(self.app.dir)
+        self.api_get_state(q)
+
+    def api_post_save_as(self, q):
+        """File > Save as: the project folder (the project and its media, not
+        what the build makes again) copied to a new folder, which is then the
+        one being worked on."""
+        body = self.body_json()
+        dest = self._folder_arg(body.get("path"))
+        if self.app.busy():
+            raise OncemoreError("wait for the build or transcode to finish first")
+        if dest == self.app.dir or dest.startswith(self.app.dir + os.sep):
+            raise ValueError("choose a folder outside this project")
+        if os.path.exists(dest) and (not os.path.isdir(dest) or os.listdir(dest)):
+            raise OncemoreError(f"{dest} already exists and is not empty")
+        src = self.app.dir
+        skip = lambda d, names: [n for n in names if d == src and n in SAVE_AS_SKIP]  # noqa: E731
+        shutil.copytree(src, dest, ignore=skip, symlinks=True, dirs_exist_ok=True)
+        self.app.open(dest)
+        if isinstance(body.get("project"), dict):      # the project as it is in the page
+            self.app.save(body["project"])
+        note_recent(self.app.dir)
+        self.api_get_state(q)
+
+    # -- exports: frames, menus and subtitles as files -----------------------------
+    def _export_path(self, name):
+        d = os.path.join(self.app.dir, EXPORT_DIR)
+        os.makedirs(d, exist_ok=True)
+        stem, ext = os.path.splitext(safe_name(name))
+        full, n = os.path.join(d, stem + ext), 2
+        while os.path.exists(full):
+            full, n = os.path.join(d, f"{stem}-{n}{ext}"), n + 1
+        return full
+
+    def api_post_export(self, q):
+        """Timeline > Save frame as file, Menu > Save menu as file, Timeline >
+        Export subtitles: written to exports/ in the project folder."""
+        body = self.body_json()
+        kind = body.get("kind")
+        if kind == "frame":
+            src = self.app.resolve(body.get("path"))
+            t = max(0.0, float(body.get("t", 0)))
+            tools.require(["ffmpeg"])
+            stamp = f"{int(t // 3600):02d}-{int(t % 3600 // 60):02d}-{t % 60:06.3f}".replace(".", "_")
+            out = self._export_path(f"{os.path.splitext(os.path.basename(src))[0]}-{stamp}.png")
+            tools.run([tools.find("ffmpeg"), "-hide_banner", "-nostdin", "-y", "-ss", f"{t:.3f}",
+                       "-i", src, "-frames:v", "1", "-vf", "scale=trunc(iw*sar/2)*2:ih,setsar=1",
+                       "-update", "1", out], what="ffmpeg (frame)")
+        elif kind == "menu":
+            from ..menu import MenuBuilder
+            project = build_project(body.get("project") or self.app.load(), self.app.path,
+                                    check_files=True)
+            menu = project.menu(body.get("menu"))
+            if menu is None:
+                raise ValueError(f"no menu {body.get('menu')!r}")
+            state = body.get("state", "highlight")
+            if state not in ("normal", "highlight", "select"):
+                raise ValueError("bad state")
+            tools.require(["ffmpeg", "ffprobe"], need_drawtext=True)
+            out = self._export_path(f"{menu.id}.png")
+            work = tempfile.mkdtemp(prefix="oncemore-gui-")
+            try:
+                MenuBuilder(project, work).preview(menu, out, button=menu.default_button,
+                                                   state=state)
+            finally:
+                shutil.rmtree(work, ignore_errors=True)
+        elif kind == "subtitles":
+            src = self._subtitle_path({"path": body.get("path")})
+            cues = subtitles.load_subtitles(src)
+            out = self._export_path(os.path.splitext(os.path.basename(src))[0] + ".srt")
+            with open(out, "w", encoding="utf-8") as f:
+                f.write(subtitles.to_srt(cues))
+        else:
+            raise ValueError("kind must be frame, menu or subtitles")
+        self.json({"path": self.app.rel(out), "media": self.app.media()})
+
 
 def make_server(project_dir, port=0):
     app = App(project_dir)
@@ -1030,6 +1213,7 @@ def make_server(project_dir, port=0):
 def serve(project_dir, port=0, open_browser=True, reporter=None):
     os.makedirs(project_dir, exist_ok=True)
     server, app = make_server(project_dir, port)
+    note_recent(app.dir)
     url = f"http://127.0.0.1:{app.port}/#token={app.token}"
     msg = f"oncemore GUI for {app.dir}\n  {url}\n  (Ctrl+C to quit)"
     if reporter:

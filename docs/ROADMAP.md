@@ -245,6 +245,21 @@ browser) and lands only with green CI.
   its link (menu, title, chapter, playlist, play all), on DVD and Blu-ray;
   drawn in the flowchart, played in the simulator
 
+**P48 — The whole menu bar** (done)
+- [x] File, Edit, Object, Menu, Timeline, View, Window and Help with
+  submenus and every command behind them: new / open / open recent / save /
+  save as projects, import as menu / timeline / slideshow / pop-up menu,
+  locate asset, interpret footage, transcode settings, render slideshows,
+  DVD-ROM content, build presets; cut / copy / paste / select all / rename /
+  edit original; align to the safe area, distribute, arrange forward /
+  backward, convert, drop shadow and stroke; add objects, default button,
+  colour set, save menu as a picture; chapter playlists, audio and
+  subtitle tracks, subtitles exported as SubRip, poster frames, frames
+  saved as pictures, clear chapters; zoom, snap, highlights; reset workspace;
+  help
+- [x] Oncemore.app's native menu bar made from the page's (same items,
+  language, keys, greyed and ticked state)
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

@@ -34,5 +34,8 @@ r = json.load(open(sys.argv[1]))
 assert r.get("disc") == "SAMPLE_DISC", r
 assert r.get("navItems", 0) >= 5, r
 assert r.get("stage") is True, r
-print("smoke test passed: the app loaded the project UI")
+# the menu bar is the page's (posted to the app): File … Help, in that order
+menus = r.get("menus", [])
+assert menus[1:] == ["File", "Edit", "Object", "Menu", "Timeline", "View", "Window", "Help"], menus
+print("smoke test passed: the app loaded the project UI and its menu bar")
 EOF

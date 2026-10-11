@@ -86,7 +86,7 @@ final class ServerProcess {
 
 // MARK: - App
 
-final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNavigationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNavigationDelegate, WKScriptMessageHandler {
     var window: NSWindow!
     var webView: WKWebView!
     var server: ServerProcess?
@@ -95,9 +95,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
     let lastProjectKey = "lastProjectFolder"
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        buildMenu()
+        buildMenu(from: AppDelegate.startMenus)
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .nonPersistent()
+        // the page posts its menu bar (and the project it switched to) here
+        config.userContentController.add(self, name: "oncemoreMenu")
+        config.userContentController.add(self, name: "oncemoreProject")
         // the page hides its own menu bar inside the app (this one has a real one)
         config.applicationNameForUserAgent = "OncemoreApp"
         webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 1400, height: 880), configuration: config)
@@ -139,11 +142,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
         server?.onExit = nil
         server?.stop()
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-        projectDir = url
-        UserDefaults.standard.set(url.path, forKey: lastProjectKey)
-        NSDocumentController.shared.noteNewRecentDocumentURL(url)
-        window.title = url.lastPathComponent
-        window.representedURL = url
+        noteProject(url)
         showMessage(url.lastPathComponent, "Starting the oncemore engine…")
         let s = ServerProcess(projectDir: url)
         s.onURL = { [weak self] link in
@@ -158,6 +157,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
         } catch {
             showError("Could not start the oncemore engine.", "\(error)")
         }
+    }
+
+    // the project being worked on (also after the page's Open recent / Save as)
+    func noteProject(_ url: URL) {
+        projectDir = url
+        UserDefaults.standard.set(url.path, forKey: lastProjectKey)
+        NSDocumentController.shared.noteNewRecentDocumentURL(url)
+        window.title = url.lastPathComponent
+        window.representedURL = url
     }
 
     @objc func openProject(_ sender: Any?) {
@@ -191,20 +199,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
     // Menu items that act on the project run the page's own commands (the
     // same ones as its menu bar, right-click menus and shortcuts).
     @objc func runWebCommand(_ sender: NSMenuItem) {
-        guard let id = sender.representedObject as? String, id.allSatisfy({ $0.isLetter || $0 == "_" }) else { return }
+        guard let id = sender.representedObject as? String, id.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "_") }) else { return }
         webView?.evaluateJavaScript("window.oncemoreCommand && window.oncemoreCommand('\(id)')", completionHandler: nil)
     }
 
     // Undo / Redo: text editing inside a field, otherwise the project's history
-    @objc func webUndo(_ sender: Any?) { webEdit("undo") }
-    @objc func webRedo(_ sender: Any?) { webEdit("redo") }
-    func webEdit(_ what: String) {
+    @objc func webUndo(_ sender: Any?) { webEdit("undo", "undo") }
+    @objc func webRedo(_ sender: Any?) { webEdit("redo", "redo") }
+    // Select All: the text in a field, otherwise every object of the menu being edited
+    @objc func webSelectAll(_ sender: Any?) { webEdit("selectAll", "select_all") }
+    func webEdit(_ what: String, _ command: String) {
         let js = """
         (function () { var a = document.activeElement;
           if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.isContentEditable)) document.execCommand('\(what)');
-          else if (window.oncemoreCommand) window.oncemoreCommand('\(what)'); })()
+          else if (window.oncemoreCommand) window.oncemoreCommand('\(command)'); })()
         """
         webView?.evaluateJavaScript(js, completionHandler: nil)
+    }
+
+    // MARK: WKScriptMessageHandler
+
+    func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+        if message.name == "oncemoreMenu", let text = message.body as? String,
+           let data = text.data(using: .utf8),
+           let spec = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] {
+            buildMenu(from: spec)
+        } else if message.name == "oncemoreProject", let path = message.body as? String, path.hasPrefix("/") {
+            noteProject(URL(fileURLWithPath: path))
+        }
     }
 
     // MARK: messages
@@ -267,7 +289,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
               status: document.querySelector('#statusbar') ? document.querySelector('#statusbar').textContent : null})
             """
             webView.evaluateJavaScript(js) { result, error in
-                let text = (result as? String) ?? "{\"jsError\": \"\(error.map { "\($0)" } ?? "none")\"}"
+                var text = (result as? String) ?? "{\"jsError\": \"\(error.map { "\($0)" } ?? "none")\"}"
+                // and the menu bar the page made
+                let menus = (NSApp.mainMenu?.items ?? []).compactMap { $0.submenu?.title }
+                if let data = try? JSONSerialization.data(withJSONObject: menus), let list = String(data: data, encoding: .utf8),
+                   text.hasSuffix("}") {
+                    text = String(text.dropLast()) + ", \"menus\": \(list)}"
+                }
                 try? text.write(toFile: path, atomically: true, encoding: .utf8)
                 NSApp.terminate(nil)
             }
@@ -305,151 +333,122 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
 
     // MARK: menu
 
-    func buildMenu() {
-        let main = NSMenu()
-        func add(_ title: String, _ items: [NSMenuItem]) -> NSMenu {
-            let item = NSMenuItem()
-            let menu = NSMenu(title: title)
-            items.forEach { menu.addItem($0) }
+    // The menu bar is the page's own (window.oncemoreMenuSpec): it posts the
+    // menus, in the language it shows, whenever what they can do changes, and
+    // they are made again here. Until the page is there: the few items that
+    // need no page.
+    static let startMenus: [[String: Any]] = [
+        ["title": "File", "role": "file", "items": [
+            ["id": "new_project", "label": "New Project…", "key": "mod+n"],
+            ["id": "open_project", "label": "Open Project…", "key": "mod+o"], "-",
+            ["id": "close_window", "label": "Close Window", "key": "mod+w"]] as [Any]],
+        ["title": "Edit", "role": "edit", "items": [
+            ["id": "undo", "label": "Undo", "key": "mod+z"], ["id": "redo", "label": "Redo", "key": "mod+shift+z"], "-",
+            ["id": "cut", "label": "Cut", "key": "mod+x"], ["id": "copy", "label": "Copy", "key": "mod+c"],
+            ["id": "paste", "label": "Paste", "key": "mod+v"], ["id": "select_all", "label": "Select All", "key": "mod+a"]] as [Any]],
+        ["title": "Window", "role": "window", "items": [
+            ["id": "reload", "label": "Reload", "key": "mod+r"], ["id": "full_screen", "label": "Enter Full Screen", "key": "mod+ctrl+f"], "-",
+            ["id": "minimize", "label": "Minimize", "key": "mod+m"], ["id": "zoom_window", "label": "Zoom"]] as [Any]],
+    ]
+
+    // items the app does itself (the rest run the page's commands); the
+    // text-editing ones also work in the page's text fields, so stay enabled
+    struct Native { let action: Selector; let own: Bool; let text: Bool }
+    lazy var natives: [String: Native] = [
+        "new_project": Native(action: #selector(AppDelegate.newProject(_:)), own: true, text: false),
+        "open_project": Native(action: #selector(AppDelegate.openProject(_:)), own: true, text: false),
+        "reveal": Native(action: #selector(AppDelegate.revealProject(_:)), own: true, text: false),
+        "close_window": Native(action: #selector(NSWindow.performClose(_:)), own: false, text: true),
+        "undo": Native(action: #selector(AppDelegate.webUndo(_:)), own: true, text: true),
+        "redo": Native(action: #selector(AppDelegate.webRedo(_:)), own: true, text: true),
+        "cut": Native(action: #selector(NSText.cut(_:)), own: false, text: true),
+        "copy": Native(action: #selector(NSText.copy(_:)), own: false, text: true),
+        "paste": Native(action: #selector(NSText.paste(_:)), own: false, text: true),
+        "select_all": Native(action: #selector(AppDelegate.webSelectAll(_:)), own: true, text: true),
+        "reload": Native(action: #selector(AppDelegate.reloadPage(_:)), own: true, text: true),
+        "full_screen": Native(action: #selector(NSWindow.toggleFullScreen(_:)), own: false, text: true),
+        "minimize": Native(action: #selector(NSWindow.performMiniaturize(_:)), own: false, text: true),
+        "zoom_window": Native(action: #selector(NSWindow.performZoom(_:)), own: false, text: true),
+    ]
+
+    // "mod+shift+z" -> ("z", ⌘⇧); keys without ⌘ or ⌥ (Space, Delete, V…) stay
+    // the page's, so typing in its fields is never taken by a menu
+    func keyEquivalent(_ spec: String) -> (String, NSEvent.ModifierFlags) {
+        let parts = spec == "+" ? ["+"] : spec.components(separatedBy: "+")
+        guard parts.count > 1, let key = parts.last, key.count == 1 else { return ("", []) }
+        var mods: NSEvent.ModifierFlags = []
+        if parts.contains("mod") { mods.insert(.command) }
+        if parts.contains("shift") { mods.insert(.shift) }
+        if parts.contains("alt") { mods.insert(.option) }
+        if parts.contains("ctrl") { mods.insert(.control) }
+        guard mods.contains(.command) || mods.contains(.option) else { return ("", []) }
+        return (key, mods)
+    }
+
+    func menuItem(_ entry: Any) -> NSMenuItem {
+        guard let d = entry as? [String: Any] else { return .separator() }
+        let label = d["label"] as? String ?? ""
+        let id = d["id"] as? String ?? ""
+        let disabled = d["disabled"] as? Bool ?? false
+        if let sub = d["sub"] as? [Any] {
+            let item = NSMenuItem(title: label, action: nil, keyEquivalent: "")
+            let menu = NSMenu(title: label)
+            menu.autoenablesItems = false
+            sub.forEach { menu.addItem(menuItem($0)) }
             item.submenu = menu
-            main.addItem(item)
-            return menu
+            item.isEnabled = !disabled
+            return item
         }
+        let (key, mods) = keyEquivalent(d["key"] as? String ?? "")
+        let item: NSMenuItem
+        if let n = natives[id] {
+            item = NSMenuItem(title: label, action: n.action, keyEquivalent: key)
+            item.target = n.own ? self : nil
+            item.isEnabled = n.text || !disabled
+        } else {
+            item = NSMenuItem(title: label, action: #selector(runWebCommand(_:)), keyEquivalent: key)
+            item.target = self
+            item.representedObject = id
+            item.isEnabled = !disabled
+        }
+        item.keyEquivalentModifierMask = mods
+        item.state = (d["checked"] as? Bool ?? false) ? .on : .off
+        return item
+    }
+
+    func buildMenu(from spec: [[String: Any]]) {
+        let main = NSMenu()
         func mi(_ title: String, _ action: Selector?, _ key: String, _ mods: NSEvent.ModifierFlags = .command) -> NSMenuItem {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
             item.keyEquivalentModifierMask = mods
             return item
         }
-        _ = add("oncemore", [
-            mi("About oncemore", #selector(NSApplication.orderFrontStandardAboutPanel(_:)), ""),
-            .separator(),
-            mi("Hide oncemore", #selector(NSApplication.hide(_:)), "h"),
-            mi("Hide Others", #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option]),
-            mi("Show All", #selector(NSApplication.unhideAllApplications(_:)), ""),
-            .separator(),
-            mi("Quit oncemore", #selector(NSApplication.terminate(_:)), "q"),
-        ])
-        func cmd(_ title: String, _ id: String, _ key: String = "", _ mods: NSEvent.ModifierFlags = .command) -> NSMenuItem {
-            let item = mi(title, #selector(runWebCommand(_:)), key, mods)
-            item.representedObject = id
-            item.target = self
-            return item
+        let appMenu = NSMenu(title: "oncemore")
+        let appItems: [NSMenuItem] = [mi("About oncemore", #selector(NSApplication.orderFrontStandardAboutPanel(_:)), ""),
+         .separator(),
+         mi("Hide oncemore", #selector(NSApplication.hide(_:)), "h"),
+         mi("Hide Others", #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option]),
+         mi("Show All", #selector(NSApplication.unhideAllApplications(_:)), ""),
+         .separator(),
+         mi("Quit oncemore", #selector(NSApplication.terminate(_:)), "q")]
+        appItems.forEach { appMenu.addItem($0) }
+        let appItem = NSMenuItem()
+        appItem.submenu = appMenu
+        main.addItem(appItem)
+        for entry in spec {
+            guard let title = entry["title"] as? String, let items = entry["items"] as? [Any] else { continue }
+            let menu = NSMenu(title: title)
+            menu.autoenablesItems = false
+            items.forEach { menu.addItem(menuItem($0)) }
+            let top = NSMenuItem()
+            top.submenu = menu
+            main.addItem(top)
+            switch entry["role"] as? String ?? "" {
+            case "window": NSApp.windowsMenu = menu
+            case "help": NSApp.helpMenu = menu
+            default: break
+            }
         }
-        func own(_ item: NSMenuItem) -> NSMenuItem { item.target = self; return item }
-        // the order disc authoring people know: File, Edit, Object, Menu, Timeline, View, Window, Help
-        _ = add("File", [
-            own(mi("New Project…", #selector(newProject(_:)), "n")),
-            own(mi("Open Project…", #selector(openProject(_:)), "o")),
-            .separator(),
-            cmd("Import Files…", "import_files", "i"),
-            cmd("Import Photoshop Design…", "import_psd"),
-            cmd("Replace Asset…", "replace_asset"),
-            .separator(),
-            cmd("Project Settings…", "project_settings"),
-            cmd("Revert to a Saved Version…", "revert_backup"),
-            .separator(),
-            cmd("Transcode This Title Now", "transcode_title"),
-            cmd("Transcode All Titles Now", "transcode_all"),
-            .separator(),
-            cmd("Preview", "preview"),        // (⇧Space in the page; not here, it would take the key from text fields)
-            cmd("Check Project", "check"),
-            cmd("Build Disc…", "build", "b"),
-            .separator(),
-            own(mi("Show Project Folder in Finder", #selector(revealProject(_:)), "r", [.command, .shift])),
-            .separator(),
-            mi("Close Window", #selector(NSWindow.performClose(_:)), "w"),
-        ])
-        // Cut / Copy / Paste / Select All stay the standard ones for text fields
-        _ = add("Edit", [
-            own(mi("Undo", #selector(webUndo(_:)), "z")),
-            own(mi("Redo", #selector(webRedo(_:)), "z", [.command, .shift])),
-            .separator(),
-            mi("Cut", #selector(NSText.cut(_:)), "x"),
-            mi("Copy", #selector(NSText.copy(_:)), "c"),
-            mi("Paste", #selector(NSText.paste(_:)), "v"),
-            mi("Select All", #selector(NSText.selectAll(_:)), "a"),
-            .separator(),
-            cmd("Duplicate", "duplicate", "d"),
-            cmd("Delete", "delete"),
-            .separator(),
-            cmd("Edit Menu in Photoshop", "edit_psd"),
-            .separator(),
-            cmd("Preferences…", "preferences", ","),
-        ])
-        _ = add("Object", [
-            cmd("Align Left Edges", "align_left"),
-            cmd("Align Horizontal Centres", "align_hcenter"),
-            cmd("Align Right Edges", "align_right"),
-            cmd("Align Top Edges", "align_top"),
-            cmd("Align Vertical Centres", "align_vcenter"),
-            cmd("Align Bottom Edges", "align_bottom"),
-            .separator(),
-            cmd("Distribute Horizontally", "distribute_h"),
-            cmd("Distribute Vertically", "distribute_v"),
-            .separator(),
-            cmd("Bring to Front", "bring_front", "]", [.command, .shift]),
-            cmd("Send to Back", "send_back", "[", [.command, .shift]),
-            .separator(),
-            cmd("Convert Text ⇄ Button", "convert"),
-        ])
-        _ = add("Menu", [
-            cmd("New Menu…", "new_menu"),
-            cmd("Create Chapter Index…", "chapter_index"),
-            .separator(),
-            cmd("Save Menu as Template…", "save_template"),
-            .separator(),
-            cmd("Set Link…", "set_link", "l"),
-            .separator(),
-            cmd("Selection Tool", "tool_select"),
-            cmd("Text Tool", "tool_text"),
-            cmd("Zoom Tool", "tool_zoom"),
-        ])
-        _ = add("Timeline", [
-            cmd("New Title from a Video…", "new_timeline"),
-            cmd("New Slideshow", "new_slideshow"),
-            cmd("New Playlist", "new_playlist"),
-            .separator(),
-            cmd("Add Chapter at Playhead", "add_chapter"),
-            cmd("Add Chapter Points at Intervals…", "chapters_interval"),
-            cmd("Previous Chapter", "prev_chapter"),
-            cmd("Next Chapter", "next_chapter"),
-            cmd("Play / Pause", "play"),
-        ])
-        _ = add("View", [
-            cmd("Zoom In", "zoom_in", "="),
-            cmd("Zoom Out", "zoom_out", "-"),
-            .separator(),
-            cmd("Show Safe Area", "safe_area"),
-            cmd("Show Button Routing", "routing"),
-        ])
-        let windowMenu = add("Window", [
-            cmd("Workspace: Default", "ws_author", "1", [.option, .shift]),
-            cmd("Workspace: Flowchart", "ws_flow", "2", [.option, .shift]),
-            cmd("Project Preview", "ws_sim", "3", [.option, .shift]),
-            cmd("Build", "ws_build", "4", [.option, .shift]),
-            .separator(),
-            cmd("Project", "win_project"),
-            cmd("Menus", "win_menus"),
-            cmd("Timelines", "win_timelines"),
-            cmd("Build Panel", "win_build"),
-            cmd("Monitor", "win_monitor"),
-            cmd("Flowchart Panel", "win_flowchart"),
-            cmd("Properties", "win_properties"),
-            cmd("Layers", "win_layers"),
-            cmd("Library", "win_library"),
-            .separator(),
-            cmd("Light / Dark Theme", "theme"),
-            cmd("English / 日本語", "language"),
-            own(mi("Reload", #selector(reloadPage(_:)), "r")),
-            mi("Enter Full Screen", #selector(NSWindow.toggleFullScreen(_:)), "f", [.command, .control]),
-            .separator(),
-            mi("Minimize", #selector(NSWindow.performMiniaturize(_:)), "m"),
-            mi("Zoom", #selector(NSWindow.performZoom(_:)), ""),
-        ])
-        NSApp.windowsMenu = windowMenu
-        NSApp.helpMenu = add("Help", [
-            cmd("Keyboard Shortcuts", "shortcuts", "/"),
-        ])
         NSApp.mainMenu = main
     }
 }

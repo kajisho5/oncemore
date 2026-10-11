@@ -179,11 +179,24 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   button (solid: set by you in Properties, dashed: automatic), exactly as the
   disc will have it.
 * **Menus and shortcuts**: the menu bar is laid out the way disc authoring
-  people know it — File, Edit, Object, Menu, Timeline, Window, Help (in
-  Oncemore.app it is the Mac's own menu bar); right-click a title, menu or
+  people know it — File, Edit, Object, Menu, Timeline, View, Window, Help,
+  with submenus (Import as, Transcode, Build, Align, Arrange, Show
+  highlights, Workspace…); in Oncemore.app it is the Mac's own menu bar,
+  made from the same list. File opens, makes and saves projects (Open
+  recent, Save as copies the project folder), imports a file as a menu, a
+  timeline, a slideshow or a pop-up menu, and builds DVD / Blu-ray images,
+  folders or discs; Edit cuts, copies and pastes objects or whole titles and
+  menus, renames, edits originals; Object aligns (one object: to the safe
+  area), distributes, arranges and adds a drop shadow or stroke; Menu adds
+  objects, sets the default button and the colour set and saves the menu as
+  a picture; Timeline adds audio and subtitle tracks, exports subtitles as
+  SubRip, sets poster frames and saves frames (exports go to `exports/`).
+  Right-click a title, menu or
   playlist (open, duplicate, move, play first, transcode, delete), a file in
-  *Media* or an element on the menu. Shortcuts: ⌘I import, ⌘B build, ⌘D
-  duplicate, ⌘Z / ⇧⌘Z undo / redo, ⌘L link of the selected button, V / T / Z
+  *Media* or an element on the menu. Shortcuts: ⌘N / ⌘O / ⌘S / ⇧⌘S new,
+  open, save, save as, ⌘I import, ⌘B build, ⌘X / ⌘C / ⌘V / ⌘D cut, copy,
+  paste, duplicate, ⌘A select all, ⌘Z / ⇧⌘Z undo / redo, ⌘[ / ⌘] / ⇧⌘[ /
+  ⇧⌘] stacking order, ⌘0 fit, ⌘L link of the selected button, V / T / Z
   selection, text and zoom tools, + / − zoom, `*` (Shift+8) chapter at the
   playhead, PgUp / PgDn previous / next chapter, Space play / pause, ⇧Space
   preview, ⌥⇧1–4 workspaces, ? the list (Ctrl instead of ⌘ on other systems).
