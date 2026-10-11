@@ -416,6 +416,21 @@ against their published help, not from memory)
 - [x] Bit budget: per title and menu, the bitrate and the space it takes
   on the disc, as a bar of the whole disc, before anything is encoded (P67)
 
+- [ ] Angles in the app's editor: add, order and remove a title's angle
+  videos in its Properties (today only in the project file and through MCP)
+- [ ] Buttons over a title's video (DVD): buttons shown for a stretch of the
+  title and pressed while it plays; an invisible one leads to a hidden extra
+- [ ] Jacket picture: the still a DVD player shows when Stop is pressed
+- [ ] Commands of one's own: a few lines in the navigation command language
+  (registers, conditions, jumps) on a button, a menu or an end action, for
+  quizzes, a random pick or a passcode; and menu sets chosen by the
+  player's menu language
+- [ ] Animated menu objects: position, size, crop and fade over time
+  (keyframes) up to the loop point, e.g. buttons that fly or fade in
+- [ ] Crop and adjust a menu's pictures: crop, brightness, contrast
+- [ ] Masks for button thumbnails (the shape of a frame, a circle)
+- [ ] A flicker filter for menus on interlaced TVs (thin horizontal lines)
+
 **Beyond the classic apps**
 
 - [x] Check for Updates (Help): says which version this is and opens the
@@ -459,6 +474,8 @@ against their published help, not from memory)
   through `oncemore mcp`, which is where such help belongs.
 - Cloud builds and remote encoding (same reason: local first).
 - BD-J (Java) Blu-ray menus; the classic apps did not make them either.
+- Stereoscopic 3D Blu-ray: it needs an MVC encoder, which ffmpeg does not
+  have.
 
 ## Phase 1 — core CLI and project format (done)
 
