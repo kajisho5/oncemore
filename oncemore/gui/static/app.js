@@ -193,7 +193,7 @@ const I18N = {
     cmd_revert_backup: "Revert to a saved version…", revert: "Revert", no_backups: "No earlier versions yet.",
     backups_hint: "oncemore keeps the project as it was before your changes, at most every {m} minutes (the last 30, in .oncemore-backup next to the project). Reverting is one more edit: Undo brings you back.",
     backup_counts: "{t} titles, {m} menus", confirm_revert: "Replace the project with this version? (Undo brings the current one back.)",
-    cmd_save_template: "Save menu as template…", cmd_chapter_index: "Create chapter index…", lib_my_templates: "My templates",
+    cmd_save_template: "Save menu as template…", cmd_chapter_index: "Create chapter index…", lib_my_styles: "My styles", ustyle_use: "Give the selected objects this look (a shape takes its colour)", ustyle_none: "No styles yet: select a text, button or shape and save its look.", ustyle_save: "Save selection as style…", ustyle_save_hint: "Keep the look of the selected object (font, size, colour, outline, shadow) for any menu of any project", ustyle_name: "Style name", ustyle_default_name: "My style", lib_my_templates: "My templates",
     utpl_use: "New menu from this template", utpl_none: "Menu > Save menu as template keeps a menu here, with its pictures, for every project.",
     utpl_hint: "The menu and copies of the files it uses (backgrounds, pictures, fonts, music) are kept in your template library, so any project can start a menu from it.",
     utpl_saved: "Saved “{n}” to the Library (My templates).",
@@ -446,7 +446,7 @@ const I18N = {
     cmd_revert_backup: "保存済みの版に戻す…", revert: "戻す", no_backups: "まだ以前の版はありません。",
     backups_hint: "oncemore は変更前のプロジェクトを最大 {m} 分ごとに保存しています（直近 30 版、プロジェクトの隣の .oncemore-backup）。戻すのも 1 つの編集なので、取り消すで今の状態に戻れます。",
     backup_counts: "タイトル {t}・メニュー {m}", confirm_revert: "プロジェクトをこの版に置き換えますか？（取り消すで今の状態に戻せます）",
-    cmd_save_template: "メニューをテンプレートとして保存…", cmd_chapter_index: "チャプターインデックスを作成…", lib_my_templates: "マイテンプレート",
+    cmd_save_template: "メニューをテンプレートとして保存…", cmd_chapter_index: "チャプターインデックスを作成…", lib_my_styles: "マイスタイル", ustyle_use: "選択中のオブジェクトにこの見た目を適用（図形は色のみ）", ustyle_none: "まだありません：テキスト・ボタン・図形を選んで見た目を保存してください。", ustyle_save: "選択範囲をスタイルとして保存…", ustyle_save_hint: "選択中のオブジェクトの見た目（フォント・サイズ・色・縁取り・影）を、どのプロジェクトのどのメニューでも使えるよう保存します", ustyle_name: "スタイル名", ustyle_default_name: "マイスタイル", lib_my_templates: "マイテンプレート",
     utpl_use: "このテンプレートから新しいメニュー", utpl_none: "メニュー > メニューをテンプレートとして保存 で、画像ごとメニューをここに保存し、どのプロジェクトでも使えます。",
     utpl_hint: "メニューと、使っているファイル（背景・画像・フォント・BGM）のコピーをテンプレートライブラリに保存します。どのプロジェクトからでもこのメニューを元に作れます。",
     utpl_saved: "「{n}」をライブラリ（マイテンプレート）に保存しました。",
@@ -3198,9 +3198,12 @@ async function renderLibrary() {
   const el = $("#library");
   if (!S.templates) { try { S.templates = (await api("/api/templates")).templates; } catch (e) { S.templates = []; } }
   if (!S.userTemplates) { try { S.userTemplates = (await api("/api/user_templates")).templates; } catch (e) { S.userTemplates = []; } }
+  if (!S.userStyles) { try { S.userStyles = (await api("/api/user_styles")).styles; } catch (e) { S.userStyles = []; } }
   if ((S.rightTab || "layers") !== "library") return;
   const menu = S.sel.view === "menu" ? curMenu() : null;
   const sels = menu ? (S.sels || []).filter((x) => x.kind !== "shape" && x.kind !== "image") : [];
+  // (my styles: texts, buttons and shapes; a shape takes the colour)
+  const anyEl = menu ? (S.sels || []).filter((x) => x.kind !== "image") : [];
   el.innerHTML = `
     <div class="lib-section"><h4>${t("lib_templates")}</h4><div class="lib-grid">
       ${S.templates.map((x) => `<button class="lib-item" data-tpl="${esc(x.id)}" title="${esc(x[LANG] || x.en)}"><b>${esc((x[LANG] || x.en).split(/ [—-] /)[0])}</b><span class="hint">${esc((x[LANG] || x.en).split(/ [—-] /)[1] || "")}</span></button>`).join("")}
@@ -3214,6 +3217,10 @@ async function renderLibrary() {
     <div class="lib-section"><h4>${t("lib_text_styles")}</h4><div class="lib-grid">
       ${TEXT_STYLES.map(([k, st]) => `<button class="lib-item" data-style="${k}" ${sels.length ? "" : "disabled"} title="${esc(t("lib_style_hint"))}"><span class="sw" style="color:var(--c-on-picture);${st.outline ? `text-shadow:1px 1px 0 #000,-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000${st.shadow ? ",3px 3px 0 rgba(0,0,0,.6)" : ""}` : st.shadow ? "text-shadow:3px 3px 0 rgba(0,0,0,.7)" : ""}">Aa</span><span>${esc(t("style_" + k))}</span></button>`).join("")}
     </div>${sels.length ? "" : `<div class="hint">${esc(t("lib_style_hint"))}</div>`}</div>
+    <div class="lib-section"><h4>${t("lib_my_styles")}</h4>${S.userStyles.length ? `<div class="lib-grid">
+      ${S.userStyles.map((x) => `<div class="lib-item utpl"><button class="lib-use" data-ustyle="${esc(x.id)}" ${anyEl.length ? "" : "disabled"} title="${esc(t("ustyle_use"))}"><span class="sw" style="color:${esc(x.props.color || "var(--c-on-picture)")};${x.props.outline ? "text-shadow:1px 1px 0 " + esc(x.props.outline) + ",-1px -1px 0 " + esc(x.props.outline) : ""}">Aa</span><span>${esc(x.name)}</span></button><button class="small danger" data-ustyle-del="${esc(x.id)}" title="${esc(t("delete"))}">✕</button></div>`).join("")}</div>`
+      : `<div class="hint">${esc(t("ustyle_none"))}</div>`}
+      <button class="small" id="save-style" ${anyEl.length === 1 ? "" : "disabled"} title="${esc(t("ustyle_save_hint"))}">${t("ustyle_save")}</button></div>
     <div class="lib-section"><h4>Photoshop</h4>${mediaOf("design").length ? `<div class="lib-grid">${mediaOf("design").map((x) => `<button class="lib-item" data-psd="${esc(x)}"><b>PSD</b><span>${esc(x.replace(/^media\//, ""))}</span></button>`).join("")}</div>` : `<div class="hint">${esc(t("no_psd"))}</div>`}</div>`;
   el.querySelectorAll("[data-tpl]").forEach((b) => (b.onclick = async () => {
     const id = uniqueId(b.dataset.tpl, allMenuIds()), first = (P().menus || [])[0];
@@ -3230,6 +3237,35 @@ async function renderLibrary() {
     renderLibrary();
   }));
   el.querySelectorAll("[data-psd]").forEach((b) => (b.onclick = () => mediaAction("psd", b.dataset.psd)));
+  el.querySelectorAll("[data-ustyle]").forEach((b) => (b.onclick = async () => {
+    let r;
+    try { r = await api("/api/apply_style", { method: "POST", body: { style: b.dataset.ustyle } }); } catch (err) { alert(err.message); return; }
+    S.media = r.media;
+    commit((p) => {
+      const mm = p.menus.find((x) => x.id === menu.id);
+      for (const k of anyEl) {
+        const it = mm[KIND_LIST[k.kind]][k.i];
+        if (k.kind === "shape") { if (r.props.color) it.color = r.props.color; continue; }
+        for (const f of ["font", "size", "color", "outline", "outline_width", "shadow", "shadow_offset"]) delete it[f];
+        Object.assign(it, r.props);
+      }
+    });
+    S.preview = null; renderMain(); renderInspector();
+  }));
+  el.querySelectorAll("[data-ustyle-del]").forEach((b) => (b.onclick = async () => {
+    const x = S.userStyles.find((y) => y.id === b.dataset.ustyleDel);
+    if (!x || !confirm(t("confirm_delete", { x: x.name }))) return;
+    try { S.userStyles = (await api("/api/delete_style", { method: "POST", body: { style: x.id } })).styles; } catch (err) { alert(err.message); }
+    renderLibrary();
+  }));
+  const save = el.querySelector("#save-style");
+  if (save) save.onclick = async () => {
+    const k = anyEl[0], it = menu[KIND_LIST[k.kind]][k.i];
+    const name = prompt(t("ustyle_name"), it.label || it.text || t("ustyle_default_name"));
+    if (!name) return;
+    try { S.userStyles = (await api("/api/save_style", { method: "POST", body: { name, props: it } })).styles; } catch (err) { alert(err.message); }
+    renderLibrary();
+  };
   el.querySelectorAll("[data-style]").forEach((b) => (b.onclick = () => {
     const st = TEXT_STYLES.find((x) => x[0] === b.dataset.style)[1];
     commit((p) => {

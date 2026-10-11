@@ -162,6 +162,9 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   (MP4, MOV, MKV …) brings them along, names included, when it becomes a
   title; Timeline > Import chapter markers from the source reads them again
   (for titles made of clips, the markers inside each clip).
+* **My styles** (Library): save the look of a text, button or shape (font,
+  size, colour, outline, shadow) under a name, and give it to other objects
+  in any project; the font is kept with the style.
 * **Chapters at intervals** (Timeline menu): a chapter every *n* minutes or
   seconds, replacing the chapters there are or adding to them.
 * **Replace asset** (File menu, or right-click a file): every use of one file

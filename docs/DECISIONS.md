@@ -1403,3 +1403,18 @@ written that fails before the fix, and then the fix:
 * The tests read the captions back with ffmpeg's own decoder (lavfi's
   subcc on the built VOB): the text, and the times to within a GOP, since
   the decoder takes a GOP's captions at its start.
+
+## 81. My styles
+
+* The Library already had built-in text looks (outline, shadow). Authoring
+  apps also keep the user's own: save the look of an object, give it to
+  others, in any project. oncemore's styles live next to the user's menu
+  templates ($ONCEMORE_STYLES, or "styles" beside the template library),
+  one folder each with its properties and a copy of its font, so a style
+  keeps working when the project it came from is gone.
+* A style is the look only: font, size, colour, outline and its width,
+  shadow and its offset. Applying it replaces those on texts and buttons
+  (properties the style does not have are cleared, so the result is the
+  style, not a mix); a shape has only a colour and takes that. The font is
+  copied into the project's media/ the first time, reused after, and a
+  different file of the same name is kept with the style's beside it.
