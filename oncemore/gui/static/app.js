@@ -243,6 +243,9 @@ const I18N = {
     tc_absolute: "Absolute: the timecode is the title's", tc_relative: "Relative to", sub_offset: "Offset",
     sub_offset_hint: "Taken off every subtitle's time: the start of the source's own timecode (e.g. 01;00;00;00)",
     cmd_chapter_names: "Show chapter names", chapter_label: "Chapter {n}",
+    button_number: "Number", number_on_remote: "{n} (number key {k})",
+    button_number_hint: "The button's number: the remote's number keys select it by this number. The other buttons are numbered again to close up.",
+    button_offset: "Button number offset", button_offset_hint: "Added to every button's number for the number keys: with 10, the first button is 11 (to match chapter numbers, say).",
     confirm_clear_chapters: "Remove every chapter point after the start?",
     uops: "Remote keys turned off", uops_hint_title: "What the viewer cannot do while this title plays, e.g. skip a notice. Players follow it (DVD: user operations; Blu-ray: UO mask).",
     uops_hint_menu: "What the viewer cannot do while this menu shows.",
@@ -489,6 +492,9 @@ const I18N = {
     tc_absolute: "絶対：タイムコードがそのままタイトルの時間", tc_relative: "相対：基準", sub_offset: "オフセット",
     sub_offset_hint: "各字幕の時間から引く値：素材自身のタイムコードの開始（例 01;00;00;00）",
     cmd_chapter_names: "チャプター名を表示", chapter_label: "チャプター {n}",
+    button_number: "番号", number_on_remote: "{n}（数字キー {k}）",
+    button_number_hint: "ボタンの番号：リモコンの数字キーでこの番号のボタンを選びます。他のボタンの番号は詰めて付け直されます。",
+    button_offset: "ボタン番号のオフセット", button_offset_hint: "数字キー用に各ボタンの番号へ足す値。10 なら最初のボタンは 11（チャプター番号と合わせるときなど）。",
     confirm_clear_chapters: "先頭以外のチャプターポイントをすべて削除しますか？",
     uops: "無効にするリモコン操作", uops_hint_title: "このタイトルの再生中に視聴者ができない操作（注意書きを飛ばせないようにするなど）。プレーヤーはこれに従います（DVD：ユーザー操作、Blu-ray：UO マスク）。",
     uops_hint_menu: "このメニューの表示中に視聴者ができない操作。",
@@ -1744,9 +1750,18 @@ async function renderSim(m) {
   m.querySelectorAll("[data-key]").forEach((b) => (b.onclick = () => simCall(b.dataset.key)));
   $("#sim-restart").onclick = () => { S.sim = null; simCall(); };
   $("#sim-screen").onkeydown = async (e) => {
-    // as on a player's remote: 1-9 press that button, Home the Title key,
+    // as on a player's remote: 0-9 press the button with that number (with
+    // the menu's offset), Home the Title key,
     // Insert the Menu key, End plays to the end
-    if (/^[1-9]$/.test(e.key) && S.sim?.state?.domain === "menu") { e.preventDefault(); await simCall("select:" + e.key); simCall("enter"); return; }
+    if (/^[0-9]$/.test(e.key) && S.sim?.state?.domain === "menu") {
+      // (up to two digits, as players take them: the second within a moment)
+      e.preventDefault();
+      clearTimeout(S.simDigitTimer);
+      S.simDigits = (S.simDigits || "") + e.key;
+      const go = () => { const n = S.simDigits; S.simDigits = ""; if (n) simCall("number:" + Number(n)); };
+      if (S.simDigits.length >= 2) go(); else S.simDigitTimer = setTimeout(go, 700);
+      return;
+    }
     const k = { Home: "title", Insert: "menu", End: "end" }[e.key] || SIM_KEYS[e.key] || SIM_KEYS[e.key.toLowerCase?.()];
     if (k) { e.preventDefault(); simCall(k); }
   };
@@ -2750,11 +2765,19 @@ function renderMenuInspector(el) {
           <label class="field"><span>${t("thumb_time")}</span><input type="number" data-th="time" min="0" step="0.1" value="${it.thumbnail.time ?? ""}" placeholder="1"></label></div>
           <label class="field"><span></span><label><input type="checkbox" id="th-anim" ${it.thumbnail.animated ? "checked" : ""} ${menu.background_video ? "" : "disabled"}> ${t("thumb_anim")}</label></label>` : ""}</div>` : ""}
       ${sel.kind === "button" ? `<label class="field"><span>${t("highlight_image")}</span>${selectHtml("highlight_image", [["__none__", t("auto")], ...mediaOf("image").map((x) => [x, x])], it.highlight_image || "__none__")}<div class="hint">${esc(t("highlight_image_hint"))}</div></label>` : ""}
-      ${sel.kind === "button" ? `<h3>${t("nav")}</h3><div class="grid2">${["up", "down", "left", "right"].map((d) =>
+      ${sel.kind === "button" ? `<label class="field" data-nobind><span>${t("button_number")}</span>${selectHtml("number", menu.buttons.map((b, i) => [String(i), menu.button_offset ? t("number_on_remote", { n: i + 1, k: i + 1 + menu.button_offset }) : String(i + 1)]), String(sel.i), 'id="btn-number"')}<div class="hint">${esc(t("button_number_hint"))}</div></label>
+        <h3>${t("nav")}</h3><div class="grid2">${["up", "down", "left", "right"].map((d) =>
         `<label class="field"><span>${d}</span>${selectHtml("nav." + d, btnIds, (it.nav || {})[d] || "__none__")}</label>`).join("")}</div>` : ""}
       ${transformHtml(it, sel.kind)}
       <button class="danger" id="del-el">${t("delete")}</button>`;
     bindTransform(el, (p) => (sel.kind === "button" ? find(p).buttons : find(p).texts)[sel.i]);
+    // Number: the button moves to that place; the others close up
+    if ($("#btn-number")) $("#btn-number").onchange = (e) => {
+      const to = Number(e.target.value);
+      commit((p) => { const list = find(p).buttons, [b] = list.splice(sel.i, 1); list.splice(to, 0, b); });
+      S.element = { kind: "button", i: to }; S.sels = [S.element];
+      renderMain(); renderInspector();
+    };
     bindFields(el, (p) => (sel.kind === "button" ? find(p).buttons : find(p).texts)[sel.i], {
       numeric: ["x", "y", "size", "width", "audio", "subtitle"],
       onAfter: (p, key) => {
@@ -2837,13 +2860,15 @@ function renderMenuInspector(el) {
     ${menu.psd ? `<label class="field"><span>Photoshop</span><div class="row"><span class="mono shrink" style="overflow:hidden;text-overflow:ellipsis">${esc(menu.psd)}</span><button class="small shrink" id="psd-edit">${t("cmd_edit_psd")}</button><button class="small shrink" id="psd-again">${t("reimport")}</button></div><div class="hint">${esc(t("reimport_hint"))}</div></label>` : ""}
     <label class="field"><span>${t("default_button")}</span>${selectHtml("default_button", [["__none__", t("auto")], ...(menu.buttons || []).map((b) => [b.id, `${b.id} (${b.label || b.image || ""})`])], menu.default_button || "__none__")}</label>
     <label class="field"><span></span><label><input type="checkbox" id="remember-btn" ${menu.remember_button === false ? "" : "checked"}> ${t("remember_button")}</label></label>
+    <label class="field"><span>${t("button_offset")}</span><input type="number" data-k="button_offset" min="0" max="${Math.max(0, 99 - (menu.buttons || []).length)}" value="${menu.button_offset || ""}" placeholder="0"><div class="hint">${esc(t("button_offset_hint"))}</div></label>
     ${uopsHtml(menu, "menu")}
     ${orderHtml(t("order_menu"))}
     <h3></h3><button class="danger" id="del-menu">${t("delete")}</button>`;
   bindFields(el, find, {
-    numeric: ["font_size", "duration", "loop_point", "fade_in"],
+    numeric: ["font_size", "duration", "loop_point", "fade_in", "button_offset"],
     onAfter: (p, key, val) => {
       const mm = find(p);
+      if (key === "button_offset" && !val) delete mm.button_offset;
       if (key === "loop") { if (val === "forever") { delete mm.loop; delete mm.end_action; } else mm.loop = Number(val); }
       if (key === "loop_point" && !val) { delete mm.loop_point; if (!mm.fade_in) delete mm.buttons_at_loop; }
       if (key === "fade_in" && !val) { delete mm.fade_in; if (!mm.loop_point) delete mm.buttons_at_loop; }
@@ -3588,6 +3613,11 @@ async function drawRouting(stage, menu, scale, sx) {
       paths.push(`<path class="${manual ? "manual" : ""} ${wraps ? "wrap" : ""}" data-route="${esc(b.id)}:${d}" d="${path}" marker-end="url(#route-arrow)"><title>${esc(b.id)} ${d} → ${esc(to.id)}</title></path>`);
     }
   }
+  // each button's number on the remote (its place plus the menu's offset)
+  r.buttons.forEach((b, i) => {
+    const [x0, y0] = b.rect;
+    paths.push(`<g class="bnum" data-bnum="${esc(b.id)}"><circle cx="${X(x0) + 9}" cy="${Y(y0) + 9}" r="9"/><text x="${X(x0) + 9}" y="${Y(y0) + 13}" text-anchor="middle">${i + 1 + (menu.button_offset || 0)}</text></g>`);
+  });
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("class", "routing");
   svg.setAttribute("width", stage.clientWidth); svg.setAttribute("height", stage.clientHeight);

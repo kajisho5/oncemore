@@ -1261,3 +1261,23 @@ written that fails before the fix, and then the fix:
 * Show chapter names is a view setting of each open timeline, not part of
   the project.
 
+## 75. Button numbers
+
+* A button's number is its place in the menu's list: renumbering a button
+  moves it there and the others close up, so numbers always run 1, 2, …
+  without gaps, as a disc needs them. The ids (what links and the default
+  button name) do not change.
+* The offset is the menu's (`button_offset`), as on a disc: a DVD keeps one
+  "button offset number" per highlight, in every navigation pack of the
+  menu. dvdauthor writes 0 there, so the menu VOB is patched after it: each
+  navigation pack names its VOB and cell (in its DSI), and the IFO's menu
+  program chains name theirs, so only that menu's packs change.
+* A Blu-ray button carries its own number for the number keys (its numeric
+  select value); oncemore wrote none before, so number keys did nothing on
+  a Blu-ray menu. It is now the button's place plus the offset.
+* What a number key does differs: a DVD player selects and runs the button
+  (libdvdnav has a call for just that); libbluray only selects it (and runs
+  it if it runs on selection), one digit at a time. The simulator does as a
+  DVD does; the app's preview takes two digits typed together, as players
+  do.
+

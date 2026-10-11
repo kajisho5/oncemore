@@ -388,6 +388,7 @@ Claude Desktop（`claude_desktop_config.json`）などの MCP クライアント
 | `end_action` | 最後の再生のあと：`menu:` \| `title:` \| `chapter:` \| `playall` \| `stop` | `stop` |
 | `default_button` | メニューを開いたときに選ばれているボタンの id | 先頭 |
 | `remember_button` | 戻ってきたとき前に使ったボタンを選ぶ（メニュー 1〜7） | `true` |
+| `button_offset` | リモコンの数字キー用に、ボタンの番号（並び順 1, 2, …）へ足す値。10 なら最初のボタンは 11（プロパティの「番号」でボタンの番号を付け直せます） | `0` |
 | `prohibit` | このメニューの表示中は効かないリモコン操作（タイトルと同じ） | なし |
 | `font_size`、`text_color` | テキスト・ボタンの既定値 | `32`、`#FFFFFF` |
 | `highlight_color`、`select_color` | 選択中／決定時のボタンの色。`#RRGGBBAA` で半透明（DVD の不透明度は 16 段階） | `#FFD400`、`#FF5A00` |

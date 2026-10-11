@@ -489,6 +489,7 @@ class Menu:
     buttons_at_loop: bool = False  # buttons only from the loop point on (the intro plays out)
     loop_pgc: int = 0          # menu PGC with the buttons (number + 1 when the intro is apart)
     prohibit: list = field(default_factory=list)   # remote keys the menu does not allow (uops.NAMES)
+    button_offset: int = 0     # number keys: button n is selected with n + this
 
 
 @dataclass
@@ -1010,6 +1011,10 @@ class _Builder:
             self.err(f"{where}.buttons_at_loop", "needs a loop point (or a fade-in) to wait for")
         if m.get("default_button") and m["default_button"] not in ids:
             self.err(f"{where}.default_button", f"no button {m['default_button']!r} in this menu")
+        offset = m.get("button_offset", 0)
+        if offset + len(buttons) > 99:
+            self.err(f"{where}.button_offset", f"buttons {offset + 1}-{offset + len(buttons)}: "
+                     "a remote's number keys go to 99")
         return Menu(
             id=m["id"],
             loop=loop, loop_point=loop_point, fade_in=fade_in, end_action=m.get("end_action", "stop"),
@@ -1017,6 +1022,7 @@ class _Builder:
             remember_button=m.get("remember_button", True),
             buttons_at_loop=bool(m.get("buttons_at_loop")) and loop_point > 0,
             prohibit=self.prohibit(where, m),
+            button_offset=m.get("button_offset", 0),
             shapes=[Shape(s["x"], s["y"], s["w"], s["h"], s.get("color", "#00000080"),
                           **self.transform(s))
                     for s in m.get("shapes", [])],

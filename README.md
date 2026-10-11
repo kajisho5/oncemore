@@ -449,6 +449,7 @@ when there are more.
 | `end_action` | after the last loop: `menu:` \| `title:` \| `chapter:` \| `playall` \| `stop` | `stop` |
 | `default_button` | button id highlighted when the menu opens | the first |
 | `remember_button` | coming back highlights the button used last (menus 1–7) | `true` |
+| `button_offset` | added to the buttons' numbers (their order, 1, 2, …) for the remote's number keys: with 10 the first button is 11 (Properties > Number renumbers a button) | `0` |
 | `prohibit` | remote keys that do nothing while the menu shows (as for titles) | none |
 | `font_size`, `text_color` | defaults for texts/buttons | `32`, `#FFFFFF` |
 | `highlight_color`, `select_color` | button colours when selected / activated; `#RRGGBBAA` for translucent (a DVD has 16 levels of opacity) | `#FFD400`, `#FF5A00` |

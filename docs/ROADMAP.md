@@ -245,6 +245,12 @@ browser) and lands only with green CI.
   its link (menu, title, chapter, playlist, play all), on DVD and Blu-ray;
   drawn in the flowchart, played in the simulator
 
+**P54 — Button numbers** (done)
+- [x] Properties > Number renumbers a button (the others close up); a menu's
+  button number offset for the number keys, on DVD (the navigation packs'
+  button offset number) and Blu-ray (each button's numeric select value);
+  numbers in the routing view; number keys (two digits) in the preview
+
 **P53 — Subtitle scripts, chapter names in the ruler** (done)
 - [x] Text-script subtitles (`.txt`: number, start and end timecode, text):
   read as tracks (drop-frame and non-drop-frame NTSC, PAL timecode),

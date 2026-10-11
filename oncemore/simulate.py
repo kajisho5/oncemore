@@ -262,6 +262,12 @@ class Simulator:
         s["log"] = []
         if key.startswith("select:"):
             key, arg = "select", key[7:]
+        elif key.isdigit() or key.startswith("number:"):
+            # number keys: the button with that number (its place plus the
+            # menu's offset), selected and run (a DVD player's "select and
+            # activate"; a Blu-ray player only selects it, unless it runs on
+            # selection)
+            key, arg = "number", int(key.split(":")[-1])
         elif key not in KEYS:
             raise SimError(f"unknown key {key!r}")
         if s["domain"] == "stopped":
@@ -289,6 +295,13 @@ class Simulator:
             elif key == "select":
                 ids = [g["id"] for g in geoms]
                 s["button"] = ids.index(arg) + 1 if arg in ids else int(arg)
+            elif key == "number":
+                n = arg - m.button_offset
+                if 1 <= n <= len(geoms):
+                    s["button"] = n
+                    self.activate(s, m, geoms)
+                else:
+                    self.note(s, f"no button {arg} here")
             elif key == "enter" and geoms:
                 self.activate(s, m, geoms)
             elif key == "timeout" and m.loop is not None:

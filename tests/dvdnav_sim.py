@@ -250,6 +250,15 @@ class DvdSim:
             self.lib.dvdnav_button_select(self.h, pci, cur)
         return n
 
+    def button_numbers(self):
+        """(button offset number, numerically selectable buttons) of the
+        current navigation pack's highlight (pci_t: general 60 bytes, angle
+        info 36, then the highlight's general info: BTN_OFN at 16, NSL_BTN_NS
+        at 18)."""
+        pci = self.lib.dvdnav_get_current_nav_pci(self.h)
+        raw = ctypes.string_at(pci, 116)
+        return raw[112], raw[114]
+
     def select(self, button):
         pci = self.lib.dvdnav_get_current_nav_pci(self.h)
         if self.lib.dvdnav_button_select(self.h, pci, button) != DVDNAV_STATUS_OK:
