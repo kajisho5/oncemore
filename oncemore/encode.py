@@ -265,8 +265,13 @@ def plan_bitrate(items, capacity, menu_seconds=0.0, fixed=None):
     if video < LOW_QUALITY_BPS:
         warnings.append(f"average video bitrate is only {video / 1e6:.2f} Mbit/s; "
                         "expect visible compression artefacts")
+    # the bit budget: what each title takes (its streams and their packets),
+    # the menus, and the disc's own files
+    titles = [int(d * (v + a) / 8 * (1 + MUX_OVERHEAD)) for (d, a, _), v in zip(items, per_title)]
+    budget = {"titles": titles, "menus": int(menu_bytes), "other": IFO_RESERVE}
     return {"video_bps": video, "per_title": per_title, "estimated_bytes": int(est),
-            "capacity": capacity, "total_seconds": total, "warnings": warnings}
+            "capacity": capacity, "total_seconds": total, "warnings": warnings,
+            "budget": budget}
 
 
 def peak_bitrate(audio_bps):

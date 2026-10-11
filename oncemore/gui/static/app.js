@@ -139,7 +139,12 @@ const I18N = {
     reveal: "Show in Finder", reveal_other: "Open folder", output: "Output", warnings: "Warnings",
     step_probe: "Checking sources", step_menu: "Rendering menu “{i}”", step_encode: "Encoding title “{i}”",
     step_subtitles: "Subtitles for “{i}”", step_author: "Authoring VIDEO_TS", step_iso: "Writing the disc image",
+    media_cache: "Media cache", cache_folder: "Folder", cache_in_project: "In the project folder (.oncemore-cache)", cache_use: "Use",
+    cache_in_project_short: "In the project", cache_now: "This project's: {p}",
+    cache_hint: "Encoded titles and menus, rendered slideshows and playback copies are kept here so builds go fast. A folder for every project (e.g. on a larger or faster drive): each project gets its own folder in it.",
     check_ok: "Ready to build", estimated: "Estimated size", of: "of", video_avg: "Average video bitrate",
+    budget: "Bit budget", budget_menus: "Menus", budget_other: "Disc files", budget_free: "Free", budget_video: "Video Mbit/s",
+    budget_audio: "Audio", budget_size: "Size", budget_share: "Of the disc", col_length: "Length",
     menu_item: "Menu: {m}", menu_button_item: "Menu: {m} › {b}", title_item: "Title: {t}", chapter_item: "{t} › Chapter {n}",
     audio_item: "Audio stream {n}", subtitle_item: "Subtitles {n}", subtitle_off: "Subtitles off",
     nothing_selected: "Select a button or text on the menu, or edit the menu settings below.",
@@ -403,7 +408,12 @@ const I18N = {
     reveal: "Finder で表示", reveal_other: "フォルダを開く", output: "出力先", warnings: "警告",
     step_probe: "素材をチェック", step_menu: "メニュー「{i}」を作成", step_encode: "タイトル「{i}」をエンコード",
     step_subtitles: "「{i}」の字幕を作成", step_author: "VIDEO_TS を構成", step_iso: "ディスクイメージを書き出し",
+    media_cache: "メディアキャッシュ", cache_folder: "フォルダー", cache_in_project: "プロジェクトフォルダー内（.oncemore-cache）", cache_use: "使う",
+    cache_in_project_short: "プロジェクト内", cache_now: "このプロジェクトの場所：{p}",
+    cache_hint: "エンコード済みのタイトルとメニュー、書き出したスライドショー、再生用のコピーをここに置き、ビルドを速くします。全プロジェクト共通のフォルダー（容量の大きいドライブや速いドライブなど）を選ぶと、その中にプロジェクトごとのフォルダーを作ります。",
     check_ok: "書き出しできます", estimated: "推定サイズ", of: "／", video_avg: "平均映像ビットレート",
+    budget: "ビットバジェット", budget_menus: "メニュー", budget_other: "ディスクのファイル", budget_free: "空き", budget_video: "映像 Mbit/s",
+    budget_audio: "音声", budget_size: "サイズ", budget_share: "ディスクに占める割合", col_length: "長さ",
     menu_item: "メニュー：{m}", menu_button_item: "メニュー：{m} › {b}", title_item: "タイトル：{t}", chapter_item: "{t} › チャプター {n}",
     audio_item: "音声 {n}", subtitle_item: "字幕 {n}", subtitle_off: "字幕オフ",
     nothing_selected: "メニュー上のボタンやテキストを選択するか、下のメニュー設定を編集してください。",
@@ -3169,17 +3179,33 @@ async function runCheck() {
   openModal(`<h2>${t("check")}</h2><p class="muted">…</p>`);
   try {
     const r = await api("/api/validate", { method: "POST" });
-    const s = r.summary, pct = Math.min(100, (s.estimated_bytes / s.capacity_bytes) * 100);
+    const s = r.summary;
     openModal(`<h2>✓ ${t("check_ok")}</h2>
       <p>${t("estimated")}: <b>${fmtBytes(s.estimated_bytes)}</b> ${t("of")} ${fmtBytes(s.capacity_bytes)}</p>
-      <div class="sizebar"><div style="width:${pct}%"></div></div>
+      ${budgetHtml(s)}
       <p>${t("video_avg")}: <b>${(s.video_bps / 1e6).toFixed(2)} Mbit/s</b></p>
-      <table class="mono" style="width:100%">${s.titles.map((x) => `<tr><td>${esc(x.id)}</td><td>${x.duration.toFixed(1)}s</td><td>${x.input}</td><td>${x.chapters.length} ch</td><td>${x.audio}</td><td>${x.aspect || ""}</td></tr>`).join("")}</table>
       ${s.warnings.length ? `<h3>${t("warnings")}</h3><ul class="issues">${s.warnings.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}`);
   } catch (e) {
     if (e.data?.issues) showIssues(e.data.issues);
     else openModal(`<h2>${esc(e.message)}</h2>${e.data?.hint ? `<p class="hint">${esc(e.data.hint)}</p>` : ""}`);
   }
+}
+// the bit budget: a bar of the whole disc (each title, the menus, the disc's
+// own files, what is left) and each title's rates and size, before encoding
+function budgetHtml(s) {
+  const b = s.budget, cap = b.capacity, pct = (n) => (n / cap) * 100;
+  const parts = [...b.titles.map((x, i) => ({ cls: `title${i % 2 ? " alt" : ""}`, bytes: x.bytes, name: x.name || x.id })),
+    { cls: "menus", bytes: b.menus, name: t("budget_menus") }, { cls: "other", bytes: b.other, name: t("budget_other") }];
+  const info = Object.fromEntries(s.titles.map((x) => [x.id, x]));
+  const row = (name, len, video, audio, bytes, extra = "") => `<tr><td>${esc(name)}</td><td>${len}</td><td>${video}</td><td>${audio}</td><td>${fmtBytes(bytes)}</td><td>${pct(bytes).toFixed(1)}%</td>${extra}</tr>`;
+  return `<div class="budget" id="budget" role="img" aria-label="${esc(t("budget"))}">${parts.filter((x) => x.bytes > 0).map((x) =>
+    `<div class="seg ${x.cls}" style="width:${pct(x.bytes)}%" title="${esc(x.name)} · ${fmtBytes(x.bytes)}"></div>`).join("")}</div>
+    <table class="budget-table mono"><tr><th>${t("col_name")}</th><th>${t("col_length")}</th><th>${t("budget_video")}</th><th>${t("budget_audio")}</th><th>${t("budget_size")}</th><th>${t("budget_share")}</th><th></th></tr>
+      ${b.titles.map((x) => row(x.name || x.id, `${x.seconds.toFixed(1)}s`, `${(x.video_bps / 1e6).toFixed(2)}`, `${Math.round(x.audio_bps / 1000)}k`, x.bytes,
+        `<td class="muted">${info[x.id] ? `${info[x.id].chapters.length} ch · ${esc(info[x.id].audio)}` : ""}</td>`)).join("")}
+      ${b.menus ? row(t("budget_menus"), "", "", "", b.menus) : ""}
+      ${b.other ? row(t("budget_other"), "", "", "", b.other) : ""}
+      ${row(t("budget_free"), "", "", "", b.free)}</table>`;
 }
 function renderBuild(m) {
   const job = S.job;
@@ -3618,7 +3644,22 @@ function preferencesBox() {
       <div class="hint">${esc(t("brightness_hint"))}</div></label>
     <label class="field"><span>${t("skin")}</span>${selectHtml("skin", [["modern", t("skin_modern")], ["classic", t("skin_classic")]], store.get("skin", "modern"), 'id="pref-skin"')}<div class="hint">${esc(t("skin_hint"))}</div></label>
     <label class="field"><span>${t("cmd_theme")}</span>${selectHtml("theme", [["dark", t("theme_dark")], ["light", t("theme_light")]], store.get("theme", "dark"), 'id="pref-theme"')}</label>
-    <label class="field"><span>${t("language")}</span>${selectHtml("lang", [["en", "English"], ["ja", "日本語"]], LANG, 'id="pref-lang"')}</label>`);
+    <label class="field"><span>${t("language")}</span>${selectHtml("lang", [["en", "English"], ["ja", "日本語"]], LANG, 'id="pref-lang"')}</label>
+    <h3>${t("media_cache")}</h3>
+    <label class="field"><span>${t("cache_folder")}</span>
+      <div class="row"><input id="pref-cache" class="mono" placeholder="${esc(t("cache_in_project"))}">
+      <button class="small shrink" id="pref-cache-set">${t("cache_use")}</button><button class="small shrink" id="pref-cache-def">${t("cache_in_project_short")}</button></div>
+      <div class="hint" id="pref-cache-hint">${esc(t("cache_hint"))}</div></label>`);
+  // the media cache: in the project folder, or one folder for every project
+  const showCache = (r) => {
+    if (!$("#pref-cache")) return;
+    $("#pref-cache").value = r.cache_dir || "";
+    $("#pref-cache-hint").textContent = `${t("cache_hint")} ${t("cache_now", { p: r.project_cache })}`;
+  };
+  const putCache = (v) => api("/api/settings", { method: "PUT", body: { cache_dir: v } }).then(showCache).catch((e) => alert(e.message));
+  api("/api/settings").then(showCache).catch(() => {});
+  $("#pref-cache-set").onclick = () => putCache($("#pref-cache").value.trim() || null);
+  $("#pref-cache-def").onclick = () => putCache(null);
   const set = (v) => { store.set("brightness", v); applyBrightness(); };
   $("#pref-bright").oninput = (e) => set(Number(e.target.value));
   $("#pref-bright-def").onclick = () => { $("#pref-bright").value = 0; set(0); };

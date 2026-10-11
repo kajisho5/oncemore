@@ -11,7 +11,7 @@ import tempfile
 import threading
 
 from . import (author, bdmenu, bluray, captions, clips, encode, iso, layerbreak, lpcmfix, pgs,
-               slideshow, subtitles, tools, udf250, udfwriter, uops)
+               settings, slideshow, subtitles, tools, udf250, udfwriter, uops)
 from . import menu as menu_module
 from .errors import OncemoreError, ProjectError
 from .project import parse_action, retime_thumbs, title_fps
@@ -322,7 +322,22 @@ def summary(project, infos, plan):
         "capacity_bytes": plan["capacity"],
         "total_seconds": round(plan["total_seconds"], 3),
         "warnings": list(project.warnings) + plan["warnings"],
+        "budget": budget(project, infos, plan),
     }
+
+
+def budget(project, infos, plan):
+    """Where the disc's space goes, before anything is encoded: each title's
+    length, video and audio rates and bytes, the menus, the disc's own
+    files, and what is left."""
+    b = plan.get("budget") or {"titles": [0] * len(project.titles), "menus": 0, "other": 0}
+    rates = plan.get("per_title") or [plan["video_bps"]] * len(project.titles)
+    titles = [{"id": t.id, "name": t.name, "seconds": round(infos[t.id]["duration"], 3),
+               "video_bps": v, "audio_bps": t.audio_bps, "bytes": n}
+              for t, v, n in zip(project.titles, rates, b["titles"])]
+    used = sum(b["titles"]) + b["menus"] + b["other"]
+    return {"titles": titles, "menus": b["menus"], "other": b["other"],
+            "free": max(0, plan["capacity"] - used), "capacity": plan["capacity"]}
 
 
 def add_subtitles(project, title, mpg, plan, work, reporter):
@@ -442,7 +457,7 @@ def title_cache_key(project, title, info, vbps, fast):
 
 
 def encode_cache_dir(project):
-    return os.path.join(project.base_dir, ".oncemore-cache", "encode")
+    return os.path.join(settings.cache_dir(project.base_dir), "encode")
 
 
 def encode_status(project, fast=False):

@@ -1548,6 +1548,38 @@ written that fails before the fix, and then the fix:
   its frames at the disc's rate already, and the fps filter after it
   dropped the last one. It is left out after zoompan now.
 
+## 87. The bit budget
+
+* The size estimate was one number. The classic apps showed where the
+  space goes, so the plan now keeps its parts: each title (its length,
+  video rate as planned, audio rate, and bytes with the packet overhead),
+  the menus, the disc's own files (the IFO reserve) and what is left.
+  The parts add up to the estimate the plan already made, so the bar and
+  the number agree.
+* On a Blu-ray the pictures are encoded at a constant quality up to a peak
+  rate, so a title's part is the most it takes, not what it will take.
+* Check Project shows a bar of the whole disc (titles in turn, menus, disc
+  files) and a table; `oncemore validate` prints each title's rates and
+  size, and the free space. Changing a title's bitrate (Properties) and
+  checking again shows the effect before anything is encoded.
+
+## 88. The media cache folder
+
+* The media cache was always `<project>/.oncemore-cache`. Encodes of long
+  titles fill a project's drive, so the classic apps let the cache live
+  anywhere; now Preferences > Media cache (or ONCEMORE_CACHE) chooses a
+  folder, kept in this computer's settings (settings.json next to the
+  recent projects list), not in the project.
+* Each project gets its own folder in it, named after the project folder
+  with a hash of its full path: two projects of the same name do not
+  share one, and `oncemore clean` still removes one project's cache only.
+  (The cache keys are content keys, so sharing would be safe; keeping
+  them apart keeps clean and the sizes simple.)
+* Everything that writes to the cache asks settings.cache_dir: encodes,
+  slideshows, joined clips and the editor's playback copies. A slideshow
+  fitted to its music used to find the project from its render's path
+  (three folders up); it now keeps the render's folder, wherever that is.
+
 ## 89. Chapters at scene changes
 
 * Chapters usually go where the scene changes. ffmpeg scores how much each

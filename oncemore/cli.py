@@ -7,7 +7,7 @@ import shutil
 import sys
 import tempfile
 
-from . import __version__, build, burn, graph, scaffold, scenes, tools, web
+from . import __version__, build, burn, graph, scaffold, scenes, settings, tools, web
 from .errors import OncemoreError, ProjectError
 from .project import PROJECT_FILENAME, load_project
 from .report import Reporter
@@ -15,6 +15,10 @@ from .report import Reporter
 
 def _gib(n):
     return f"{n / 2**30:.2f} GiB"
+
+
+def _size(n):
+    return _gib(n) if n >= 2**30 else f"{n / 2**20:.1f} MiB"
 
 
 def cmd_doctor(args, rep):
@@ -88,14 +92,19 @@ def cmd_validate(args, rep):
     s["navigation"] = _navigation(project, rep)
     lines = [f"Project OK: {project.disc.label} ({project.disc.standard} {project.disc.aspect}, "
              f"{project.disc.target})", ""]
+    sizes = {x["id"]: x for x in s["budget"]["titles"]}
     for t in s["titles"]:
+        b = sizes[t["id"]]
         lines.append(f"  title {t['number']} {t['id']:<10} {t['duration']:8.1f}s  "
-                     f"{len(t['chapters'])} chapter(s)  {t['audio']}  -> {t['end_action']}")
+                     f"{len(t['chapters'])} chapter(s)  {t['audio']}  -> {t['end_action']}  "
+                     f"[{b['video_bps'] / 1e6:.2f} + {b['audio_bps'] / 1e3:.0f}k, "
+                     f"{_size(b['bytes'])}]")
     for m in s["menus"]:
         gen = " (generated)" if m["generated"] else ""
         lines.append(f"  menu  {m['number']} {m['id']:<10} {len(m['buttons'])} button(s){gen}")
     lines += ["", f"  video bitrate: {s['video_bps'] / 1e6:.2f} Mbit/s average",
-              f"  estimated size: {_gib(s['estimated_bytes'])} of {_gib(s['capacity_bytes'])}"]
+              f"  estimated size: {_gib(s['estimated_bytes'])} of {_gib(s['capacity_bytes'])}",
+              f"  menus {_size(s['budget']['menus'])}, free {_size(s['budget']['free'])}"]
     rep.result(s, "\n".join(lines))
     return 0
 
@@ -187,7 +196,7 @@ def cmd_clean(args, rep):
     base = path if os.path.isdir(path) else os.path.dirname(path)
     if not os.path.exists(path) or not os.path.isfile(os.path.join(base, PROJECT_FILENAME)):
         raise OncemoreError(f"{args.project}: project file not found")
-    cache = os.path.join(base, ".oncemore-cache")
+    cache = settings.cache_dir(base)
     size = 0
     for root, _, files in os.walk(cache):
         for f in files:
