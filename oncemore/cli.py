@@ -7,7 +7,7 @@ import shutil
 import sys
 import tempfile
 
-from . import __version__, build, burn, graph, scaffold, settings, tools, web
+from . import __version__, build, burn, graph, scaffold, scenes, settings, tools, web
 from .errors import OncemoreError, ProjectError
 from .project import PROJECT_FILENAME, load_project
 from .report import Reporter
@@ -210,6 +210,17 @@ def cmd_clean(args, rep):
     return 0
 
 
+def cmd_scenes(args, rep):
+    """Print the scene changes of a video (times in seconds)."""
+    if not os.path.isfile(args.video):
+        raise OncemoreError(f"{args.video}: file not found")
+    times = scenes.detect(args.video, scenes.SENSITIVITY[args.sensitivity], args.min_gap)
+    rep.result({"video": args.video, "times": times},
+               f"{len(times)} scene change(s): " + ", ".join(f"{t:.3f}" for t in times)
+               if times else "No scene changes found")
+    return 0
+
+
 def cmd_build(args, rep):
     project = load_project(args.project)
     if args.format == "web":
@@ -406,6 +417,15 @@ def make_parser():
                        help="delete the encode cache (<project>/.oncemore-cache)")
     s.add_argument("project", help=proj_help)
     s.set_defaults(func=cmd_clean)
+
+    s = sub.add_parser("scenes", parents=[common],
+                       help="find the scene changes (cuts) in a video: chapter suggestions")
+    s.add_argument("video")
+    s.add_argument("--sensitivity", choices=sorted(scenes.SENSITIVITY), default="medium",
+                   help="how small a change counts as a cut (default medium)")
+    s.add_argument("--min-gap", type=float, default=10.0, metavar="SECONDS",
+                   help="the least time between two cuts (default 10)")
+    s.set_defaults(func=cmd_scenes)
 
     s = sub.add_parser("transcode", parents=[common],
                        help="encode titles now; the next build or iso reuses them")

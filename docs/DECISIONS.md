@@ -1579,3 +1579,21 @@ written that fails before the fix, and then the fix:
   slideshows, joined clips and the editor's playback copies. A slideshow
   fitted to its music used to find the project from its render's path
   (three folders up); it now keeps the render's folder, wherever that is.
+
+## 89. Chapters at scene changes
+
+* Chapters usually go where the scene changes. ffmpeg scores how much each
+  picture differs from the one before (the select filter's scene score,
+  0 to 1); the pictures over a threshold are cuts. It runs on a 320-wide
+  copy of the picture, which is enough to see a cut and much quicker.
+* Sensitivity low, medium and high are thresholds 0.5, 0.35 and 0.2. Cuts
+  closer than a gap (10 s by default) to the one kept before, or to the
+  start, are dropped, so a flash or a quick montage does not become a run
+  of chapters.
+* A title made of clips is looked at clip by clip (only the part of each
+  file it uses), and the cuts are placed on the title's time line. The
+  dialog finds them first and says how many chapters that makes; OK puts
+  them in, replacing the chapters there are or adding to them, as Add
+  chapter points at intervals does.
+* `oncemore scenes` lists them for a file; the editor's server has
+  POST /api/scenes.

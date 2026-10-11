@@ -180,6 +180,9 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   sector, and burning passes it to growisofs.
 * **Chapters at intervals** (Timeline menu): a chapter every *n* minutes or
   seconds, replacing the chapters there are or adding to them.
+* **Chapters at scene changes** (Timeline menu): finds the cuts in the
+  picture (sensitivity low, medium or high) and puts a chapter at each, at
+  least so many seconds apart; `oncemore scenes video.mp4` lists them.
 * **Replace asset** (File menu, or right-click a file): every use of one file
   in the project points to another — also how a missing file is found again
   (missing files are listed first, and the issue list offers it).
@@ -305,6 +308,7 @@ oncemore gui [<dir>] [--port N] [--no-browser] # the authoring app
 oncemore transcode <project> [--title ID] [--fast] [--status]  # encode titles ahead of the build
 oncemore burn out.iso [--device DEV] [--layer-break auto|none|SECTOR]   # write the image to a blank DVD (macOS: hdiutil, else growisofs)
 oncemore clean <project>                       # delete the encode cache (made again by the next build)
+oncemore scenes video.mp4 [--sensitivity low|medium|high] [--min-gap S]   # scene changes: chapter suggestions
 oncemore doctor                                # external tools, versions, ISO backend
 oncemore mcp [--root DIR]                      # tools for AI assistants (MCP, below)
 ```
