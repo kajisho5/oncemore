@@ -784,8 +784,16 @@ class TestBlurayUserOperations(unittest.TestCase):
         with bluray_sim.Disc(LIBBLURAY, self.out) as disc:
             events = [e for e in disc.play(keys=("topmenu", "enter"))
                       if e[0] in ("title", "key", "uo") and e[1] != 0xFFFF]
-        # (the event reports menu call 0x1 and title search 0x2)
-        self.assertEqual(events[:4], [("title", 1), ("uo", 3), ("key", "topmenu"), ("uo", 0)])
+        self.assertEqual([e[0] for e in events[:4]], ["title", "uo", "key", "uo"])
+        self.assertEqual((events[0], events[2], events[3]),
+                         (("title", 1), ("key", "topmenu"), ("uo", 0)))
+        # menu call 0x1 and title search 0x2; libbluray 1.4 and later also report
+        # chapter / time search 0x4 0x8, skip to next 0x10 and forward play 0x200
+        mask = events[1][1]
+        self.assertEqual(mask & 0x3, 0x3)
+        if mask & ~0x3:
+            self.assertEqual(mask & 0x21C, 0x21C)
+            self.assertFalse(mask & 0x20)           # (skip back stays allowed)
         # the notice plays to its end, then its menu; there the feature
         self.assertEqual([e for e in events[4:] if e[0] != "uo"],
                          [("title", 3), ("key", "enter"), ("title", 2), ("title", 3)])
