@@ -198,6 +198,39 @@ const I18N = {
     chapter_index_hint: "Makes the title's chapter menu (six chapters a page, with the chapters' names and poster frames) and opens it.",
     theme_dark: "Dark", theme_light: "Light",
     skin: "Skin", skin_modern: "Modern", skin_classic: "Classic", skin_hint: "Classic: the look of the classic disc authoring apps (mid-grey panels, light fields, amber timecode). The layout is the same.",
+    // P48: the full menu bar
+    m_open_recent: "Open recent project", m_import_as: "Import as", m_transcode: "Transcode", m_render: "Render", m_build: "Build",
+    m_align: "Align", m_distribute: "Distribute", m_arrange: "Arrange", m_tools: "Tools", m_highlights: "Show highlights", m_workspace: "Workspace",
+    cmd_new_project: "New project…", cmd_open_project: "Open project…", cmd_save: "Save", cmd_save_as: "Save as…",
+    cmd_import_menu: "Menu…", cmd_import_timeline: "Timeline…", cmd_import_slideshow: "Slideshow…", cmd_import_popup: "Pop-up menu…",
+    cmd_locate_asset: "Locate asset…", cmd_interpret_footage: "Interpret footage…", cmd_transcode_settings: "Transcode settings…",
+    cmd_render_slideshows: "Slideshows", cmd_rom_folder: "DVD-ROM content…",
+    cmd_build_dvd_iso: "DVD image…", cmd_build_dvd_folder: "DVD folder…", cmd_build_dvd_disc: "DVD disc…",
+    cmd_build_bd_iso: "Blu-ray image…", cmd_build_bd_folder: "Blu-ray folder…", cmd_build_bd_disc: "Blu-ray disc…", cmd_close_window: "Close window",
+    cmd_cut: "Cut", cmd_copy: "Copy", cmd_paste: "Paste", cmd_select_all: "Select all", cmd_deselect_all: "Deselect all",
+    cmd_rename: "Rename…", cmd_edit_original: "Edit original",
+    cmd_bring_forward: "Bring forward", cmd_send_backward: "Send backward", cmd_convert_button: "Convert to button", cmd_convert_object: "Convert to object",
+    cmd_drop_shadow: "Drop shadow and stroke…",
+    cmd_add_button: "Add button", cmd_add_text: "Add text", cmd_add_rectangle: "Add rectangle", cmd_add_picture: "Add picture…",
+    cmd_default_button: "Set as default button", cmd_colour_set: "Edit menu colour set…", cmd_save_menu_file: "Save menu as file",
+    cmd_set_first_play: "Set as first play",
+    cmd_chapter_playlist: "New chapter playlist…", cmd_add_audio_track: "Add audio track…", cmd_add_subtitle_track: "Add subtitle track…",
+    cmd_import_subtitles: "Import subtitles…", cmd_export_subtitles: "Export subtitles as SubRip…", cmd_clear_chapters: "Clear all chapter points",
+    cmd_set_poster: "Set poster frame at playhead", cmd_save_frame: "Save frame as file",
+    cmd_zoom_fit: "Fit in window", cmd_zoom_actual: "Actual size", cmd_snap: "Snap to objects and safe area",
+    cmd_view_normal: "Normal", cmd_view_selected: "Selected", cmd_view_activated: "Activated", cmd_exact_preview: "Exact preview",
+    cmd_reset_workspace: "Reset workspace", cmd_reload: "Reload", cmd_full_screen: "Enter full screen", cmd_minimize: "Minimise", cmd_zoom_window: "Zoom",
+    cmd_help: "oncemore help",
+    folder: "Folder", shadow_offset: "Shadow distance", outline_width: "Stroke width",
+    no_recent: "No recent projects", folders: "Folders", fb_up: "Up one folder", fb_home: "Home", fb_empty: "No folders in here.",
+    fb_hint_open: "Choose the project's folder (◉ marks folders with a project). A folder without one starts a new project.",
+    fb_hint_new: "The project gets a folder of its own here: the project file, and the media you bring in.",
+    fb_hint_save_as: "The project and its media are copied to a new folder here, which you then work in (builds and caches are not copied).",
+    id_taken: "That id is empty or already used.", export: "Export", exported_to: "Saved in the project folder:",
+    rendering_n: "Rendering {i} of {n}: {t}…", rendered_n: "{n} slideshows rendered.", this_title: "this title",
+    chapter_playlist_hint: "A playlist that plays the title's chapters one after another (each is an item you can reorder or remove).",
+    export_subs_hint: "Which track? It is saved as SubRip (.srt) in exports/.",
+    confirm_clear_chapters: "Remove every chapter point after the start?",
   },
   ja: {
     check: "チェック", build: "ビルド", drop_here: "ファイルをドロップしてプロジェクトに追加",
@@ -394,6 +427,39 @@ const I18N = {
     chapter_index_hint: "タイトルのチャプターメニュー（1 ページ 6 チャプター、チャプター名とポスターフレーム付き）を作って開きます。",
     theme_dark: "ダーク", theme_light: "ライト",
     skin: "スキン", skin_modern: "モダン", skin_classic: "クラシック", skin_hint: "クラシック：昔ながらのディスクオーサリングアプリの見た目（中間グレーのパネル、明るい入力欄、琥珀色のタイムコード）。配置は同じです。",
+    // P48: メニューバー
+    m_open_recent: "最近使用したプロジェクトを開く", m_import_as: "読み込み", m_transcode: "トランスコード", m_render: "レンダリング", m_build: "ビルド",
+    m_align: "整列", m_distribute: "分布", m_arrange: "重ね順", m_tools: "ツール", m_highlights: "ハイライトを表示", m_workspace: "ワークスペース",
+    cmd_new_project: "新規プロジェクト…", cmd_open_project: "プロジェクトを開く…", cmd_save: "保存", cmd_save_as: "別名で保存…",
+    cmd_import_menu: "メニュー…", cmd_import_timeline: "タイムライン…", cmd_import_slideshow: "スライドショー…", cmd_import_popup: "ポップアップメニュー…",
+    cmd_locate_asset: "アセットを探す…", cmd_interpret_footage: "フッテージを変換…", cmd_transcode_settings: "トランスコード設定…",
+    cmd_render_slideshows: "スライドショー", cmd_rom_folder: "DVD-ROM コンテンツ…",
+    cmd_build_dvd_iso: "DVD イメージ…", cmd_build_dvd_folder: "DVD フォルダー…", cmd_build_dvd_disc: "DVD ディスク…",
+    cmd_build_bd_iso: "Blu-ray イメージ…", cmd_build_bd_folder: "Blu-ray フォルダー…", cmd_build_bd_disc: "Blu-ray ディスク…", cmd_close_window: "ウインドウを閉じる",
+    cmd_cut: "カット", cmd_copy: "コピー", cmd_paste: "ペースト", cmd_select_all: "すべてを選択", cmd_deselect_all: "選択を解除",
+    cmd_rename: "名前を変更…", cmd_edit_original: "オリジナルを編集",
+    cmd_bring_forward: "前面へ", cmd_send_backward: "背面へ", cmd_convert_button: "ボタンに変換", cmd_convert_object: "オブジェクトに変換",
+    cmd_drop_shadow: "ドロップシャドウと境界線…",
+    cmd_add_button: "ボタンを追加", cmd_add_text: "テキストを追加", cmd_add_rectangle: "長方形を追加", cmd_add_picture: "画像を追加…",
+    cmd_default_button: "デフォルトのボタンに設定", cmd_colour_set: "メニューカラーセットを編集…", cmd_save_menu_file: "メニューをファイルとして保存",
+    cmd_set_first_play: "ファーストプレイに設定",
+    cmd_chapter_playlist: "新規チャプタープレイリスト…", cmd_add_audio_track: "オーディオトラックを追加…", cmd_add_subtitle_track: "字幕トラックを追加…",
+    cmd_import_subtitles: "字幕を読み込み…", cmd_export_subtitles: "字幕を SubRip で書き出し…", cmd_clear_chapters: "すべてのチャプターポイントを消去",
+    cmd_set_poster: "再生ヘッドの位置をポスターフレームに設定", cmd_save_frame: "フレームをファイルとして保存",
+    cmd_zoom_fit: "ウインドウに合わせる", cmd_zoom_actual: "実際のサイズ", cmd_snap: "オブジェクトとセーフエリアにスナップ",
+    cmd_view_normal: "通常", cmd_view_selected: "選択", cmd_view_activated: "決定", cmd_exact_preview: "正確なプレビュー",
+    cmd_reset_workspace: "ワークスペースをリセット", cmd_reload: "再読み込み", cmd_full_screen: "フルスクリーンにする", cmd_minimize: "しまう", cmd_zoom_window: "拡大／縮小",
+    cmd_help: "oncemore ヘルプ",
+    folder: "フォルダー", shadow_offset: "影の距離", outline_width: "境界線の幅",
+    no_recent: "最近使用したプロジェクトはありません", folders: "フォルダー", fb_up: "1 つ上のフォルダー", fb_home: "ホーム", fb_empty: "フォルダーがありません。",
+    fb_hint_open: "プロジェクトのフォルダーを選びます（◉ はプロジェクトのあるフォルダー）。プロジェクトのないフォルダーでは新しいプロジェクトを始めます。",
+    fb_hint_new: "ここにプロジェクト専用のフォルダーを作ります（プロジェクトファイルと、読み込んだ素材が入ります）。",
+    fb_hint_save_as: "プロジェクトと素材をここの新しいフォルダーにコピーし、以後はそちらで作業します（ビルド結果とキャッシュはコピーしません）。",
+    id_taken: "ID が空か、すでに使われています。", export: "書き出し", exported_to: "プロジェクトのフォルダーに保存しました：",
+    rendering_n: "{n} 件中 {i} 件目をレンダリング中：{t}…", rendered_n: "{n} 件のスライドショーをレンダリングしました。", this_title: "このタイトル",
+    chapter_playlist_hint: "タイトルのチャプターを順に再生するプレイリストです（各チャプターが項目になり、並べ替えや削除ができます）。",
+    export_subs_hint: "どのトラックを書き出しますか？ exports/ に SubRip（.srt）として保存します。",
+    confirm_clear_chapters: "先頭以外のチャプターポイントをすべて削除しますか？",
   },
 };
 let LANG = (() => {
@@ -624,11 +690,13 @@ function renameRefs(p, kind, oldId, newId) {
       if (a === `title:${oldId}`) return `title:${newId}`;
       if (a.startsWith(`chapter:${oldId}:`)) return `chapter:${newId}:` + a.split(":")[2];
     }
+    if (kind === "playlist" && a === `playlist:${oldId}`) return `playlist:${newId}`;
     return a;
   };
   p.disc.first_play = fix(p.disc.first_play);
   for (const ti of p.titles || []) {
     ti.end_action = fix(ti.end_action);
+    if (kind === "menu" && ti.remote_menu === oldId) ti.remote_menu = newId;
     if (ti.auto_chapter_menu && typeof ti.auto_chapter_menu === "object") ti.auto_chapter_menu.back = fix(ti.auto_chapter_menu.back);
   }
   for (const m of p.menus || []) {
@@ -1000,6 +1068,7 @@ function renderMainLater() {
 }
 function renderMain() {
   const m = $("#main");
+  postMenuSpec();                                       // (what the Mac app's menus can do now)
   if (S.sel.view !== "title") S.titleSeek = null;      // (the Monitor is not showing a timeline)
   renderPreviewWindow();
   if (!P()) return renderWelcome(m);
@@ -1026,6 +1095,7 @@ function renderPreviewWindow() {
   renderSim(body);
 }
 function renderInspector() {
+  postMenuSpec();
   $("#right-head").innerHTML = tabStrip([["props", t("properties")]], "props", "data-rt");
   renderLayers();
   const el = $("#inspector");
@@ -2106,33 +2176,20 @@ function renderMenu(m) {
     }
     if (empty) { S.element = null; S.sels = []; renderMain(); renderInspector(); }
   });
-  // align / distribute the selection
+  // align / distribute the selection (also Object > Align and Distribute)
   const arrange = (fn) => commit((p) => {
     const mm = p.menus.find((x) => x.id === menu.id);
     const items = S.sels.map((k) => ({ k, b: box(k), it: listOf(mm, k.kind)[k.i] }));
     fn(items);
     for (const x of items) { x.it.x = Math.max(0, Math.min(719, Math.round(x.it.x))); x.it.y = Math.max(0, Math.min(H - 1, Math.round(x.it.y))); }
   });
-  m.querySelectorAll("[data-align]").forEach((b) => (b.onclick = () => arrange((items) => {
-    const a = b.dataset.align, L = Math.min(...items.map((x) => x.b.x)), R = Math.max(...items.map((x) => x.b.x + x.b.w));
-    const T = Math.min(...items.map((x) => x.b.y)), B = Math.max(...items.map((x) => x.b.y + x.b.h));
-    for (const x of items) {
-      if (a === "left") x.it.x = L;
-      if (a === "right") x.it.x = R - x.b.w;
-      if (a === "hcenter") x.it.x = (L + R) / 2 - x.b.w / 2;
-      if (a === "top") x.it.y = T;
-      if (a === "bottom") x.it.y = B - x.b.h;
-      if (a === "vcenter") x.it.y = (T + B) / 2 - x.b.h / 2;
-    }
-  })));
-  m.querySelectorAll("[data-distribute]").forEach((b) => (b.onclick = () => arrange((items) => {
-    const hz = b.dataset.distribute === "h", pos = (x) => (hz ? x.b.x : x.b.y), size = (x) => (hz ? x.b.w : x.b.h);
-    items.sort((p, q) => pos(p) - pos(q));
-    const first = items[0], last = items[items.length - 1];
-    const gap = (pos(last) + size(last) - pos(first) - items.reduce((s, x) => s + size(x), 0)) / (items.length - 1);
-    let at = pos(first);
-    for (const x of items) { if (hz) x.it.x = at; else x.it.y = at; at += size(x) + gap; }
-  })));
+  S.stageOps = {
+    menu: menu.id,
+    align: (a) => arrange((items) => alignItems(items, a, H)),
+    distribute: (d) => arrange((items) => distributeItems(items, d === "h")),
+  };
+  m.querySelectorAll("[data-align]").forEach((b) => (b.onclick = () => S.stageOps.align(b.dataset.align)));
+  m.querySelectorAll("[data-distribute]").forEach((b) => (b.onclick = () => S.stageOps.distribute(b.dataset.distribute)));
   $("#safe").onchange = (e) => { S.showSafe = e.target.checked; renderMain(); };
   $("#snap").onchange = (e) => { S.snap = e.target.checked; };
   $("#routing").onchange = (e) => { S.showRouting = e.target.checked; renderMain(); };
@@ -2186,6 +2243,29 @@ function bindColourSet(root, menu) {
     x.onchange = () => write(x.dataset.csA);
   });
   root.querySelectorAll("[data-cs-on]").forEach((x) => (x.onchange = () => write(x.dataset.csOn)));
+}
+// Align: to each other, or one element alone to the safe area (the dashed
+// frame, 5% in from the edges)
+function alignItems(items, a, H) {
+  const alone = items.length === 1;
+  const L = alone ? 36 : Math.min(...items.map((x) => x.b.x)), R = alone ? 684 : Math.max(...items.map((x) => x.b.x + x.b.w));
+  const T = alone ? Math.round(H * 0.05) : Math.min(...items.map((x) => x.b.y)), B = alone ? Math.round(H * 0.95) : Math.max(...items.map((x) => x.b.y + x.b.h));
+  for (const x of items) {
+    if (a === "left") x.it.x = L;
+    if (a === "right") x.it.x = R - x.b.w;
+    if (a === "hcenter") x.it.x = (L + R) / 2 - x.b.w / 2;
+    if (a === "top") x.it.y = T;
+    if (a === "bottom") x.it.y = B - x.b.h;
+    if (a === "vcenter") x.it.y = (T + B) / 2 - x.b.h / 2;
+  }
+}
+function distributeItems(items, hz) {
+  const pos = (x) => (hz ? x.b.x : x.b.y), size = (x) => (hz ? x.b.w : x.b.h);
+  items.sort((p, q) => pos(p) - pos(q));
+  const first = items[0], last = items[items.length - 1];
+  const gap = (pos(last) + size(last) - pos(first) - items.reduce((s, x) => s + size(x), 0)) / (items.length - 1);
+  let at = pos(first);
+  for (const x of items) { if (hz) x.it.x = at; else x.it.y = at; at += size(x) + gap; }
 }
 // new button / rectangle on the open menu (Tools panel)
 function addMenuButton() {
@@ -2621,8 +2701,9 @@ function pickFiles() {
   inp.onchange = () => uploadFiles([...inp.files]);
   inp.click();
 }
+// (resolves to the project paths of the files that arrived)
 function uploadFiles(files) {
-  for (const f of files) {
+  return Promise.all(files.map((f) => new Promise((resolve) => {
     S.uploads[f.name] = 0; renderSidebar();
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/upload?" + new URLSearchParams({ name: f.name }));
@@ -2635,14 +2716,22 @@ function uploadFiles(files) {
         if (xhr.status === 200) {
           S.media = r.media; S.selectedMedia = r.path;
           if (S.psdAfterUpload === f.name) { S.psdAfterUpload = null; mediaAction("psd", r.path); }
+          resolve(r.path);
         }
-        else alert(r.error);
-      } catch (e) { alert(xhr.statusText); }
+        else { alert(r.error); resolve(null); }
+      } catch (e) { alert(xhr.statusText); resolve(null); }
       renderSidebar(); renderInspector();
     };
-    xhr.onerror = () => { delete S.uploads[f.name]; renderSidebar(); };
+    xhr.onerror = () => { delete S.uploads[f.name]; renderSidebar(); resolve(null); };
     xhr.send(f);
-  }
+  }))).then((paths) => paths.filter(Boolean));
+}
+// File > Import as …: choose files, bring them into the project, then use them
+function pickUpload(accept, multiple, then) {
+  const inp = document.createElement("input");
+  inp.type = "file"; inp.accept = accept; inp.multiple = multiple;
+  inp.onchange = async () => { const paths = await uploadFiles([...inp.files]); if (paths.length) then(paths); };
+  inp.click();
 }
 let dragDepth = 0;
 window.addEventListener("dragenter", (e) => { if (P() && e.dataTransfer?.types?.includes("Files")) { dragDepth++; $("#drop-overlay").hidden = false; } });
@@ -3076,7 +3165,7 @@ async function boot() {
   const m = location.hash.match(/token=([\w-]+)/);
   if (m) { S.token = m[1]; sessionStorage.setItem("oncemore.token", S.token); history.replaceState(null, "", location.pathname); }
   else S.token = sessionStorage.getItem("oncemore.token") || "";
-  try { applyState(await api("/api/state")); refreshEncodeStatus(); }
+  try { applyState(await api("/api/state")); refreshEncodeStatus(); loadRecent(); }
   catch (e) { document.body.innerHTML = `<div class="empty"><h2>oncemore</h2><p>${esc(e.message)}</p><p class="hint">Open the URL printed by <code>oncemore gui</code>.</p></div>`; return; }
   const first = P()?.menus?.[0];
   S.sel = first ? { view: "menu", id: first.id } : { view: "disc" };
@@ -3169,8 +3258,10 @@ function arrangeElement(where) {
   if (!menu || !k) return;
   commit((p) => {
     const mm = p.menus.find((x) => x.id === menu.id), l = elementList(mm, k.kind), [it] = l.splice(k.i, 1);
-    if (where === "front") l.push(it); else l.unshift(it);
-    S.element = { kind: k.kind, i: where === "front" ? l.length - 1 : 0 }; S.sels = [S.element];
+    // (one kind of object stacks over another: pictures over shapes, texts over pictures, buttons on top)
+    const to = { front: l.length, back: 0, forward: Math.min(l.length, k.i + 1), backward: Math.max(0, k.i - 1) }[where];
+    l.splice(to, 0, it);
+    S.element = { kind: k.kind, i: to }; S.sels = [S.element];
   });
 }
 function convertElement() {
@@ -3193,7 +3284,6 @@ function convertElement() {
     S.sels = [S.element];
   });
 }
-const alignCmd = (k) => ({ run: () => $(`[data-align="${k}"]`)?.click(), when: () => !!$(`[data-align="${k}"]`) });
 
 // ---------------------------------------------------------------- routing and linking
 // The remote's arrow keys between the buttons, as the disc will have them
@@ -3377,65 +3467,135 @@ function aboutBox() {
   openModal(`<h2>oncemore</h2><p>${esc(t("about_text"))}</p><p class="hint">${esc(S.version || "")} · GPL-3.0</p>`);
 }
 function shortcutsSheet() {
-  const rows = Object.entries(COMMANDS).filter(([, c]) => c.key).map(([id, c]) => `<tr><td>${esc(t("cmd_" + id))}</td><td class="mono">${esc(keyLabel(c.key))}</td></tr>`).join("");
+  const rows = Object.entries(COMMANDS).filter(([, c]) => c.key && !c.app).map(([id, c]) => `<tr><td>${esc(t("cmd_" + id))}</td><td class="mono">${esc(keyLabel(c.key))}</td></tr>`).join("");
   openModal(`<h2>${t("cmd_shortcuts")}</h2><table class="shortcuts">${rows}
-    <tr><td>${esc(t("nudge"))}</td><td class="mono">← ↑ → ↓ / ${esc(keyLabel("shift"))}</td></tr>
-    <tr><td>${esc(t("copy_paste"))}</td><td class="mono">${esc(keyLabel("mod+c"))} / ${esc(keyLabel("mod+v"))}</td></tr></table>`);
+    <tr><td>${esc(t("nudge"))}</td><td class="mono">← ↑ → ↓ / ${esc(keyLabel("shift"))}</td></tr></table>`);
 }
 const WS = (k) => () => {
   if (k === "author") { if (S.leftTab === "build") S.leftTab = "project"; const last = S.lastAuthor || { view: "disc" }; select(last.view, last.id); }
   else select(k);
 };
+// what a command acts on
+const inMenu = () => S.sel.view === "menu" && !!curMenu();
+const inTitle = () => S.sel.view === "title" && !!curTitle();
+const oneElement = () => hasElements() && (S.sels?.length || 1) === 1;
+const selElements = () => (S.sels?.length ? S.sels : S.element ? [S.element] : []);
+const curItem = () => (editing() ? { kind: S.sel.view, id: S.sel.id } : null);
+const textField = () => ["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement?.tagName) || !!document.activeElement?.isContentEditable;
+const toggle = (key) => () => { S[key] = !S[key]; renderMain(); };
 const COMMANDS = {
+  // -- File
+  new_project: { key: "mod+n", run: () => folderBox("new") },
+  open_project: { key: "mod+o", run: () => folderBox("open") },
+  ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`recent_${i + 1}`, { run: () => openRecent(i), when: () => !!S.recent?.[i]?.exists && S.recent[i].path !== S.dir, label: () => S.recent?.[i]?.name || "" }])),
+  save: { key: "mod+s", run: saveNow, when: hasProject },
+  save_as: { key: "mod+shift+s", run: () => folderBox("save_as"), when: hasProject },
+  revert_backup: { run: backupsBox, when: hasProject },
   import_files: { key: "mod+i", run: pickFiles, when: hasProject },
+  import_menu: { run: () => pickUpload(".psd,.psb,.png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp", false, ([path]) => importAsMenu(path)), when: hasProject },
   import_psd: { run: pickPsd, when: hasProject },
+  import_timeline: { run: () => pickUpload("video/*,audio/*,.mkv,.m2ts,.mts,.vob,.ts,.dv,.ac3", true, (paths) => paths.forEach((x) => mediaAction("title", x))), when: hasProject },
+  import_slideshow: { run: () => pickUpload("image/*", true, (paths) => newSlideshow(paths)), when: hasProject },
+  import_popup: { run: () => pickUpload(".psd,.psb,.png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp", false, ([path]) => importAsMenu(path, popupTitle())), when: () => hasProject() && (P().titles || []).length > 0 },
+  replace_asset: { run: () => replaceAssetBox(), when: hasProject },
+  locate_asset: { run: () => replaceAssetBox(missingAssets()[0]), when: () => hasProject() && missingAssets().length > 0 },
+  interpret_footage: { run: () => titleFieldsBox("interpret_footage"), when: () => inTitle() && !curTitle().slideshow },
+  transcode_title: { run: () => transcode([S.sel.id]), when: () => S.sel.view === "title" && editing() && !S.transcoding },
+  transcode_all: { run: () => transcode(null), when: () => hasProject() && (P().titles || []).length > 0 && !S.transcoding },
+  transcode_settings: { run: () => titleFieldsBox("transcode_settings"), when: () => inTitle() && !curTitle().slideshow },
+  render_slideshows: { run: renderSlideshows, when: () => hasProject() && (P().titles || []).some((x) => x.slideshow) && !S.rendering },
+  project_settings: { run: () => { S.leftTab = S.leftTab === "build" ? "project" : S.leftTab; S.activeFrame = "props"; select("disc"); }, when: hasProject },
+  rom_folder: { run: romFilesBox, when: hasProject },
+  preview: { key: "shift+space", run: () => { S.simFrom = S.sel.view === "menu" && curMenu() ? S.sel.id : null; select("sim"); }, when: () => hasProject() && (P().titles || []).length > 0 },
   check: { run: runCheck, when: hasProject },
   build: { key: "mod+b", run: () => select("build"), when: hasProject },
+  build_dvd_iso: { run: () => buildAs("dvd", "iso"), when: hasProject },
+  build_dvd_folder: { run: () => buildAs("dvd", "folder"), when: hasProject },
+  build_dvd_disc: { run: () => buildAs("dvd", "disc"), when: hasProject },
+  build_bd_iso: { run: () => buildAs("bluray", "iso"), when: hasProject },
+  build_bd_folder: { run: () => buildAs("bluray", "folder"), when: hasProject },
+  build_bd_disc: { run: () => buildAs("bluray", "disc"), when: hasProject },
   reveal: { run: revealProject, when: hasProject },
+  close_window: { app: true, key: "mod+w" },
+  // -- Edit
   undo: { key: "mod+z", run: undo, when: () => S.undo.length > 0 },
   redo: { key: "mod+shift+z", run: redo, when: () => S.redo.length > 0 },
-  duplicate: { key: "mod+d", run: () => (hasElements() ? duplicateElements(false) : duplicateItem(S.sel.view, S.sel.id)),
-    when: () => hasElements() || (editing() && S.sel.view !== "playlist") },
+  cut: { key: "mod+x", run: () => { copySelection(); deleteSelection(); }, when: () => hasElements() || (!!curItem() && S.sel.view !== "playlist") },
+  copy: { key: "mod+c", run: copySelection, when: () => hasElements() || !!curItem() },
+  paste: { key: "mod+v", run: pasteClipboard, when: () => (inMenu() && !!S.clip?.length) || (hasProject() && !!S.clipItem) },
   delete: { key: "delete", run: (via) => (hasElements() ? deleteElements() : via !== "key" && deleteItem(S.sel.view, S.sel.id)),
     when: () => hasElements() || editing() },
-  transcode_all: { run: () => transcode(null), when: () => hasProject() && (P().titles || []).length > 0 && !S.transcoding },
-  transcode_title: { run: () => transcode([S.sel.id]), when: () => S.sel.view === "title" && editing() && !S.transcoding },
-  new_slideshow: { run: () => addSlideshow(), when: hasProject },
-  new_menu: { run: () => addMenu(), when: hasProject },
-  new_playlist: { run: () => addPlaylist(), when: () => hasProject() && (P().titles || []).length > 0 },
-  add_chapter: { key: "*", run: () => $("#add-ch")?.click(), when: () => S.sel.view === "title" && !!$("#add-ch") },
-  prev_chapter: { key: "pageup", run: () => jumpChapter(-1), when: () => S.sel.view === "title" && !!S.titleSeek },
-  next_chapter: { key: "pagedown", run: () => jumpChapter(1), when: () => S.sel.view === "title" && !!S.titleSeek },
-  new_timeline: { run: () => newTitleFromMedia(), when: () => hasProject() && mediaOf("video").length > 0 },
-  preview: { key: "shift+space", run: () => { S.simFrom = S.sel.view === "menu" && curMenu() ? S.sel.id : null; select("sim"); }, when: () => hasProject() && (P().titles || []).length > 0 },
-  set_link: { key: "mod+l", run: () => $("#inspector select[data-k=action]")?.focus(), when: () => S.sel.view === "menu" && S.element?.kind === "button" },
-  routing: { run: () => { S.showRouting = !S.showRouting; renderMain(); }, when: () => S.sel.view === "menu" && !!curMenu() },
-  safe_area: { run: () => { S.showSafe = !S.showSafe; renderMain(); }, when: () => (S.sel.view === "menu" && !!curMenu()) || (S.sel.view === "title" && !!$("#mon-safe")) },
-  tool_select: { key: "v", run: () => setTool("select"), when: () => S.sel.view === "menu" && !!curMenu() },
-  tool_text: { key: "t", run: () => setTool("text"), when: () => S.sel.view === "menu" && !!curMenu() },
-  tool_zoom: { key: "z", run: () => setTool("zoom"), when: () => S.sel.view === "menu" && !!curMenu() },
-  zoom_in: { key: "+", run: () => zoomMenu(1), when: () => S.sel.view === "menu" && !!curMenu() },
-  zoom_out: { key: "-", run: () => zoomMenu(-1), when: () => S.sel.view === "menu" && !!curMenu() },
+  duplicate: { key: "mod+d", run: () => (hasElements() ? duplicateElements(false) : duplicateItem(S.sel.view, S.sel.id)),
+    when: () => hasElements() || (editing() && S.sel.view !== "playlist") },
+  select_all: { key: "mod+a", run: selectAllElements, when: () => inMenu() && menuElements().length > 0 },
+  deselect_all: { key: "mod+shift+a", run: () => { S.element = null; S.sels = []; renderMain(); renderInspector(); }, when: hasElements },
+  rename: { run: renameBox, when: () => !!curItem() },
+  edit_original: { run: editOriginal, when: () => !!originalFile() },
+  edit_psd: { run: editPsd, when: () => S.sel.view === "menu" && !!curMenu()?.psd },
+  preferences: { key: "mod+,", run: preferencesBox },
+  // -- Object
   align_left: alignCmd("left"), align_hcenter: alignCmd("hcenter"), align_right: alignCmd("right"),
   align_top: alignCmd("top"), align_vcenter: alignCmd("vcenter"), align_bottom: alignCmd("bottom"),
-  distribute_h: { run: () => $('[data-distribute="h"]')?.click(), when: () => !!$('[data-distribute="h"]') },
-  distribute_v: { run: () => $('[data-distribute="v"]')?.click(), when: () => !!$('[data-distribute="v"]') },
-  bring_front: { key: "mod+shift+]", run: () => arrangeElement("front"), when: () => hasElements() && (S.sels?.length || 1) === 1 },
-  send_back: { key: "mod+shift+[", run: () => arrangeElement("back"), when: () => hasElements() && (S.sels?.length || 1) === 1 },
-  convert: { run: convertElement, when: () => hasElements() && (S.sels?.length || 1) === 1 && S.element?.kind !== "shape" && S.element?.kind !== "image" },
+  distribute_h: { run: () => S.stageOps.distribute("h"), when: () => stageReady() && selElements().length > 2 },
+  distribute_v: { run: () => S.stageOps.distribute("v"), when: () => stageReady() && selElements().length > 2 },
+  bring_front: { key: "mod+shift+]", run: () => arrangeElement("front"), when: oneElement },
+  bring_forward: { key: "mod+]", run: () => arrangeElement("forward"), when: oneElement },
+  send_backward: { key: "mod+[", run: () => arrangeElement("backward"), when: oneElement },
+  send_back: { key: "mod+shift+[", run: () => arrangeElement("back"), when: oneElement },
+  convert_button: { run: convertElement, when: () => oneElement() && S.element?.kind === "text" },
+  convert_object: { run: convertElement, when: () => oneElement() && S.element?.kind === "button" && curMenu().buttons.length > 1 && !!curMenu().buttons[S.element.i]?.label },
+  convert: { run: convertElement, when: () => oneElement() && (S.element?.kind === "text" || S.element?.kind === "button") },
+  drop_shadow: { run: dropShadowBox, when: () => hasElements() && selElements().some((k) => k.kind === "text" || k.kind === "button") },
+  // -- Menu
+  new_menu: { run: () => addMenu(), when: hasProject },
+  chapter_index: { run: chapterIndexBox, when: () => hasProject() && (P().titles || []).length > 0 },
+  add_button: { run: addMenuButton, when: inMenu },
+  add_text: { run: addMenuText, when: inMenu },
+  add_rectangle: { run: addMenuShape, when: inMenu },
+  add_picture: { run: pickMenuPicture, when: inMenu },
+  set_link: { key: "mod+l", run: () => $("#inspector select[data-k=action]")?.focus(), when: () => S.sel.view === "menu" && S.element?.kind === "button" },
+  default_button: { run: setDefaultButton, when: () => inMenu() && oneElement() && S.element?.kind === "button" && curMenu().default_button !== curMenu().buttons[S.element.i]?.id },
+  colour_set: { run: colourSetBox, when: inMenu },
+  save_template: { run: saveTemplateBox, when: inMenu },
+  save_menu_file: { run: () => exportFile({ kind: "menu", project: S.project, menu: S.sel.id }), when: inMenu },
+  tool_select: { key: "v", run: () => setTool("select"), when: inMenu },
+  tool_text: { key: "t", run: () => setTool("text"), when: inMenu },
+  tool_zoom: { key: "z", run: () => setTool("zoom"), when: inMenu },
+  set_first_play: { run: () => setFirstPlay(S.sel.view, S.sel.id), when: () => !!curItem() && P().disc.first_play !== `${S.sel.view}:${S.sel.id}` },
+  // -- Timeline
+  new_timeline: { run: () => newTitleFromMedia(), when: () => hasProject() && mediaOf("video").length > 0 },
+  new_slideshow: { run: () => addSlideshow(), when: hasProject },
+  new_playlist: { run: () => addPlaylist(), when: () => hasProject() && (P().titles || []).length > 0 },
+  chapter_playlist: { run: chapterPlaylistBox, when: () => hasProject() && (P().titles || []).some((x) => chaptersOf(x).length > 1) },
+  add_audio_track: { run: addAudioTrackBox, when: () => inTitle() && !curTitle().clips && !curTitle().slideshow },
+  add_subtitle_track: { run: addSubtitleTrackBox, when: () => inTitle() && mediaOf("subtitle").length > 0 },
+  import_subtitles: { run: () => pickUpload(".srt,.vtt,.ass,.ssa", false, ([path]) => addSubtitleTrack(curTitle().id, path)), when: inTitle },
+  export_subtitles: { run: exportSubtitlesBox, when: () => inTitle() && (curTitle().subtitles || []).length > 0 },
+  add_chapter: { key: "*", run: () => $("#add-ch")?.click(), when: () => S.sel.view === "title" && !!$("#add-ch") },
+  chapters_interval: { run: chaptersAtIntervals, when: () => inTitle() && !curTitle().slideshow && titleLength(curTitle()) > 0 },
+  chapters_from_source: { run: chaptersFromSource, when: () => inTitle() && !curTitle().slideshow },
+  clear_chapters: { run: clearChapters, when: () => inTitle() && chaptersOf(curTitle()).length > 1 },
+  set_poster: { run: setPosterFrame, when: () => inTitle() && !curTitle().slideshow },
+  save_frame: { run: saveFrame, when: () => inTitle() && !curTitle().slideshow && !!frameSource() },
+  prev_chapter: { key: "pageup", run: () => jumpChapter(-1), when: () => S.sel.view === "title" && !!S.titleSeek },
+  next_chapter: { key: "pagedown", run: () => jumpChapter(1), when: () => S.sel.view === "title" && !!S.titleSeek },
   play: { key: "space", run: () => $("#play")?.click(), when: () => S.sel.view === "title" && !!$("#play") },
+  // -- View
+  zoom_in: { key: "+", run: () => zoomMenu(1), when: inMenu },
+  zoom_out: { key: "-", run: () => zoomMenu(-1), when: inMenu },
+  zoom_fit: { key: "mod+0", run: () => { S.menuZoom = null; renderMain(); }, when: inMenu, on: () => !S.menuZoom },
+  zoom_actual: { run: () => { S.menuZoom = 1; renderMain(); }, when: inMenu, on: () => S.menuZoom === 1 },
+  safe_area: { run: toggle("showSafe"), when: () => inMenu() || (S.sel.view === "title" && !!$("#mon-safe")), on: () => !!S.showSafe },
+  routing: { run: toggle("showRouting"), when: inMenu, on: () => !!S.showRouting },
+  snap: { run: () => { S.snap = S.snap === false; renderMain(); }, when: inMenu, on: () => S.snap !== false },
+  view_normal: spCmd("normal"), view_selected: spCmd("highlight"), view_activated: spCmd("select"),
+  exact_preview: { run: () => $("#exact")?.click(), when: () => inMenu() && !!$("#exact"), on: () => !!S.preview && !S.spView && S.previewFor === S.sel.id },
+  // -- Window
   ws_author: { key: "alt+shift+1", run: WS("author"), when: hasProject },
   ws_flow: { key: "alt+shift+2", run: WS("flow"), when: hasProject },
   ws_sim: { key: "alt+shift+3", run: WS("sim"), when: hasProject },
   ws_build: { key: "alt+shift+4", run: WS("build"), when: hasProject },
-  revert_backup: { run: backupsBox, when: hasProject },
-  save_template: { run: saveTemplateBox, when: () => S.sel.view === "menu" && !!curMenu() },
-  chapter_index: { run: chapterIndexBox, when: () => hasProject() && (P().titles || []).length > 0 },
-  chapters_from_source: { run: chaptersFromSource, when: () => S.sel.view === "title" && !!curTitle() && !curTitle().slideshow },
-  chapters_interval: { run: chaptersAtIntervals, when: () => S.sel.view === "title" && !!curTitle() && !curTitle().slideshow && titleLength(curTitle()) > 0 },
-  replace_asset: { run: () => replaceAssetBox(), when: hasProject },
-  project_settings: { run: () => { S.leftTab = S.leftTab === "build" ? "project" : S.leftTab; S.activeFrame = "props"; select("disc"); }, when: hasProject },
-  edit_psd: { run: editPsd, when: () => S.sel.view === "menu" && !!curMenu()?.psd },
+  reset_workspace: { run: resetWorkspace },
   win_project: { run: () => showLeft("project"), when: hasProject },
   win_menus: { run: () => showLeft("menus"), when: hasProject },
   win_timelines: { run: () => showLeft("timelines"), when: hasProject },
@@ -3446,23 +3606,496 @@ const COMMANDS = {
   win_layers: { run: () => showRight("layers"), when: hasProject },
   win_library: { run: () => showRight("library"), when: hasProject },
   theme: { run: toggleTheme },
-  preferences: { key: "mod+,", run: preferencesBox },
   language: { run: toggleLang },
+  reload: { app: true, key: "mod+r" },
+  full_screen: { app: true, key: "mod+ctrl+f" },
+  minimize: { app: true, key: "mod+m" },
+  zoom_window: { app: true },
+  // -- Help
+  help: { run: openHelp },
   shortcuts: { key: "?", run: shortcutsSheet },
   about: { run: aboutBox },
 };
-// in the order disc authoring people know: File, Edit, Object, Menu, Timeline, View, Window, Help
+// The menu bar, in the order disc authoring people know: File, Edit, Object,
+// Menu, Timeline, View, Window, Help. [label, items]: an item is a command,
+// "-", or [label, items] for a submenu. Commands marked app: true are only in
+// the Mac app's own menu bar (it does them itself).
 const MENUBAR = [
-  ["m_file", ["import_files", "import_psd", "replace_asset", "-", "project_settings", "revert_backup", "-", "transcode_title", "transcode_all", "-", "preview", "check", "build", "-", "reveal"]],
-  ["m_edit", ["undo", "redo", "-", "duplicate", "delete", "-", "edit_psd", "-", "preferences"]],
-  ["m_object", ["align_left", "align_hcenter", "align_right", "align_top", "align_vcenter", "align_bottom", "-", "distribute_h", "distribute_v", "-", "bring_front", "send_back", "-", "convert"]],
-  ["m_menu", ["new_menu", "chapter_index", "-", "save_template", "-", "set_link", "-", "tool_select", "tool_text", "tool_zoom"]],
-  ["m_timeline", ["new_timeline", "new_slideshow", "new_playlist", "-", "add_chapter", "chapters_interval", "chapters_from_source", "prev_chapter", "next_chapter", "play"]],
-  ["m_view", ["zoom_in", "zoom_out", "-", "safe_area", "routing"]],
-  ["m_window", ["ws_author", "ws_flow", "ws_sim", "ws_build", "-", "win_project", "win_menus", "win_timelines", "win_build", "win_monitor", "win_flowchart",
-    "win_properties", "win_layers", "win_library", "-", "theme", "language"]],
-  ["m_help", ["shortcuts", "about"]],
+  ["m_file", ["new_project", "open_project", ["m_open_recent", "@recent"], "-", "save", "save_as", "revert_backup", "-",
+    ["m_import_as", ["import_files", "import_menu", "import_timeline", "import_slideshow", "import_popup"]], "import_psd",
+    "replace_asset", "locate_asset", "interpret_footage", "-",
+    ["m_transcode", ["transcode_title", "transcode_all", "-", "transcode_settings"]], ["m_render", ["render_slideshows"]], "-",
+    "project_settings", "rom_folder", "-", "preview", "check",
+    ["m_build", ["build", "-", "build_dvd_iso", "build_dvd_folder", "build_dvd_disc", "-", "build_bd_iso", "build_bd_folder", "build_bd_disc"]],
+    "-", "reveal", "close_window"]],
+  ["m_edit", ["undo", "redo", "-", "cut", "copy", "paste", "delete", "duplicate", "-", "select_all", "deselect_all", "-",
+    "rename", "edit_original", "edit_psd", "-", "preferences"]],
+  ["m_object", [["m_align", ["align_left", "align_hcenter", "align_right", "-", "align_top", "align_vcenter", "align_bottom"]],
+    ["m_distribute", ["distribute_h", "distribute_v"]], ["m_arrange", ["bring_front", "bring_forward", "send_backward", "send_back"]], "-",
+    "convert_button", "convert_object", "-", "drop_shadow"]],
+  ["m_menu", ["new_menu", "chapter_index", "-", "add_button", "add_text", "add_rectangle", "add_picture", "-", "set_link", "default_button",
+    "set_first_play", "-", "colour_set", "save_template", "save_menu_file", "-", ["m_tools", ["tool_select", "tool_text", "tool_zoom"]]]],
+  ["m_timeline", ["new_timeline", "new_slideshow", "new_playlist", "chapter_playlist", "-", "add_audio_track", "add_subtitle_track",
+    "import_subtitles", "export_subtitles", "-", "add_chapter", "chapters_interval", "chapters_from_source", "clear_chapters", "set_poster", "-",
+    "save_frame", "-", "prev_chapter", "next_chapter", "play"]],
+  ["m_view", ["zoom_in", "zoom_out", "zoom_fit", "zoom_actual", "-", "safe_area", "routing", "snap", "-",
+    ["m_highlights", ["view_normal", "view_selected", "view_activated"]], "exact_preview"]],
+  ["m_window", [["m_workspace", ["ws_author", "ws_flow", "ws_sim", "ws_build", "-", "reset_workspace"]], "-",
+    "win_project", "win_menus", "win_timelines", "win_build", "win_monitor", "win_flowchart", "win_properties", "win_layers", "win_library", "-",
+    "theme", "language", "-", "reload", "full_screen", "minimize", "zoom_window"]],
+  ["m_help", ["help", "shortcuts", "-", "about"]],
 ];
+const MENU_ROLES = { m_file: "file", m_edit: "edit", m_window: "window", m_help: "help" };
+// the menu items as the page shows them (and posts them to the Mac app)
+function menuItems(ids) {
+  const out = [];
+  for (const id of ids) {
+    if (id === "-") { if (out.length && out[out.length - 1] !== "-") out.push("-"); continue; }
+    if (Array.isArray(id)) {
+      const [label, sub] = id, items = sub === "@recent" ? recentItems() : menuItems(sub);
+      out.push({ label: t(label), sub: items, disabled: !items.some((x) => x !== "-" && !x.disabled) });
+      continue;
+    }
+    if (COMMANDS[id].app && !IN_APP) continue;
+    out.push(cmdItem(id));
+  }
+  while (out[out.length - 1] === "-") out.pop();
+  return out;
+}
+function recentItems() {
+  const list = (S.recent || []).map((r, i) => (i < 10 ? cmdItem(`recent_${i + 1}`) : null)).filter(Boolean);
+  return list.length ? list : [{ label: t("no_recent"), disabled: true, run: () => {} }];
+}
+// -- the Mac app's menu bar is made from the same list (posted when it changes)
+window.oncemoreMenuSpec = () => MENUBAR.map(([label, ids]) => ({ title: t(label), role: MENU_ROLES[label] || "", items: specItems(menuItems(ids)) }));
+const specItems = (items) => items.map((x) => (x === "-" ? "-" : { id: x.id || "", label: x.label, key: x.spec || "", disabled: !!x.disabled, checked: !!x.checked, ...(x.sub ? { sub: specItems(x.sub) } : {}) }));
+let lastSpec = "";
+function postMenuSpec() {
+  const h = window.webkit?.messageHandlers?.oncemoreMenu;
+  if (!h) return;
+  clearTimeout(S.specTimer);
+  S.specTimer = setTimeout(() => {
+    const spec = JSON.stringify(window.oncemoreMenuSpec());
+    if (spec !== lastSpec) { lastSpec = spec; h.postMessage(spec); }
+  }, 120);
+}
+
+// ---------------------------------------------------------------- File
+async function loadRecent() {
+  try { S.recent = (await api("/api/recent")).recent; } catch (e) { S.recent = []; }
+  postMenuSpec();
+}
+// after File > Open / New / Save as: another project folder, a fresh start
+function projectSwitched(r) {
+  applyState(r);
+  S.undo = []; S.redo = []; S.probes = {}; S.preview = null; S.encStatus = null; S.job = null; S.jobEvents = [];
+  S.element = null; S.sels = []; S.clip = null; S.clipItem = null; S.psdWatch = null; S.routing = {};
+  const first = P()?.menus?.[0];
+  S.sel = first ? { view: "menu", id: first.id } : { view: "disc" };
+  renderAll(); refreshEncodeStatus(); loadRecent();
+  window.webkit?.messageHandlers?.oncemoreProject?.postMessage(S.dir);
+}
+async function openRecent(i) {
+  const r = S.recent?.[i];
+  if (!r) return;
+  clearTimeout(S.saveTimer); if (S.saveState !== "saved") await save();
+  try { projectSwitched(await api("/api/switch", { method: "POST", body: { path: r.path } })); } catch (e) { alert(e.message); }
+}
+async function saveNow() {
+  clearTimeout(S.saveTimer);
+  await save();
+}
+// File > New project / Open project / Save as: a folder chooser (the page
+// cannot use the system's; the Mac app's menu uses its own panels)
+async function folderBox(mode) {
+  const parent = (d) => d.replace(/[\\/][^\\/]*$/, "") || d;
+  const start = S.dir ? parent(S.dir) : "";
+  const named = mode !== "open";
+  openModal(`<h2>${t("cmd_" + mode)}</h2>
+    ${named ? `<label class="field"><span>${t("name")}</span><input id="fb-name" value="${esc(mode === "save_as" ? `${S.dir.split(/[\\/]/).pop()} copy` : "My DVD")}"></label>` : ""}
+    <label class="field"><span>${t(named ? "location" : "folder")}</span><div class="row"><input id="fb-path" class="mono"><button class="small shrink" id="fb-up" title="${esc(t("fb_up"))}">↑</button><button class="small shrink" id="fb-home">${t("fb_home")}</button></div></label>
+    <div class="fb-list" id="fb-list" role="listbox" aria-label="${esc(t("folders"))}"></div>
+    <div class="hint">${esc(t("fb_hint_" + mode))}</div>
+    <div class="dlg-buttons"><span class="hint" id="fb-err"></span><span class="spacer"></span><button id="fb-ok" class="primary">${t(mode === "open" ? "open" : "ok")}</button></div>`);
+  let cur = null;
+  const show = async (path) => {
+    try {
+      const r = await api("/api/dirs?" + new URLSearchParams(path ? { path } : {}));
+      cur = r; $("#fb-path").value = r.path; $("#fb-err").textContent = "";
+      $("#fb-up").disabled = !r.parent; $("#fb-home").onclick = () => show(r.home);
+      $("#fb-list").innerHTML = r.dirs.length ? r.dirs.map((d) => `<button class="fb-item ${d.project ? "is-project" : ""}" data-dir="${esc(d.name)}">${d.project ? "◉" : "▸"} ${esc(d.name)}</button>`).join("")
+        : `<div class="hint">${esc(t("fb_empty"))}</div>`;
+      $("#fb-list").querySelectorAll("[data-dir]").forEach((b) => {
+        const full = r.path.replace(/[\\/]$/, "") + "/" + b.dataset.dir;
+        b.onclick = () => show(full);
+        b.ondblclick = () => { if (mode === "open") go(full); };
+      });
+    } catch (e) { $("#fb-err").textContent = e.message; }
+  };
+  $("#fb-path").onchange = () => show($("#fb-path").value.trim());
+  $("#fb-up").onclick = () => cur?.parent && show(cur.parent);
+  const go = async (path) => {
+    clearTimeout(S.saveTimer); if (P() && S.saveState !== "saved") await save();
+    try {
+      const r = mode === "save_as" ? await api("/api/save_as", { method: "POST", body: { path, project: S.project } })
+        : await api("/api/switch", { method: "POST", body: { path, create: mode === "new" } });
+      closeModal(); projectSwitched(r);
+    } catch (e) { $("#fb-err").textContent = e.message; }
+  };
+  $("#fb-ok").onclick = () => {
+    const base = ($("#fb-path").value.trim() || cur?.path || "").replace(/[\\/]$/, "");
+    const name = named ? $("#fb-name").value.trim().replace(/[\\/]/g, "_") : "";
+    if (named && !name) return;
+    go(named ? `${base}/${name}` : base);
+  };
+  await show(start);
+}
+function importAsMenu(path, popupFor) {
+  const name = path.split("/").pop().replace(/\.[^.]+$/, "");
+  const id = uniqueId(name.replace(/[^A-Za-z0-9_-]+/g, "_").toLowerCase().slice(0, 30) || "menu", allMenuIds());
+  const done = () => { if (popupFor && allMenuIds().includes(id)) commit((p) => { p.titles.find((x) => x.id === popupFor).remote_menu = id; }); };
+  if (/\.(psd|psb)$/i.test(path)) importPsd(path, id).then(done);
+  else { mediaAction("newmenu", path); const mid = S.sel.id; if (popupFor) commit((p) => { p.titles.find((x) => x.id === popupFor).remote_menu = mid; }); }
+}
+// the title a pop-up menu is for: the one open, else the last one opened, else the first
+const popupTitle = () => (inTitle() ? S.sel.id : (P().titles || []).some((x) => x.id === S.lastTitle) ? S.lastTitle : P().titles[0].id);
+function newSlideshow(images) {
+  const id = uniqueId("slides", (P().titles || []).map((x) => x.id));
+  commit((p) => { (p.titles = p.titles || []).push({ id, name: t("slideshow"), slideshow: { slides: images.map((image) => ({ image })) } }); });
+  select("title", id);
+}
+const missingAssets = () => { const have = new Set(S.media.map((m) => m.path)); return [...assetRefs().keys()].filter((x) => !have.has(x)); };
+// Interpret footage / Transcode settings: the title's own settings in a dialog
+function titleFieldsBox(which) {
+  const ti = curTitle(), audio = ti.audio || {}, copy = ti.transcode === false;
+  const scan = copy ? "" : `<label class="field"><span>${t("scan")}</span>${selectHtml("scan", [["__none__", t("scan_auto")], ["progressive", t("scan_progressive")], ["interlaced", t("scan_interlaced")], ...(P().disc.standard === "NTSC" ? [["pulldown", t("scan_pulldown")], ["ivtc", t("scan_ivtc")]] : [])], ti.scan || "__none__")}<div class="hint">${esc(t("scan_hint"))}</div></label>`;
+  const body = which === "interpret_footage"
+    ? `<label class="field"><span>${t("aspect")}</span>${selectHtml("aspect", [["__none__", `${t("auto")} (${P().disc.aspect})`], ["16:9", "16:9"], ["4:3", "4:3"]], ti.aspect || "__none__")}</label>${scan}`
+    : `${ti.clips ? "" : `<label class="field"><span></span><label><input type="checkbox" id="tf-copy" ${copy ? "checked" : ""}> ${t("no_transcode")}</label><div class="hint">${esc(t("no_transcode_hint"))}</div></label>`}
+      <label class="field"><span>${t("video_bitrate")}</span>${selectHtml("video_bitrate", [["__none__", t("auto_shared")], ...["3M", "4M", "5M", "6M", "7M", "8M"].map((b) => [b, b.replace("M", " Mbit/s")])], ti.video_bitrate || "__none__", copy ? "disabled" : "")}</label>
+      <label class="field"><span>${t("codec")}</span>${selectHtml("audio.codec", [["ac3", "AC-3"], ["lpcm", "LPCM"]], audio.codec || "ac3")}</label>
+      <label class="field"><span>${t("bitrate")}</span>${selectHtml("audio.bitrate", [["128k", "128k"], ["192k", "192k"], ["224k", "224k"], ["256k", "256k"], ["384k", "384k"], ["448k", "448k"]], audio.bitrate || (audio.channels === 6 ? "448k" : "192k"), audio.codec === "lpcm" ? "disabled" : "")}</label>
+      <label class="field"><span>${t("channels")}</span>${selectHtml("audio.channels", [["2", t("stereo")], ["6", t("surround")]], String(audio.channels || 2), audio.codec === "lpcm" ? "disabled" : "")}</label>`;
+  openModal(`<h2>${t("cmd_" + which)}</h2><div class="hint">${esc(ti.name || ti.id)}</div>${body}
+    <div class="dlg-buttons"><span class="spacer"></span><button id="tf-ok" class="primary">OK</button></div>`);
+  const root = $("#modal-body"), id = ti.id, find = (p) => p.titles.find((x) => x.id === id);
+  bindFields(root, find, {
+    numeric: ["audio.channels"],
+    onAfter: (p, key, val) => {
+      const a = find(p).audio;
+      if (a && (key === "audio.codec" && val === "lpcm" || key === "audio.channels" && val === 2)) delete a.channels;
+      if (a && key === "audio.codec" && val === "lpcm") delete a.passthrough;
+      if (a && !Object.keys(a).length) delete find(p).audio;
+    },
+  });
+  const cp = $("#tf-copy");
+  if (cp) cp.onchange = () => { commit((p) => { const x = find(p); if (cp.checked) { x.transcode = false; delete x.scan; delete x.video_bitrate; } else delete x.transcode; }); titleFieldsBox(which); };
+  root.querySelector("[data-k='audio.codec']")?.addEventListener("change", () => setTimeout(() => titleFieldsBox(which), 0));
+  $("#tf-ok").onclick = closeModal;
+}
+// File > Render > Slideshows: make every slideshow's video now
+async function renderSlideshows() {
+  const list = (P().titles || []).filter((x) => x.slideshow);
+  clearTimeout(S.saveTimer); await save();
+  S.rendering = true;
+  const errors = [];
+  for (const [i, ti] of list.entries()) {
+    openModal(`<h2>${t("cmd_render_slideshows")}</h2><p>${esc(t("rendering_n", { i: i + 1, n: list.length, t: ti.name || ti.id }))}</p>`);
+    try { await api("/api/slideshow", { method: "POST", body: { title: ti.id, project: S.project } }); }
+    catch (e) { errors.push(`${ti.name || ti.id}: ${e.message}`); }
+  }
+  S.rendering = false;
+  openModal(`<h2>${t("cmd_render_slideshows")}</h2>${errors.length ? `<ul class="issues">${errors.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : `<p>✓ ${esc(t("rendered_n", { n: list.length }))}</p>`}`);
+}
+// File > DVD-ROM content: folders and files put next to VIDEO_TS
+async function romFilesBox() {
+  let dirs = [];
+  try { dirs = (await api("/api/dirs?" + new URLSearchParams({ path: S.dir }))).dirs.map((d) => d.name).filter((n) => !["media", "output", "exports"].includes(n)); } catch (e) { dirs = []; }
+  const cur = P().disc.rom_files || [];
+  openModal(`<h2>${t("cmd_rom_folder")}</h2><div class="hint">${esc(t("rom_hint"))}</div>
+    ${dirs.length ? `<div class="fb-list">${dirs.map((d) => `<label class="fb-item"><input type="checkbox" data-rom="${esc(d + "/")}" ${cur.includes(d + "/") || cur.includes(d) ? "checked" : ""}> ${esc(d)}/</label>`).join("")}</div>` : ""}
+    <label class="field"><span>${t("rom_files")}</span><textarea id="rom-list" rows="4" class="mono">${esc(cur.join("\n"))}</textarea></label>
+    <div class="dlg-buttons"><span class="spacer"></span><button id="rom-ok" class="primary">OK</button></div>`);
+  document.querySelectorAll("[data-rom]").forEach((c) => (c.onchange = () => {
+    const lines = $("#rom-list").value.split("\n").map((x) => x.trim()).filter(Boolean).filter((x) => x !== c.dataset.rom && x !== c.dataset.rom.slice(0, -1));
+    if (c.checked) lines.push(c.dataset.rom);
+    $("#rom-list").value = lines.join("\n");
+  }));
+  $("#rom-ok").onclick = () => {
+    const list = $("#rom-list").value.split("\n").map((x) => x.trim()).filter(Boolean);
+    closeModal();
+    commit((p) => { if (list.length) p.disc.rom_files = list; else delete p.disc.rom_files; });
+  };
+}
+function buildAs(format, kind) { S.buildFormat = format; S.buildKind = kind; select("build"); }
+
+// ---------------------------------------------------------------- Edit
+// Cut / Copy / Paste: the selected objects of a menu, else the title, menu or
+// playlist selected in the project
+function copySelection() {
+  if (hasElements()) { copyElements(); S.clipItem = null; return; }
+  const it = curItem();
+  if (!it) return;
+  S.clipItem = { kind: it.kind, data: clone((P()[LISTS[it.kind]] || []).find((x) => x.id === it.id)) };
+  S.clip = null;
+}
+function deleteSelection() {
+  if (hasElements()) deleteElements();
+  else if (curItem()) deleteItem(S.sel.view, S.sel.id);
+}
+function pasteClipboard() {
+  if (inMenu() && S.clip?.length) { duplicateElements(true); return; }
+  const c = S.clipItem;
+  if (!c) return;
+  const list = P()[LISTS[c.kind]] || [], ids = c.kind === "menu" ? allMenuIds() : list.map((y) => y.id);
+  const nid = ids.includes(c.data.id) ? uniqueId(`${c.data.id.replace(/_copy\d*$/, "")}_copy`, ids) : c.data.id;
+  commit((p) => {
+    const x = clone(c.data);
+    x.id = nid;
+    if (c.kind === "title" && nid !== c.data.id) delete x.auto_chapter_menu;
+    (p[LISTS[c.kind]] = p[LISTS[c.kind]] || []).push(x);
+  });
+  select(c.kind, nid);
+}
+const menuElements = () => {
+  const m = curMenu();
+  return m ? Object.entries(KIND_LIST).flatMap(([kind, l]) => (m[l] || []).map((x, i) => ({ kind, i, hidden: x.hidden }))).filter((x) => !x.hidden).map(({ kind, i }) => ({ kind, i })) : [];
+};
+function selectAllElements() {
+  const all = menuElements();
+  S.sels = all; S.element = all[all.length - 1] || null;
+  renderMain(); renderInspector();
+}
+// Edit > Rename: a title's or playlist's name and id, a menu's id (what
+// points at it follows)
+function renameBox() {
+  const { kind, id } = curItem(), x = (P()[LISTS[kind]] || []).find((y) => y.id === id), named = kind !== "menu";
+  openModal(`<h2>${t("cmd_rename")}</h2>
+    ${named ? `<label class="field"><span>${t("name")}</span><input id="rn-name" value="${esc(x.name || "")}"></label>` : ""}
+    <label class="field"><span>${t("id")}</span><input id="rn-id" class="mono" value="${esc(x.id)}"><div class="hint">${esc(t("rename_hint"))}</div></label>
+    <div class="dlg-buttons"><span class="hint" id="rn-err"></span><span class="spacer"></span><button id="rn-ok" class="primary">OK</button></div>`);
+  (named ? $("#rn-name") : $("#rn-id")).select();
+  $("#rn-ok").onclick = () => {
+    const nid = $("#rn-id").value.trim().replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 40), name = named ? $("#rn-name").value.trim() : null;
+    const ids = kind === "menu" ? allMenuIds() : (P()[LISTS[kind]] || []).map((y) => y.id);
+    if (!nid || (nid !== id && ids.includes(nid))) { $("#rn-err").textContent = t("id_taken"); return; }
+    closeModal();
+    commit((p) => {
+      const y = p[LISTS[kind]].find((z) => z.id === id);
+      if (named) { if (name) y.name = name; else delete y.name; }
+      if (nid !== id) { renameRefs(p, kind, id, nid); y.id = nid; }
+    });
+    S.sel = { view: kind, id: nid }; renderAll();
+  };
+}
+// Edit > Edit original: the file in the program the system opens it with
+function originalFile() {
+  if (S.selectedMedia && S.sel.view === "disc") return S.selectedMedia;
+  if (inTitle()) { const ti = curTitle(); return ti.slideshow ? null : ti.clips ? frameSource()?.path : ti.source; }
+  if (inMenu()) {
+    const m = curMenu(), k = S.element;
+    const it = k ? elementList(m, k.kind)[k.i] : null;
+    return it?.file || it?.image || m.psd || m.background || m.background_video || null;
+  }
+  return null;
+}
+function editOriginal() {
+  api("/api/open", { method: "POST", body: { path: originalFile() } })
+    .then((r) => { if (!r.opened) alert(t("open_failed")); }).catch((e) => alert(e.message));
+}
+
+// ---------------------------------------------------------------- Object
+const stageReady = () => inMenu() && S.stageOps?.menu === S.sel.id && !!$("#stage");
+function alignCmd(k) { return { run: () => S.stageOps.align(k), when: () => stageReady() && hasElements() }; }
+// Object > Drop shadow: the shadow and the outline (stroke) of the selected texts and buttons
+function dropShadowBox() {
+  const menu = curMenu(), ks = selElements().filter((k) => k.kind === "text" || k.kind === "button");
+  const first = elementList(menu, ks[0].kind)[ks[0].i];
+  const row = (k, def, w, wdef, wl) => `<label class="field" data-nobind><span>${t(k === "shadow" ? "shadow" : "outline")}</span><div class="row cset">
+      <input type="checkbox" class="shrink" id="ds-${k}-on" ${first[k] ? "checked" : ""}>
+      <input type="color" class="shrink" id="ds-${k}" value="${esc((first[k] || def).slice(0, 7).toLowerCase())}">
+      <input type="number" class="shrink" style="width:64px" min="1" max="20" id="ds-${w}" value="${first[w] || wdef}" title="${esc(t(wl))}"><span class="hint shrink">px</span></div></label>`;
+  openModal(`<h2>${t("cmd_drop_shadow")}</h2><div class="hint">${esc(t("n_selected", { n: ks.length }))}</div>
+    ${row("shadow", "#000000", "shadow_offset", 3, "shadow_offset")}${row("outline", "#000000", "outline_width", 2, "outline_width")}
+    <div class="dlg-buttons"><span class="spacer"></span><button id="ds-ok" class="primary">OK</button></div>`);
+  $("#ds-ok").onclick = () => {
+    const v = (id) => $(id).value, on = (id) => $(id).checked;
+    closeModal();
+    commit((p) => {
+      const mm = p.menus.find((x) => x.id === menu.id);
+      for (const k of ks) {
+        const it = elementList(mm, k.kind)[k.i];
+        for (const [a, w, wdef] of [["shadow", "shadow_offset", 3], ["outline", "outline_width", 2]]) {
+          if (!on(`#ds-${a}-on`)) { delete it[a]; delete it[w]; continue; }
+          it[a] = v(`#ds-${a}`).toUpperCase();
+          const n = Math.max(1, Math.min(20, Math.round(Number(v(`#ds-${w}`)) || wdef)));
+          if (n === wdef) delete it[w]; else it[w] = n;
+        }
+      }
+    });
+  };
+}
+
+// ---------------------------------------------------------------- Menu
+function addMenuText() {
+  const H = discH();
+  commit((p) => {
+    const mm = p.menus.find((x) => x.id === S.sel.id);
+    (mm.texts = mm.texts || []).push({ text: "TEXT", x: 80, y: Math.round(H / 2) });
+    S.element = { kind: "text", i: mm.texts.length - 1 }; S.sels = [S.element];
+  });
+  setTimeout(() => { const f = $("#inspector [data-k=text]"); if (f) { f.focus(); f.select?.(); } }, 0);
+}
+function setDefaultButton() {
+  const i = S.element.i;
+  commit((p) => { const mm = p.menus.find((x) => x.id === S.sel.id); mm.default_button = mm.buttons[i].id; });
+}
+function colourSetBox() {
+  const menu = curMenu();
+  openModal(`<h2>${t("cmd_colour_set")}</h2><div class="hint">${esc(menu.id)}</div>${colourSetHtml(menu)}
+    <div class="dlg-buttons"><span class="spacer"></span><button id="cs-ok" class="primary">OK</button></div>`);
+  bindColourSet($("#modal-body"), menu);
+  $("#cs-ok").onclick = closeModal;
+}
+// Save menu as file / Save frame as file / Export subtitles: a file in exports/
+async function exportFile(body) {
+  openModal(`<h2>${t("export")}</h2><p class="hint">…</p>`);
+  try {
+    const r = await api("/api/export", { method: "POST", body });
+    S.media = r.media; renderSidebar();
+    openModal(`<h2>${t("export")}</h2><p>${esc(t("exported_to"))}</p><p class="mono">${esc(r.path)}</p>
+      <div class="dlg-buttons"><span class="spacer"></span><button id="ex-reveal">${t(S.platform === "darwin" ? "reveal" : "reveal_other")}</button></div>`);
+    $("#ex-reveal").onclick = () => api("/api/reveal", { method: "POST", body: { path: r.path } }).catch((e) => alert(e.message));
+  } catch (e) {
+    if (e.data?.issues) showIssues(e.data.issues, t("export"));
+    else openModal(`<h2>${t("export")}</h2><p>${esc(e.message)}</p>${e.data?.output ? `<pre class="log">${esc(e.data.output)}</pre>` : ""}`);
+  }
+}
+
+// ---------------------------------------------------------------- Timeline
+function chapterPlaylistBox() {
+  const ts = (P().titles || []).filter((x) => chaptersOf(x).length > 1);
+  openModal(`<h2>${t("cmd_chapter_playlist")}</h2>
+    <label class="field"><span>${t("title")}</span><select id="cp-title">${ts.map((x) => `<option value="${esc(x.id)}" ${S.lastTitle === x.id ? "selected" : ""}>${esc(x.name || x.id)} (${chaptersOf(x).length})</option>`).join("")}</select></label>
+    <div class="hint">${esc(t("chapter_playlist_hint"))}</div>
+    <div class="dlg-buttons"><span class="spacer"></span><button id="cp-ok" class="primary">OK</button></div>`);
+  $("#cp-ok").onclick = () => {
+    const ti = P().titles.find((x) => x.id === $("#cp-title").value), n = chaptersOf(ti).length;
+    const id = uniqueId(`${ti.id}_chapters`, (P().playlists || []).map((x) => x.id));
+    closeModal();
+    commit((p) => { (p.playlists = p.playlists || []).push({ id, name: t("chapters_of", { t: ti.name || ti.id }), items: Array.from({ length: n }, (_, i) => `${ti.id}:${i + 1}`) }); });
+    select("playlist", id);
+  };
+}
+const LANGS = [["", "—"], ["ja", "日本語 (ja)"], ["en", "English (en)"], ["fr", "Français (fr)"], ["de", "Deutsch (de)"], ["es", "Español (es)"], ["zh", "中文 (zh)"], ["ko", "한국어 (ko)"]];
+function addAudioTrackBox() {
+  const ti = curTitle();
+  openModal(`<h2>${t("cmd_add_audio_track")}</h2><div class="hint">${esc(t("tracks_hint"))}</div>
+    <label class="field"><span>${t("source")}</span>${selectHtml("source", [["", `${ti.source} (${t("this_title")})`], ...mediaOf("audio").map((a) => [a, a]), ...mediaOf("video").filter((v) => v !== ti.source).map((v) => [v, v])], "", 'id="at-src"')}</label>
+    <label class="field"><span>${t("stream")}</span><input type="number" min="0" id="at-stream" value="${(ti.audio_tracks || []).filter((x) => !x.source).length || 0}"></label>
+    <label class="field"><span>${t("language")}</span>${selectHtml("lang", LANGS, "", 'id="at-lang"')}</label>
+    <div class="dlg-buttons"><span class="spacer"></span><button id="at-ok" class="primary">OK</button></div>`);
+  $("#at-ok").onclick = () => {
+    const tr = {}, src = $("#at-src").value, st = Number($("#at-stream").value) || 0, lang = $("#at-lang").value;
+    if (src) tr.source = src;
+    if (st) tr.stream = st;
+    if (lang) tr.lang = lang;
+    closeModal();
+    commit((p) => { const x = p.titles.find((y) => y.id === ti.id); x.audio_tracks = x.audio_tracks || [{}]; x.audio_tracks.push(tr); });
+  };
+}
+function addSubtitleTrack(tid, file, lang) {
+  commit((p) => { const x = p.titles.find((y) => y.id === tid); (x.subtitles = x.subtitles || []).push(lang ? { file, lang } : { file }); });
+}
+function addSubtitleTrackBox() {
+  const ti = curTitle();
+  openModal(`<h2>${t("cmd_add_subtitle_track")}</h2>
+    <label class="field"><span>${t("file")}</span>${selectHtml("file", mediaOf("subtitle").map((f) => [f, f.replace(/^media\//, "")]), mediaOf("subtitle")[0], 'id="st-file"')}</label>
+    <label class="field"><span>${t("language")}</span>${selectHtml("lang", LANGS, "", 'id="st-lang"')}</label>
+    <div class="dlg-buttons"><span class="spacer"></span><button id="st-ok" class="primary">OK</button></div>`);
+  $("#st-ok").onclick = () => { const f = $("#st-file").value, l = $("#st-lang").value; closeModal(); addSubtitleTrack(ti.id, f, l); };
+}
+function exportSubtitlesBox() {
+  const subs = curTitle().subtitles;
+  if (subs.length === 1) return exportFile({ kind: "subtitles", path: subs[0].file });
+  openModal(`<h2>${t("cmd_export_subtitles")}</h2><div class="hint">${esc(t("export_subs_hint"))}</div>
+    <div style="display:flex;flex-direction:column;gap:6px">${subs.map((s, i) => `<button data-exsub="${i}">${i + 1}. ${esc(s.file.replace(/^media\//, ""))}${s.lang ? ` (${esc(s.lang)})` : ""}</button>`).join("")}</div>`);
+  document.querySelectorAll("[data-exsub]").forEach((b) => (b.onclick = () => exportFile({ kind: "subtitles", path: subs[Number(b.dataset.exsub)].file })));
+}
+// (links to its chapters then play the title; playlist items the whole title)
+function clearChapters() {
+  if (!confirm(t("confirm_clear_chapters"))) return;
+  const tid = S.sel.id, fix = (a) => (a && a.startsWith(`chapter:${tid}:`) ? `title:${tid}` : a);
+  commit((p) => {
+    setChapters(p.titles.find((x) => x.id === tid), [{ time: 0, name: "", poster: null }]);
+    p.disc.first_play = fix(p.disc.first_play);
+    if (p.disc.title_key) p.disc.title_key = fix(p.disc.title_key);
+    for (const ti of p.titles || []) {
+      if (ti.end_action) ti.end_action = fix(ti.end_action);
+      if (ti.auto_chapter_menu && typeof ti.auto_chapter_menu === "object" && ti.auto_chapter_menu.back) ti.auto_chapter_menu.back = fix(ti.auto_chapter_menu.back);
+    }
+    for (const m of p.menus || []) {
+      if (m.end_action) m.end_action = fix(m.end_action);
+      for (const b of m.buttons || []) { b.action = fix(b.action); if (b.override) b.override = fix(b.override); }
+    }
+    for (const pl of p.playlists || []) {
+      if (pl.end_action) pl.end_action = fix(pl.end_action);
+      pl.items = pl.items.map((it) => (it.startsWith(`${tid}:`) ? tid : it));
+    }
+  });
+}
+// Set poster frame: the chapter the playhead is in shows this frame in chapter menus
+function setPosterFrame() {
+  const ti = curTitle(), now = S.playhead[ti.id] || 0, list = chapterEntries(ti);
+  let i = 0;
+  list.forEach((c, j) => { if (c.time <= now + 1e-6) i = j; });
+  list[i].poster = Math.round(now * 1000) / 1000;
+  commit((p) => setChapters(p.titles.find((x) => x.id === ti.id), list));
+}
+// the file and time inside it shown at the playhead (for clips: the clip there)
+function frameSource() {
+  const ti = curTitle();
+  if (!ti) return null;
+  const now = S.playhead[ti.id] || 0;
+  if (!ti.clips) return ti.source && mediaOf("video").includes(ti.source) ? { path: ti.source, t: now } : null;
+  const join = clipJoinNow(ti);
+  if (!join) return null;
+  for (const [i, c] of ti.clips.entries()) {
+    const j = join.clips[i];
+    if (now < j.start + j.duration || i === ti.clips.length - 1) return isStill(c) ? null : { path: c.source, t: (c.in != null ? parseTime(c.in) : 0) + Math.max(0, now - j.start) };
+  }
+  return null;
+}
+function saveFrame() { const f = frameSource(); exportFile({ kind: "frame", path: f.path, t: f.t }); }
+
+// ---------------------------------------------------------------- View, Window, Help
+function spCmd(state) {
+  return {
+    run: () => { S.spView = S.spView === state ? null : state; S.preview = null; if (S.spView) requestPreview(S.sel.id, null, false, { every: true, state }); renderMain(); },
+    when: inMenu, on: () => S.spView === state,
+  };
+}
+function resetWorkspace() {
+  for (const k of ["left-w", "right-w", "timeline-h"]) {
+    try { localStorage.removeItem("oncemore." + k); } catch (e) { /* storage blocked */ }
+    document.documentElement.style.removeProperty("--" + k);
+  }
+  if (P()) WS("author")();
+}
+function openHelp() {
+  const url = `https://github.com/kajisho5/oncemore/blob/main/${LANG === "ja" ? "README.ja.md" : "README.md"}`;
+  if (IN_APP) location.assign(url);              // (the app opens it in the browser)
+  else window.open(url, "_blank", "noopener");
+}
+// the page's copy / cut / paste events (the Mac app's Edit menu sends these):
+// objects and project items when no text is being edited
+for (const type of ["copy", "cut", "paste"]) {
+  document.addEventListener(type, (e) => {
+    if (!P() || textField() || (type !== "paste" && String(window.getSelection?.() || ""))) return;
+    if (!runCommand(type, "event")) return;
+    e.preventDefault();
+  });
+}
 // File > Revert to a saved version: the server keeps the project file as it
 // was before a save, every few minutes (.oncemore-backup/); going back is one
 // more edit, so Undo returns to where you were
@@ -3685,7 +4318,7 @@ function newTitleFromMedia() {
 }
 function runCommand(id, via = "menu") {
   const c = COMMANDS[id];
-  if (!c || (c.when && !c.when())) return false;
+  if (!c || !c.run || (c.when && !c.when())) return false;
   closePopups();
   c.run(via);
   return true;
@@ -3693,8 +4326,10 @@ function runCommand(id, via = "menu") {
 window.oncemoreCommand = (id) => runCommand(id, "menu");
 function keyParts(spec) { return spec === "+" ? ["+"] : spec.split("+"); }
 function keyLabel(spec) {
-  const names = IS_MAC ? { mod: "⌘", shift: "⇧", alt: "⌥", delete: "⌫", space: "Space", pageup: "PgUp", pagedown: "PgDn" } : { mod: "Ctrl", shift: "Shift", alt: "Alt", delete: "Delete", space: "Space", pageup: "PgUp", pagedown: "PgDn" };
-  const parts = keyParts(spec).map((p) => names[p] || p.toUpperCase());
+  const names = IS_MAC ? { mod: "⌘", ctrl: "⌃", shift: "⇧", alt: "⌥", delete: "⌫", space: "Space", pageup: "PgUp", pagedown: "PgDn" } : { mod: "Ctrl", ctrl: "Ctrl", shift: "Shift", alt: "Alt", delete: "Delete", space: "Space", pageup: "PgUp", pagedown: "PgDn" };
+  // (as menus write them: ⌃⌥⇧⌘ on a Mac, Ctrl+Alt+Shift elsewhere)
+  const order = IS_MAC ? { ctrl: 0, alt: 1, shift: 2, mod: 3 } : { mod: 0, ctrl: 0, alt: 1, shift: 2 };
+  const parts = keyParts(spec).sort((a, b) => (order[a] ?? 9) - (order[b] ?? 9)).map((p) => names[p] || p.toUpperCase());
   return IS_MAC ? parts.join("") : parts.join("+");
 }
 function keyMatches(spec, e) {
@@ -3712,7 +4347,7 @@ function keyMatches(spec, e) {
 }
 function commandKeys(e) {
   for (const [id, c] of Object.entries(COMMANDS)) {
-    if (!c.key || !keyMatches(c.key, e)) continue;
+    if (!c.key || c.app || !keyMatches(c.key, e)) continue;
     if (c.when && !c.when()) return false;
     e.preventDefault();
     runCommand(id, "key");
@@ -3722,33 +4357,63 @@ function commandKeys(e) {
 }
 // -- the menu bar and right-click menus: one kind of pop-up list
 function closePopups() { document.querySelectorAll(".popup").forEach((x) => x.remove()); $("#menubar")?.querySelectorAll(".open").forEach((b) => b.classList.remove("open")); }
-function openPopup(x, y, items) {
-  closePopups();
+function popupLevel(pop) { return Number(pop.dataset.level || 0); }
+function closeSubs(pop) {
+  document.querySelectorAll(".popup").forEach((x) => { if (popupLevel(x) > popupLevel(pop)) x.remove(); });
+  pop.querySelectorAll(".has-sub.open").forEach((b) => b.classList.remove("open"));
+}
+// items: {label, key, disabled, danger, checked, run} | {label, sub: items} | "-"
+function openPopup(x, y, items, parent = null) {
+  if (!parent) closePopups();
   const pop = document.createElement("div");
-  pop.className = "popup"; pop.setAttribute("role", "menu");
+  pop.className = "popup" + (parent ? " sub" : ""); pop.setAttribute("role", "menu");
+  pop.dataset.level = parent ? popupLevel(parent) + 1 : 0;
+  const checks = items.some((it) => it !== "-" && it.checked !== undefined && it.checkable);
   pop.innerHTML = items.map((it, k) => it === "-" ? `<div class="sep"></div>`
-    : `<button role="menuitem" data-k="${k}" class="${it.danger ? "danger" : ""}" ${it.disabled ? "disabled" : ""}><span>${esc(it.label)}</span><span class="key">${esc(it.key || "")}</span></button>`).join("");
+    : `<button role="${it.checkable ? "menuitemcheckbox" : "menuitem"}" data-k="${k}" class="${it.danger ? "danger" : ""} ${it.sub ? "has-sub" : ""}" ${it.disabled ? "disabled" : ""}
+        ${it.sub ? 'aria-haspopup="true"' : ""} ${it.checkable ? `aria-checked="${!!it.checked}"` : ""}>${checks ? `<span class="check" aria-hidden="true">${it.checked ? "✓" : ""}</span>` : ""}<span class="lbl">${esc(it.label)}</span><span class="key">${it.sub ? "▸" : esc(it.key || "")}</span></button>`).join("");
   document.body.appendChild(pop);
   const r = pop.getBoundingClientRect();
+  if (parent && x + r.width > innerWidth - 4) x = parent.getBoundingClientRect().left - r.width + 2;   // (no room on the right)
   pop.style.left = `${Math.max(4, Math.min(x, innerWidth - r.width - 4))}px`;
   pop.style.top = `${Math.max(4, Math.min(y, innerHeight - r.height - 4))}px`;
-  pop.querySelectorAll("[data-k]").forEach((b) => (b.onclick = (ev) => { ev.stopPropagation(); const it = items[Number(b.dataset.k)]; closePopups(); it.run(); }));
+  pop.querySelectorAll("[data-k]").forEach((b) => {
+    const it = items[Number(b.dataset.k)];
+    if (it.sub) {
+      const openSub = () => {
+        if (b.classList.contains("open")) return;
+        closeSubs(pop); b.classList.add("open");
+        const br = b.getBoundingClientRect();
+        openPopup(br.right - 2, br.top - 4, it.sub, pop);
+      };
+      b.onmouseenter = openSub;
+      b.onclick = (ev) => { ev.stopPropagation(); openSub(); };
+    } else {
+      b.onmouseenter = () => closeSubs(pop);
+      b.onclick = (ev) => { ev.stopPropagation(); closePopups(); it.run(); };
+    }
+  });
   return pop;
 }
-const cmdItem = (id) => ({ label: t("cmd_" + id), key: COMMANDS[id].key ? keyLabel(COMMANDS[id].key) : "", disabled: COMMANDS[id].when ? !COMMANDS[id].when() : false, run: () => runCommand(id) });
+const cmdItem = (id) => {
+  const c = COMMANDS[id];
+  return { id, label: c.label ? c.label() : t("cmd_" + id), key: c.key ? keyLabel(c.key) : "", spec: c.key || "",
+    checkable: !!c.on, checked: c.on ? !!c.on() : undefined, disabled: c.app ? false : c.when ? !c.when() : false, run: () => runCommand(id) };
+};
 function renderMenubar() {
   const bar = $("#menubar");
   bar.hidden = IN_APP;                        // the Mac app has its own menu bar
   bar.innerHTML = MENUBAR.map(([label], k) => `<button data-mb="${k}" aria-haspopup="true">${esc(t(label))}</button>`).join("");
   const open = (b) => {
     const [, ids] = MENUBAR[Number(b.dataset.mb)], r = b.getBoundingClientRect();
-    openPopup(r.left, r.bottom + 2, ids.map((id) => (id === "-" ? "-" : cmdItem(id)))).classList.add("from-bar");
+    openPopup(r.left, r.bottom + 2, menuItems(ids)).classList.add("from-bar");
     b.classList.add("open");
   };
   bar.querySelectorAll("[data-mb]").forEach((b) => {
     b.onclick = (ev) => { ev.stopPropagation(); if (b.classList.contains("open")) closePopups(); else open(b); };
     b.onmouseenter = () => { if (bar.querySelector(".open") && !b.classList.contains("open")) open(b); };
   });
+  postMenuSpec();
 }
 function itemMenu(kind, id) {
   const list = P()[LISTS[kind]] || [], i = list.findIndex((y) => y.id === id);

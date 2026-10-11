@@ -1066,3 +1066,33 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   title and encoded with its sound (or silence) like a menu.
 * Not allowed on stream buttons, Resume or Stop: there is nothing to lead
   into, and a Blu-ray title in between would lose what Resume resumes.
+
+## 69. One menu bar, the page's
+
+* The menus are a list in the page (`MENUBAR`, items are `COMMANDS`, with
+  submenus). The browser draws it; Oncemore.app makes its native menu bar
+  from the same list, which the page posts to it (WKScriptMessageHandler)
+  whenever it changes: its language, what can be done now (greyed items),
+  what is on (ticks). Before, the app's menus were written out again in
+  Swift and drifted from the page's (no View menu, English only, items
+  enabled that did nothing).
+* Only keys with ⌘ or ⌥ become native key equivalents: a plain V, T, Space
+  or Delete in a menu would take the key from the page's text fields. The
+  app keeps a few items of its own: New / Open project (the system's
+  panels), Undo / Redo / Cut / Copy / Paste / Select All (they also work on
+  text in fields; on objects the page gets the copy / cut / paste events),
+  and the window items.
+* Opening another project switches the folder the running server works on
+  (`App.open`) rather than starting another server: one process, one
+  token, and it works the same in a browser and in the app. Nothing
+  switches while a build or transcode runs. The recent list lives with the
+  user's settings (`ONCEMORE_CONFIG`, else Application Support / XDG config),
+  never in a project.
+* Save as copies the project folder (the project and its media) without
+  what can be made again (output, caches, backups), then works there; the
+  original stays as it was last saved. A project is a folder, so a copy of
+  the project file alone would point at media it does not have.
+* Exports (a menu or a frame as a picture, subtitles as SubRip) are written
+  into `exports/` in the project folder, never over an earlier one: a page
+  cannot save to an arbitrary place on disk, and the folder is where the
+  person looks for the project's files anyway (Reveal shows it).

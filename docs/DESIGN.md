@@ -134,10 +134,18 @@ the underline is not what tells them apart).
   name; menus list their buttons under an orange band.
 * **Project Preview** (File > Preview, ⇧Space) opens in a window of its own.
 
-* **Menu bar**: File, Edit, Object, Menu, Timeline, View, Window, Help. Every item is
-  a command (app.js `COMMANDS`) that the right-click menus, the keyboard
-  shortcuts and Oncemore.app's native menu bar run too; inside the Mac app
-  the page hides its own menu bar.
+* **Menu bar**: File, Edit, Object, Menu, Timeline, View, Window, Help, with
+  submenus (`.popup.sub`, opened on hover; `▸` in the key column) and ticks
+  for what is on (`.check`, `aria-checked`). Every item is a command (app.js
+  `COMMANDS`, laid out by `MENUBAR`) that the right-click menus and the
+  keyboard shortcuts run too. Inside the Mac app the page hides its own
+  menu bar and posts the same list (`window.oncemoreMenuSpec`: labels in the
+  page's language, keys, greyed and ticked items) to the app, which makes
+  the native menu bar from it; a few items are the app's own (new / open
+  project panels, text editing, window items).
+* **Folder chooser** (File > New / Open / Save as in a browser): a path field,
+  up / home, and the folders in it (`.fb-list > .fb-item`, project folders
+  `.is-project` with ◉).
 * **Tools panel** (under the menu bar): selection V, text T, zoom Z, new
   button, new rectangle, a menu from a Photoshop file, Preview; the
   Workspace menu and the search field on the right.
@@ -186,7 +194,7 @@ the underline is not what tells them apart).
 | Timeline | `.tl`, `.tl-row`, `.tl-label`, `.tl-track`, `.tl-ruler`, `.tl-lane`, `.tl-clip.audio/.sub`, `.tl-chapter`, `.tl-playhead` |
 | Card, notes | `.card`, `.hint`, `.issues li.warning/.info`, `.pill` |
 | Modal | `#modal .modal-card` |
-| Menu bar, pop-up menus | `.menubar > button(.open)`, `.popup > button(.danger)` with `.key`, `.sep` |
+| Menu bar, pop-up menus | `.menubar > button(.open)`, `.popup(.sub) > button(.danger, .has-sub)` with `.check`, `.lbl`, `.key`, `.sep` |
 | Menu editor | `.menu-viewer > .tools (button.on, .sep)`, `.viewer-main`, `.viewer-bar (.seg)`, `.overlap` |
 | Pick whip | `.whip`, `svg.whip-line`, `.whip-target` |
 

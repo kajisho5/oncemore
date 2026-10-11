@@ -344,6 +344,15 @@ table.clips td.act { white-space: nowrap; }
 .popup .key { color: var(--c-text-2); font-family: var(--font-mono); font-size: var(--fs-xs); }
 .popup button:hover .key { color: inherit; }
 .popup .sep { height: 1px; margin: var(--sp-2) 0; background: var(--c-line); }
+.popup .lbl { flex: 1; }
+.popup .check { width: 12px; flex: none; margin-left: -6px; }
+.popup button.has-sub.open:not(:disabled) { background: var(--c-bg-3); }
+/* File > Open project / New project / Save as: the page's folder chooser */
+.fb-list { display: flex; flex-direction: column; max-height: 260px; overflow: auto; margin: var(--sp-2) 0; border: 1px solid var(--c-line); border-radius: var(--r-sm); background: var(--c-bg-1); }
+.fb-list .hint { padding: 6px 10px; }
+.fb-item { display: block; width: 100%; text-align: left; border: 0; border-radius: 0; background: none; padding: 4px 10px; font-size: var(--fs-sm); color: var(--text); }
+button.fb-item:hover { background: var(--c-bg-3); }
+.fb-item.is-project { color: var(--c-accent-text); }
 table.shortcuts { border-collapse: collapse; width: 100%; }
 table.shortcuts td { padding: 4px 8px; border-bottom: 1px solid var(--c-line); }
 table.shortcuts td.mono { font-family: var(--font-mono); text-align: right; white-space: nowrap; }
