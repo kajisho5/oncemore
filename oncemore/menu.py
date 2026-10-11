@@ -23,7 +23,7 @@ import unicodedata
 from dataclasses import dataclass, field
 from xml.sax.saxutils import quoteattr
 
-from . import clips, encode, fontcheck, fontfaces, navigation, png4, tools
+from . import clips, encode, fontcheck, fontfaces, navigation, png4, tools, typeset
 from .errors import OncemoreError, ProjectError, ToolFailedError
 from .project import source_at
 
@@ -380,14 +380,135 @@ class MenuBuilder:
 
     def _drawtext(self, textfile, x, y, size, color, el=None, style=True):
         # x/y are storage pixels; the canvas is display pixels
-        if getattr(el, "letter_spacing", 0) or getattr(el, "kerning", True) is False:
-            return self._spaced(textfile, x, y, size, color, el, style)
+        textfile = self._wrapped(textfile, size, el)
+        if getattr(el, "vertical", False):
+            f = self._vertical(textfile, x, y, size, color, el, style)
+        elif getattr(el, "letter_spacing", 0) or getattr(el, "kerning", True) is False:
+            f = self._spaced(textfile, x, y, size, color, el, style)
+        else:
+            f = self._plain(textfile, x, y, size, color, el, style)
+        return f + self._lines(textfile, x, y, size, color, el)
+
+    def _font_of(self, el, text):
+        try:
+            return fontfaces.font(self.face_path(el))
+        except (OSError, fontfaces.FontError) as e:
+            raise OncemoreError(f"cannot read the font for {text[:20]!r}: {e}")
+
+    @staticmethod
+    def _read(textfile_path):
+        with open(textfile_path, encoding="utf-8") as fh:
+            return fh.read()
+
+    def _wrapped(self, textfile, size, el):
+        """The text file with its lines broken to fit the text's box: its
+        width (storage pixels) across, or its height down when vertical."""
+        vertical = getattr(el, "vertical", False)
+        box = getattr(el, "height" if vertical else "width", None)
+        if not box:
+            return textfile
+        text = self._read(os.path.join(self.work, textfile))
+        spacing = getattr(el, "letter_spacing", 0)
+        if vertical:
+            measure = lambda s: len(s) * (size + spacing) - spacing
+            limit = box
+        else:
+            font, kerning = self._font_of(el, text), getattr(el, "kerning", True)
+            measure = lambda s: font.offsets(s, size, spacing, kerning)[1]
+            limit = box * self.sx
+        return self._textfile(os.path.splitext(textfile)[0] + ".wrapped.txt",
+                              typeset.wrap(text, measure, limit))
+
+    def _vertical(self, textfile, x, y, size, color, el, style):
+        """Vertical text: each line a column, the first on the right, its
+        characters one under the other in squares of the font size (letter
+        spacing added between them), centred across the column; the columns
+        as far apart as its lines would be set across (line spacing added). Punctuation and brackets take their
+        vertical forms where the font has them; small kana move to the
+        upper right of their square. (x, y) is the block's top left."""
+        text = self._read(os.path.join(self.work, textfile))
+        fontname, font = self.font_for(el), self._font_of(el, text)
+        cols = text.split("\n")
+        step = size + getattr(el, "letter_spacing", 0)
+        pitch = self._column_pitch(el, size)
+        x0, stem, out = round(x * self.sx), os.path.splitext(textfile)[0], []
+        # the baseline of an ideographic square: 0.88 of the size below its top
+        # (the em box of CJK fonts, whose typo ascender is 880 of 1000 units)
+        base = round(size * 0.88)
+        for k, col in enumerate(cols):
+            left = x0 + (len(cols) - 1 - k) * pitch
+            for j, ch in enumerate(col):
+                if ch.isspace():
+                    continue
+                c = typeset.vertical_char(ch, lambda v: font.glyph(v) != 0)
+                dx = (size - font.offsets(c, size)[1]) / 2
+                dy = 0
+                if ch in typeset.SMALL_KANA:
+                    dx, dy = dx + size * 0.1, -size * 0.1
+                cf = self._textfile(f"{stem}.v{k}.{j}.txt", c)
+                out.append(f"drawtext=fontfile={fontname}:textfile={cf}:expansion=none:"
+                           f"fontsize={size}:fontcolor={_hex(color)}:"
+                           f"x={left + round(dx)}:y={y + j * step + base + round(dy)}-ascent"
+                           + self._dressing(el, style))
+        return ",".join(out) or "null"
+
+    def _column_pitch(self, el, size):
+        """How far apart the columns of vertical text are: as far as the
+        lines of the same text set across."""
+        return self._line_metrics(self.font_for(el), size, "H\nH",
+                                  getattr(el, "line_spacing", 0))[1]
+
+    def _lines(self, textfile, x, y, size, color, el):
+        """Underline and strikethrough: a bar of the text's colour under each
+        line (beside each column of vertical text, on its right) or through
+        its middle."""
+        under, strike = getattr(el, "underline", False), getattr(el, "strikethrough", False)
+        if not (under or strike):
+            return ""
+        text = self._read(os.path.join(self.work, textfile))
+        font = self._font_of(el, text)
+        lines = text.split("\n")
+        thick = max(1, round(size / 15))
+        spacing, kerning = getattr(el, "letter_spacing", 0), getattr(el, "kerning", True)
+        x0, bars = round(x * self.sx), []
+        if getattr(el, "vertical", False):
+            step = size + spacing
+            pitch = self._column_pitch(el, size)
+            for k, col in enumerate(lines):
+                if not col.strip():
+                    continue
+                left = x0 + (len(lines) - 1 - k) * pitch
+                h = len(col.rstrip()) * step - spacing
+                if under:
+                    bars.append((left + size + max(1, round(size * 0.08)), y, thick, h))
+                if strike:
+                    bars.append((left + (size - thick) // 2, y, thick, h))
+        else:
+            ascent, pitch = self._line_metrics(self.font_for(el), size, text,
+                                               getattr(el, "line_spacing", 0))
+            widths = [font.offsets(line.rstrip(), size, spacing, kerning)[1] for line in lines]
+            block = max(widths)
+            align = getattr(el, "align", "left") if len(lines) > 1 else "left"
+            for k, w in enumerate(widths):
+                if w <= 0:
+                    continue
+                left = x0 + round({"center": (block - w) / 2, "right": block - w}.get(align, 0))
+                base = y + ascent + k * pitch
+                if under:
+                    bars.append((left, base + max(1, round(size * 0.08)), round(w), thick))
+                if strike:
+                    bars.append((left, base - round(size * 0.3) - thick // 2, round(w), thick))
+        return "".join(f",drawbox=x={bx}:y={by}:w={max(1, bw)}:h={max(1, bh)}:"
+                       f"color={_hex(color)}:t=fill" for bx, by, bw, bh in bars)
+
+    def _plain(self, textfile, x, y, size, color, el=None, style=True):
         f = (f"drawtext=fontfile={self.font_for(el)}:textfile={textfile}:expansion=none:"
              f"fontsize={size}:fontcolor={_hex(color)}:x={round(x * self.sx)}:y={y}")
         f += self._dressing(el, style)
         if getattr(el, "line_spacing", 0):
             f += f":line_spacing={el.line_spacing}"
-        if getattr(el, "align", "left") != "left" and "\n" in getattr(el, "text", ""):
+        if (getattr(el, "align", "left") != "left"
+                and "\n" in self._read(os.path.join(self.work, textfile))):
             if tools.drawtext_option("text_align", self.ffmpeg):
                 f += f":text_align={'C' if el.align == 'center' else 'R'}"
             elif not self._align_warned:
@@ -404,13 +525,8 @@ class MenuBuilder:
         on the baseline drawtext would give the whole text, so a text
         looks the same with no spacing either way. (Characters drawn alone
         are not shaped together: scripts that join letters want neither.)"""
-        with open(os.path.join(self.work, textfile), encoding="utf-8") as fh:
-            text = fh.read()
-        fontname = self.font_for(el)
-        try:
-            font = fontfaces.font(self.face_path(el))
-        except (OSError, fontfaces.FontError) as e:
-            raise OncemoreError(f"cannot read the font for {text[:20]!r}: {e}")
+        text = self._read(os.path.join(self.work, textfile))
+        fontname, font = self.font_for(el), self._font_of(el, text)
         lines = text.split("\n")
         ascent, pitch = self._line_metrics(fontname, size, text, getattr(el, "line_spacing", 0))
         layouts = [font.offsets(line, size, getattr(el, "letter_spacing", 0),
@@ -493,7 +609,10 @@ class MenuBuilder:
         key = (name, text, el.x, el.y, el.size, getattr(el, "font", None),
                getattr(el, "align", None), getattr(el, "line_spacing", 0),
                getattr(el, "bold", False), getattr(el, "italic", False),
-               getattr(el, "letter_spacing", 0), getattr(el, "kerning", True))
+               getattr(el, "letter_spacing", 0), getattr(el, "kerning", True),
+               getattr(el, "width", None), getattr(el, "height", None),
+               getattr(el, "vertical", False), getattr(el, "underline", False),
+               getattr(el, "strikethrough", False))
         if key in self._glyphs:
             return self._glyphs[key]
         tf = self._textfile(f"{name}.txt", text)

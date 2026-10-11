@@ -694,6 +694,33 @@
           "type": "boolean",
           "default": true,
           "description": "Use the font's kerning pairs (false: every character at its own advance)."
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 720,
+          "description": "Lines broken to fit this many pixels across: at spaces, and between Japanese and Chinese characters, keeping closing brackets, stops and small kana off a line's start and opening brackets off its end."
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 576,
+          "description": "Vertical text: columns broken to fit this many pixels down, by the same rules."
+        },
+        "vertical": {
+          "type": "boolean",
+          "default": false,
+          "description": "Vertical text: each line a column, the first on the right, its characters one under the other; x and y are the block's top left."
+        },
+        "underline": {
+          "type": "boolean",
+          "default": false,
+          "description": "A line under each line of the text (beside each column, on its right, when vertical)."
+        },
+        "strikethrough": {
+          "type": "boolean",
+          "default": false,
+          "description": "A line through each line of the text."
         }
       }
     },

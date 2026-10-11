@@ -430,6 +430,11 @@ class Text:
     align: str = "left"        # lines of a paragraph: "left" | "center" | "right"
     line_spacing: int = 0      # pixels added between its lines
     page: int = 0              # menus with pages: the page it is on (0 = every page)
+    width: int = None          # lines broken to fit this many pixels across (§103)
+    height: int = None         # ... vertical text: columns broken to fit this many down
+    vertical: bool = False     # lines are columns, right to left
+    underline: bool = False
+    strikethrough: bool = False
 
 
 @dataclass
@@ -1123,6 +1128,9 @@ class _Builder:
         texts = [Text(text=t["text"], x=t["x"], y=t["y"], size=t.get("size", size),
                       color=t.get("color", tcolor), align=t.get("align", "left"),
                       line_spacing=t.get("line_spacing", 0), page=t.get("page", 0),
+                      width=t.get("width"), height=t.get("height"),
+                      vertical=bool(t.get("vertical")), underline=bool(t.get("underline")),
+                      strikethrough=bool(t.get("strikethrough")),
                       **self.style(f"{where}.texts[{j}]", t))
                  for j, t in enumerate(m.get("texts", []))]
         for j, b in enumerate(buttons):

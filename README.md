@@ -559,7 +559,16 @@ them, `frame` for image buttons) or `drawn`: the rectangle or ellipse in
 720-wide grid), which is then the whole highlight and the button's area.
 A text can be a paragraph: its `text` holds several lines (newlines), `align`
 lines them up (`left`, `center`, `right`; `x` is the paragraph's left edge)
-and `line_spacing` adds pixels between them.
+and `line_spacing` adds pixels between them. With `width` (pixels, on the
+720-wide grid) its lines are broken to fit that box: at spaces between words
+and between Japanese or Chinese characters, keeping stops, closing brackets,
+small kana and the long vowel mark off the start of a line and opening
+brackets off its end. `vertical: true` sets it in columns, the first on the
+right, its characters one under the other (`x`, `y` is the block's top left);
+punctuation and brackets take their vertical forms where the font has them,
+and `height` breaks the columns the same way. `underline` and
+`strikethrough` draw a line under (beside, when vertical) or through each
+line.
 A menu with `pages` (2 or more) shows its buttons, texts, rectangles and
 pictures with a `page` on that page only and the rest on every page; the
 actions `page:next`, `page:prev` and `page:<n>` turn the pages (next from the
