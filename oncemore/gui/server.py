@@ -28,6 +28,8 @@ API (all JSON unless noted):
   GET  /api/recent                   recently opened project folders
   GET  /api/dirs?path=ABS            the folders in a folder (folder chooser)
   POST /api/switch                   open another project folder (or make one)
+  GET  /api/settings                 this computer's settings (the media cache folder)
+  PUT  /api/settings                 choose the media cache folder (null: in the project)
   POST /api/save_as                  copy the project folder elsewhere and open it
   POST /api/export                   a frame, a menu or subtitles as a file in exports/
 """
@@ -54,7 +56,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 
 from .. import (__version__, build, burn, clips, encode, graph, png4, scaffold, simulate, slideshow,
-               subtitles, templates, tools, userstyles, usertemplates, web)
+               settings, subtitles, templates, tools, userstyles, usertemplates, web)
 from ..errors import OncemoreError, ProjectError
 from ..project import (PROJECT_FILENAME, build_project, clip_starts, parse_time, read_json,
                        source_at)
@@ -111,16 +113,7 @@ class Job:
         self.thread = None
 
 
-def config_dir():
-    """Where oncemore keeps what is not part of a project (the recent
-    projects list): ONCEMORE_CONFIG, else the platform's place for it."""
-    env = os.environ.get("ONCEMORE_CONFIG")
-    if env:
-        return env
-    if sys.platform == "darwin":
-        return os.path.expanduser("~/Library/Application Support/oncemore")
-    base = os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config")
-    return os.path.join(base, "oncemore")
+config_dir = settings.config_dir
 
 
 RECENT_KEEP = 10
@@ -382,7 +375,7 @@ class App:
     def proxy_path(self, full, fmt):
         key = f"{full}\0{os.path.getmtime(full)}\0{os.path.getsize(full)}\0{self.PROXY_HEIGHT}"
         name = hashlib.sha256(key.encode("utf-8", "surrogateescape")).hexdigest()[:24]
-        return os.path.join(self.dir, ".oncemore-cache", "proxy", f"{name}.{fmt}")
+        return os.path.join(settings.cache_dir(self.dir), "proxy", f"{name}.{fmt}")
 
     def proxy_status(self, full, fmt="mp4", start=False):
         if fmt not in self.PROXY_FORMATS:
@@ -620,6 +613,20 @@ class Handler(BaseHTTPRequestHandler):
             # (a page opened again while a build runs picks it up)
             "job": (lambda j: {"id": j.id, "kind": j.kind} if j else None)(self.app.running_job()),
         })
+
+    def api_get_settings(self, q):
+        self.json({"cache_dir": settings.load().get("cache_dir"),
+                   "env": bool(os.environ.get("ONCEMORE_CACHE")),
+                   "project_cache": settings.cache_dir(self.app.dir)})
+
+    def api_put_settings(self, q):
+        body = self.body_json()
+        if "cache_dir" in body:
+            path = body["cache_dir"]
+            if path is not None and not isinstance(path, str):
+                raise ValueError("cache_dir must be a string or null")
+            settings.set_cache_folder(path)
+        self.api_get_settings(q)
 
     def api_put_project(self, q):
         data = self.body_json().get("project")

@@ -11,7 +11,7 @@ import tempfile
 import threading
 
 from . import (author, bdmenu, bluray, captions, clips, encode, iso, layerbreak, lpcmfix, pgs,
-               slideshow, subtitles, tools, udf250, udfwriter, uops)
+               settings, slideshow, subtitles, tools, udf250, udfwriter, uops)
 from . import menu as menu_module
 from .errors import OncemoreError, ProjectError
 from .project import parse_action, retime_thumbs, title_fps
@@ -457,7 +457,7 @@ def title_cache_key(project, title, info, vbps, fast):
 
 
 def encode_cache_dir(project):
-    return os.path.join(project.base_dir, ".oncemore-cache", "encode")
+    return os.path.join(settings.cache_dir(project.base_dir), "encode")
 
 
 def encode_status(project, fast=False):
