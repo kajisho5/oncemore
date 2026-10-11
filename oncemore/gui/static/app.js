@@ -199,7 +199,7 @@ const I18N = {
     theme_dark: "Dark", theme_light: "Light",
     skin: "Skin", skin_modern: "Modern", skin_classic: "Classic", skin_hint: "Classic: the look of the classic disc authoring apps (mid-grey panels, light fields, amber timecode). The layout is the same.",
     // P48: the full menu bar
-    m_open_recent: "Open recent project", m_import_as: "Import as", m_transcode: "Transcode", m_render: "Render", m_build: "Build",
+    m_open_recent: "Open recent project", m_import_as: "Import as", m_transcode: "Transcode", m_render: "Render", m_build: "Build", m_export_subs: "Export subtitles",
     m_align: "Align", m_distribute: "Distribute", m_arrange: "Arrange", m_rotate: "Rotate", m_tools: "Tools", m_highlights: "Show highlights", m_workspace: "Workspace",
     cmd_new_project: "New project…", cmd_open_project: "Open project…", cmd_save: "Save", cmd_save_as: "Save as…",
     cmd_import_menu: "Menu…", cmd_import_timeline: "Timeline…", cmd_import_slideshow: "Slideshow…", cmd_import_popup: "Pop-up menu…",
@@ -215,7 +215,7 @@ const I18N = {
     cmd_default_button: "Set as default button", cmd_colour_set: "Edit menu colour set…", cmd_save_menu_file: "Save menu as file",
     cmd_set_first_play: "Set as first play",
     cmd_chapter_playlist: "New chapter playlist…", cmd_add_audio_track: "Add audio track…", cmd_add_subtitle_track: "Add subtitle track…",
-    cmd_import_subtitles: "Import subtitles…", cmd_export_subtitles: "Export subtitles as SubRip…", cmd_clear_chapters: "Clear all chapter points",
+    cmd_import_subtitles: "Import subtitles…", cmd_export_subtitles: "SubRip…", cmd_export_subtitles_script: "Text script…", cmd_clear_chapters: "Clear all chapter points",
     cmd_set_poster: "Set poster frame at playhead", cmd_save_frame: "Save frame as file",
     cmd_zoom_fit: "Fit in window", cmd_zoom_actual: "Actual size", cmd_snap: "Snap to objects and safe area",
     cmd_show_guides: "Show guides", cmd_lock_guides: "Lock guides", cmd_clear_guides: "Clear guides", cmd_new_guide: "New guide…",
@@ -237,7 +237,12 @@ const I18N = {
     id_taken: "That id is empty or already used.", export: "Export", exported_to: "Saved in the project folder:",
     rendering_n: "Rendering {i} of {n}: {t}…", rendered_n: "{n} slideshows rendered.", this_title: "this title",
     chapter_playlist_hint: "A playlist that plays the title's chapters one after another (each is an item you can reorder or remove).",
-    export_subs_hint: "Which track? It is saved as SubRip (.srt) in exports/.",
+    export_subs_hint: "Which track? It is saved in exports/.",
+    fmt_srt: "SubRip (.srt)", fmt_script: "Text script (.txt)", script_import: "Import subtitles (text script)",
+    script_hint: "A text script has a number, the start and end timecode and the text for each subtitle; its look comes from the subtitle style. Timecode hh;mm;ss;ff is NTSC drop frame.",
+    tc_absolute: "Absolute: the timecode is the title's", tc_relative: "Relative to", sub_offset: "Offset",
+    sub_offset_hint: "Taken off every subtitle's time: the start of the source's own timecode (e.g. 01;00;00;00)",
+    cmd_chapter_names: "Show chapter names", chapter_label: "Chapter {n}",
     confirm_clear_chapters: "Remove every chapter point after the start?",
     uops: "Remote keys turned off", uops_hint_title: "What the viewer cannot do while this title plays, e.g. skip a notice. Players follow it (DVD: user operations; Blu-ray: UO mask).",
     uops_hint_menu: "What the viewer cannot do while this menu shows.",
@@ -440,7 +445,7 @@ const I18N = {
     theme_dark: "ダーク", theme_light: "ライト",
     skin: "スキン", skin_modern: "モダン", skin_classic: "クラシック", skin_hint: "クラシック：昔ながらのディスクオーサリングアプリの見た目（中間グレーのパネル、明るい入力欄、琥珀色のタイムコード）。配置は同じです。",
     // P48: メニューバー
-    m_open_recent: "最近使用したプロジェクトを開く", m_import_as: "読み込み", m_transcode: "トランスコード", m_render: "レンダリング", m_build: "ビルド",
+    m_open_recent: "最近使用したプロジェクトを開く", m_import_as: "読み込み", m_transcode: "トランスコード", m_render: "レンダリング", m_build: "ビルド", m_export_subs: "字幕を書き出し",
     m_align: "整列", m_distribute: "分布", m_arrange: "重ね順", m_rotate: "回転", m_tools: "ツール", m_highlights: "ハイライトを表示", m_workspace: "ワークスペース",
     cmd_new_project: "新規プロジェクト…", cmd_open_project: "プロジェクトを開く…", cmd_save: "保存", cmd_save_as: "別名で保存…",
     cmd_import_menu: "メニュー…", cmd_import_timeline: "タイムライン…", cmd_import_slideshow: "スライドショー…", cmd_import_popup: "ポップアップメニュー…",
@@ -456,7 +461,7 @@ const I18N = {
     cmd_default_button: "デフォルトのボタンに設定", cmd_colour_set: "メニューカラーセットを編集…", cmd_save_menu_file: "メニューをファイルとして保存",
     cmd_set_first_play: "ファーストプレイに設定",
     cmd_chapter_playlist: "新規チャプタープレイリスト…", cmd_add_audio_track: "オーディオトラックを追加…", cmd_add_subtitle_track: "字幕トラックを追加…",
-    cmd_import_subtitles: "字幕を読み込み…", cmd_export_subtitles: "字幕を SubRip で書き出し…", cmd_clear_chapters: "すべてのチャプターポイントを消去",
+    cmd_import_subtitles: "字幕を読み込み…", cmd_export_subtitles: "SubRip…", cmd_export_subtitles_script: "テキストスクリプト…", cmd_clear_chapters: "すべてのチャプターポイントを消去",
     cmd_set_poster: "再生ヘッドの位置をポスターフレームに設定", cmd_save_frame: "フレームをファイルとして保存",
     cmd_zoom_fit: "ウインドウに合わせる", cmd_zoom_actual: "実際のサイズ", cmd_snap: "オブジェクトとセーフエリアにスナップ",
     cmd_show_guides: "ガイドを表示", cmd_lock_guides: "ガイドをロック", cmd_clear_guides: "ガイドを消去", cmd_new_guide: "新規ガイド…",
@@ -478,7 +483,12 @@ const I18N = {
     id_taken: "ID が空か、すでに使われています。", export: "書き出し", exported_to: "プロジェクトのフォルダーに保存しました：",
     rendering_n: "{n} 件中 {i} 件目をレンダリング中：{t}…", rendered_n: "{n} 件のスライドショーをレンダリングしました。", this_title: "このタイトル",
     chapter_playlist_hint: "タイトルのチャプターを順に再生するプレイリストです（各チャプターが項目になり、並べ替えや削除ができます）。",
-    export_subs_hint: "どのトラックを書き出しますか？ exports/ に SubRip（.srt）として保存します。",
+    export_subs_hint: "どのトラックを書き出しますか？ exports/ に保存します。",
+    fmt_srt: "SubRip（.srt）", fmt_script: "テキストスクリプト（.txt）", script_import: "字幕を読み込み（テキストスクリプト）",
+    script_hint: "テキストスクリプトは字幕ごとに番号・開始と終了のタイムコード・テキストを並べたファイルです。見た目は字幕スタイルに従います。タイムコード hh;mm;ss;ff は NTSC のドロップフレームです。",
+    tc_absolute: "絶対：タイムコードがそのままタイトルの時間", tc_relative: "相対：基準", sub_offset: "オフセット",
+    sub_offset_hint: "各字幕の時間から引く値：素材自身のタイムコードの開始（例 01;00;00;00）",
+    cmd_chapter_names: "チャプター名を表示", chapter_label: "チャプター {n}",
     confirm_clear_chapters: "先頭以外のチャプターポイントをすべて削除しますか？",
     uops: "無効にするリモコン操作", uops_hint_title: "このタイトルの再生中に視聴者ができない操作（注意書きを飛ばせないようにするなど）。プレーヤーはこれに従います（DVD：ユーザー操作、Blu-ray：UO マスク）。",
     uops_hint_menu: "このメニューの表示中に視聴者ができない操作。",
@@ -1440,9 +1450,9 @@ async function renderSubEditor(ti, playhead, seek) {
     <div class="row">${tracks.length ? selectHtml("subtrack", tracks.map((x, i) => [String(i), `${i + 1}: ${x.file.replace(/^media\//, "")}${x.lang ? " (" + x.lang + ")" : ""}`]), String(S.subTrack), 'id="sub-track"') : `<span class="hint">${esc(t("no_sub_tracks"))}</span>`}
       <button class="small shrink" id="sub-new">${t("new_srt")}</button></div>`;
   if (!tracks.length) { box.innerHTML = head; bindNew(); return; }
-  const path = tracks[S.subTrack].file;
+  const path = tracks[S.subTrack].file, offset = tracks[S.subTrack].offset ?? "";
   let data;
-  try { data = await api("/api/subtitles?" + new URLSearchParams({ path })); }
+  try { data = await api("/api/subtitles?" + new URLSearchParams({ path, offset })); }
   catch (e) { box.innerHTML = head + `<div class="hint">${esc(e.message)}</div>`; bindNew(); return; }
   const cues = data.cues;
   box.innerHTML = head + (data.editable ? "" : `<div class="hint">${esc(t("sub_readonly"))} <button class="small" id="sub-convert">${t("convert_srt")}</button></div>`) +
@@ -1471,7 +1481,8 @@ async function renderSubEditor(ti, playhead, seek) {
       const name = path.replace(/\.[^.]+$/, "") + ".srt";
       await api("/api/subtitles?" + new URLSearchParams({ path: name }), { method: "PUT", body: { cues } });
       await refreshMedia();
-      commit((p) => { p.titles.find((x) => x.id === ti.id).subtitles[S.subTrack].file = name; });
+      // (written as the title shows them: the offset is in the times now)
+      commit((p) => { const st = p.titles.find((x) => x.id === ti.id).subtitles[S.subTrack]; st.file = name; delete st.offset; });
     };
   }
   $("#sub-track").onchange = (e) => { S.subTrack = Number(e.target.value); renderSubEditor(ti, playhead, seek); };
@@ -1843,7 +1854,9 @@ function renderTitleInspector(el) {
         <div class="row" style="margin:0 0 10px" data-sub="${i}" data-nobind>
         ${selectHtml("position", [["bottom", t("sub_bottom")], ["top", t("sub_top")]], s.position || "bottom", 'class="shrink" style="width:90px"')}
         <label class="shrink"><input type="checkbox" data-k="has_color" ${s.color ? "checked" : ""}> ${t("sub_color")}</label>
-        <input type="color" class="shrink" style="width:44px" data-k="color" value="${esc(s.color || "#ffffff")}" ${s.color ? "" : "disabled"}></div>`).join("")}
+        <input type="color" class="shrink" style="width:44px" data-k="color" value="${esc(s.color || "#ffffff")}" ${s.color ? "" : "disabled"}></div>
+        <div class="row" style="margin:-6px 0 10px" data-sub="${i}" data-nobind><span class="shrink hint">${t("sub_offset")}</span>
+        <input class="mono" data-k="offset" value="${esc(s.offset ?? "")}" placeholder="0" title="${esc(t("sub_offset_hint"))}"></div>`).join("")}
     <button class="small" id="add-sub" ${mediaOf("subtitle").length ? "" : "disabled"}>${t("add_sub")}</button>
     <h3>${t("chapter_menu")}</h3>
     <label><input type="checkbox" id="cm-on" ${cm ? "checked" : ""}> ${t("chapter_menu_on")}</label>
@@ -3277,6 +3290,8 @@ async function renderTimeline() {
   const thumbW = 78, nThumb = Math.min(200, Math.ceil(width / thumbW));
   const thumbs = Array.from({ length: nThumb }, (_, k) => `<img src="${imgUrl("frame", { path: src, t: Math.min(dur - 0.05, (k + 0.5) * thumbW / pps).toFixed(2), w: 160 })}" style="width:${thumbW}px" alt="">`).join("");
   const entries = chapterEntries(ti);
+  // View > Show chapter names: in the time ruler, for this timeline
+  if ((S.chapterNames || {})[ti.id]) ticks.push(...entries.map((c, i) => `<span class="ch-name" style="left:${c.time * pps}px" title="${esc(fmtTime(c.time))}">${esc(c.name || t("chapter_label", { n: i + 1 }))}</span>`));
   const tracks = ti.audio_tracks && ti.audio_tracks.length ? ti.audio_tracks : [{}];
   // the sound drawn under its clip (the waveform is the length of the file)
   const wave = (path, stream, len) => `<img class="tl-wave" alt="" draggable="false" style="width:${len * pps}px" src="${imgUrl("waveform", { path, s: stream, w: Math.round(Math.min(4000, Math.max(64, len * pps))), h: 48 })}">`;
@@ -3322,7 +3337,7 @@ async function renderTimeline() {
   // subtitle cues as clips
   subs.forEach(async (s, k) => {
     let data;
-    try { data = await api("/api/subtitles?" + new URLSearchParams({ path: s.file })); } catch (e) { return; }
+    try { data = await api("/api/subtitles?" + new URLSearchParams({ path: s.file, offset: s.offset ?? "" })); } catch (e) { return; }
     const host = box.querySelector(`[data-subk="${k}"]`);
     if (!host) return;
     host.outerHTML = data.cues.map((c) => `<div class="tl-clip sub" data-cue="${c.start}" style="left:${c.start * pps}px;width:${Math.max(3, (c.end - c.start) * pps)}px" title="${esc(c.text)}">${esc(c.text.split("\n")[0])}</div>`).join("");
@@ -3812,8 +3827,9 @@ const COMMANDS = {
   chapter_playlist: { run: chapterPlaylistBox, when: () => hasProject() && (P().titles || []).some((x) => chaptersOf(x).length > 1) },
   add_audio_track: { run: addAudioTrackBox, when: () => inTitle() && !curTitle().clips && !curTitle().slideshow },
   add_subtitle_track: { run: addSubtitleTrackBox, when: () => inTitle() && mediaOf("subtitle").length > 0 },
-  import_subtitles: { run: () => pickUpload(".srt,.vtt,.ass,.ssa", false, ([path]) => addSubtitleTrack(curTitle().id, path)), when: inTitle },
-  export_subtitles: { run: exportSubtitlesBox, when: () => inTitle() && (curTitle().subtitles || []).length > 0 },
+  import_subtitles: { run: () => pickUpload(".srt,.vtt,.ass,.ssa,.txt", false, ([path]) => (/\.txt$/i.test(path) ? textScriptBox(curTitle().id, path) : addSubtitleTrack(curTitle().id, path))), when: inTitle },
+  export_subtitles: { run: () => exportSubtitlesBox("srt"), when: () => inTitle() && (curTitle().subtitles || []).length > 0 },
+  export_subtitles_script: { run: () => exportSubtitlesBox("script"), when: () => inTitle() && (curTitle().subtitles || []).length > 0 },
   add_chapter: { key: "*", run: () => $("#add-ch")?.click(), when: () => S.sel.view === "title" && !!$("#add-ch") },
   chapters_interval: { run: chaptersAtIntervals, when: () => inTitle() && !curTitle().slideshow && titleLength(curTitle()) > 0 },
   chapters_from_source: { run: chaptersFromSource, when: () => inTitle() && !curTitle().slideshow },
@@ -3823,6 +3839,8 @@ const COMMANDS = {
   prev_chapter: { key: "pageup", run: () => jumpChapter(-1), when: () => S.sel.view === "title" && !!S.titleSeek },
   next_chapter: { key: "pagedown", run: () => jumpChapter(1), when: () => S.sel.view === "title" && !!S.titleSeek },
   play: { key: "space", run: () => $("#play")?.click(), when: () => S.sel.view === "title" && !!$("#play") },
+  chapter_names: { run: () => { const id = S.tl && (S.sel.view === "title" ? S.sel.id : S.lastTitle); S.chapterNames = { ...S.chapterNames, [id]: !(S.chapterNames || {})[id] }; renderTimeline(); },
+    when: () => !!S.tl, on: () => !!(S.chapterNames || {})[S.sel.view === "title" ? S.sel.id : S.lastTitle] },
   // -- View
   zoom_in: { key: "+", run: () => zoomMenu(1), when: inMenu },
   zoom_out: { key: "-", run: () => zoomMenu(-1), when: inMenu },
@@ -3885,10 +3903,10 @@ const MENUBAR = [
   ["m_menu", ["new_menu", "chapter_index", "-", "add_button", "add_text", "add_rectangle", "add_picture", "-", "set_link", "default_button",
     "set_first_play", "-", "colour_set", "save_template", "save_menu_file", "-", ["m_tools", ["tool_select", "tool_rotate", "tool_text", "tool_zoom"]]]],
   ["m_timeline", ["new_timeline", "new_slideshow", "new_playlist", "chapter_playlist", "-", "add_audio_track", "add_subtitle_track",
-    "import_subtitles", "export_subtitles", "-", "add_chapter", "chapters_interval", "chapters_from_source", "clear_chapters", "set_poster", "-",
+    "import_subtitles", ["m_export_subs", ["export_subtitles", "export_subtitles_script"]], "-", "add_chapter", "chapters_interval", "chapters_from_source", "clear_chapters", "set_poster", "-",
     "save_frame", "-", "prev_chapter", "next_chapter", "play"]],
   ["m_view", ["zoom_in", "zoom_out", "zoom_fit", "zoom_actual", "-", "safe_area", "routing", "snap", "-",
-    "show_guides", "lock_guides", "clear_guides", "new_guide", "snap_guides", "-",
+    "show_guides", "lock_guides", "clear_guides", "new_guide", "snap_guides", "-", "chapter_names", "-",
     ["m_highlights", ["view_normal", "view_selected", "view_activated"]], "exact_preview"]],
   ["m_window", [["m_workspace", ["ws_author", "ws_flow", "ws_sim", "ws_build", "-", "reset_workspace"]], "-",
     "win_project", "win_menus", "win_timelines", "win_build", "win_monitor", "win_flowchart", "win_properties", "win_layers", "win_library", "-",
@@ -4256,8 +4274,25 @@ function addAudioTrackBox() {
     commit((p) => { const x = p.titles.find((y) => y.id === ti.id); x.audio_tracks = x.audio_tracks || [{}]; x.audio_tracks.push(tr); });
   };
 }
-function addSubtitleTrack(tid, file, lang) {
-  commit((p) => { const x = p.titles.find((y) => y.id === tid); (x.subtitles = x.subtitles || []).push(lang ? { file, lang } : { file }); });
+function addSubtitleTrack(tid, file, lang, offset) {
+  commit((p) => { const x = p.titles.find((y) => y.id === tid); (x.subtitles = x.subtitles || []).push({ file, ...(lang ? { lang } : {}), ...(offset ? { offset } : {}) }); });
+}
+// Timeline > Import subtitles, a text script: its language, and whether its
+// timecode is the title's (absolute) or counted from a start of its own
+function textScriptBox(tid, file) {
+  openModal(`<h2>${t("script_import")}</h2><div class="hint">${esc(t("script_hint"))}</div>
+    <label class="field"><span>${t("file")}</span><span>${esc(file.replace(/^media\//, ""))}</span></label>
+    <label class="field"><span>${t("language")}</span>${selectHtml("lang", LANGS, "", 'id="ts-lang"')}</label>
+    <label class="field"><span></span><label><input type="radio" name="tsmode" value="abs" checked> ${t("tc_absolute")}</label></label>
+    <label class="field"><span></span><span class="row"><label class="shrink"><input type="radio" name="tsmode" value="rel"> ${t("tc_relative")}</label>
+      <input id="ts-offset" class="mono" placeholder="${P().disc.standard === "PAL" ? "01:00:00:00" : "01;00;00;00"}" title="${esc(t("sub_offset_hint"))}"></span></label>
+    <div class="dlg-buttons"><span class="spacer"></span><button id="ts-ok" class="primary">OK</button></div>`);
+  $("#ts-offset").oninput = () => { $("input[name=tsmode][value=rel]").checked = true; };
+  $("#ts-ok").onclick = () => {
+    const rel = $("input[name=tsmode]:checked").value === "rel", off = $("#ts-offset").value.trim();
+    closeModal();
+    addSubtitleTrack(tid, file, $("#ts-lang").value, rel && off ? off : null);
+  };
 }
 function addSubtitleTrackBox() {
   const ti = curTitle();
@@ -4267,12 +4302,15 @@ function addSubtitleTrackBox() {
     <div class="dlg-buttons"><span class="spacer"></span><button id="st-ok" class="primary">OK</button></div>`);
   $("#st-ok").onclick = () => { const f = $("#st-file").value, l = $("#st-lang").value; closeModal(); addSubtitleTrack(ti.id, f, l); };
 }
-function exportSubtitlesBox() {
+// Timeline > Export subtitles ▸ SubRip / Text script: a track (asked for
+// when the title has several), timed as the title shows it
+function exportSubtitlesBox(format) {
   const subs = curTitle().subtitles;
-  if (subs.length === 1) return exportFile({ kind: "subtitles", path: subs[0].file });
-  openModal(`<h2>${t("cmd_export_subtitles")}</h2><div class="hint">${esc(t("export_subs_hint"))}</div>
+  const go = (s) => exportFile({ kind: "subtitles", path: s.file, offset: s.offset || "", format });
+  if (subs.length === 1) return go(subs[0]);
+  openModal(`<h2>${t("m_export_subs")}: ${t(format === "script" ? "fmt_script" : "fmt_srt")}</h2><div class="hint">${esc(t("export_subs_hint"))}</div>
     <div style="display:flex;flex-direction:column;gap:6px">${subs.map((s, i) => `<button data-exsub="${i}">${i + 1}. ${esc(s.file.replace(/^media\//, ""))}${s.lang ? ` (${esc(s.lang)})` : ""}</button>`).join("")}</div>`);
-  document.querySelectorAll("[data-exsub]").forEach((b) => (b.onclick = () => exportFile({ kind: "subtitles", path: subs[Number(b.dataset.exsub)].file })));
+  document.querySelectorAll("[data-exsub]").forEach((b) => (b.onclick = () => go(subs[Number(b.dataset.exsub)])));
 }
 // (links to its chapters then play the title; playlist items the whole title)
 function clearChapters() {

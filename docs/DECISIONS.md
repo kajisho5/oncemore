@@ -1238,3 +1238,26 @@ written that fails before the fix, and then the fix:
   the frame of a video still is not a design element, and its highlight
   frame stays with it.
 
+## 74. Subtitle text scripts
+
+* A text script (number, start and end timecode, text, more lines of text
+  after it) is used as a subtitle track as it is, like the other formats,
+  not converted on import: the file stays the one the subtitler delivered,
+  and a corrected script replaces it. The app's subtitle editor shows it
+  and converts it to SubRip when it is to be edited.
+* Its timecode is the disc's: `hh;mm;ss;ff` is always NTSC drop frame (the
+  semicolons say so); `hh:mm:ss:ff` counts frames of 30 on an NTSC disc and
+  25 on a PAL one. A time with milliseconds (`hh:mm:ss,mmm`) is read too,
+  since subtitle tools write that as well and it cannot be mistaken.
+* "Relative" timecode, a script timed against a source that starts at
+  01;00;00;00 and the like, is a track's `offset`, taken off every
+  subtitle when the disc is made, for every subtitle format. The file is
+  not rewritten, so its times still match the source's timecode sheet.
+  Converting such a track to SubRip writes the times as the title shows
+  them and drops the offset.
+* Exporting a text script writes NTSC drop-frame timecode on NTSC discs
+  (the semicolon form) and frames of 25 on PAL ones. A script has no
+  position or colour, so those are not written.
+* Show chapter names is a view setting of each open timeline, not part of
+  the project.
+

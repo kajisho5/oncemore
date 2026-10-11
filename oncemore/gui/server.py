@@ -56,7 +56,8 @@ from importlib import resources
 from .. import (__version__, build, burn, clips, encode, graph, png4, scaffold, simulate, slideshow,
                subtitles, templates, tools, usertemplates)
 from ..errors import OncemoreError, ProjectError
-from ..project import PROJECT_FILENAME, build_project, clip_starts, read_json, source_at
+from ..project import (PROJECT_FILENAME, build_project, clip_starts, parse_time, read_json,
+                       source_at)
 from ..report import Reporter
 
 MEDIA_EXT = {
@@ -64,7 +65,7 @@ MEDIA_EXT = {
               ".ts", ".webm", ".wmv", ".dv", ".vob", ".mxf"},
     "audio": {".wav", ".aif", ".aiff", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".ac3", ".opus"},
     "image": {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp"},
-    "subtitle": {".srt", ".vtt", ".ass", ".ssa"},
+    "subtitle": {".srt", ".vtt", ".ass", ".ssa", ".txt"},
     "font": {".ttf", ".otf", ".ttc"},
     "design": {".psd", ".psb"},
 }
@@ -689,10 +690,26 @@ class Handler(BaseHTTPRequestHandler):
             raise FileNotFoundError(full)
         return full
 
+    def _standard(self):
+        data = self.app.load() or {}
+        return (data.get("disc") or {}).get("standard", "NTSC")
+
+    def _subtitle_cues(self, full, offset=""):
+        """A file's cues as the disc shows them: a text script's timecodes
+        read in the disc's standard, the track's offset taken off."""
+        standard = self._standard()
+        cues = subtitles.load_subtitles(full, standard)
+        off = str(offset or "").strip()
+        if off:
+            off = (subtitles.timecode_seconds(off, standard) if subtitles.TIMECODE.match(off)
+                   else parse_time(off))
+        return subtitles.shifted(cues, off or 0), bool(off)
+
     def api_get_subtitles(self, q):
         full = self._subtitle_path(q)
-        cues = subtitles.load_subtitles(full)
-        self.json({"editable": full.lower().endswith(".srt"),
+        cues, shifted = self._subtitle_cues(full, q.get("offset"))
+        # (only SubRip files are written, and only as they are timed)
+        self.json({"editable": full.lower().endswith(".srt") and not shifted,
                    "cues": [{"start": c.start, "end": c.end, "text": "\n".join(c.lines),
                              "position": c.position, "color": c.color} for c in cues]})
 
@@ -1220,11 +1237,15 @@ class Handler(BaseHTTPRequestHandler):
             finally:
                 shutil.rmtree(work, ignore_errors=True)
         elif kind == "subtitles":
+            # SubRip, or a text script (number, timecodes in the disc's standard, text)
             src = self._subtitle_path({"path": body.get("path")})
-            cues = subtitles.load_subtitles(src)
-            out = self._export_path(os.path.splitext(os.path.basename(src))[0] + ".srt")
+            cues, _ = self._subtitle_cues(src, body.get("offset"))
+            script = body.get("format") == "script"
+            stem = os.path.splitext(os.path.basename(src))[0]
+            out = self._export_path(stem + (".txt" if script else ".srt"))
             with open(out, "w", encoding="utf-8") as f:
-                f.write(subtitles.to_srt(cues))
+                f.write(subtitles.to_text_script(cues, self._standard()) if script
+                        else subtitles.to_srt(cues))
         else:
             raise ValueError("kind must be frame, menu or subtitles")
         self.json({"path": self.app.rel(out), "media": self.app.media()})

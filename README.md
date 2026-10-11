@@ -189,8 +189,9 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   menus, renames, edits originals; Object aligns (one object: to the safe
   area), distributes, arranges and adds a drop shadow or stroke; Menu adds
   objects, sets the default button and the colour set and saves the menu as
-  a picture; Timeline adds audio and subtitle tracks, exports subtitles as
-  SubRip, sets poster frames and saves frames (exports go to `exports/`).
+  a picture; Timeline adds audio and subtitle tracks, imports text scripts
+  (absolute or relative timecode), exports subtitles as SubRip or a text
+  script, sets poster frames and saves frames (exports go to `exports/`).
   Right-click a title, menu or
   playlist (open, duplicate, move, play first, transcode, delete), a file in
   *Media* or an element on the menu. Shortcuts: ⌘N / ⌘O / ⌘S / ⇧⌘S new,
@@ -629,8 +630,13 @@ differs from the frame; `fill` fills the frame and crops the edges.
   is reported by `validate`.
 * Stream *n* has one language for the whole disc (DVD stores stream attributes
   per titleset), so `lang` must agree between titles.
-* Subtitles are SubRip (`.srt`), WebVTT (`.vtt`) or ASS / SSA (`.ass`, `.ssa`),
-  UTF-8 or Shift_JIS. Each cue is drawn with the menu font (white with an
+* Subtitles are SubRip (`.srt`), WebVTT (`.vtt`), ASS / SSA (`.ass`, `.ssa`) or
+  a text script (`.txt`: on each subtitle's first line its number, start and
+  end timecode and text, more lines of text after it; `hh;mm;ss;ff` is NTSC
+  drop frame, `hh:mm:ss:ff` counts the disc standard's frames), UTF-8 or
+  Shift_JIS. A track's `"offset"` (seconds, `"HH:MM:SS"` or a timecode such as
+  `"01;00;00;00"`) is taken off every subtitle's time, for a file timed
+  against a source's own timecode. Each cue is drawn with the menu font (white with an
   outline, see `disc.subtitle_style`), reduced to a 4-colour DVD subpicture and
   muxed with spumux; overlapping cues are shortened.
 * Placement and colour: a track's `"position": "top"` and `"color": "#FFFF00"`,

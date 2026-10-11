@@ -1482,6 +1482,50 @@ class TestGuiBrowser(unittest.TestCase):
             browser.close()
         self.assertEqual(errors, [])
 
+    def test_text_script_subtitles_and_chapter_names(self):
+        """Timeline > Import subtitles with a text script timed against
+        01;00;00;00, its cues on the timeline, Export subtitles as a text
+        script, and View > Show chapter names in the time ruler."""
+        self.s.call("/api/new", "POST", {"sample": True})
+        with open(os.path.join(self.dir, "media", "fr.txt"), "w", encoding="utf-8") as f:
+            f.write("1 01;00;01;00 01;00;02;15 Bonjour\n2 01;00;04;00 01;00;06;00 Au revoir\nencore\n")
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click(".nav-item[data-view=title][data-id=t1]", timeout=120000)
+            page.evaluate("textScriptBox('t1', 'media/fr.txt')")
+            page.select_option("#ts-lang", "fr")
+            page.fill("#ts-offset", "01;00;00;00")
+            page.click("#ts-ok")
+            self.poll(lambda: self.project()["titles"][0].get("subtitles") == [
+                {"file": "media/fr.txt", "lang": "fr", "offset": "01;00;00;00"}])
+            # on the timeline, where the title shows them
+            page.locator("#tl .tl-clip.sub").nth(1).wait_for()
+            self.assertEqual(page.locator("#tl .tl-clip.sub").first.get_attribute("title"), "Bonjour")
+            self.assertTrue(self.s.app.check(self.project())["valid"])
+            # exported as a text script, timed as the title is
+            cmd = lambda c: page.evaluate(f"window.oncemoreCommand('{c}')")  # noqa: E731
+            cmd("export_subtitles_script")                     # (one track: no question)
+            page.locator("#ex-reveal").wait_for()
+            with open(os.path.join(self.dir, "exports", "fr.txt"), encoding="utf-8") as f:
+                self.assertEqual(f.read(), "1\t00;00;01;00\t00;00;02;15\tBonjour\n"
+                                           "2\t00;00;04;00\t00;00;06;00\tAu revoir\nencore\n")
+            page.keyboard.press("Escape")
+            # chapter names in the ruler
+            self.assertEqual(page.locator("#tl-ruler .ch-name").count(), 0)
+            cmd("chapter_names")
+            names = page.locator("#tl-ruler .ch-name")
+            names.first.wait_for()
+            n = len(self.project()["titles"][0]["chapters"])
+            self.assertEqual(names.count(), n)
+            cmd("chapter_names")
+            self.assertEqual(page.locator("#tl-ruler .ch-name").count(), 0)
+            browser.close()
+        self.assertEqual(errors, [])
+
     def test_remote_keys_turned_off(self):
         """Properties > Remote keys turned off, for a title and a menu."""
         self.s.call("/api/new", "POST", {"sample": True})
