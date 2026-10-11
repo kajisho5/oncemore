@@ -34,6 +34,8 @@ PG_PID = 0x1200                # + subtitle track number
 IG_PID = 0x1400                # a menu's buttons (Interactive Graphics)
 LAST_MENU_REG = 1              # GPR: title number of the menu shown last
 ENTRY_REG = 2                  # GPR: button a link highlights in the menu it opens (0 = none)
+LOOP_REG = 3                   # GPR: times the current menu has played (menus with a loop count)
+OVERRIDE_REG = 4               # GPR: end-action override k of the playing title (0 = none)
 PMT_PID = 0x0100
 VERSION = b"0200"
 
@@ -374,6 +376,16 @@ def set_button(button=None, reg=None):
     return _cmd(0x51, 0xC0, 0x80000000 | button, 0, 0x03)
 
 
+def add(reg, value):
+    """Add <value> to general register <reg>."""
+    return _cmd(0x50, 0x40, reg, value, 0x03)
+
+
+def if_at_least(reg, value):
+    """Compare: the next command runs only if general register `reg` >= value."""
+    return _cmd(0x48, 0x40, reg, value, b2=0x04)
+
+
 def if_equal(reg, value):
     """Compare: the next command runs only if general register `reg` == value."""
     return _cmd(0x48, 0x40, reg, value, b2=0x02)
@@ -429,7 +441,8 @@ def mpls(items, marks):
     audio, pg, ig, still)] played one after the other, times in 45 kHz on
     each clip's time line, audio [(coding, channels, lang3)], pg [lang3]
     (subtitles), ig: the clip carries menu buttons, still: 2 holds the
-    last picture (a still menu); marks: chapter marks as (item index, time)."""
+    last picture (a still menu), (1, s) holds it for s seconds; marks:
+    chapter marks as (item index, time)."""
     app = _u32(14) + bytes([0, 1]) + _u16(0) + bytes(8) + _u16(0)
     body = b""
     for clip, in_time, out_time, video_format, frame_rate, audio, pg, ig, still in items:
@@ -445,9 +458,11 @@ def mpls(items, marks):
         if ig:
             entry = _u8(1) + _u16(IG_PID) + bytes(6)
             stn += _u8(len(entry)) + entry + _u8(5) + _pg_attr("und", CODING_IG)
+        still_mode, still_time = still if isinstance(still, tuple) else (still, 0)
         # connection_condition 1: the clips are not seamless; STC id 0
         item = clip.encode("ascii") + b"M2TS" + _u16(1) + _u8(0) + _u32(in_time) + \
-            _u32(out_time) + bytes(8) + _u8(0) + _u8(still) + _u16(0) + _u16(len(stn)) + stn
+            _u32(out_time) + bytes(8) + _u8(0) + _u8(still_mode) + _u16(still_time) + \
+            _u16(len(stn)) + stn
         body += _u16(len(item)) + item
     playlist = _u16(0) + _u16(len(items)) + _u16(0) + body
     playlist = _u32(len(playlist)) + playlist
@@ -545,7 +560,7 @@ class Piece:
     marks: list           # chapter starts, 45 kHz on the clip's time line
     end: int              # end of the clip, 45 kHz
     ig: bool = False      # a menu: the clip carries its buttons
-    still: int = 0        # 2: hold the last picture (a still menu)
+    still: object = 0     # 2: hold the last picture (a still menu); (1, s): for s seconds
 
     def item(self, first=1, last=None):
         """PlayItem covering chapters first..last (1-based, inclusive)."""
@@ -613,8 +628,23 @@ class Nav:
         if audio or sub is not None:
             cmds.append(set_streams(audio, sub))
         if kind not in ("audio", "subtitle"):
+            if b.override:
+                # the title's object takes the override when it ends (_ends)
+                cmds.append(move(OVERRIDE_REG, self.project.overrides.index(b.override) + 1))
+            elif self.project.overrides and kind in ("title", "chapter", "playlist", "playall"):
+                cmds.append(move(OVERRIDE_REG, 0))
             cmds += self.go(b.action)
         return cmds
+
+    def _ends(self, end):
+        """A title's commands after it played: an override a button set, else
+        `end`. Overrides are objects of their own after the chapter ones."""
+        p = self.project
+        first = len(self.titles) + 2 + len(self.chapter_objects)
+        out = []
+        for k in range(1, len(p.overrides) + 1):
+            out += [if_equal(OVERRIDE_REG, k), jump_object(first + k - 1)]
+        return out + self.go(end)
 
     def _entry(self, menu):
         """For a menu that links open on a particular button: select that
@@ -644,7 +674,19 @@ class Nav:
         for n, (kind, ident, end) in enumerate(self.titles, 1):
             if kind == "menu":
                 still, loop_mark = menus.get(ident, (True, 0))
-                cmds = self._entry(p.menu(ident)) + [move(LAST_MENU_REG, n), play_pl(n)]
+                m = p.menu(ident)
+                cmds = self._entry(m) + [move(LAST_MENU_REG, n)]
+                if m.loop is not None:
+                    # played m.loop times (a still one holds its picture for its
+                    # length each time), then its end action
+                    cmds += [move(LOOP_REG, 1), play_pl(n)]
+                    top = len(cmds)
+                    end = self.go(m.end_action)
+                    cmds += [if_at_least(LOOP_REG, m.loop), goto(top + 5), add(LOOP_REG, 1),
+                             play_pl_mark(n, loop_mark), goto(top)] + end
+                    out.append(cmds)
+                    continue
+                cmds.append(play_pl(n))
                 if not still:
                     cmds += [play_pl_mark(n, loop_mark), goto(len(cmds))]
                 out.append(cmds)
@@ -652,14 +694,17 @@ class Nav:
             first = p.title(ident) if kind == "title" else \
                 p.title(p.playlist(ident).items[0].title_id) if kind == "playlist" \
                 else p.titles[0]
-            out.append(self._start(first) + [play_pl(n)] + self.go(end))
+            ends = self._ends(end) if kind == "title" else self.go(end)
+            out.append(self._start(first) + [play_pl(n)] + ends)
         out.append(self.go(p.disc.first_play) or [jump_title(1)])
         top = p.disc.title_key or (f"menu:{p.menus[0].id}" if p.menus else None)
         out.append(self.go(top) or [jump_title(1)])
         for (tid, n), _ in sorted(self.chapter_objects.items(), key=lambda kv: kv[1]):
             t = p.title(tid)
             out.append(self._start(t) + [play_pl_mark(self.numbers[f"title:{tid}"], n - 1)] +
-                       self.go(t.end_action))
+                       self._ends(t.end_action))
+        for action in p.overrides:
+            out.append([move(OVERRIDE_REG, 0)] + self.go(action))
         return out
 
 
@@ -744,7 +789,8 @@ def write_bdmv(project, clips, out_dir, menus=None):
             marks.append(min((e[0] for e in scan.entries), key=lambda x: abs(x - want)) // 2)
         pieces[f"menu:{m.id}"] = Piece(name, video_format, frame_rate, audio, [], marks,
                                        scan.end_pts // 2, ig=True,
-                                       still=2 if info["still"] else 0)
+                                       still=((1, info["still_time"]) if info.get("still_time")
+                                              else 2) if info["still"] else 0)
         loops[m.id] = (info["still"], len(marks) - 1)
         _write(out_dir, os.path.join("CLIPINF", f"{name}.clpi"),
                clpi(scan, video_format, frame_rate, audio, (), ig=True))

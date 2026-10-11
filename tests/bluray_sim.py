@@ -141,6 +141,7 @@ def load_library():
         lib.bd_register_overlay_proc.argtypes = [P, P, OVERLAY_PROC]
         lib.bd_menu_call.restype = ctypes.c_int
         lib.bd_menu_call.argtypes = [P, ctypes.c_int64]
+        lib.bd_read_skip_still.restype, lib.bd_read_skip_still.argtypes = ctypes.c_int, [P]
         # (its notes about the end of the disc would fill the test output)
         lib.bd_set_debug_mask.argtypes = [u32]
         lib.bd_set_debug_mask(0)
@@ -253,6 +254,11 @@ class Disc:
                 out.append(("key", keys.pop(0)))
                 self.lib.bd_menu_call(self.bd, -1)
                 since = 0
+                continue
+            if ev.event == BD_EVENT_STILL_TIME and ev.param:
+                # a picture held for some seconds: let them pass at once
+                out.append(("still", ev.param))
+                self.lib.bd_read_skip_still(self.bd)
                 continue
             item = (names.get(ev.event), ev.param)
             # (the end of the last title is reported on every read after it)

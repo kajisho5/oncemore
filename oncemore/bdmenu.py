@@ -294,19 +294,17 @@ def encode_menu(project, menu, work, font, commands, max_bps, fast=False, on_pro
                       dur, os.path.join(work, "logs", f"menu-{menu.id}-bd.log"), on_progress,
                       cwd=mb.work, what=f"ffmpeg (menu {menu.id})")
     patch_ig_stream_type(m2ts)
-    return {"m2ts": m2ts, "still": still, "loop_point": menu.loop_point if not still else 0,
-            "audio": bool(music)}
+    out = {"m2ts": m2ts, "still": still, "loop_point": menu.loop_point if not still else 0,
+           "audio": bool(music)}
+    if still and menu.loop is not None:
+        # a still menu that times out: its picture is held for its length
+        out["still_time"] = max(1, min(65535, round(mb.menu_duration(menu))))
+    return out
 
 
 def unsupported(project):
     """What the Blu-ray menus leave out (reported as build warnings)."""
     out = []
-    for m in project.menus:
-        if m.loop is not None:
-            out.append(f"menu {m.id!r}: on Blu-ray it repeats until a button is pressed "
-                       "(no loop count or end action)")
-        if any(b.override for b in m.buttons):
-            out.append(f"menu {m.id!r}: end-action overrides are DVD-only")
     if any(t.remote_menu for t in project.titles):
         out.append("the Menu key during a title opens the top menu on Blu-ray "
                    "(no menu per title)")
