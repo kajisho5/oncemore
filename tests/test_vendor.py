@@ -1,21 +1,32 @@
 """The vendored vtskit: a verbatim copy of the package named in UPSTREAM,
 with its licence beside it."""
 
+import hashlib
+import importlib.util
+import io
 import os
 import re
+import shutil
+import tempfile
 import unittest
+import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VENDOR = os.path.join(ROOT, "oncemore", "_vendor", "vtskit")
 
 
 class TestVendoredVtskit(unittest.TestCase):
-    def test_upstream_names_a_commit(self):
+    def test_upstream_names_a_commit_or_a_release(self):
         with open(os.path.join(VENDOR, "UPSTREAM"), encoding="utf-8") as f:
             text = f.read()
         self.assertIn("https://github.com/kajisho5/vtskit", text)
-        self.assertRegex(text, r"copied from commit [0-9a-f]{40}\b")
+        self.assertRegex(text, r"copied from (commit [0-9a-f]{40}\b|PyPI vtskit (\S+) \(vtskit-\2-\S+\.whl, "
+                               r"sha256 [0-9a-f]{64}\))")
         self.assertTrue(os.path.isfile(os.path.join(VENDOR, "COPYING.LESSER")))
+        m = re.search(r"PyPI vtskit (\S+) ", text)
+        if m:                                  # (the copy is that release)
+            from oncemore._vendor.vtskit import __version__
+            self.assertEqual(__version__, m[1])
 
     def test_package_only(self):
         names = sorted(n for n in os.listdir(VENDOR) if n != "__pycache__")
@@ -29,3 +40,50 @@ class TestVendoredVtskit(unittest.TestCase):
     def test_version_module(self):
         from oncemore._vendor.vtskit import __version__
         self.assertRegex(__version__, r"^\d+\.\d+\.\d+$")
+
+
+def load_tool():
+    spec = importlib.util.spec_from_file_location("vendor_vtskit", os.path.join(ROOT, "tools", "vendor_vtskit.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def wheel(files):
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        for name, text in files.items():
+            z.writestr(name, text)
+    return buf.getvalue()
+
+
+class TestFromWheel(unittest.TestCase):
+    """tools/vendor_vtskit.py --pypi, on a wheel made here (no network)."""
+
+    def setUp(self):
+        self.tool = load_tool()
+        self.dir = tempfile.mkdtemp(prefix="oncemore-vendor-")
+        self.addCleanup(shutil.rmtree, self.dir, True)
+        with open(os.path.join(self.dir, "old.py"), "w") as f:
+            f.write("# a module the new release no longer has\n")
+
+    def test_copied_with_its_digest(self):
+        data = wheel({"vtskit/__init__.py": '__version__ = "9.8.7"\nfrom .ifo import x\n',
+                      "vtskit/ifo.py": "x = 1\n", "vtskit/tests/test_x.py": "",
+                      "vtskit-9.8.7.dist-info/licenses/COPYING.LESSER": "LGPL\n",
+                      "vtskit-9.8.7.dist-info/METADATA": "Name: vtskit\n"})
+        self.tool.from_wheel(data, "9.8.7", "vtskit-9.8.7-py3-none-any.whl", self.dir)
+        self.assertEqual(sorted(os.listdir(self.dir)), ["COPYING.LESSER", "UPSTREAM", "__init__.py", "ifo.py"])
+        with open(os.path.join(self.dir, "UPSTREAM")) as f:
+            self.assertIn(f"copied from PyPI vtskit 9.8.7 (vtskit-9.8.7-py3-none-any.whl, "
+                          f"sha256 {hashlib.sha256(data).hexdigest()})", f.read())
+
+    def test_refused(self):
+        good = {"vtskit/__init__.py": '__version__ = "1.0.0"\n',
+                "vtskit-1.0.0.dist-info/licenses/COPYING.LESSER": "LGPL\n"}
+        with self.assertRaises(SystemExit):          # not the version asked for
+            self.tool.from_wheel(wheel(good), "1.0.1", "w.whl", self.dir)
+        with self.assertRaises(SystemExit):          # no licence
+            self.tool.from_wheel(wheel({"vtskit/__init__.py": '__version__ = "1.0.0"\n'}), "1.0.0", "w.whl",
+                                 self.dir)
+        self.assertEqual(os.listdir(self.dir), ["old.py"])   # (nothing touched)

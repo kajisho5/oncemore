@@ -1925,3 +1925,22 @@ routing", and the keyboard tables):
     alternates about 2 and 0.02 there; the test asks for more than 0.3);
   * the subtitles' composition is 1280×720;
   * libbluray reads the codes as 720p 59.94.
+
+## 105. vtskit copied from its PyPI release
+
+vtskit is on PyPI (0.1.0). `tools/vendor_vtskit.py --pypi <version>` (or
+`--pypi` alone for the latest) now updates `oncemore/_vendor/vtskit` from the
+release's wheel, without a checkout of vtskit: the wheel's SHA-256 must be
+the one PyPI publishes, `__version__` inside it must be the version asked
+for, and only `vtskit/*.py` and `COPYING.LESSER` are taken. `UPSTREAM` then
+names the version, the wheel and its digest instead of a commit. Copying
+from a checkout stays for work not yet released.
+
+oncemore keeps a copy rather than depending on the package: it installs
+with no dependencies, the Mac app carries one Python tree, and a disc
+built today is built by the same vtskit tomorrow.
+
+The copy was refreshed from PyPI 0.1.0; its modules and licence are
+byte-for-byte those of commit f2098cd, which it replaced, so only
+`UPSTREAM` changed. `tests/test_vendor.py` reads either form of `UPSTREAM`
+and checks `--pypi` on a wheel made in the test (no network).
