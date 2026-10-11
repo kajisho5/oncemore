@@ -430,11 +430,9 @@ against their published help, not from memory)
 - [ ] Crop and adjust a menu's pictures: crop, brightness, contrast
 - [ ] Masks for button thumbnails (the shape of a frame, a circle)
 - [ ] A flicker filter for menus on interlaced TVs (thin horizontal lines)
-- [ ] Operation as the classic apps' help lists it, part 4 (parts 1–3:
-  DECISIONS §96–98): handles on text and buttons (scaling the type);
-  reorder slides, clips and lists by drag; a Library panel of templates and
-  parts to drag in (Alt: replace the selected item); selecting words, lines
-  and paragraphs by clicking 2–5 times in a text
+- [ ] Operation as the classic apps' help lists it, part 5 (parts 1–4:
+  DECISIONS §96–99): a Library panel of templates and parts to drag onto a
+  menu (Alt: replace the selected item)
 
 **Still missing after reading the classic app's whole manual** (184
 pages, read page by page against the code; most important first)

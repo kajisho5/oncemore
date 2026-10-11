@@ -1866,3 +1866,26 @@ routing", and the keyboard tables):
 * `tests/test_encore_flow.py`, `tests/test_encore_keys.py` and
   `test_encore_drag` (routing arrow, text in place) check these in a
   browser.
+
+## 99. Reordering by drag, and handles on text and buttons (4)
+
+* **Reordering by drag**: a slideshow's slides, a timeline's clips, a
+  playlist's items and a menu's layers can be dragged to a new place in
+  their list, as in the classic apps' panels. ▲ / ▼ stay.
+  * A row is grabbed by a part that is not a field or a button.
+  * It lands at the place of the row nearest the pointer. Slides are a grid,
+    so this works across as well as down.
+  * The click that ends a drag does not also choose the row.
+  * Layers move only among their own kind. Their order is the stacking
+    order, and for buttons the order of the button numbers.
+* **Handles on text and buttons**: a single selected text or button has
+  four corner handles. Dragging one scales the object with its
+  proportions: a text's or a word button's type size follows, and a picture
+  button's width follows. The opposite corner stays put, or with Alt the
+  centre does. Rectangles and pictures keep their eight handles (§97).
+* **Selecting in a text**: while typing in place (§98), double-click
+  selects a word and triple-click a paragraph, as the page does natively.
+  The help's four and five clicks (paragraph, all) are not added: ⌘A / Ctrl+A
+  selects all the text.
+* `tests/test_encore_reorder.py` and `test_encore_drag.test_type_handles`
+  check these in a browser.
