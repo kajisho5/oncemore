@@ -368,7 +368,9 @@ class TestGuiApi(unittest.TestCase):
         result = r["events"][-1]
         self.assertEqual(result["event"], "result")
         out = os.path.join(self.dir, "output", "SAMPLE_DISC_web")
-        self.assertEqual(result["index"], os.path.join(out, "index.html"))
+        # (macOS: the temporary folder is behind a symlink, /var -> /private/var)
+        self.assertEqual(os.path.realpath(result["index"]),
+                         os.path.realpath(os.path.join(out, "index.html")))
         for name in ("index.html", "disc.js", "titles/t1.mp4", "titles/t2.mp4", "menus/main.png"):
             self.assertTrue(os.path.isfile(os.path.join(out, name)), name)
 
