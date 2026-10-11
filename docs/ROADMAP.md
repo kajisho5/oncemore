@@ -406,10 +406,10 @@ against their published help, not from memory)
   the web version (DVD keeps the order, as the classic apps did) (P65)
 - [x] Slideshows of more than 99 pictures (the rest in the last chapter on
   DVD; up to 999 on Blu-ray) (P66)
-- [ ] Text: letter spacing, kerning, bold and italic (of fonts that have
-  those faces)
-- [ ] Highlights: make a button's highlight layer from its own pixels or a
-  shape in the editor, and replace it with another picture
+- [x] Text: letter spacing, kerning, bold and italic (of fonts that have
+  those faces) (P70)
+- [x] Highlights: make a button's highlight layer from its own pixels or a
+  shape in the editor, and replace it with another picture (P71)
 - [ ] Replace a menu's background and layout with a template, keeping its
   buttons' links
 - [x] Media cache in a folder of your choosing (Preferences) (P68)
@@ -418,9 +418,9 @@ against their published help, not from memory)
 
 **Beyond the classic apps**
 
-- [ ] Check for Updates (Help): says which version this is and opens the
+- [x] Check for Updates (Help): says which version this is and opens the
   releases page in the browser. oncemore itself makes no connection (no
-  network access is one of its promises), so it does not look by itself
+  network access is one of its promises), so it does not look by itself (P63)
 - [x] Chapters from the picture: suggested chapter points where the scene
   changes (P69: Timeline > Add chapter points at scene changes, `oncemore
   scenes`)

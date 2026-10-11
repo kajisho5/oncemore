@@ -348,6 +348,10 @@ table.clips td.act { white-space: nowrap; }
   #p-right { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--line); max-height: 45vh; }
 }
 .stage .el.button img.area { outline: 1px dashed rgba(255,255,255,.5); }
+.stage .hl-area { position: absolute; box-sizing: border-box; border: 1px dashed rgba(255,255,255,.6); pointer-events: none; }
+.stage .hl-area.ellipse { border-radius: 50%; }
+.stage .hl-area.on { pointer-events: auto; cursor: move; border-color: var(--focus); }
+.stage .hl-grip { position: absolute; right: -5px; bottom: -5px; width: 9px; height: 9px; background: var(--focus); cursor: nwse-resize; }
 
 /* menu bar and pop-up menus (menu bar, right-click) */
 .menubar { display: flex; gap: 0; margin-left: var(--sp-3); }

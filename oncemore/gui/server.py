@@ -29,6 +29,7 @@ API (all JSON unless noted):
   GET  /api/recent                   recently opened project folders
   GET  /api/dirs?path=ABS            the folders in a folder (folder chooser)
   POST /api/switch                   open another project folder (or make one)
+  GET  /api/font_faces?path=REL      the faces of a font's family (bold, italic)
   GET  /api/settings                 this computer's settings (the media cache folder)
   PUT  /api/settings                 choose the media cache folder (null: in the project)
   POST /api/save_as                  copy the project folder elsewhere and open it
@@ -612,6 +613,38 @@ class Handler(BaseHTTPRequestHandler):
             # (a page opened again while a build runs picks it up)
             "job": (lambda j: {"id": j.id, "kind": j.kind} if j else None)(self.app.running_job()),
         })
+
+    def api_get_font_faces(self, q):
+        """Which faces the family of a font has (none given: the disc's
+        font), and, for those in the project folder, where they are."""
+        from .. import fontfaces
+        from ..menu import find_font
+        rel = q.get("path")
+        if rel:
+            full = self.app.resolve(rel)
+        else:
+            disc = (self.app.load().get("disc") or {})
+            font = disc.get("font")
+            try:
+                full = self.app.resolve(font) if font else find_font(None, "Ag")
+            except OncemoreError:
+                self.json({"family": None, "faces": {}})
+                return
+        try:
+            found = fontfaces.faces(full)
+            family = fontfaces.font(full).family
+        except (OSError, fontfaces.FontError) as e:
+            raise ValueError(f"cannot read the font: {e}")
+        inside = self.app.dir + os.sep
+        names = {(False, False): "regular", (True, False): "bold", (False, True): "italic",
+                 (True, True): "bold_italic"}
+        faces = {}
+        for key, name in names.items():
+            path = found.get(key)
+            if path:
+                real = os.path.realpath(path)
+                faces[name] = {"path": self.app.rel(real) if real.startswith(inside) else None}
+        self.json({"family": family, "faces": faces})
 
     def api_get_settings(self, q):
         self.json({"cache_dir": settings.load().get("cache_dir"),
