@@ -36,7 +36,9 @@ def until(page, expr, seconds=60):
 
 class Temp(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.mkdtemp(prefix="oncemore-settings-")
+        # (resolved: on macOS the temporary folder is behind the /var -> /private/var
+        # link, and the editor reports the project folder resolved)
+        self.tmp = os.path.realpath(tempfile.mkdtemp(prefix="oncemore-settings-"))
         self.addCleanup(shutil.rmtree, self.tmp, True)
         env = {"ONCEMORE_CONFIG": os.path.join(self.tmp, "config")}
         self.env = mock.patch.dict(os.environ, env)
