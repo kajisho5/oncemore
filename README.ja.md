@@ -286,6 +286,23 @@ Claude Desktop（`claude_desktop_config.json`）などの MCP クライアント
 接続したアシスタントを通す以外に、データがパソコンの外に出ることはありません。プロトコルは
 2026-07-28 版と、`initialize` で始まるそれ以前の版の両方に対応します。
 
+### ffmpeg-skill と一緒に：動画の下ごしらえも任せる
+
+oncemore は渡された動画からディスクを作り、動画そのものの編集はしません。素材の準備まで
+アシスタントに任せるなら、[ffmpeg-skill](https://github.com/kajisho5/ffmpeg-skill)
+（ローカルの FFmpeg で動作。クラウドも API キーも不要）を一緒に入れておくと便利です：
+
+```
+npx ffmpeg-skill        # Claude Code 用。Cursor・Codex は --cursor・--codex、すべては --all
+```
+
+これで「このスマホ動画の頭を切って、音量を揃えて、チャプターメニュー付きの DVD にして」のように
+一度に頼めます。ffmpeg-skill がカット（`cut.py`・`silence.py`）、スマホの HDR 動画の SDR 化
+（`color.py --to-sdr`）、音量の統一（`loudness.py`、EBU R128）、字幕ファイル作り（`caption.py`）を行い、
+oncemore がその結果にメニューを付けてディスクを作ります。最終的なエンコードは oncemore に任せてください
+（DVD・Blu-ray の規格に合わせてエンコードします）。2 つが互いを呼ぶことはなく、アシスタントが両方を使います。
+oncemore は標準ライブラリだけ・オフラインのままです。
+
 ## プロジェクトファイル
 
 入力は `project.oncemore.json` だけです。JSON Schema：
