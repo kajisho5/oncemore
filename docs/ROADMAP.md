@@ -245,6 +245,12 @@ browser) and lands only with green CI.
   its link (menu, title, chapter, playlist, play all), on DVD and Blu-ray;
   drawn in the flowchart, played in the simulator
 
+**P60 — My styles** (done)
+- [x] Library > My styles: the look of a text, button or shape (font,
+  size, colour, outline, shadow) saved under a name with its font, for
+  any menu of any project; applied to the selection (a shape takes the
+  colour), deleted from the library
+
 **P59 — Closed captions** (done)
 - [x] `titles[].captions`: line-21 captions (CEA-608) on NTSC DVDs, from a
   Scenarist .scc file or any subtitle file (pop-on), in the video's GOP

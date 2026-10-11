@@ -54,7 +54,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 
 from .. import (__version__, build, burn, clips, encode, graph, png4, scaffold, simulate, slideshow,
-               subtitles, templates, tools, usertemplates, web)
+               subtitles, templates, tools, userstyles, usertemplates, web)
 from ..errors import OncemoreError, ProjectError
 from ..project import (PROJECT_FILENAME, build_project, clip_starts, parse_time, read_json,
                        source_at)
@@ -944,6 +944,23 @@ class Handler(BaseHTTPRequestHandler):
     def api_post_delete_template(self, q):
         usertemplates.delete(self.body_json().get("template"))
         self.json({"templates": usertemplates.list_templates()})
+
+    # -- the user's own styles (Library > My styles) ------------------------------
+    def api_get_user_styles(self, q):
+        self.json({"styles": userstyles.list_styles(), "folder": userstyles.library()})
+
+    def api_post_save_style(self, q):
+        body = self.body_json()
+        sid = userstyles.save(body.get("props"), body.get("name"), self.app.dir)
+        self.json({"id": sid, "styles": userstyles.list_styles()})
+
+    def api_post_apply_style(self, q):
+        props = userstyles.apply(self.body_json().get("style"), self.app.dir)
+        self.json({"props": props, "media": self.app.media()})
+
+    def api_post_delete_style(self, q):
+        userstyles.delete(self.body_json().get("style"))
+        self.json({"styles": userstyles.list_styles()})
 
     def api_post_proxy(self, q):
         full = self.app.resolve(q.get("path"))

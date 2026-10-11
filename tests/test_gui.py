@@ -2590,6 +2590,32 @@ class TestGuiBrowser(unittest.TestCase):
             self.assertEqual(errors, [])
             browser.close()
 
+    def test_my_styles(self):
+        """Library > My styles: the look of a text saved, then given to a
+        button."""
+        lib = os.path.join(self.dir, "..", os.path.basename(self.dir) + "-styles")
+        self.addCleanup(shutil.rmtree, lib, True)
+        self.s.call("/api/new", "POST", {"sample": True})
+        with mock.patch.dict(os.environ, {"ONCEMORE_STYLES": lib}), sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1440, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.on("dialog", lambda d: d.accept("Big title"))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click(".nav-item[data-view=menu][data-id=main]", timeout=120000)
+            page.locator(".stage .el.text").first.click()
+            page.evaluate("window.oncemoreCommand('win_library')")
+            page.click("#save-style")
+            page.locator("#library [data-ustyle=big_title]").wait_for(timeout=30000)
+            text = self.project()["menus"][0]["texts"][0]
+            page.locator(".stage .el.button").first.click()
+            page.click("#library [data-ustyle=big_title]")
+            self.poll(lambda: self.project()["menus"][0]["buttons"][0].get("size") == text["size"])
+            self.assertTrue(self.s.app.check(self.project())["valid"])
+            browser.close()
+        self.assertEqual(errors, [])
+
     def test_menu_tools(self):
         """Layer visibility, Save menu as template / a menu from it, Create
         chapter index."""
