@@ -1502,6 +1502,52 @@ written that fails before the fix, and then the fix:
   yet: each page there has its own artwork, which needs a background per
   page.
 
+## 85. Random and shuffled playlists
+
+* A playlist can play its items shuffled (each once, in a random order) or
+  at random (as many items as it has, each picked at random, so one can
+  come twice and another not at all), as the classic apps' chapter
+  playlists did on Blu-ray and the web; a DVD plays them as listed, as
+  they did there too (with a warning when one is set).
+* The Blu-ray format has its own playlist playback types for this, but
+  libbluray (and so VLC, mpv and Kodi) reads them and plays the items in
+  order anyway, so the disc does it with commands, which every HDMV player
+  runs: each item becomes a playlist file of its own (after the titles'),
+  and the playlist's movie object counts the items played, picks one with
+  the random-number command (Set RND), plays it, and goes again until it
+  has played as many as there are; for shuffle it keeps a register per
+  item and picks again when the item was played already. Then the
+  playlist's end action, as before.
+* The web version shuffles or picks in the player the same way.
+* The tests read the object's commands, and play discs built both ways in
+  libbluray from first play: shuffle plays the three items once each,
+  random three items from them. libbluray seeds its random numbers from
+  the clock, and the orders seen differ from run to run.
+
+## 86. Slideshows of more than 99 pictures
+
+* A slideshow takes up to 999 pictures, as many chapters as a Blu-ray
+  playlist can mark. A DVD title has at most 99 chapters, so there the
+  pictures after the 98th are part of chapter 99, with a warning, as the
+  classic apps did; a slideshow advanced by hand has a chapter (and a
+  still) per picture, so on a DVD it is refused past 99.
+* The slideshow is drawn by one ffmpeg graph with every picture an input
+  of its own, which does not scale to hundreds (open files, memory). A
+  show of more than 60 pictures is drawn in pieces of 60: each piece
+  begins where the transition into its first picture ends (the piece
+  before draws that, with the start of the picture), and the pieces are
+  joined frame by frame into the same lossless video. Joining them by
+  stream copy (the concat demuxer) put frames out of place, so they are
+  decoded and joined by the concat filter, FFV1 again.
+* The tests draw a show of 13 pictures at once and in pieces of 4, with
+  cross-fades, cuts across the joins, random transitions and pan & zoom,
+  and compare every frame (framemd5): they are the same. A 120-picture
+  show built as a DVD has 99 chapters (libdvdnav) and as a Blu-ray 120
+  (libbluray).
+* That test found pan & zoom pictures one frame short each: zoompan makes
+  its frames at the disc's rate already, and the fps filter after it
+  dropped the last one. It is left out after zoompan now.
+
 ## 87. The bit budget
 
 * The size estimate was one number. The classic apps showed where the

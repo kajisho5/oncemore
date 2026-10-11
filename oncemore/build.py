@@ -22,6 +22,7 @@ from .menu import (MenuBuilder, check_element_fonts, display_width, find_font, l
 # DTS up to 1536 kbit/s (1509.75k "full rate" is the usual)
 DTS_PLAIN = ("DTS", "DTS-ES", "DTS 96/24")
 DVD_DTS_MAX = 1_536_000
+DVD_CHAPTERS = 99          # chapters (parts of title) a DVD title can have
 
 
 def inspect(project, reporter=None, prepare=True, bd=False):
@@ -41,6 +42,11 @@ def inspect(project, reporter=None, prepare=True, bd=False):
             probes[path] = encode.probe(path)
         return probes[path]
 
+    if not bd:
+        for i, pl in enumerate(project.playlists):
+            if pl.order != "sequential":
+                warnings.append(f"playlists[{i}].order: a DVD plays the items as listed "
+                                f"({pl.order} is for Blu-ray and the web version)")
     for i, t in enumerate(project.titles):
         where = f"titles[{i}]"
         if t.slideshow:
@@ -52,6 +58,21 @@ def inspect(project, reporter=None, prepare=True, bd=False):
                 warnings.append(f"{where}.slideshow: {len(show.slides)} pictures need at least "
                                 f"{show.duration:.1f}s; the music ({show.music_length:.1f}s) "
                                 "ends before them")
+        n = len(t.chapters)
+        if not bd and n > DVD_CHAPTERS:
+            # a DVD title has at most 99 chapters (a Blu-ray 999)
+            if t.slideshow and t.slideshow.advance == "manual":
+                issues.append({"path": f"{where}.slideshow",
+                               "message": f"a slideshow advanced by hand has at most "
+                                          f"{DVD_CHAPTERS} pictures on a DVD (this one has {n}; "
+                                          "a Blu-ray takes 999)"})
+            else:
+                warnings.append(f"{where}: a DVD title has at most {DVD_CHAPTERS} chapters; "
+                                f"chapters {DVD_CHAPTERS + 1}-{n} are part of chapter "
+                                f"{DVD_CHAPTERS}")
+                t.chapters = t.chapters[:DVD_CHAPTERS]
+                t.chapter_names = t.chapter_names[:DVD_CHAPTERS]
+                t.chapter_posters = t.chapter_posters[:DVD_CHAPTERS]
         if t.slideshow and not prepare and not os.path.isfile(t.source):
             w, h = slideshow.canvas(project.disc_for(t))
             num, den = project.disc.fps

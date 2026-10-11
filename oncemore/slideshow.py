@@ -29,6 +29,7 @@ from .errors import OncemoreError
 
 CACHE_VERSION = 1
 MANUAL_SECONDS = 1.0     # a picture advanced by hand: shown this long, then held
+CHUNK = 60               # pictures drawn by one ffmpeg (each is an input of its own)
 
 # transition name -> ffmpeg xfade transition (all in ffmpeg 4.4 and later)
 TRANSITIONS = {"crossfade": "fade", "dissolve": "dissolve", "fadeblack": "fadeblack",
@@ -152,78 +153,108 @@ def _framed(w, h, fit, bg):
             f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color={bg},setsar=1")
 
 
-def graph(show, disc):
-    """(input args, filter_complex, has_audio) for rendering `show`."""
+def graph(show, disc, part=None):
+    """(input args, filter_complex, has_audio) for rendering `show`.
+
+    part=(a, b): only pictures a..b-1, as one piece of a long show (video
+    only; every picture is an ffmpeg input of its own, so a long show is
+    drawn CHUNK pictures at a time, see render). A piece starts where the
+    transition into picture a ends (the piece before draws it) and ends
+    where the one out of picture b-1 ends (drawing the start of picture b
+    for it), so the pieces joined are the frames of the whole show."""
     W, H = canvas(disc)
     num, den = disc.fps
     fades, changes = show.fades(), show.changes()
     bg = _hex(show.background_color)
     args, chains = [], []
     n = len(show.slides)
+    a, b = part or (0, n)
     # every picture change on the frame nearest its start, so the pictures
     # do not drift from the chapters (whole frames per picture would add up)
     times = [0.0]
-    for s in show.slides:
-        times.append(times[-1] + s.duration)
+    for sl in show.slides:
+        times.append(times[-1] + sl.duration)
     at = [int(round(t * num / den)) for t in times]
     # (a transition: the next picture's change starts it)
     fade_frames = [int(round((times[k + 1] + f) * num / den)) - at[k + 1] if f else 0
                    for k, f in enumerate(fades)]
-    for k, s in enumerate(show.slides):
+    head = fade_frames[a - 1] if a else 0
+    shown = list(range(a, b)) + ([b] if b < n and changes[b - 1] else [])
+    for i, k in enumerate(shown):
+        sl = show.slides[k]
         # running on under the next transition
         frames = max(1, at[k + 1] - at[k] + fade_frames[k])
         length = frames * den / num
         if show.pan_zoom:
             # one picture in, `frames` pictures out; drawn at twice the size so
             # the slow zoom does not wobble on whole-pixel steps
-            args += ["-i", s.image]
+            args += ["-i", sl.image]
             z = (f"1+0.10*on/{frames}" if k % 2 == 0 else f"1.10-0.10*on/{frames}")
-            chain = (f"[{k}:v]{_framed(2 * W, 2 * H, s.fit or show.fit, bg)},"
+            chain = (f"[{i}:v]{_framed(2 * W, 2 * H, sl.fit or show.fit, bg)},"
                      f"zoompan=z='{z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
                      f"d={frames}:s={W}x{H}:fps={num}/{den}")
         else:
             args += ["-loop", "1", "-framerate", f"{num}/{den}",
-                     "-t", f"{length + 2 * den / num:.3f}", "-i", s.image]
-            chain = f"[{k}:v]{_framed(W, H, s.fit or show.fit, bg)}"
-        chains.append(chain + f",fps={num}/{den},format=yuv420p,settb=AVTB,"
-                              f"setpts=PTS-STARTPTS,trim=end_frame={frames}[s{k}]")
-    if n == 1:
+                     "-t", f"{length + 2 * den / num:.3f}", "-i", sl.image]
+            chain = f"[{i}:v]{_framed(W, H, sl.fit or show.fit, bg)}"
+        # (a piece: the first picture without what the piece before drew, the
+        # picture after the last only as far as the transition into it)
+        first = head if k == a else 0
+        last = fade_frames[b - 1] if k == b else frames
+        trim = f"trim=start_frame={first}:end_frame={last},setpts=PTS-STARTPTS" if first \
+            else f"trim=end_frame={last}"
+        # (zoompan makes its frames at the rate already; an fps filter after it
+        # would drop the last one)
+        rate = "" if show.pan_zoom else f",fps={num}/{den}"
+        chains.append(chain + f"{rate},format=yuv420p,settb=AVTB,"
+                              f"setpts=PTS-STARTPTS,{trim}[s{i}]")
+    if len(shown) == 1:
         chains.append("[s0]null[v]")
     elif any(changes):
         # one change at a time: a transition overlaps the next picture, a cut
         # appends it
         cur = "s0"
-        for k in range(1, n):
-            out = "v" if k == n - 1 else f"x{k}"
+        for i in range(1, len(shown)):
+            k = shown[i]
+            out = "v" if i == len(shown) - 1 else f"x{i}"
             kind = changes[k - 1]
             if kind:
-                chains.append(f"[{cur}][s{k}]xfade=transition={kind}:"
+                chains.append(f"[{cur}][s{i}]xfade=transition={kind}:"
                               f"duration={fade_frames[k - 1] * den / num:.6f}:"
-                              f"offset={at[k] * den / num:.6f}[{out}]")
+                              f"offset={(at[k] - at[a] - head) * den / num:.6f}[{out}]")
             else:
-                chains.append(f"[{cur}][s{k}]concat=n=2:v=1:a=0[{out}]")
+                chains.append(f"[{cur}][s{i}]concat=n=2:v=1:a=0[{out}]")
             cur = out
     else:
-        chains.append("".join(f"[s{k}]" for k in range(n)) + f"concat=n={n}:v=1:a=0[v]")
-    total = show.duration
+        chains.append("".join(f"[s{i}]" for i in range(len(shown))) +
+                      f"concat=n={len(shown)}:v=1:a=0[v]")
+    if part:
+        return args, ";".join(chains), False
+    m_args, m_chains = music_graph(show, n)
+    return args + m_args, ";".join(chains + m_chains), bool(m_args)
+
+
+def music_graph(show, first):
+    """(input args, filter chains -> [a]) of the show's music, its inputs
+    numbered from `first`: joined, trimmed to the show, faded out, padded."""
     music = show.music
-    has_audio = bool(music)
-    if has_audio:
-        f = min(2.0, total / 4)
-        tail = (f"atrim=duration={total:.3f},"
-                f"afade=t=out:st={max(0.0, total - f):.3f}:d={f:.3f},apad[a]")
-        if len(music) == 1:
-            args += ["-i", music[0]]
-            chains.append(f"[{n}:a]aresample=48000,{tail}")
-        else:
-            # one after another: every file in one format first, then joined
-            for k, path in enumerate(music):
-                args += ["-i", path]
-                chains.append(f"[{n + k}:a]aresample=48000,aformat=sample_fmts=fltp:"
-                              f"channel_layouts=stereo[m{k}]")
-            chains.append("".join(f"[m{k}]" for k in range(len(music))) +
-                          f"concat=n={len(music)}:v=0:a=1,{tail}")
-    return args, ";".join(chains), has_audio
+    if not music:
+        return [], []
+    total = show.duration
+    f = min(2.0, total / 4)
+    tail = (f"atrim=duration={total:.3f},"
+            f"afade=t=out:st={max(0.0, total - f):.3f}:d={f:.3f},apad[a]")
+    if len(music) == 1:
+        return ["-i", music[0]], [f"[{first}:a]aresample=48000,{tail}"]
+    # one after another: every file in one format first, then joined
+    args, chains = [], []
+    for k, path in enumerate(music):
+        args += ["-i", path]
+        chains.append(f"[{first + k}:a]aresample=48000,aformat=sample_fmts=fltp:"
+                      f"channel_layouts=stereo[m{k}]")
+    chains.append("".join(f"[m{k}]" for k in range(len(music))) +
+                  f"concat=n={len(music)}:v=0:a=1,{tail}")
+    return args, chains
 
 
 def fit_to(show, seconds):
@@ -272,20 +303,61 @@ def apply(title, disc, probe):
 
 
 def render(show, disc, out, log, on_progress=None):
-    """Render `show` to `out` (lossless FFV1 + PCM in Matroska)."""
+    """Render `show` to `out` (lossless FFV1 + PCM in Matroska); a show of
+    more than CHUNK pictures in pieces of CHUNK, joined (see graph)."""
     if not show.slides:
         raise OncemoreError("a slideshow needs at least one picture")
     os.makedirs(os.path.dirname(out), exist_ok=True)
-    args, fc, has_audio = graph(show, disc)
     tmp = f"{out}.{os.getpid()}-{threading.get_ident()}.part"   # (one per writer)
-    cmd = args + ["-filter_complex", fc, "-map", "[v]"]
-    if has_audio:
-        cmd += ["-map", "[a]", "-c:a", "pcm_s16le"]
-    cmd += ["-c:v", "ffv1", "-level", "3", "-t", f"{show.duration:.3f}", "-f", "matroska", tmp]
     tools.require(["ffmpeg"])
     from . import encode            # (encode imports project, which imports this module)
-    encode.run_ffmpeg(cmd, show.duration, log, on_progress, what="ffmpeg (slideshow)")
-    os.replace(tmp, out)
+    n = len(show.slides)
+    if n <= CHUNK:
+        args, fc, has_audio = graph(show, disc)
+        cmd = args + ["-filter_complex", fc, "-map", "[v]"]
+        if has_audio:
+            cmd += ["-map", "[a]", "-c:a", "pcm_s16le"]
+        cmd += ["-c:v", "ffv1", "-level", "3", "-t", f"{show.duration:.3f}", "-f", "matroska",
+                tmp]
+        encode.run_ffmpeg(cmd, show.duration, log, on_progress, what="ffmpeg (slideshow)")
+        os.replace(tmp, out)
+        return out
+    parts = [(a, min(n, a + CHUNK)) for a in range(0, n, CHUNK)]
+    files = []
+    try:
+        for j, (a, b) in enumerate(parts):
+            args, fc, _ = graph(show, disc, (a, b))
+            files.append(f"{tmp}.{j}.mkv")
+            share = sum(sl.duration for sl in show.slides[a:b])
+
+            def progress(f, j=j):
+                if on_progress:
+                    on_progress((j + f) / (len(parts) + 1))
+            encode.run_ffmpeg(args + ["-filter_complex", fc, "-map", "[v]", "-c:v", "ffv1",
+                                      "-level", "3", "-f", "matroska", files[-1]],
+                              share, log + f".{j}", progress,
+                              what=f"ffmpeg (slideshow pictures {a + 1}-{b})")
+        # joined frame by frame (the pieces' own time stamps do not line up
+        # for a stream copy); FFV1 again, so still lossless
+        m_args, m_chains = music_graph(show, len(files))
+        cmd = [x for path in files for x in ("-i", path)] + m_args
+        fc = "".join(f"[{j}:v]" for j in range(len(files))) + \
+            f"concat=n={len(files)}:v=1:a=0[v]"
+        cmd += ["-filter_complex", ";".join([fc] + m_chains), "-map", "[v]"]
+        if m_args:
+            cmd += ["-map", "[a]", "-c:a", "pcm_s16le"]
+        cmd += ["-c:v", "ffv1", "-level", "3", "-t", f"{show.duration:.3f}", "-f", "matroska",
+                tmp]
+        encode.run_ffmpeg(cmd, show.duration, log,
+                          (lambda f: on_progress((len(parts) + f) / (len(parts) + 1)))
+                          if on_progress else None, what="ffmpeg (slideshow)")
+        os.replace(tmp, out)
+    finally:
+        for path in files:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
     return out
 
 
