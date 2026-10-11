@@ -1,4 +1,4 @@
-"""The build pipeline: probe -> plan -> menus -> titles -> dvdauthor -> (ISO)."""
+"""The build pipeline: probe -> plan -> menus -> titles -> VIDEO_TS (vtskit) -> (ISO)."""
 
 import concurrent.futures
 import dataclasses
@@ -11,8 +11,9 @@ import tempfile
 import threading
 
 from . import (author, bdmenu, bluray, captions, clips, encode, iso, layerbreak, lpcmfix, pgs,
-               settings, slideshow, subtitles, tools, udf250, udfwriter, uops)
+               settings, slideshow, subtitles, tools, udf250, udfwriter, videots)
 from . import menu as menu_module
+from ._vendor.vtskit import __version__ as vtskit_version
 from .errors import OncemoreError, ProjectError
 from .project import parse_action, retime_thumbs, title_fps
 from .menu import (MenuBuilder, check_element_fonts, display_width, find_font, link_font,
@@ -341,7 +342,8 @@ def budget(project, infos, plan):
 
 
 def add_subtitles(project, title, mpg, plan, work, reporter):
-    """Render the title's SRT tracks and mux them in as subpicture streams."""
+    """Render the title's SRT tracks and mux them in as subpicture streams:
+    (the muxed .mpg, the title's subpicture palette)."""
     subdir = os.path.join(work, "subs", title.id)
     os.makedirs(subdir, exist_ok=True)
     renderer = subtitles.SubtitleRenderer(project.disc, subdir, link_font(plan["font"], subdir),
@@ -360,15 +362,15 @@ def add_subtitles(project, title, mpg, plan, work, reporter):
             "path": f"titles[{project.titles.index(title)}].subtitles",
             "message": f"the subtitles use {len(renderer.colours) + 1} subpicture colours (a DVD "
                        "title has 16): use fewer colours in the subtitle pictures"}])
-    return subtitles.mux_streams(mpg, xmls, subdir, project.disc.standard,
-                                 os.path.join(work, "logs", f"spumux-{title.id}"))
+    return subtitles.mux_streams(mpg, xmls, subdir, project.disc.standard)
 
 
 # -- encode cache --------------------------------------------------------------
 # Encoded titles and menus are kept in <project>/.oncemore-cache/encode, keyed
 # by everything that changes their bytes (sources and their mtimes, settings,
 # bitrate, ffmpeg version), so a rebuild only encodes what changed.
-CACHE_VERSION = 1
+# (2: a menu's stream is kept without its button subpicture, which vtskit adds)
+CACHE_VERSION = 2
 
 
 @functools.lru_cache(maxsize=None)
@@ -396,7 +398,7 @@ def _file_sig(path):
 
 def _cache_key(kind, payload):
     blob = json.dumps({"v": CACHE_VERSION, "code": _code_signature(), "kind": kind,
-                       "ffmpeg": _tool_version("ffmpeg"), "spumux": _tool_version("spumux"),
+                       "ffmpeg": _tool_version("ffmpeg"), "vtskit": vtskit_version,
                        **payload}, sort_keys=True, default=str)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:32]
 
@@ -555,6 +557,7 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None, ca
                   f"{plan['estimated_bytes'] / 2**30:.2f} of {plan['capacity'] / 2**30:.2f} GiB")
 
     menu_files = {}
+    layouts = {}                  # menu id -> (its buttons' geometry, the canvas of their shapes)
     if project.menus:
         mb = MenuBuilder(project, work, reporter, font=plan["font"])
         reporter.info(f"    menu font: {mb.font() and mb.font_source}")
@@ -566,10 +569,16 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None, ca
                     (not m.buttons_at_loop or _cache_get(cache, key + "-intro", intro)):
                 reporter.step("menu", f"Menu '{m.id}' unchanged (cached)", item=m.id)
                 menu_files[m.id] = (intro, out) if m.buttons_at_loop else out
+                # (the buttons are laid out again: the disc gets them from here, not the cache)
+                geoms = mb.layout(m)
+                layouts[m.id] = (geoms, mb.highlight_canvas(geoms))
+                mb.buttons_json(menu_module.MenuAssets(m.id, None, None, None, geoms,
+                                                       normal_png=m.normal_color))
                 continue
             reporter.step("menu", f"Rendering menu '{m.id}'", item=m.id)
             assets = mb.prepare(m)
             mb.encode(m, assets, lambda f, mid=m.id: reporter.progress("menu", f, mid))
+            layouts[m.id] = (assets.buttons, mb.highlight_canvas(assets.buttons))
             _cache_put(store, key, assets.mpg)
             if assets.intro_mpg:
                 _cache_put(store, key + "-intro", assets.intro_mpg)
@@ -592,6 +601,7 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None, ca
         transition_files[path] = out
 
     title_files = {}
+    palettes = {}                 # title id -> its subtitles' colours
     os.makedirs(os.path.join(work, "titles"), exist_ok=True)
     for t in project.titles:
         out = os.path.join(work, "titles", f"{t.id}.mpg")
@@ -611,23 +621,18 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None, ca
                 reporter.debug(f"fixed {n} LPCM packet headers in {t.id}")
             _cache_put(store, key, out)
         if t.subtitles:
-            out = add_subtitles(project, t, out, plan, work, reporter)
+            out, palettes[t.id] = add_subtitles(project, t, out, plan, work, reporter)
         title_files[t.id] = out
 
-    reporter.step("author", "Authoring VIDEO_TS (dvdauthor)")
+    reporter.step("author", "Writing VIDEO_TS (vtskit)")
     for sub in ("VIDEO_TS", "AUDIO_TS"):
         p = os.path.join(out_dir, sub)
         if os.path.isdir(p):
             shutil.rmtree(p)
-    xml = author.build_xml(project, menu_files, title_files, out_dir, transition_files)
-    xml_path = os.path.join(work, "dvdauthor.xml")
-    with open(xml_path, "w", encoding="utf-8") as f:
-        f.write(xml)
-    author.run_dvdauthor(xml_path, project, os.path.join(logs, "dvdauthor.log"))
-    # (dvdauthor writes no prohibited user operations: the remote keys a title or menu turns off)
-    uops.patch_dvd(os.path.join(out_dir, "VIDEO_TS"), project)
-    # (nor the menus' button offsets for the number keys)
-    uops.patch_button_offsets(os.path.join(out_dir, "VIDEO_TS"), project)
+    # the navigation as dvdauthor's XML: a readable record (nothing runs it)
+    with open(os.path.join(work, "navigation.xml"), "w", encoding="utf-8") as f:
+        f.write(author.build_xml(project, menu_files, title_files, out_dir, transition_files))
+    videots.write(project, menu_files, title_files, out_dir, transition_files, layouts, palettes)
     os.makedirs(os.path.join(out_dir, "AUDIO_TS"), exist_ok=True)
     rom = copy_rom_files(project, out_dir)
 

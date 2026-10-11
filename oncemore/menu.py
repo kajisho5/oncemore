@@ -1,5 +1,6 @@
 """Still menus: background + burned-in labels (ffmpeg drawtext), button
-highlights as 2-bit subpictures (spumux), and preview images.
+highlights as 2-bit subpictures (written to the disc by vtskit), and preview
+images.
 
 Coordinates in the project are DVD storage pixels (720 x 480/576). DVD pixels
 are not square, so we draw everything on a square-pixel "display" canvas
@@ -13,6 +14,7 @@ scanned for its bounding box and glyph mask.
 
 import glob
 import math
+import json
 import os
 import shutil
 import struct
@@ -270,7 +272,7 @@ class MenuAssets:
     highlight_png: str
     select_png: str
     buttons: list          # ButtonGeom in DVD button order
-    spumux_xml: str = None
+    buttons_json: str = None   # the buttons' areas, keys and actions, as written (a record)
     mpg: str = None
     normal_png: str = None  # the buttons while not selected (menu.normal_color)
     intro_mpg: str = None   # buttons_at_loop: the part before the loop point, no buttons
@@ -1017,29 +1019,22 @@ class MenuBuilder:
             png4.write_indexed_png(normal, canvas, [(0, 0, 0, 0), png4.parse_color(menu.normal_color)])
         return MenuAssets(menu.id, base, hl, sel, geoms, normal_png=normal)
 
-    def spumux_xml(self, assets):
-        lines = [f'<subpictures format="{self.disc.standard}">', "  <stream>",
-                 f'    <spu start="00:00:00.00" force="yes" '
-                 + (f'image={quoteattr(os.path.basename(assets.normal_png))} ' if assets.normal_png else "")
-                 + f'highlight={quoteattr(os.path.basename(assets.highlight_png))} '
-                 f'select={quoteattr(os.path.basename(assets.select_png))}>']
-        for g in assets.buttons:
-            x0, y0, x1, y1 = g.rect
-            nav = " ".join(f'{d}={quoteattr(g.nav[d])}' for d in navigation.DIRECTIONS)
-            tag = "action" if g.auto else "button"     # <action>: auto-action button
-            lines.append(f'      <{tag} name={quoteattr(g.id)} x0="{x0}" y0="{y0}" '
-                         f'x1="{x1}" y1="{y1}" {nav}/>')
-        lines += ["    </spu>", "  </stream>", "</subpictures>", ""]
-        path = os.path.join(self.work, f"{assets.menu_id}.spumux.xml")
+    def buttons_json(self, assets):
+        """A record of the menu's buttons as the disc gets them: areas,
+        arrow keys, actions (<id>.buttons.json in the work folder)."""
+        path = os.path.join(self.work, f"{assets.menu_id}.buttons.json")
         with open(path, "w", encoding="utf-8") as f:
-            f.write("\n".join(lines))
+            json.dump({"menu": assets.menu_id, "normal": assets.normal_png is not None,
+                       "buttons": [{"id": g.id, "rect": list(g.rect), "nav": g.nav, "auto": g.auto,
+                                    "action": g.action} for g in assets.buttons]}, f, indent=1)
         return path
 
     def menu_duration(self, menu):
         return menu_seconds(menu, self._probe)
 
     def encode(self, menu, assets, on_progress=None):
-        """Encode the still menu (looping length) and mux the button subpicture."""
+        """Encode the still menu (looping length); the button subpicture is
+        added when the disc is written (videots)."""
         dur = self.menu_duration(menu)
         num, den = self.disc.fps
         target = "ntsc-dvd" if self.disc.standard == "NTSC" else "pal-dvd"
@@ -1093,16 +1088,9 @@ class MenuBuilder:
                 args += ["-force_key_frames", f"{menu.loop_point:.3f}"]
             encode.run_ffmpeg(args + [os.path.basename(raw)], dur, log, on_progress,
                               cwd=self.work, what=f"ffmpeg (menu {menu.id})")
-        xml = self.spumux_xml(assets)
         out = os.path.join(self.work, f"{menu.id}.mpg")
-        tools.require(["spumux"])
-        with open(raw, "rb") as fin, open(out, "wb") as fout:
-            tools.run([tools.find("spumux"), "-s", "0", os.path.basename(xml)], cwd=self.work,
-                      env={"VIDEO_FORMAT": self.disc.standard}, stdin=fin, stdout=fout,
-                      log=os.path.join(self.logs, f"spumux-{menu.id}.log"),
-                      what=f"spumux (menu {menu.id})")
-        os.remove(raw)
-        assets.spumux_xml = xml
+        os.replace(raw, out)
+        assets.buttons_json = self.buttons_json(assets)
         assets.mpg = out
         return out
 

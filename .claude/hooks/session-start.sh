@@ -8,10 +8,10 @@ if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
   exit 0
 fi
 
-PKGS="ffmpeg dvdauthor genisoimage xorriso libdvdnav4 fonts-noto-cjk"
+PKGS="ffmpeg genisoimage xorriso libdvdnav4 fonts-noto-cjk"
 
 missing=${ONCEMORE_HOOK_FORCE_INSTALL:-0}
-for bin in ffmpeg ffprobe dvdauthor spumux genisoimage xorriso; do
+for bin in ffmpeg ffprobe genisoimage xorriso; do
   command -v "$bin" >/dev/null 2>&1 || missing=1
 done
 ldconfig -p 2>/dev/null | grep -q libdvdnav || missing=1

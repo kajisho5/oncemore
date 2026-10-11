@@ -6,7 +6,7 @@
 #
 # The app bundles a standalone CPython (python-build-standalone, pinned
 # release, checksum-verified) and the oncemore package, so users only need
-# Homebrew's ffmpeg-full and dvdauthor. Needs: Xcode command line tools
+# Homebrew's ffmpeg-full. Needs: Xcode command line tools
 # (swiftc, codesign, iconutil, sips) and `gh` (to fetch the Python build).
 #
 # Environment:

@@ -21,7 +21,7 @@ from oncemore.gui.server import make_server, safe_name
 
 from .helpers import have
 
-MEDIA_TOOLS = (have("ffmpeg", "ffprobe", "dvdauthor", "spumux") and tools.has_drawtext()
+MEDIA_TOOLS = (have("ffmpeg", "ffprobe") and tools.has_drawtext()
                and tools.iso_tool()[0] is not None)
 
 try:
@@ -311,7 +311,7 @@ class TestGuiApi(unittest.TestCase):
         self.assertEqual(safe_name("x;rm -rf.mov"), "x_rm -rf.mov")
         self.assertEqual(safe_name("..."), "file")
 
-    @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/dvdauthor/ISO tool")
+    @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/ISO tool")
     def test_sample_preview_frame_and_build(self):
         status, st = self.s.call("/api/new", "POST", {"sample": True})
         self.assertEqual(status, 200)
@@ -352,7 +352,7 @@ class TestGuiApi(unittest.TestCase):
         self.assertTrue(any(e["event"] == "progress" for e in events))
         self.assertTrue(os.path.isfile(os.path.join(self.dir, "output", "SAMPLE_DISC.iso")))
 
-    @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/dvdauthor/ISO tool")
+    @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/ISO tool")
     def test_build_web(self):
         """Build > Web (HTML5): a folder with index.html and the titles."""
         self.s.call("/api/new", "POST", {"sample": True})
@@ -374,7 +374,7 @@ class TestGuiApi(unittest.TestCase):
         for name in ("index.html", "disc.js", "titles/t1.mp4", "titles/t2.mp4", "menus/main.png"):
             self.assertTrue(os.path.isfile(os.path.join(out, name)), name)
 
-    @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/dvdauthor/ISO tool")
+    @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/ISO tool")
     def test_playback_proxy(self):
         self.s.call("/api/new", "POST", {"sample": True})
         src = os.path.realpath(os.path.join(self.dir, "media", "sample_b.mp4"))  # macOS /var
@@ -448,7 +448,7 @@ class TestGuiApi(unittest.TestCase):
         self.assertEqual(self.s.call("/api/subtitles?path=../x.srt", "PUT", {"cues": []})[0], 403)
         self.assertEqual(self.s.call("/api/subtitles?path=media/none.srt")[0], 404)
 
-    @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/dvdauthor/ISO tool")
+    @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/ISO tool")
     def test_clips_join(self):
         _, st = self.s.call("/api/new", "POST", {"sample": True})
         project = st["project"]
@@ -487,7 +487,7 @@ class TestGuiApi(unittest.TestCase):
         self.assertEqual(self.s.call("/api/clips", "POST", {"title": "t1", "project": project})[0],
                          400)
 
-    @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/dvdauthor/ISO tool")
+    @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/ISO tool")
     def test_transcode_now_and_waveform(self):
         _, st = self.s.call("/api/new", "POST", {"sample": True})
         status, r = self.s.call("/api/encode_status", "POST", {"project": st["project"]})
@@ -511,7 +511,7 @@ class TestGuiApi(unittest.TestCase):
         self.assertEqual(png[:8], b"\x89PNG\r\n\x1a\n")
         self.assertEqual(self.s.call("/api/waveform?path=media/menu_bg.png")[0], 403)
 
-    @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/dvdauthor/ISO tool")
+    @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/ISO tool")
     def test_slideshow_render(self):
         _, st = self.s.call("/api/new", "POST", {"sample": True})
         project = st["project"]
@@ -730,7 +730,7 @@ def _chromium():
 
 
 @unittest.skipUnless(PLAYWRIGHT, "playwright not installed")
-@unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/dvdauthor/ISO tool")
+@unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/ISO tool")
 class TestGuiBrowser(unittest.TestCase):
     """Drive the real page: new project, upload, add title, chapters, menu
     drag & undo, exact preview, build."""

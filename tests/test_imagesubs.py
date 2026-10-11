@@ -20,7 +20,7 @@ from oncemore.errors import ProjectError
 
 from .helpers import have, run_cli
 
-DVD_OK = have("ffmpeg", "ffprobe", "dvdauthor", "spumux") and tools.has_drawtext()
+DVD_OK = have("ffmpeg", "ffprobe") and tools.has_drawtext()
 
 
 def rgba_frame(W, H, boxes):
@@ -154,7 +154,7 @@ def ifo_palette(vts_ifo):
     return ",".join(out)
 
 
-@unittest.skipUnless(DVD_OK, "needs ffmpeg (drawtext), dvdauthor and spumux")
+@unittest.skipUnless(DVD_OK, "needs ffmpeg (drawtext)")
 class TestDvd(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

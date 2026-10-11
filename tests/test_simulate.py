@@ -27,7 +27,7 @@ try:
 except Exception:  # pragma: no cover
     LIBDVDNAV = None
 
-TOOLS_OK = (have("ffmpeg", "ffprobe", "dvdauthor", "spumux") and tools.has_drawtext()
+TOOLS_OK = (have("ffmpeg", "ffprobe") and tools.has_drawtext()
             and tools.iso_tool()[0] is not None)
 
 
@@ -243,7 +243,7 @@ class TestGraph(unittest.TestCase):
         self.assertIn("warning playlist:unused: playlist 'unused' is not started", text)
 
 
-@unittest.skipUnless(TOOLS_OK, "needs ffmpeg (drawtext), dvdauthor, spumux and an ISO tool")
+@unittest.skipUnless(TOOLS_OK, "needs ffmpeg (drawtext) and an ISO tool")
 @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
 class TestSimulatorMatchesDisc(unittest.TestCase):
     """Random remote-control sessions on a built disc: libdvdnav and the

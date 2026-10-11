@@ -32,7 +32,7 @@ try:
 except Exception:  # pragma: no cover
     LIBBLURAY = None
 
-TOOLS_OK = (have("ffmpeg", "ffprobe", "dvdauthor", "spumux") and tools.has_drawtext()
+TOOLS_OK = (have("ffmpeg", "ffprobe") and tools.has_drawtext()
             and tools.iso_tool()[0] is not None)
 
 
@@ -65,12 +65,8 @@ class TestProjectAndSimulator(unittest.TestCase):
         sim.press(s, "number:11")                           # the first: PLAY ALL
         self.assertEqual((s["domain"], s["title"]), ("title", "t1"))
 
-    def test_nothing_to_patch(self):
-        # (no offset: the disc is left as dvdauthor wrote it)
-        self.assertEqual(uops.patch_button_offsets("/nowhere", project(sample_project())), 0)
 
-
-@unittest.skipUnless(TOOLS_OK, "needs ffmpeg (drawtext), dvdauthor, spumux and an ISO tool")
+@unittest.skipUnless(TOOLS_OK, "needs ffmpeg (drawtext) and an ISO tool")
 class TestDvd(unittest.TestCase):
     """A sample disc whose main menu numbers its buttons from 11."""
 

@@ -42,20 +42,21 @@ the whole job. oncemore is that tool — with no copy protection, ever.
 
 ## Install
 
-oncemore itself is pure Python (3.11+, standard library only). It drives these
-programs:
+oncemore itself is pure Python (3.11+, standard library only); the DVD-Video
+structure (IFO files, navigation packs, button and subtitle subpictures) is
+written by its own copy of [vtskit](https://github.com/kajisho5/vtskit). It
+drives these programs:
 
 | Program | Used for |
 |---|---|
 | `ffmpeg`, `ffprobe` (with the `drawtext` filter) | MPEG-2/AC-3 encoding, menu rendering, probing |
-| `dvdauthor`, `spumux` | DVD-Video structure (IFO/VOB), button highlights |
 | *(nothing)* — oncemore writes the UDF + ISO 9660 disc image itself; `hdiutil`, `genisoimage`, `mkisofs` can be chosen instead | the disc image |
 | *(optional)* `growisofs` (dvd+rw-tools; macOS uses its own `hdiutil`) | burning the disc to a DVD |
 
 ### macOS (Homebrew)
 
 ```sh
-brew install ffmpeg-full dvdauthor
+brew install ffmpeg-full
 pip install git+https://github.com/kajisho5/oncemore
 oncemore doctor
 ```
@@ -70,7 +71,7 @@ oncemore doctor
 ### Debian / Ubuntu
 
 ```sh
-sudo apt-get install ffmpeg dvdauthor genisoimage
+sudo apt-get install ffmpeg genisoimage
 pip install git+https://github.com/kajisho5/oncemore
 oncemore doctor
 ```
@@ -78,18 +79,18 @@ oncemore doctor
 You can also run it from a checkout without installing: `python -m oncemore ...`.
 
 Tool locations can be overridden with `ONCEMORE_FFMPEG`, `ONCEMORE_FFPROBE`,
-`ONCEMORE_DVDAUTHOR`, `ONCEMORE_SPUMUX`, `ONCEMORE_GENISOIMAGE`,
-`ONCEMORE_MKISOFS`, `ONCEMORE_XORRISO`, and the menu font with `ONCEMORE_FONT`.
+`ONCEMORE_GENISOIMAGE`, `ONCEMORE_MKISOFS`, `ONCEMORE_XORRISO`, and the menu
+font with `ONCEMORE_FONT`.
 If something is missing, oncemore says what and prints the install command.
 
 ## The Mac app
 
 **Oncemore.app** wraps the same authoring UI in a normal Mac window: double-click
 to start, *File › New Project… / Open Project…*, and it reopens your last
-project. Python is bundled; only the video tools come from Homebrew:
+project. Python is bundled; only ffmpeg comes from Homebrew:
 
 ```sh
-brew install ffmpeg-full dvdauthor
+brew install ffmpeg-full
 ```
 
 Download `Oncemore-<version>-arm64.zip` (Apple silicon) or
@@ -721,7 +722,7 @@ differs from the frame; `fill` fills the frame and crops the edges.
   `"01;00;00;00"`) is taken off every subtitle's time, for a file timed
   against a source's own timecode. Each cue is drawn with the menu font (white with an
   outline, see `disc.subtitle_style`), reduced to a 4-colour DVD subpicture and
-  muxed with spumux; overlapping cues are shortened.
+  muxed into the title by vtskit; overlapping cues are shortened.
 * Closed captions (`captions`): line-21 captions (CEA-608, CC1) for TVs and
   players with a caption decoder, written into the DVD's MPEG-2 video (user
   data after each GOP header, as DVDs carry them) and flagged in the IFO. A
@@ -818,8 +819,8 @@ picture subtitles are left out.
 
 ```
 sources ─ffprobe─▶ plan bitrate ─ffmpeg (2-pass MPEG-2 + AC-3/LPCM)─▶ titles/*.mpg
-menu JSON ─ffmpeg drawtext─▶ base.png ─▶ menu.mpg ─spumux (4-colour PNG highlights)─▶ menu.mpg
-dvdauthor XML ─dvdauthor─▶ VIDEO_TS ─built-in UDF + ISO 9660 writer─▶ disc.iso
+menu JSON ─ffmpeg drawtext─▶ base.png ─▶ menu.mpg
+navigation (dvdauthor's command language) + menus + titles ─vtskit─▶ VIDEO_TS ─built-in UDF + ISO 9660 writer─▶ disc.iso
 ```
 
 * **Bitrate**: from the total title length, the audio bitrates, a menu
@@ -828,19 +829,20 @@ dvdauthor XML ─dvdauthor─▶ VIDEO_TS ─built-in UDF + ISO 9660 writer─�
   29.97 or 25 fps, DAR flagged as 4:3 or 16:9, BT.601 colour.
 * **Chapters** are frame-accurate: key frames are forced at chapter points and
   the GOPs before them are planned so each chapter starts its own VOBU (DVD
-  requires VOBUs of at least 0.4 s; dvdauthor would otherwise merge a short GOP
-  and move the chapter up to half a second early).
+  requires VOBUs of at least 0.4 s; a short GOP would otherwise be merged with
+  the one before and move the chapter up to half a second early).
 * **Menus** all live in one titleset; buttons jump straight to menus, titles and
   chapters. A title can only *call* its titleset's root menu, so returning to
   another menu goes through the root menu with the target number in GPRM `g1`.
 * **Titlesets**: DVD stores one video/audio format per titleset, so titles are
   grouped by (aspect, audio codec) automatically; a 4:3 LPCM title next to 16:9
   AC-3 ones simply lands in titleset 2. Menus stay in titleset 1, jumps across
-  titlesets use dvdauthor jumppads, and a title in another titleset returns to
-  a menu through the VMGM top menu (dvdauthor then notes "creating a dummy
-  menu" for that titleset, which is expected).
-* **Highlights** are 2-bit indexed PNGs written by oncemore's own encoder
-  (`zlib` + `struct`), handed to spumux.
+  titlesets go through pad program chains (what dvdauthor calls jumppads), and
+  a title in another titleset returns to a menu through the VMGM top menu.
+* **Highlights** are the buttons' shapes as a 2-bit subpicture, written into
+  the menu VOB by vtskit; **navigation commands** are written in dvdauthor's
+  command language (`oncemore/author.py`) and compiled by vtskit, so the
+  disc's logic reads the same as before the switch.
 
 ## Checking the result
 
@@ -934,7 +936,7 @@ are pure Python with no dependencies, like oncemore:
 | [udfkit](https://github.com/kajisho5/udfkit) | DVD-Video (UDF 1.02 + ISO 9660) and Blu-ray (UDF 2.50) disc images | Apache-2.0 |
 | [bdmvkit](https://github.com/kajisho5/bdmvkit) | Blu-ray (BDMV) authoring: playlists, clip information, HDMV navigation, PGS subtitles | LGPL-3.0-or-later |
 | [dvdcc](https://github.com/kajisho5/dvdcc) | Line-21 closed captions (CEA-608) into a DVD's MPEG-2 video | Apache-2.0 |
-| [vtskit](https://github.com/kajisho5/vtskit) | DVD-Video authoring without dvdauthor (planned, [#75](https://github.com/kajisho5/oncemore/issues/75)) | LGPL-3.0-or-later |
+| [vtskit](https://github.com/kajisho5/vtskit) | DVD-Video authoring: IFO files, navigation packs, menus, subtitles, angle blocks, dvdauthor's command language | LGPL-3.0-or-later |
 
 oncemore keeps its own copy of this code, so it still installs with no
 dependencies. Fixes go to both places.
@@ -949,6 +951,6 @@ and discs that do or do not play on your player help just as much:
 
 ## License
 
-GPL-3.0-or-later (see [LICENSE](LICENSE)), matching dvdauthor's GPL.
+GPL-3.0-or-later (see [LICENSE](LICENSE)).
 "Encore" and "Adobe" are trademarks of their owners; oncemore is not affiliated
 with Adobe.

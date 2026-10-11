@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "GPL-3.0-or-later" }
 authors = [{ name = "oncemore contributors" }]
-keywords = ["dvd", "dvd-video", "authoring", "dvdauthor", "ffmpeg", "iso"]
+keywords = ["dvd", "dvd-video", "authoring", "ffmpeg", "iso"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
@@ -29,8 +29,9 @@ oncemore = "oncemore.cli:main"
 Homepage = "https://github.com/kajisho5/oncemore"
 
 [tool.setuptools]
-packages = ["oncemore", "oncemore.gui"]
+packages = ["oncemore", "oncemore.gui", "oncemore._vendor", "oncemore._vendor.vtskit"]
 
 [tool.setuptools.package-data]
 oncemore = ["project.schema.json", "webplayer/*"]
+"oncemore._vendor.vtskit" = ["UPSTREAM", "COPYING.LESSER"]
 "oncemore.gui" = ["static/*"]

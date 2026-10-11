@@ -52,7 +52,7 @@ jobs:
           v="$(sed -n 's/^__version__ = "\(.*\)"/\1/p' oncemore/__init__.py)"
           [ "$TAG" = "v$v" ] || { echo "tag $TAG != v$v"; exit 1; }
       - name: External tools for the smoke test
-        run: brew install ffmpeg-full dvdauthor
+        run: brew install ffmpeg-full
       - name: Signing certificate (if configured)
         env:
           MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
