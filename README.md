@@ -744,8 +744,8 @@ differs from the frame; `fill` fills the frame and crops the edges.
 * Subtitles are SubRip (`.srt`), WebVTT (`.vtt`), ASS / SSA (`.ass`, `.ssa`) or
   a text script (`.txt`: on each subtitle's first line its number, start and
   end timecode and text, more lines of text after it; `hh;mm;ss;ff` is NTSC
-  drop frame, `hh:mm:ss:ff` counts the disc standard's frames), UTF-8 or
-  Shift_JIS. A track's `"offset"` (seconds, `"HH:MM:SS"` or a timecode such as
+  drop frame, `hh:mm:ss:ff` counts the disc standard's frames), UTF-8,
+  UTF-16 or Shift_JIS. A track's `"offset"` (seconds, `"HH:MM:SS"` or a timecode such as
   `"01;00;00;00"`) is taken off every subtitle's time, for a file timed
   against a source's own timecode. Each cue is drawn with the menu font (white with an
   outline, see `disc.subtitle_style`), reduced to a 4-colour DVD subpicture and
@@ -766,7 +766,14 @@ differs from the frame; `fill` fills the frame and crops the edges.
   frame, a smaller one is centred at the bottom (or top) margin. A DVD keeps
   each picture's three commonest colours (a title's subpictures share 16),
   a Blu-ray up to 255 with their opacity. Import the script and its pictures
-  together (Timeline > Import subtitles).
+  together (Timeline > Import subtitles). An image script may open with
+  `Display_Area (left top right bottom)`, where every picture is drawn, and
+  `Directory <folder>`, where the pictures are (tried first; the script's own
+  folder after it). A FAB image script gives each picture its own place, one
+  line each: `picture start end left top right bottom`, the pictures next to
+  the script. The places are pixels of the DVD frame (720 × 480 or 576, or
+  1920 × 1080 when a number goes past those), scaled with the frame on a
+  Blu-ray.
 * Placement and colour: a track's `"position": "top"` and `"color": "#FFFF00"`,
   overridden per cue by `{\an8}` (SRT / ASS), `line:0` (WebVTT), an ASS style's
   alignment, `{\c&HBBGGRR&}` or `<font color="#RRGGBB">`. A title can use 16
