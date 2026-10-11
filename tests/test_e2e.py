@@ -1203,6 +1203,84 @@ class TestNoTranscode(unittest.TestCase):
 
 
 @unittest.skipUnless(TOOLS_OK, SKIP_REASON)
+class TestSoundTitles(unittest.TestCase):
+    """Titles from sound files (music): one shows a still picture, one is
+    black; a menu thumbnail of the first shows the picture. Built as a DVD
+    and as a Blu-ray."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-e2e-sound-")
+        rc, _, err = run_cli("init", "m", cwd=cls.tmp)
+        assert rc == 0, err
+        proj = os.path.join(cls.tmp, "m")
+
+        def ff(*args):
+            subprocess.run(["ffmpeg", "-v", "error", "-y"] + list(args), check=True)
+        ff("-f", "lavfi", "-i", "sine=f=440:d=3", os.path.join(proj, "media", "song.wav"))
+        ff("-f", "lavfi", "-i", "color=c=0x00C000:s=640x480", "-frames:v", "1",
+           os.path.join(proj, "media", "cover.png"))
+        cls.path = os.path.join(proj, "project.oncemore.json")
+        with open(cls.path) as f:
+            data = json.load(f)
+        data["titles"] += [
+            {"id": "song", "source": "media/song.wav", "picture": "media/cover.png",
+             "end_action": "menu:main"},
+            {"id": "dark", "source": "media/song.wav", "end_action": "menu:main"}]
+        data["menus"][0]["buttons"].append(
+            {"id": "song", "label": "SONG", "x": 400, "y": 380, "action": "title:song",
+             "thumbnail": {"x": 400, "y": 300, "w": 96, "h": 72}})
+        with open(cls.path, "w") as f:
+            json.dump(data, f)
+        cls.out = os.path.join(cls.tmp, "dvd")
+        cls.rc, cls.stdout, cls.stderr = run_cli("--json", "build", cls.path, "-o", cls.out,
+                                                 "--fast", "--keep-work", cwd=cls.tmp)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def colour(self, path, at):
+        out = subprocess.run(
+            [tools.find("ffmpeg"), "-v", "error", "-ss", str(at), "-i", path, "-frames:v", "1",
+             "-vf", "scale=1:1:flags=area", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+            capture_output=True, check=True).stdout
+        return list(out[:3])
+
+    def test_dvd_titles(self):
+        self.assertEqual(self.rc, 0, self.stderr + self.stdout)
+        res = json_lines(self.stdout)[-1]
+        song = next(t for t in res["titles"] if t["id"] == "song")
+        self.assertAlmostEqual(song["duration"], 3.0, delta=0.1)
+        work = os.path.join(self.out, ".work")
+        for tid, check in (("song", lambda c: c[1] > 120 and c[0] < 60 and c[2] < 60),
+                           ("dark", lambda c: max(c) < 30)):
+            mpg = os.path.join(work, "titles", f"{tid}.mpg")
+            streams = ffprobe_streams(mpg)
+            v = [x for x in streams if x["codec_type"] == "video"]
+            self.assertEqual((v[0]["width"], v[0]["height"]), (720, 480))
+            self.assertTrue(any(x["codec_type"] == "audio" for x in streams))
+            self.assertTrue(check(self.colour(mpg, 1.5)), (tid, self.colour(mpg, 1.5)))
+        thumb = os.path.join(work, "menus", "main.song.thumb.png")
+        c = self.colour(thumb, 0)
+        self.assertTrue(c[1] > 120 and c[0] < 60, c)
+
+    @unittest.skipUnless(have("ffprobe") and "libx264" in subprocess.run(
+        ["ffmpeg", "-hide_banner", "-encoders"], capture_output=True, text=True).stdout,
+        "needs libx264")
+    def test_bluray_title(self):
+        out = os.path.join(self.tmp, "bd")
+        rc, stdout, stderr = run_cli("--json", "build", self.path, "-o", out, "--format",
+                                     "bluray", "--fast", cwd=self.tmp)
+        self.assertEqual(rc, 0, stderr + stdout)
+        bd = json_lines(stdout)[-1]
+        n = [t["id"] for t in bd["titles"]].index("song") + 1
+        clip = os.path.join(out, "BDMV", "STREAM", f"{n:05d}.m2ts")
+        c = self.colour(clip, 1.5)
+        self.assertTrue(c[1] > 120 and c[0] < 60, c)
+
+
+@unittest.skipUnless(TOOLS_OK, SKIP_REASON)
 class TestScanModes(unittest.TestCase):
     """23.976p film gets soft 3:2 pulldown, 1080i and 59.94p sources stay
     interlaced, and a 25 fps source is converted to progressive 29.97."""

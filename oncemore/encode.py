@@ -436,6 +436,32 @@ def clip_graph(title, probes, disc, mode, video=True, audio=True):
     return inputs, ";".join(chains), labels
 
 
+def sound_only(info, title, disc):
+    """The probe-like info of a title whose source is sound only: its
+    picture is `title.picture` held still, or black (info["still"] is the
+    picture's path, or None)."""
+    num, den = disc.fps
+    out = dict(info, has_video=True, fps=num / den, interlaced=False, still=title.picture,
+               codec=None)
+    if title.picture:
+        pic = probe(title.picture)
+        out.update(width=pic.get("width"), height=pic.get("height"), sar=pic.get("sar") or 1)
+    else:
+        out.update(width=disc.width, height=disc.height, sar=disc.dar * disc.height / disc.width)
+    return out
+
+
+def still_input(info, fps, duration, size):
+    """ffmpeg input of a sound-only title's picture (sound_only): the still,
+    or black of `size`, for `duration` seconds at `fps`."""
+    num, den = fps
+    if info.get("still"):
+        return ["-loop", "1", "-framerate", f"{num}/{den}", "-t", f"{duration:.3f}",
+                "-i", info["still"]]
+    w, h = size
+    return ["-f", "lavfi", "-i", f"color=c=black:s={w}x{h}:r={num}/{den}:d={duration:.3f}"]
+
+
 DVD_MAX_VIDEO_BPS = 9_800_000
 
 
@@ -508,7 +534,12 @@ def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
                    duration, os.path.join(work, "logs", f"title-{title.id}.log"), on_progress,
                    cwd=work, what=f"ffmpeg (title {title.id}, picture copied)")
         return out_path
-    video = ["-map", "0:v:0", "-vf", fit_filter(info, disc, mode=mode, ivtc=is_ivtc(title))] + \
+    vin = "0:v:0"
+    if "still" in info:
+        # sound only: the picture comes from its own input, after the sound's
+        inputs += still_input(info, disc.fps, duration, (disc.width, disc.height))
+        vin = f"{inputs.count('-i') - 1}:v:0"
+    video = ["-map", vin, "-vf", fit_filter(info, disc, mode=mode, ivtc=is_ivtc(title))] + \
         _video_args(title, disc, video_bps, target, mode)
     passlog = os.path.join(work, f"{title.id}-pass")
     logdir = os.path.join(work, "logs")

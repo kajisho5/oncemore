@@ -313,6 +313,7 @@ class Title:
     chapter_posters: list = field(default_factory=list)  # thumbnail time per chapter, or None
     scan: str = "auto"       # "auto" | "progressive" | "interlaced" | "pulldown" | "ivtc"
     transcode: bool = True   # False: a DVD-compliant MPEG-2 source's picture is used as it is
+    picture: str = None      # a sound-only source: the still shown meanwhile (None = black)
     clips: list = field(default_factory=list)   # Clip, when made of several videos
     clip_chapters: bool = False   # a chapter at every clip (set once clip lengths are known)
     video_mode: str = None   # what `scan` resolved to for the source (set by build.inspect)
@@ -831,7 +832,10 @@ class _Builder:
             aspect=t.get("aspect"),
             scan=t.get("scan", "auto"),
             transcode=t.get("transcode", True),
+            picture=self.file(f"{where}.picture", t.get("picture")),
         )
+        if title.picture and (clips or show):
+            self.err(f"{where}.picture", "a picture is for a title from a sound file")
         if not title.transcode:
             if clips or show:
                 self.err(f"{where}.transcode", "only a title from one video file can use its "

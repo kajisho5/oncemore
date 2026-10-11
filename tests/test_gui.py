@@ -1099,6 +1099,16 @@ class TestGuiBrowser(unittest.TestCase):
                                   "fit": "fill", "advance": "manual"})
             self.assertTrue(self.s.app.check(self.project())["valid"])
             self.assertTrue(page.locator("#ss-tr").is_hidden())
+            # a title from a sound file, with a picture to look at
+            page.click(".media-item[data-media='media/song2.wav']")
+            page.click("button[data-act=title]")
+            page.locator("#inspector select[data-k=picture]").wait_for()
+            self.wait_saved(page)
+            page.select_option("#inspector select[data-k=picture]", "media/menu_bg.png")
+            self.wait_saved(page)
+            ti = self.project()["titles"][-1]
+            self.assertEqual((ti["source"], ti["picture"]), ("media/song2.wav", "media/menu_bg.png"))
+            self.assertTrue(self.s.app.check(self.project())["valid"])
             # subtitles: a new track, two cues typed in, one removed
             page.click(".nav-item[data-view=title][data-id=t1]")
             page.click("#sub-new")

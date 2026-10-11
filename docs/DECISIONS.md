@@ -1038,3 +1038,12 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   transition cannot be held half way) and there is no music (it would
   stop at every picture).
 
+## 67. Titles from sound files
+
+* A source with sound and no picture is a title like any other: the
+  picture is the title's `picture` (or black) given to ffmpeg as one more
+  input after the sound ones (so the audio graph's input numbers stay as
+  they are) and fitted like a video frame; its signature is part of the
+  encode cache key. Menu thumbnails of such a title show the picture (or a
+  black box).
+

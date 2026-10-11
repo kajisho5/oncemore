@@ -53,6 +53,12 @@ def inspect(project, reporter=None, prepare=True, bd=False):
             info = _clip_info(project, t, probe, issues, where)
         else:
             info = probe(t.source)
+            if not info.get("has_video") and info.get("has_audio"):
+                # music: the sound, with a still picture (or black) to look at
+                info = encode.sound_only(info, t, project.disc_for(t))
+            elif t.picture:
+                warnings.append(f"{where}.picture: the source has a picture of its own; "
+                                "the still is not used")
             if info.get("has_video") and info.get("fps"):
                 t.video_mode = encode.video_mode(t, info, project.disc)
         infos[t.id] = info
@@ -321,7 +327,10 @@ def title_cache_key(project, title, info, vbps, fast):
         "ivtc": encode.is_ivtc(title),
         "audio": [title.audio_codec, title.audio_bitrate, title.audio_channels,
                   title.audio_passthrough],
-        **({} if title.transcode else {"copy": True})})
+        **({} if title.transcode else {"copy": True}),
+        # (a sound-only title: the picture shown with it)
+        **({"still": _file_sig(info["still"]) if info["still"] else "black"}
+           if "still" in info else {})})
 
 
 def encode_cache_dir(project):

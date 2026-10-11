@@ -524,6 +524,18 @@ class MenuBuilder:
             source, at = source_at(title, t.time)
             info = self._probe(source)
             size = (int(round(t.w * self.sx / 2)) * 2, t.h)
+            path = os.path.join(self.work, f"{menu.id}.{b.id}.thumb.png")
+            if not info.get("has_video") and info.get("has_audio"):
+                # a title from a sound file: its still picture, or black
+                if title.picture:
+                    pic = self._probe(title.picture)
+                    encode.extract_thumbnail(title.picture, pic, self.project.disc_for(title),
+                                             0.0, size, path,
+                                             os.path.join(self.logs, f"thumb-{menu.id}-{b.id}.log"))
+                else:
+                    png4.write_indexed_png(path, png4.Canvas(*size), [(0, 0, 0, 255)])
+                out.append((path, round(t.x * self.sx), t.y))
+                continue
             if t.animated and menu.background_video:
                 # a moving thumbnail: the chapter itself, fitted like the title
                 w, h = size
@@ -539,7 +551,6 @@ class MenuBuilder:
                 out.append((source, round(t.x * self.sx), t.y, vf,
                             ["-ss", f"{start:.3f}", "-t", f"{dur:.3f}"]))
                 continue
-            path = os.path.join(self.work, f"{menu.id}.{b.id}.thumb.png")
             encode.extract_thumbnail(source, info, self.project.disc_for(title), at,
                                      size, path,
                                      os.path.join(self.logs, f"thumb-{menu.id}-{b.id}.log"))
