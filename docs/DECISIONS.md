@@ -1281,3 +1281,22 @@ written that fails before the fix, and then the fix:
   DVD does; the app's preview takes two digits typed together, as players
   do.
 
+## 76. DTS sound
+
+* DTS is copied, never encoded: ffmpeg's DTS encoder is experimental, and
+  the authoring apps this follows passed DTS through too. So `codec: "dts"`
+  means the copy (`passthrough` is implied; `false` is refused), clips are
+  refused (their sound is joined, so encoded), and the build checks that
+  each track's stream is 48 kHz DTS with the channels the title declares
+  (5.1 unless told; titles are grouped into DVD titlesets by them).
+* The copy goes through ffmpeg's `dca_core` filter: plain DTS passes
+  unchanged (the tests compare the stream's bytes), and a DTS-HD source
+  gives its DTS core, which is what a DVD takes and what a Blu-ray's
+  "DTS" stream type (0x82) means. DTS-HD as such would need its own stream
+  types and is not offered.
+* Its bitrate is the source's (1536k budgeted until measured); a DVD takes
+  DTS up to 1536 kbit/s, so a higher rate is an error there.
+* A DVD player need not decode DTS (the DVD format asks for an AC-3 or LPCM
+  track alongside it), and oncemore keeps one format for all of a title's
+  tracks, so a DVD title with DTS gets a warning. Blu-ray players decode the
+  DTS core, so there is none there.

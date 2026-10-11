@@ -63,7 +63,7 @@ from ..report import Reporter
 MEDIA_EXT = {
     "video": {".mp4", ".mov", ".m4v", ".mkv", ".avi", ".mpg", ".mpeg", ".mts", ".m2ts",
               ".ts", ".webm", ".wmv", ".dv", ".vob", ".mxf"},
-    "audio": {".wav", ".aif", ".aiff", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".ac3", ".opus"},
+    "audio": {".wav", ".aif", ".aiff", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".ac3", ".dts", ".opus"},
     "image": {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp"},
     "subtitle": {".srt", ".vtt", ".ass", ".ssa", ".txt"},
     "font": {".ttf", ".otf", ".ttc"},

@@ -53,7 +53,8 @@ def probe(path):
            "audio_streams": sum(1 for s in streams if s.get("codec_type") == "audio"),
            "audio": [{"codec": s.get("codec_name"), "rate": int(s.get("sample_rate", 0) or 0),
                       "channels": int(s.get("channels", 0) or 0),
-                      "bit_rate": int(s.get("bit_rate", 0) or 0)}
+                      "bit_rate": int(s.get("bit_rate", 0) or 0),
+                      "profile": s.get("profile")}
                      for s in streams if s.get("codec_type") == "audio"],
            "duration": _float(fmt.get("duration")) or (_float(v.get("duration")) if v else None),
            "bit_rate": int(fmt.get("bit_rate", 0) or 0),
@@ -342,6 +343,16 @@ LPCM_FRAME_FILTER = ("aresample=48000,aformat=sample_fmts=s16:channel_layouts=st
                      "asetnsamples=n=80:p=0")
 
 
+# DTS is copied as its core stream: DTS-HD extensions (which neither disc
+# format takes as "DTS") are dropped; plain DTS passes unchanged
+DTS_CORE = ["-bsf:a", "dca_core"]
+
+
+def copy_args(title):
+    """Encoder options for sound copied from the sources (audio_passthrough)."""
+    return ["-c:a", "copy"] + (DTS_CORE if title.audio_codec == "dts" else [])
+
+
 def audio_args(codec, bitrate, framing=True, channels=2):
     """Encoder options. `framing=False` when the LPCM framing filter is
     already part of a -filter_complex chain (-af cannot be combined).
@@ -562,7 +573,7 @@ def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
         amap = []
         for tr in title.audio_tracks:
             amap += ["-map", f"{sources.index(tr.source)}:a:{tr.stream}"]
-        acodec = ["-c:a", "copy"]
+        acodec = copy_args(title)
     else:
         amap = ["-filter_complex", graph]
         for lab in labels:

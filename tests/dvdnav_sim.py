@@ -24,6 +24,9 @@ EV_STOP = 8
 EV_HIGHLIGHT = 9
 EV_WAIT = 13
 
+# dvdnav_audio_stream_format (DVD_AUDIO_FORMAT_*)
+AUDIO_AC3, AUDIO_LPCM, AUDIO_DTS = 0, 4, 6
+
 _CANDIDATES = (
     "libdvdnav.so.4", "libdvdnav.so", "libdvdnav.dylib", "libdvdnav.4.dylib",
     "/opt/homebrew/lib/libdvdnav.dylib", "/usr/local/lib/libdvdnav.dylib",
@@ -76,6 +79,7 @@ def _declare(lib):
         "dvdnav_get_active_spu_stream": (ctypes.c_int8, [P]),
         "dvdnav_audio_stream_to_lang": (ctypes.c_uint16, [P, ctypes.c_uint8]),
         "dvdnav_audio_stream_channels": (ctypes.c_uint16, [P, ctypes.c_uint8]),
+        "dvdnav_audio_stream_format": (ctypes.c_uint16, [P, ctypes.c_uint8]),
         "dvdnav_spu_stream_to_lang": (ctypes.c_uint16, [P, ctypes.c_uint8]),
         "dvdnav_get_title_string": (ctypes.c_int, [P, ctypes.POINTER(ctypes.c_char_p)]),
         "dvdnav_menu_call": (ctypes.c_int, [P, ctypes.c_int]),
@@ -210,6 +214,10 @@ class DvdSim:
 
     def audio_channels(self, stream):
         return self.lib.dvdnav_audio_stream_channels(self.h, stream)
+
+    def audio_format(self, stream):
+        """DVD_AUDIO_FORMAT_*: AUDIO_AC3, AUDIO_LPCM, AUDIO_DTS ..."""
+        return self.lib.dvdnav_audio_stream_format(self.h, stream)
 
     def subtitle_lang(self, stream):
         return self._lang(self.lib.dvdnav_spu_stream_to_lang(self.h, stream))

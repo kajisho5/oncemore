@@ -53,6 +53,7 @@ const I18N = {
     no_transcode: "Don't transcode (the source already is DVD video)", no_transcode_hint: "MPEG-2 at the disc's frame size and rate goes on the disc as it is; the sound is still made to the settings below. The build says why when the file does not qualify.", status_no_transcode: "Don't transcode",
     auto_shared: "Automatic (share the disc)", passthrough: "Copy AC-3 unchanged",
     passthrough_hint: "For AC-3 (48 kHz) sources: no re-encoding. Channels must match the source.",
+    dts_copy: "DTS (copy)", dts_hint: "DTS is copied from the sources as it is (48 kHz; DTS-HD keeps its DTS core). Channels must match the source.",
     rom_files: "DVD-ROM files", rom_hint: "Files or folders (one per line, relative to the project) put next to VIDEO_TS for computers.",
     no_cache: "Encode everything again (ignore the cache)",
     sub_bottom: "Bottom", sub_top: "Top", sub_color: "Own colour",
@@ -302,6 +303,7 @@ const I18N = {
     no_transcode: "トランスコードしない（素材がすでに DVD ビデオ）", no_transcode_hint: "ディスクと同じフレームサイズ・フレームレートの MPEG-2 をそのまま収録します。音声は下の設定で作り直します。条件を満たさないファイルはビルド時に理由を表示します。", status_no_transcode: "トランスコードしない",
     auto_shared: "自動（ディスク全体で配分）", passthrough: "AC-3 をそのままコピー",
     passthrough_hint: "AC-3（48kHz）素材向け：再エンコードしません。チャンネル数は素材と同じにしてください。",
+    dts_copy: "DTS（コピー）", dts_hint: "DTS は素材からそのままコピーします（48kHz。DTS-HD はコア部分のみ）。チャンネル数は素材と同じにしてください。",
     rom_files: "DVD-ROM ファイル", rom_hint: "パソコン向けに VIDEO_TS と並べて入れるファイル／フォルダ（1 行に 1 つ、プロジェクトからの相対パス）。",
     no_cache: "すべてエンコードし直す（キャッシュを使わない）",
     sub_bottom: "下", sub_top: "上", sub_color: "色を指定",
@@ -1844,11 +1846,11 @@ function renderTitleInspector(el) {
     <label class="field"><span>${t("menu_key")}</span>${selectHtml("remote_menu", [["__none__", t("first_menu")], ...allMenuIds().map((id) => [id, t("menu_item", { m: id })])], ti.remote_menu || "__none__")}<div class="hint">${esc(t("menu_key_hint"))}</div></label>
     <h3>${t("audio")}</h3>
     <div class="grid2">
-      <label class="field"><span>${t("codec")}</span>${selectHtml("audio.codec", [["ac3", "AC-3"], ["lpcm", "LPCM"]], audio.codec || "ac3")}</label>
-      <label class="field"><span>${t("bitrate")}</span>${selectHtml("audio.bitrate", [["128k", "128k"], ["192k", "192k"], ["224k", "224k"], ["256k", "256k"], ["384k", "384k"], ["448k", "448k"]], audio.bitrate || (audio.channels === 6 ? "448k" : "192k"), audio.codec === "lpcm" ? "disabled" : "")}</label>
-      <label class="field"><span>${t("channels")}</span>${selectHtml("audio.channels", [["2", t("stereo")], ["6", t("surround")]], String(audio.channels || 2), audio.codec === "lpcm" ? "disabled" : "")}</label>
+      <label class="field"><span>${t("codec")}</span>${selectHtml("audio.codec", [["ac3", "AC-3"], ["lpcm", "LPCM"], ["dts", t("dts_copy")]], audio.codec || "ac3")}${audio.codec === "dts" ? `<div class="hint">${esc(t("dts_hint"))}</div>` : ""}</label>
+      <label class="field"><span>${t("bitrate")}</span>${selectHtml("audio.bitrate", [["128k", "128k"], ["192k", "192k"], ["224k", "224k"], ["256k", "256k"], ["384k", "384k"], ["448k", "448k"]], audio.bitrate || (audio.channels === 6 ? "448k" : "192k"), audio.codec === "lpcm" || audio.codec === "dts" ? "disabled" : "")}</label>
+      <label class="field"><span>${t("channels")}</span>${selectHtml("audio.channels", [["2", t("stereo")], ["6", t("surround")]], String(audio.channels || (audio.codec === "dts" ? 6 : 2)), audio.codec === "lpcm" ? "disabled" : "")}</label>
       <label class="field"><span>${t("video_bitrate")}</span>${selectHtml("video_bitrate", [["__none__", t("auto_shared")], ...["3M", "4M", "5M", "6M", "7M", "8M"].map((b) => [b, b.replace("M", " Mbit/s")])], ti.video_bitrate || "__none__", ti.transcode === false ? "disabled" : "")}</label>
-      <label class="field"><span></span><label title="${esc(t("passthrough_hint"))}"><input type="checkbox" data-k="audio.passthrough" ${audio.passthrough ? "checked" : ""} ${audio.codec === "lpcm" ? "disabled" : ""}> ${t("passthrough")}</label></label>
+      <label class="field"><span></span><label title="${esc(t("passthrough_hint"))}"><input type="checkbox" data-k="audio.passthrough" ${audio.passthrough || audio.codec === "dts" ? "checked" : ""} ${audio.codec === "lpcm" || audio.codec === "dts" ? "disabled" : ""}> ${t("passthrough")}</label></label>
     </div>
     ${tracks.length ? "" : `<label class="field"><span>${t("language")}</span>${selectHtml("audio.lang", langs, audio.lang || "")}</label>`}
     <h3>${t("audio_tracks")}</h3>
@@ -1887,10 +1889,11 @@ function renderTitleInspector(el) {
   const find = (p) => p.titles.find((x) => x.id === ti.id);
   bindFields(el, find, {
     numeric: ["audio.channels"],
-    onAfter: (p, key, val) => {   // LPCM is stereo only; 2 is the default anyway
+    onAfter: (p, key, val) => {   // LPCM is stereo only; 2 (DTS: 6) is the default anyway
       const a = find(p).audio;
-      if (a && (key === "audio.codec" && val === "lpcm" || key === "audio.channels" && val === 2)) delete a.channels;
-      if (a && (key === "audio.codec" && val === "lpcm" || key === "audio.passthrough" && !val)) delete a.passthrough;
+      if (a && (key === "audio.codec" && val === "lpcm" || key === "audio.channels" && val === (a.codec === "dts" ? 6 : 2))) delete a.channels;
+      if (a && (key === "audio.codec" && (val === "lpcm" || val === "dts") || key === "audio.passthrough" && !val)) delete a.passthrough;
+      if (a && key === "audio.codec" && val === "dts") delete a.bitrate;
     },
   });
   // the picture used as it is: nothing about its encoding applies
@@ -3776,7 +3779,7 @@ const COMMANDS = {
   import_files: { key: "mod+i", run: pickFiles, when: hasProject },
   import_menu: { run: () => pickUpload(".psd,.psb,.png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp", false, ([path]) => importAsMenu(path)), when: hasProject },
   import_psd: { run: pickPsd, when: hasProject },
-  import_timeline: { run: () => pickUpload("video/*,audio/*,.mkv,.m2ts,.mts,.vob,.ts,.dv,.ac3", true, (paths) => paths.forEach((x) => mediaAction("title", x))), when: hasProject },
+  import_timeline: { run: () => pickUpload("video/*,audio/*,.mkv,.m2ts,.mts,.vob,.ts,.dv,.ac3,.dts", true, (paths) => paths.forEach((x) => mediaAction("title", x))), when: hasProject },
   import_slideshow: { run: () => pickUpload("image/*", true, (paths) => newSlideshow(paths)), when: hasProject },
   import_popup: { run: () => pickUpload(".psd,.psb,.png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp", false, ([path]) => importAsMenu(path, popupTitle())), when: () => hasProject() && (P().titles || []).length > 0 },
   replace_asset: { run: () => replaceAssetBox(), when: hasProject },
@@ -4073,9 +4076,9 @@ function titleFieldsBox(which) {
     ? `<label class="field"><span>${t("aspect")}</span>${selectHtml("aspect", [["__none__", `${t("auto")} (${P().disc.aspect})`], ["16:9", "16:9"], ["4:3", "4:3"]], ti.aspect || "__none__")}</label>${scan}`
     : `${ti.clips ? "" : `<label class="field"><span></span><label><input type="checkbox" id="tf-copy" ${copy ? "checked" : ""}> ${t("no_transcode")}</label><div class="hint">${esc(t("no_transcode_hint"))}</div></label>`}
       <label class="field"><span>${t("video_bitrate")}</span>${selectHtml("video_bitrate", [["__none__", t("auto_shared")], ...["3M", "4M", "5M", "6M", "7M", "8M"].map((b) => [b, b.replace("M", " Mbit/s")])], ti.video_bitrate || "__none__", copy ? "disabled" : "")}</label>
-      <label class="field"><span>${t("codec")}</span>${selectHtml("audio.codec", [["ac3", "AC-3"], ["lpcm", "LPCM"]], audio.codec || "ac3")}</label>
-      <label class="field"><span>${t("bitrate")}</span>${selectHtml("audio.bitrate", [["128k", "128k"], ["192k", "192k"], ["224k", "224k"], ["256k", "256k"], ["384k", "384k"], ["448k", "448k"]], audio.bitrate || (audio.channels === 6 ? "448k" : "192k"), audio.codec === "lpcm" ? "disabled" : "")}</label>
-      <label class="field"><span>${t("channels")}</span>${selectHtml("audio.channels", [["2", t("stereo")], ["6", t("surround")]], String(audio.channels || 2), audio.codec === "lpcm" ? "disabled" : "")}</label>`;
+      <label class="field"><span>${t("codec")}</span>${selectHtml("audio.codec", [["ac3", "AC-3"], ["lpcm", "LPCM"], ["dts", t("dts_copy")]], audio.codec || "ac3")}${audio.codec === "dts" ? `<div class="hint">${esc(t("dts_hint"))}</div>` : ""}</label>
+      <label class="field"><span>${t("bitrate")}</span>${selectHtml("audio.bitrate", [["128k", "128k"], ["192k", "192k"], ["224k", "224k"], ["256k", "256k"], ["384k", "384k"], ["448k", "448k"]], audio.bitrate || (audio.channels === 6 ? "448k" : "192k"), audio.codec === "lpcm" || audio.codec === "dts" ? "disabled" : "")}</label>
+      <label class="field"><span>${t("channels")}</span>${selectHtml("audio.channels", [["2", t("stereo")], ["6", t("surround")]], String(audio.channels || (audio.codec === "dts" ? 6 : 2)), audio.codec === "lpcm" ? "disabled" : "")}</label>`;
   openModal(`<h2>${t("cmd_" + which)}</h2><div class="hint">${esc(ti.name || ti.id)}</div>${body}
     <div class="dlg-buttons"><span class="spacer"></span><button id="tf-ok" class="primary">OK</button></div>`);
   const root = $("#modal-body"), id = ti.id, find = (p) => p.titles.find((x) => x.id === id);
@@ -4083,8 +4086,9 @@ function titleFieldsBox(which) {
     numeric: ["audio.channels"],
     onAfter: (p, key, val) => {
       const a = find(p).audio;
-      if (a && (key === "audio.codec" && val === "lpcm" || key === "audio.channels" && val === 2)) delete a.channels;
-      if (a && key === "audio.codec" && val === "lpcm") delete a.passthrough;
+      if (a && (key === "audio.codec" && val === "lpcm" || key === "audio.channels" && val === (a.codec === "dts" ? 6 : 2))) delete a.channels;
+      if (a && key === "audio.codec" && (val === "lpcm" || val === "dts")) delete a.passthrough;
+      if (a && key === "audio.codec" && val === "dts") delete a.bitrate;
       if (a && !Object.keys(a).length) delete find(p).audio;
     },
   });
@@ -4550,7 +4554,7 @@ function chaptersAtIntervals() {
   };
 }
 // File > Replace asset: every use of one file in the project points to another
-const MEDIA_RE = /\.(mp4|m4v|mov|mkv|avi|mpe?g|m2ts|mts|ts|vob|webm|dv|wav|aiff?|mp3|m4a|aac|ac3|flac|png|jpe?g|bmp|tiff?|gif|webp|srt|vtt|ass|ssa|psd|psb|ttf|otf|ttc)$/i;
+const MEDIA_RE = /\.(mp4|m4v|mov|mkv|avi|mpe?g|m2ts|mts|ts|vob|webm|dv|wav|aiff?|mp3|m4a|aac|ac3|dts|flac|png|jpe?g|bmp|tiff?|gif|webp|srt|vtt|ass|ssa|psd|psb|ttf|otf|ttc)$/i;
 function assetRefs(p = P()) {
   const uses = new Map();
   const walk = (v) => {
