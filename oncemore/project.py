@@ -354,6 +354,7 @@ class Title:
     clips: list = field(default_factory=list)   # Clip, when made of several videos
     clip_chapters: bool = False   # a chapter at every clip (set once clip lengths are known)
     video_mode: str = None   # what `scan` resolved to for the source (set by build.inspect)
+    bd_copy: bool = False    # Blu-ray: the source's H.264 picture is used as it is (build.inspect)
     prohibit: list = field(default_factory=list)   # remote keys the title does not allow (uops.NAMES)
 
     @property

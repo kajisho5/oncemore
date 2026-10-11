@@ -245,6 +245,13 @@ browser) and lands only with green CI.
   its link (menu, title, chapter, playlist, play all), on DVD and Blu-ray;
   drawn in the flowchart, played in the simulator
 
+**P56 — Blu-ray: H.264 used as it is** (done)
+- [x] `transcode: false` on a Blu-ray copies an H.264 picture that already
+  is Blu-ray video (profile, level, frame, rate, 1080i field coding read
+  from the stream, key frames, bitrate), with its parameter sets reordered
+  as a Blu-ray stream has them; anything else is encoded with a warning
+  naming why; the disc plan keeps the copied picture's own rate
+
 **P55 — DTS sound** (done)
 - [x] `audio.codec: "dts"`: DTS copied from the sources unchanged (the DTS
   core of a DTS-HD source), on DVD (its own titleset; a warning that DVD

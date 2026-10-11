@@ -69,6 +69,7 @@ def probe(path):
             "codec": v.get("codec_name"),
             "pix_fmt": v.get("pix_fmt"),
             "video_bit_rate": int(v.get("bit_rate", 0) or 0),
+            "profile": v.get("profile"), "level": int(v.get("level", 0) or 0),
             "interlaced": v.get("field_order") in ("tt", "bb", "tb", "bt"),
             "field_order": v.get("field_order"),
         })
