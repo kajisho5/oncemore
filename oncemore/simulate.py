@@ -29,6 +29,8 @@ requests):
   log         what happened on the last key, for the app to show
 """
 
+import os
+
 from . import author, navigation
 from .project import parse_action
 
@@ -330,6 +332,9 @@ class Simulator:
         if author.button_reg(m) and parse_action(g["action"])[0] not in ("audio", "subtitle"):
             s["remember"][m.id] = s["button"]
         b = next((x for x in m.buttons if x.id == g["id"]), None)
+        if b is not None and b.transition:
+            # (it plays out by itself, then the button does the rest)
+            self.note(s, f"transition {os.path.basename(b.transition)}")
         if b is not None and b.audio:
             s["audio"] = b.audio
         if b is not None and b.subtitle is not None:

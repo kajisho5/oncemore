@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from oncemore import author, encode
+from oncemore import author, encode, graph
 from oncemore.errors import ProjectError
 from oncemore.project import CAPACITY, build_project
 from oncemore.scaffold import sample_project
@@ -250,6 +250,54 @@ class TestAuthorXml(unittest.TestCase):
         msg = json.dumps(cm.exception.issues)
         self.assertIn("an override needs a title:... or chapter:... action", msg)
         self.assertIn("no title with id 'nope'", msg)
+
+    def test_link_transitions(self):
+        d = sample_project()
+        bs = d["menus"][0]["buttons"]
+        bs[0]["transition"] = "media/sting.mp4"
+        bs[1]["transition"] = "media/dissolve.mp4"
+        bs[2].update(transition="media/dissolve.mp4", override="menu:chapters")
+        bs.append(dict(bs[2], id="b2", y=400, label="AGAIN"))     # the same as b
+        p = build_project(d, "/v/project.oncemore.json", check_files=False)
+        self.assertEqual([k[:3] for k in p.link_transitions],
+                         [("/v/media/sting.mp4", "playall", None),
+                          ("/v/media/dissolve.mp4", "menu:chapters", None),
+                          ("/v/media/dissolve.mp4", "title:t2", "menu:chapters")])
+        self.assertEqual(list(author.transition_pgcs(p).values()), [3, 4, 5])
+        x = author.build_xml(p, {"main": "m", "chapters": "c"}, {"t1": "a", "t2": "b"}, "/o",
+                             {"/v/media/sting.mp4": "s.mpg", "/v/media/dissolve.mp4": "d.mpg"})
+        # the buttons go to their transition (b and b2 share one) ...
+        self.assertIn('<button name="play">g5 = button; jump menu 3;</button>', x)
+        self.assertIn('<button name="ch">g5 = button; jump menu 4;</button>', x)
+        self.assertIn('<button name="b">g5 = button; jump menu 5;</button>', x)
+        self.assertIn('<button name="b2">g5 = button; jump menu 5;</button>', x)
+        # ... which plays in a menu PGC of its own, then does what they would have
+        self.assertIn('<pgc>\n        <vob file="s.mpg"/>\n'
+                      '        <post>g12 = 0; g2 = 1; jump title 1;</post>', x)
+        self.assertIn('<pgc>\n        <vob file="d.mpg"/>\n        <post>jump menu 2;</post>', x)
+        self.assertIn('<pgc>\n        <vob file="d.mpg"/>\n'
+                      '        <post>g2 = 0; g12 = 1; jump title 2;</post>', x)
+        # the simulator notes it and arrives where the disc does
+        sim = Simulator(p)
+        s = sim.start()
+        sim.press(s, "select:ch")
+        sim.press(s, "enter")
+        self.assertEqual(s["log"], ["button ch -> menu:chapters", "transition dissolve.mp4",
+                                    "menu chapters"])
+        self.assertEqual(sim.view(s)[:2], ("menu", "chapters"))
+        # the flowchart marks those links
+        self.assertEqual(sorted(e["transition"] for e in graph.build(p)["edges"]
+                                if e.get("transition")),
+                         ["dissolve.mp4", "dissolve.mp4", "dissolve.mp4", "sting.mp4"])
+        # only for links, and only videos
+        bs[0]["action"] = "audio:1"
+        bs[1]["transition"] = "media/dissolve.png"
+        with self.assertRaises(ProjectError) as cm:
+            build_project(d, "/v/project.oncemore.json", check_files=False)
+        msg = json.dumps(cm.exception.issues)
+        self.assertIn("a link transition needs a link to a menu, title, chapter, playlist or "
+                      "play all", msg)
+        self.assertIn("a link transition is a video", msg)
 
     def test_links_to_a_button(self):
         d = sample_project()

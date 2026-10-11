@@ -661,6 +661,11 @@
           "pattern": "^(menu:[A-Za-z0-9_-]{1,40}(:[A-Za-z0-9_-]{1,40})?|title:[A-Za-z0-9_-]{1,40}|chapter:[A-Za-z0-9_-]{1,40}:[1-9][0-9]*|playall|playlist:[A-Za-z0-9_-]{1,40}|lastmenu|stop)$",
           "description": "End action override: when the title this button plays (title:... / chapter:... action) ends, go here instead of the title's own end_action. Only for plays started from this button."
         },
+        "transition": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Link transition: a short video played when the button is pressed, before its link (a menu, title, chapter, playlist or play all), e.g. the menu dissolving into the next one."
+        },
         "size": {
           "type": "integer",
           "minimum": 8,

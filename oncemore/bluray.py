@@ -19,7 +19,7 @@ import struct
 
 from . import encode
 from .errors import OncemoreError, ProjectError
-from .project import parse_action, title_fps
+from .project import parse_action, title_fps, transition_key
 
 CAPACITY = {"BD25": 25_025_314_816, "BD50": 50_050_629_632}
 MAX_VIDEO_BPS = 40_000_000     # Blu-ray primary video limit
@@ -217,6 +217,25 @@ def encode_title(title, info, disc, max_bps, out_path, work, fast=False, on_prog
                        "-mpegts_pmt_start_pid", str(PMT_PID), out_path],
                       duration, os.path.join(work, "logs", f"title-{title.id}-bd.log"),
                       on_progress, cwd=work, what=f"ffmpeg (title {title.id})")
+    return out_path
+
+
+def encode_transition(path, info, disc, max_bps, out_path, work, fast=False, on_progress=None):
+    """A link transition as a clip of its own: the HD picture and its sound
+    (or silence) in AC-3, like a menu's."""
+    duration = info["duration"]
+    vf = encode.fit_filter(info, HDFrame(disc.standard, disc.fps))
+    graph = f"[0:v:0]{vf}[v];" + ("[0:a:0]aresample=48000,apad[a]" if info.get("has_audio")
+                                   else "anullsrc=channel_layout=stereo:sample_rate=48000[a]")
+    encode.run_ffmpeg(["-i", path, "-filter_complex", graph, "-map", "[v]", "-map", "[a]"] +
+                      stream_video_args(disc.fps, max_bps, fast) +
+                      ["-c:a", "ac3", "-b:a", "192000", "-ar", "48000", "-ac", "2",
+                       "-streamid", f"0:{VIDEO_PID}", "-streamid", f"1:{AUDIO_PID}",
+                       "-t", f"{duration:.3f}", "-f", "mpegts", "-mpegts_m2ts_mode", "1",
+                       "-mpegts_pmt_start_pid", str(PMT_PID), out_path],
+                      duration, os.path.join(work, "logs",
+                                             f"transition-{os.path.basename(out_path)}.log"),
+                      on_progress, cwd=work, what=f"ffmpeg (transition {os.path.basename(path)})")
     return out_path
 
 
@@ -590,9 +609,11 @@ class Piece:
 
 class Nav:
     """The disc's navigation: its Blu-ray titles (one per project title, one
-    per project playlist, "play all" when something starts it, then one per
-    menu), the movie objects that play them, and the commands an action
-    (a button's, an end action, first play) turns into.
+    per project playlist, "play all" when something starts it, one per
+    menu, then one per link transition), the movie objects that play them,
+    and the commands an action (a button's, an end action, first play)
+    turns into. A link transition's object plays it and then does what its
+    button would have done.
 
     Objects: one per Blu-ray title, in title order; then first play; then
     the top menu key; then one per (title, chapter) a menu button starts."""
@@ -605,6 +626,8 @@ class Nav:
         if p.uses_playall:
             titles.append(("playall", None, p.titles[-1].end_action))
         titles += [("menu", m.id, None) for m in p.menus]
+        self.transitions = p.link_transitions
+        titles += [("transition", k, None) for k in range(1, len(self.transitions) + 1)]
         self.titles = titles
         self.numbers = {f"{k}:{i}" if i else k: n for n, (k, i, _) in enumerate(titles, 1)}
         chapters = []
@@ -638,20 +661,27 @@ class Nav:
         return [jump_title(self.numbers[key])] if key in self.numbers else []
 
     def button(self, b):
-        """A menu button's commands: its streams, then its action."""
-        kind, _, n = parse_action(b.action)
+        """A menu button's commands: its streams, then its action; or, with a
+        link transition, the transition (whose object then does them)."""
+        if b.transition:
+            k = self.transitions.index(transition_key(b)) + 1
+            return [jump_title(self.numbers[f"transition:{k}"])]
+        return self.link(b.action, b.override, b.audio, b.subtitle)
+
+    def link(self, action, override=None, audio=None, subtitle=None):
+        kind, _, n = parse_action(action)
         cmds = []
-        audio = n if kind == "audio" else b.audio
-        sub = n if kind == "subtitle" else b.subtitle
+        audio = n if kind == "audio" else audio
+        sub = n if kind == "subtitle" else subtitle
         if audio or sub is not None:
             cmds.append(set_streams(audio, sub))
         if kind not in ("audio", "subtitle"):
-            if b.override:
+            if override:
                 # the title's object takes the override when it ends (_ends)
-                cmds.append(move(OVERRIDE_REG, self.project.overrides.index(b.override) + 1))
+                cmds.append(move(OVERRIDE_REG, self.project.overrides.index(override) + 1))
             elif self.project.overrides and kind in ("title", "chapter", "playlist", "playall"):
                 cmds.append(move(OVERRIDE_REG, 0))
-            cmds += self.go(b.action)
+            cmds += self.go(action)
         return cmds
 
     def _ends(self, end):
@@ -690,6 +720,10 @@ class Nav:
         menus = menus or {}
         out = []
         for n, (kind, ident, end) in enumerate(self.titles, 1):
+            if kind == "transition":
+                _, action, override, audio, subtitle = self.transitions[ident - 1]
+                out.append([play_pl(n)] + self.link(action, override, audio, subtitle))
+                continue
             if kind == "menu":
                 still, loop_mark = menus.get(ident, (True, 0))
                 m = p.menu(ident)
@@ -741,6 +775,8 @@ def playlist_items(project, kind, ident, pieces):
                  for it in project.playlist(ident).items]
     elif kind == "menu":
         parts = [(pieces[f"menu:{ident}"], 1, None)]
+    elif kind == "transition":
+        parts = [(pieces[project.link_transitions[ident - 1][0]], 1, None)]
     else:
         parts = [(pieces[t.id], 1, None) for t in project.titles]
     if any(piece.hold for piece, _, _ in parts):
@@ -785,12 +821,14 @@ def _write(out_dir, rel, data):
             f.write(data)
 
 
-def write_bdmv(project, clips, out_dir, menus=None, popups=()):
+def write_bdmv(project, clips, out_dir, menus=None, popups=(), transitions=None):
     """Write the BDMV folder. clips: {title id: encoded .m2ts}; menus:
     {menu id: {"m2ts", "still", "loop_point"}} (bdmenu.encode_menu); popups:
-    the ids of the titles whose clip carries a pop-up menu. The streams are
-    moved into BDMV/STREAM."""
+    the ids of the titles whose clip carries a pop-up menu; transitions:
+    {link transition video: encoded .m2ts} (encode_transition). The streams
+    are moved into BDMV/STREAM."""
     menus = menus or {}
+    transitions = transitions or {}
     for d in DIRS:
         os.makedirs(os.path.join(out_dir, d), exist_ok=True)
     pieces = {}
@@ -827,6 +865,17 @@ def write_bdmv(project, clips, out_dir, menus=None, popups=()):
         _write(out_dir, os.path.join("CLIPINF", f"{name}.clpi"),
                clpi(scan, video_format, frame_rate, audio, (), ig=True))
         shutil.move(info["m2ts"], os.path.join(out_dir, "BDMV", "STREAM", f"{name}.m2ts"))
+    first = len(project.titles) + len(project.menus) + 1
+    for k, path in enumerate(sorted({key[0] for key in project.link_transitions}), first):
+        name = f"{k:05d}"
+        scan = scan_m2ts(transitions[path])
+        video_format, frame_rate = FORMATS[project.disc.fps]
+        audio = [(CODING_AC3, 2, "und")]
+        pieces[path] = Piece(name, video_format, frame_rate, audio, [], [scan.first_pts // 2],
+                             scan.end_pts // 2)
+        _write(out_dir, os.path.join("CLIPINF", f"{name}.clpi"),
+               clpi(scan, video_format, frame_rate, audio))
+        shutil.move(transitions[path], os.path.join(out_dir, "BDMV", "STREAM", f"{name}.m2ts"))
     nav = Nav(project)
     titles = nav.titles
     for n, (kind, ident, _) in enumerate(titles, 1):

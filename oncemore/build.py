@@ -134,6 +134,11 @@ def inspect(project, reporter=None, prepare=True, bd=False):
             if what == "background_video" and not (info.get("has_video") and info.get("duration")):
                 issues.append({"path": f"menu {m.id!r}.background_video",
                                "message": "not a video with a known duration"})
+    for path in sorted({key[0] for key in project.link_transitions}):
+        info = probe(path)
+        if not (info.get("has_video") and info.get("duration")):
+            issues.append({"path": f"transition {os.path.basename(path)!r}",
+                           "message": "a link transition must be a video with a known duration"})
     for m in project.menus:
         if m.loop_point and m.loop_point >= menu_seconds(m, probe) - 0.5:
             what = "fade_in" if m.fade_in == m.loop_point else "loop_point"
@@ -143,7 +148,8 @@ def inspect(project, reporter=None, prepare=True, bd=False):
                                       f"before the end of the menu ({menu_seconds(m, probe):.2f}s)"})
     if issues:
         raise ProjectError("media check failed", issues)
-    menu_total = sum(menu_seconds(m, probe) for m in project.menus)
+    menu_total = sum(menu_seconds(m, probe) for m in project.menus) + \
+        sum(probe(key[0])["duration"] for key in project.link_transitions)   # (one copy each)
     font = None
     text = menu_text(project) + "".join("".join(line for c in cs for line in c.lines)
                                         for cs in cues.values())
@@ -447,6 +453,20 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None, ca
             else:
                 menu_files[m.id] = assets.mpg
 
+    transition_files = {}
+    for k, path in enumerate(sorted({key[0] for key in project.link_transitions}), 1):
+        out = os.path.join(mb.work, f"transition{k}.mpg")
+        key = _cache_key("transition", {"file": _file_sig(path),
+                                        "disc": [project.disc.standard, project.disc.aspect]})
+        name = os.path.basename(path)
+        if _cache_get(cache, key, out):
+            reporter.step("menu", f"Transition '{name}' unchanged (cached)", item=name)
+        else:
+            reporter.step("menu", f"Encoding transition '{name}'", item=name)
+            mb.encode_transition(path, out, lambda f, n=name: reporter.progress("menu", f, n))
+            _cache_put(cache, key, out)
+        transition_files[path] = out
+
     title_files = {}
     os.makedirs(os.path.join(work, "titles"), exist_ok=True)
     for t in project.titles:
@@ -475,7 +495,7 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None, ca
         p = os.path.join(out_dir, sub)
         if os.path.isdir(p):
             shutil.rmtree(p)
-    xml = author.build_xml(project, menu_files, title_files, out_dir)
+    xml = author.build_xml(project, menu_files, title_files, out_dir, transition_files)
     xml_path = os.path.join(work, "dvdauthor.xml")
     with open(xml_path, "w", encoding="utf-8") as f:
         f.write(xml)
@@ -564,13 +584,29 @@ def build_bluray(project, out_dir, reporter, fast=False, keep_work=False, work=N
             menus[m.id] = bdmenu.encode_menu(
                 hd, m, work, plan["font"], nav.button, plan["max_bps"], fast=fast,
                 on_progress=lambda f, mid=m.id: reporter.progress("menu", f, mid))
+    transitions = {}
+    for k, path in enumerate(sorted({key[0] for key in project.link_transitions}), 1):
+        out = os.path.join(work, "titles", f"transition{k}.m2ts")
+        name = os.path.basename(path)
+        key = _cache_key("bluray-transition", {"file": _file_sig(path), "fps": project.disc.fps,
+                                               "max_bps": plan["max_bps"], "fast": fast})
+        if _cache_get(cache, key, out):
+            reporter.step("menu", f"Transition '{name}' unchanged (cached)", item=name)
+        else:
+            reporter.step("menu", f"Encoding transition '{name}' in HD", item=name)
+            bluray.encode_transition(path, plan["_probes"].get(path) or encode.probe(path),
+                                     project.disc, plan["max_bps"], out, work, fast=fast,
+                                     on_progress=lambda f, n=name: reporter.progress("menu", f, n))
+            _cache_put(cache, key, out)
+        transitions[path] = out
     reporter.step("author", "Writing BDMV")
     for sub in ("BDMV", "CERTIFICATE"):
         p = os.path.join(out_dir, sub)
         if os.path.isdir(p):
             shutil.rmtree(p)
     disc = bluray.write_bdmv(project, clips, out_dir, menus,
-                             popups={t.id for t in project.titles if t.remote_menu})
+                             popups={t.id for t in project.titles if t.remote_menu},
+                             transitions=transitions)
     rom = copy_rom_files(project, out_dir)
     size = sum(os.path.getsize(os.path.join(r, f))
                for r, _, fs in os.walk(os.path.join(out_dir, "BDMV")) for f in fs)
