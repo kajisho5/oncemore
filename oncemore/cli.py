@@ -7,7 +7,7 @@ import shutil
 import sys
 import tempfile
 
-from . import __version__, build, burn, graph, scaffold, tools
+from . import __version__, build, burn, graph, scaffold, tools, web
 from .errors import OncemoreError, ProjectError
 from .project import PROJECT_FILENAME, load_project
 from .report import Reporter
@@ -203,6 +203,11 @@ def cmd_clean(args, rep):
 
 def cmd_build(args, rep):
     project = load_project(args.project)
+    if args.format == "web":
+        res = web.build_web(project, args.output, rep, fast=args.fast, keep_work=args.keep_work)
+        rep.result(res, f"Web version written to {res['web']} (open {res['index']}, "
+                        f"{_gib(res['bytes'])})")
+        return 0
     if args.format == "bluray":
         res = build.build_bluray(project, args.output, rep, fast=args.fast,
                                  keep_work=args.keep_work, cache=not args.no_cache)
@@ -347,9 +352,9 @@ def make_parser():
                        help="author VIDEO_TS (or a Blu-ray BDMV) into a directory")
     s.add_argument("project", help=proj_help)
     s.add_argument("-o", "--output", required=True, help="output directory")
-    s.add_argument("--format", choices=["dvd", "bluray"], default="dvd",
-                   help="dvd = VIDEO_TS (default); bluray = BDMV in HD (titles, chapters, "
-                        "playlists; no menus or subtitles yet)")
+    s.add_argument("--format", choices=["dvd", "bluray", "web"], default="dvd",
+                   help="dvd = VIDEO_TS (default); bluray = BDMV in HD; web = a folder a "
+                        "browser plays as the disc (index.html, MP4 titles, the menus)")
     build_opts(s)
     s.set_defaults(func=cmd_build)
 

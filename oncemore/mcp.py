@@ -322,9 +322,10 @@ class Server:
 
         @tool("build", "Build the disc",
               "Encode and author the disc in the background (minutes): a DVD or Blu-ray "
-              "image (.iso) or folder (VIDEO_TS / BDMV) in <folder>/output. Returns a job "
-              "id; follow it with build_status.",
-              _obj({"folder": FOLDER, "format": {"enum": ["dvd", "bluray"], "default": "dvd"},
+              "image (.iso) or folder (VIDEO_TS / BDMV) in <folder>/output, or (format web) "
+              "a folder a browser plays as the disc. Returns a job id; follow it with "
+              "build_status.",
+              _obj({"folder": FOLDER, "format": {"enum": ["dvd", "bluray", "web"], "default": "dvd"},
                     "output": {"enum": ["iso", "folder"], "default": "iso"},
                     "fast": {"type": "boolean", "default": False,
                              "description": "1-pass encoding (quicker, a little worse)."}},
@@ -332,8 +333,8 @@ class Server:
         def build(args):
             d = self.project_dir(args)
             fmt, kind = args.get("format", "dvd"), args.get("output", "iso")
-            if fmt not in ("dvd", "bluray") or kind not in ("iso", "folder"):
-                raise ToolError("format: dvd | bluray, output: iso | folder")
+            if fmt not in ("dvd", "bluray", "web") or kind not in ("iso", "folder"):
+                raise ToolError("format: dvd | bluray | web, output: iso | folder")
             try:
                 job = self.app(d).start_build(kind, bool(args.get("fast")), fmt=fmt)
             except OncemoreError as e:

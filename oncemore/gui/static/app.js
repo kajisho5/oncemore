@@ -126,7 +126,8 @@ const I18N = {
     generated_menu: "This menu is generated from the chapters of “{t}”. Change it in that title's settings.",
     go_to_title: "Open title",
     build_iso: "Disc image (.iso)", build_folder: "VIDEO_TS folder", build_disc: "DVD disc (the image, then burned)",
-    build_format: "Format", format_dvd: "DVD", format_bluray: "Blu-ray", build_bdmv: "BDMV folder", build_bd_disc: "Blu-ray disc (the image, then burned)", bd_size: "Disc size",
+    build_format: "Format", format_dvd: "DVD", format_bluray: "Blu-ray", format_web: "Web (HTML5)", build_web_folder: "A folder with index.html (open it in a browser, or put it on a web server)",
+    web_note: "The disc for browsers: the menus with their buttons, the titles as MP4 with chapters and subtitles, and the links as on the disc. One sound track per title.", build_bdmv: "BDMV folder", build_bd_disc: "Blu-ray disc (the image, then burned)", bd_size: "Disc size",
     bd_note: "Blu-ray: titles in HD (1920×1080) with chapters, playlists and Play All. Menus and subtitles are DVD-only for now.",
     recorder: "Recorder", recorder_hint: "Empty: the first disc writer. Insert a blank disc (DVD, or BD for a Blu-ray) before you build.",
     burned: "Burned to the DVD", step_burn: "Burning the disc", fast: "Fast (1-pass) encoding",
@@ -207,7 +208,7 @@ const I18N = {
     cmd_locate_asset: "Locate asset…", cmd_interpret_footage: "Interpret footage…", cmd_transcode_settings: "Transcode settings…",
     cmd_render_slideshows: "Slideshows", cmd_rom_folder: "DVD-ROM content…",
     cmd_build_dvd_iso: "DVD image…", cmd_build_dvd_folder: "DVD folder…", cmd_build_dvd_disc: "DVD disc…",
-    cmd_build_bd_iso: "Blu-ray image…", cmd_build_bd_folder: "Blu-ray folder…", cmd_build_bd_disc: "Blu-ray disc…", cmd_close_window: "Close window",
+    cmd_build_bd_iso: "Blu-ray image…", cmd_build_bd_folder: "Blu-ray folder…", cmd_build_bd_disc: "Blu-ray disc…", cmd_build_web: "Web (HTML5)…", cmd_close_window: "Close window",
     cmd_cut: "Cut", cmd_copy: "Copy", cmd_paste: "Paste", cmd_select_all: "Select all", cmd_deselect_all: "Deselect all",
     cmd_rename: "Rename…", cmd_edit_original: "Edit original",
     cmd_bring_forward: "Bring forward", cmd_send_backward: "Send backward", cmd_convert_button: "Convert to button", cmd_convert_object: "Convert to object",
@@ -377,7 +378,8 @@ const I18N = {
     generated_menu: "このメニューは「{t}」のチャプターから自動生成されます。変更はそのタイトルの設定で行います。",
     go_to_title: "タイトルを開く",
     build_iso: "ディスクイメージ（.iso）", build_folder: "VIDEO_TS フォルダ", build_disc: "DVD ディスク（イメージを作って書き込み）",
-    build_format: "フォーマット", format_dvd: "DVD", format_bluray: "Blu-ray", build_bdmv: "BDMV フォルダ", build_bd_disc: "Blu-ray ディスク（イメージを作って書き込み）", bd_size: "ディスク容量",
+    build_format: "フォーマット", format_dvd: "DVD", format_bluray: "Blu-ray", format_web: "Web（HTML5）", build_web_folder: "index.html の入ったフォルダー（ブラウザで開くか、Web サーバーに置きます）",
+    web_note: "ブラウザ向けのディスク：ボタン付きのメニュー、チャプターと字幕付きの MP4 のタイトル、ディスクと同じリンク。音声はタイトルごとに 1 本です。", build_bdmv: "BDMV フォルダ", build_bd_disc: "Blu-ray ディスク（イメージを作って書き込み）", bd_size: "ディスク容量",
     bd_note: "Blu-ray: タイトルを HD（1920×1080）で、チャプター・プレイリスト・すべて再生付きで書き出します。メニューと字幕は今のところ DVD のみです。",
     recorder: "ドライブ", recorder_hint: "空欄なら最初のドライブ。ビルドの前に空のディスク（Blu-ray なら BD）を入れてください。",
     burned: "DVD に書き込みました", step_burn: "ディスクに書き込み", fast: "高速（1パス）エンコード",
@@ -458,7 +460,7 @@ const I18N = {
     cmd_locate_asset: "アセットを探す…", cmd_interpret_footage: "フッテージを変換…", cmd_transcode_settings: "トランスコード設定…",
     cmd_render_slideshows: "スライドショー", cmd_rom_folder: "DVD-ROM コンテンツ…",
     cmd_build_dvd_iso: "DVD イメージ…", cmd_build_dvd_folder: "DVD フォルダー…", cmd_build_dvd_disc: "DVD ディスク…",
-    cmd_build_bd_iso: "Blu-ray イメージ…", cmd_build_bd_folder: "Blu-ray フォルダー…", cmd_build_bd_disc: "Blu-ray ディスク…", cmd_close_window: "ウインドウを閉じる",
+    cmd_build_bd_iso: "Blu-ray イメージ…", cmd_build_bd_folder: "Blu-ray フォルダー…", cmd_build_bd_disc: "Blu-ray ディスク…", cmd_build_web: "Web（HTML5）…", cmd_close_window: "ウインドウを閉じる",
     cmd_cut: "カット", cmd_copy: "コピー", cmd_paste: "ペースト", cmd_select_all: "すべてを選択", cmd_deselect_all: "選択を解除",
     cmd_rename: "名前を変更…", cmd_edit_original: "オリジナルを編集",
     cmd_bring_forward: "前面へ", cmd_send_backward: "背面へ", cmd_convert_button: "ボタンに変換", cmd_convert_object: "オブジェクトに変換",
@@ -3040,15 +3042,18 @@ function renderBuild(m) {
     <fieldset class="group"><legend>${t("build_format")}</legend>
       <label class="frow"><span class="fl">${t("build_format")}</span><select id="bformat">
         <option value="dvd" ${fmt === "dvd" ? "selected" : ""}>${t("format_dvd")}</option>
-        <option value="bluray" ${fmt === "bluray" ? "selected" : ""}>${t("format_bluray")}</option></select></label>
+        <option value="bluray" ${fmt === "bluray" ? "selected" : ""}>${t("format_bluray")}</option>
+        <option value="web" ${fmt === "web" ? "selected" : ""}>${t("format_web")}</option></select></label>
+      ${fmt === "web" ? `<div class="frow"><span class="fl"></span><span class="hint">${esc(t("web_note"))}</span></div>` : ""}
       ${fmt === "bluray" ? `<label class="frow"><span class="fl">${t("bd_size")}</span><select id="bdsize">
         ${["BD25", "BD50"].map((v) => `<option ${(d.bluray?.target || "BD25") === v ? "selected" : ""}>${v}</option>`).join("")}</select></label>
       <div class="frow"><span class="fl"></span><span class="hint">${esc(t("bd_note"))}</span></div>` : ""}</fieldset>
     <fieldset class="group"><legend>${t("output")}</legend>
+      ${fmt === "web" ? `<div class="frow"><span class="fl"></span><span>${t("build_web_folder")}</span></div>` : `
       <label class="frow"><span class="fl"></span><span><input type="radio" name="kind" value="iso" ${kind === "iso" ? "checked" : ""}> ${t("build_iso")}</span></label>
       <label class="frow"><span class="fl"></span><span><input type="radio" name="kind" value="folder" ${kind === "folder" ? "checked" : ""}> ${t(fmt === "bluray" ? "build_bdmv" : "build_folder")}</span></label>
-      <label class="frow"><span class="fl"></span><span><input type="radio" name="kind" value="disc" ${kind === "disc" ? "checked" : ""}> ${t(fmt === "bluray" ? "build_bd_disc" : "build_disc")}</span></label>
-      ${kind === "disc" ? `<label class="frow"><span class="fl">${t("recorder")}</span><input id="recorder" class="mono" value="${esc(S.recorder || "")}" placeholder="${S.platform === "darwin" ? "" : "/dev/sr0"}" title="${esc(t("recorder_hint"))}"></label>
+      <label class="frow"><span class="fl"></span><span><input type="radio" name="kind" value="disc" ${kind === "disc" ? "checked" : ""}> ${t(fmt === "bluray" ? "build_bd_disc" : "build_disc")}</span></label>`}
+      ${kind === "disc" && fmt !== "web" ? `<label class="frow"><span class="fl">${t("recorder")}</span><input id="recorder" class="mono" value="${esc(S.recorder || "")}" placeholder="${S.platform === "darwin" ? "" : "/dev/sr0"}" title="${esc(t("recorder_hint"))}"></label>
       <div class="frow"><span class="fl"></span><span class="hint">${esc(t("recorder_hint"))}</span></div>` : ""}
       <div class="frow"><span class="fl">${t("destination")}</span><input class="mono" readonly value="${esc(S.dir)}/output"></div></fieldset>
     <fieldset class="group"><legend>${t("settings")}</legend>
@@ -3066,7 +3071,7 @@ function renderBuild(m) {
     return `<li><div class="label"><span title="${esc(s.message)}">${esc(label)}</span><span class="muted">${done ? "✓" : pct + "%"}</span></div><div class="progress"><div style="width:${pct}%"></div></div></li>`;
   }).join("")}</ul></div>` : ""}
   ${result ? `<div class="card result-ok" style="max-width:720px"><h2>✓ ${t("build_done")}</h2>
-      <p class="mono">${esc(result.iso || result.video_ts || result.bdmv)}</p><p>${fmtBytes(result.iso_bytes || result.bytes)}</p>
+      <p class="mono">${esc(result.index || result.iso || result.video_ts || result.bdmv)}</p><p>${fmtBytes(result.iso_bytes || result.bytes)}</p>
       ${result.burned ? `<p>✓ ${t("burned")}</p>` : ""}
       <button id="reveal">${t(S.platform === "darwin" ? "reveal" : "reveal_other")}</button>
       ${result.warnings?.length ? `<h3>${t("warnings")}</h3><ul class="issues">${result.warnings.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}</div>` : ""}
@@ -3086,7 +3091,7 @@ function renderBuild(m) {
   $("#start").onclick = startBuild;
   $("#btn-check").onclick = runCheck;
   const rv = $("#reveal");
-  if (rv) rv.onclick = () => api("/api/reveal", { method: "POST", body: { path: relPath(result.iso || result.video_ts || result.bdmv) } }).catch((e) => alert(e.message));
+  if (rv) rv.onclick = () => api("/api/reveal", { method: "POST", body: { path: relPath(result.index || result.iso || result.video_ts || result.bdmv) } }).catch((e) => alert(e.message));
 }
 const relPath = (abs) => abs.startsWith(S.dir) ? abs.slice(S.dir.length + 1) : abs;
 async function startBuild() {
@@ -3804,6 +3809,7 @@ const COMMANDS = {
   build_bd_iso: { run: () => buildAs("bluray", "iso"), when: hasProject },
   build_bd_folder: { run: () => buildAs("bluray", "folder"), when: hasProject },
   build_bd_disc: { run: () => buildAs("bluray", "disc"), when: hasProject },
+  build_web: { run: () => buildAs("web", "folder"), when: hasProject },
   reveal: { run: revealProject, when: hasProject },
   close_window: { app: true, key: "mod+w" },
   // -- Edit
@@ -3934,7 +3940,7 @@ const MENUBAR = [
     "replace_asset", "locate_asset", "interpret_footage", "-",
     ["m_transcode", ["transcode_title", "transcode_all", "-", "transcode_settings"]], ["m_render", ["render_slideshows"]], "-",
     "project_settings", "rom_folder", "-", "preview", "check",
-    ["m_build", ["build", "-", "build_dvd_iso", "build_dvd_folder", "build_dvd_disc", "-", "build_bd_iso", "build_bd_folder", "build_bd_disc"]],
+    ["m_build", ["build", "-", "build_dvd_iso", "build_dvd_folder", "build_dvd_disc", "-", "build_bd_iso", "build_bd_folder", "build_bd_disc", "-", "build_web"]],
     "-", "reveal", "close_window"]],
   ["m_edit", ["undo", "redo", "-", "cut", "copy", "paste", "delete", "duplicate", "-", "select_all", "deselect_all", "-",
     "rename", "edit_original", "edit_psd", "-", "preferences"]],

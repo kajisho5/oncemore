@@ -224,6 +224,7 @@ oncemore validate <project> [--no-media]       # スキーマ＋参照＋素材�
 oncemore build <project> -o out/               # out/VIDEO_TS（と out/AUDIO_TS）を生成
 oncemore build <project> -o out/ --format bluray  # out/BDMV（Blu-ray、HD）を生成
 oncemore iso <project> -o bd.iso --format bluray   # Blu-ray のディスクイメージ（UDF 2.50、内蔵ライター）
+oncemore build <project> -o web/ --format web     # ブラウザ向けのディスク：web/index.html
 oncemore iso <project> -o out.iso [--iso-tool auto|builtin|hdiutil|genisoimage|mkisofs|xorriso]
 oncemore preview-menu <project> --menu main -o main.png [--button id] [--state highlight|select|normal] [--outline]
 oncemore simulate <project> --keys down,enter,menu   # リモコン操作を再現（エンコードなし）
@@ -608,6 +609,22 @@ bd.iso --format bluray`、またはアプリのビルドパネルで「フォー
 終了アクションでの遷移、そしてリモコンのキーで操作したメニュー（どのボタンがどの色で
 光り、各キーでどこへ行くか）まで確かめています。イメージは libudfread でファイルごとにも
 読み戻しています。
+
+### Web 版
+
+同じプロジェクトを、ブラウザでディスクのように再生できるフォルダとしても書き出せます：
+`oncemore build <project> -o web/ --format web`、またはアプリのビルドパネルで「フォーマット：Web（HTML5）」
+（ファイル > ビルド > Web（HTML5）…）。フォルダの `index.html` を開くか、フォルダごと Web サーバーに置くだけです。
+
+* メニューはディスクと同じ：画像（動画メニューと音声付きメニューは動画）、同じ位置のボタンとハイライト。
+  矢印キーと Enter、マウス、数字キーで操作できます
+* タイトルはすべて MP4（H.264、720 ライン、正方形ピクセル。音声は最初のトラックを AAC で）、
+  チャプターと字幕（WebVTT）付き
+* ディスクのリンク：ボタン、終了時の動作、すべて再生、プレイリスト、メニューキー（M）とタイトルキー（T）、
+  レジューム、最後のメニュー、メニューのタイムアウト、リンクのトランジション。PageUp / PageDown でチャプター移動。
+  プレーヤーはディスクシミュレータと同じ規則で動き、テストでは両方に同じキーを押して結果を比べています
+
+ブラウザで再生できる音声は 1 本（最初のトラック）で、字幕はテキストで表示します（画像字幕は含みません）。
 
 ## 仕組み
 

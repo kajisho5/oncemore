@@ -32,5 +32,5 @@ Homepage = "https://github.com/kajisho5/oncemore"
 packages = ["oncemore", "oncemore.gui"]
 
 [tool.setuptools.package-data]
-oncemore = ["project.schema.json"]
+oncemore = ["project.schema.json", "webplayer/*"]
 "oncemore.gui" = ["static/*"]
