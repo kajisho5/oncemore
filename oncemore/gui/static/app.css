@@ -232,6 +232,7 @@ h3 { font-size: 12px; margin: 18px 0 8px; color: var(--muted); text-transform: u
 }
 .stage .el:hover { outline-color: rgba(255,255,255,.35); }
 .stage .el.selected { outline: 1px solid var(--focus); }
+.stage .el.editing { cursor: text; outline: 1px solid var(--focus); caret-color: var(--focus); }
 .stage .rz { position: absolute; pointer-events: none; outline: 1px solid var(--focus); z-index: 6; }
 .stage .rz-h { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; background: var(--c-bg-0); border: 1px solid var(--focus); pointer-events: auto; }
 .stage .rz-h[data-h=nw] { left: 0; top: 0; cursor: nwse-resize; } .stage .rz-h[data-h=n] { left: 50%; top: 0; cursor: ns-resize; }
@@ -294,6 +295,7 @@ table.clips td.act { white-space: nowrap; }
 .flow-svg .node { cursor: pointer; }
 .flow-svg .node rect { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; }
 .flow-svg .node.menu rect { stroke: var(--c-kind-menu); }
+.flow-svg .node.drop-target > rect:first-child, .flow-svg .bro.drop-target rect { stroke: var(--c-kind-remote); stroke-width: 3; }
 .flow-svg .node.title rect { stroke: var(--c-kind-title); }
 .flow-svg .node.playlist rect, .flow-svg .node.playall rect { stroke: var(--c-kind-playlist); }
 .flow-svg .node.first_play rect, .flow-svg .node.title_key rect { stroke: var(--c-kind-remote); }
@@ -394,6 +396,8 @@ table.shortcuts td.mono { font-family: var(--font-mono); text-align: right; whit
 .stage svg.routing { position: absolute; inset: 0; pointer-events: none; z-index: 4; overflow: visible; }
 .stage svg.routing path { fill: none; stroke: var(--c-kind-remote); stroke-width: 1.5; stroke-dasharray: 4 3; }
 .stage svg.routing path.manual { stroke: var(--c-accent); stroke-dasharray: none; }
+.stage svg.routing path.route-hit { stroke: transparent; stroke-width: 10; stroke-dasharray: none; pointer-events: stroke; cursor: grab; }
+.stage svg.routing line.route-drag { stroke: var(--c-accent); stroke-width: 1.5; }
 .stage svg.routing .bnum circle { fill: var(--c-kind-remote); }
 .stage svg.routing .bnum text { fill: var(--c-bg-1); font: 600 11px var(--font-ui); }
 .stage svg.routing marker path { fill: var(--c-kind-remote); stroke: none; }

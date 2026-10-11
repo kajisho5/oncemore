@@ -219,7 +219,10 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   Alt: the background), a sound is the menu's music. A layered Photoshop file
   dropped into the window becomes a menu (with Alt: just a picture). *Routing* draws where the remote's arrow keys go from each
   button (solid: set by you in Properties, dashed: automatic), exactly as the
-  disc will have it.
+  disc will have it; drag an arrow onto another button to send that key there.
+  Double-click a text or a button's words to type them in place (Esc ends it).
+  Ctrl + right click (⌘-Control-click on a Mac) lists the objects under the
+  pointer, to pick one that is covered.
 * **Menus and shortcuts**: the menu bar is laid out the way disc authoring
   people know it — File, Edit, Object, Menu, Timeline, View, Window, Help,
   with submenus (Import as, Transcode, Build, Align, Arrange, Show
@@ -258,11 +261,17 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
 * **Pick whip**: drag the ◎ next to a button's link (or a title's end action,
   or the disc's first play) to a title, menu or playlist in the project panel
   or the flowchart. In the **flowchart**, drag from one item to another to link
-  them (first play, end actions, or — after picking it — a menu's button);
-  items nothing leads to sit in a "Not used" row at the bottom.
+  them (first play, end actions, or — from one of the buttons listed under a
+  menu, or after picking it — a menu's button); a title, menu or playlist
+  dragged in from the project panel links by where it lands (the disc: first
+  play; a title or playlist: its end action; a menu's button: that button; a
+  menu: a new button). Items nothing leads to sit in a "Not used" row at the
+  bottom. In the project panel, ↑ / ↓ go through the items. A tool key held
+  down chooses the tool only while it is held.
 * **Preview** (⇧Space) starts the remote-control preview at the menu you are
   editing; in it, 1–9 press that button, Home is the Title key, Insert the
-  Menu key, End plays to the end.
+  Menu key, End plays to the end, Space plays, ⌘← / ⌘→ previous / next
+  chapter.
 * **Flowchart** shows the whole disc: first play, menus, titles, playlists and
   every link between them (buttons, end actions, time-outs, the remote's Menu
   and Title keys). Boxes a viewer can never reach, or menus they cannot leave,

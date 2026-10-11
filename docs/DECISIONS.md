@@ -1824,3 +1824,45 @@ Timeline Viewer", "Keys for working in the Menu Viewer"):
   each clip's sound belongs to its picture, so there is nothing to slip.
 * `tests/test_encore_timeline.py` and `test_encore_drag.test_resize_handles`
   check each of these in a browser.
+
+## 98. Flowchart drops, routing arrows, text in place and small keys (3)
+
+From the classic apps' help ("Add elements to the Flowchart", "Set button
+routing", and the keyboard tables):
+
+* **Flowchart**:
+  * A title, menu or playlist dragged in from the Project panel links by
+    where it lands. On the disc, it is first play. On a title or playlist,
+    it is that item's end action. On one of the buttons listed under a menu,
+    that button plays it. On the menu itself, a new button for it goes under
+    the last one. On empty space, nothing happens.
+  * The pick whip drawn from one of those button rows links that button
+    directly, without asking which.
+* **Routing**: with routing shown, an arrow dragged onto another button
+  sends that remote key there. It is stored in the button's `nav`, and so it
+  is drawn solid, as one set by hand. The help also turns automatic routing
+  off for the menu first. oncemore has no such switch: what is set by hand
+  wins, and the rest stays automatic.
+* **Text in place**: double-click a text, or a button's words, to type in
+  it. Esc or a click elsewhere ends it and keeps what was typed; on a
+  button, Enter ends it too. While typing, keys go to the text, so Backspace
+  does not delete the object.
+* **Show menu layers**: Ctrl + right click (⌘-Control-click on a Mac) lists
+  the objects under the pointer, top first, to pick one that is covered.
+* **Small keys**:
+  * In the Project panel, when it is the panel in use, ↑ / ↓ go to the item
+    above or below. A title, menu or playlist opens as it is reached, which
+    is how a click works in oncemore; an asset shows its properties. Home /
+    End scroll to the top or bottom.
+  * A tool key (V, R, T, Z) held down for a moment chooses the tool only
+    while it is held, then the one before comes back. A quick press keeps
+    the new tool.
+  * In the preview, Space plays and ⌘← / ⌘→ (Ctrl elsewhere) go to the
+    previous or next chapter. The arrows alone still move between buttons.
+* **Not taken over**:
+  * The Direct Select (A) and Move (M) tools: they pick a single layer
+    inside a button's layer set. oncemore's buttons are single objects.
+  * Resizing the preview with ⌘= / ⌘−: the preview follows the window.
+* `tests/test_encore_flow.py`, `tests/test_encore_keys.py` and
+  `test_encore_drag` (routing arrow, text in place) check these in a
+  browser.
