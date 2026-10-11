@@ -1890,6 +1890,42 @@ routing", and the keyboard tables):
 * `tests/test_encore_reorder.py` and `test_encore_drag.test_type_handles`
   check these in a browser.
 
+## 100. Blu-ray at 720p, and AVCHD's 1440×1080 as it is
+
+* A Blu-ray had one picture: 1920×1080, with 25 and 29.97 frames a second
+  coded as 1080i. A 50p or 60p source (sports, games, phones) lost every
+  other frame. `disc.bluray.video: "720"` (Build > Picture) makes the
+  whole disc 1280×720 progressive at twice the disc's rate: 59.94 for
+  NTSC, 50 for PAL. Film stays 23.976p. Every picture of a 60p source
+  stays, and so does every field of a 1080i one: bwdif already gives a
+  picture per field, and the rate filter keeps them all at 59.94.
+* It is a setting of the disc, not of a title. Titles, menus, pop-up menus,
+  subtitles and link transitions all use the same frame, so no playlist
+  (Play All, chapter playlists) mixes 720p and 1080 pieces. Mixing
+  resolutions inside one playlist is left alone: oncemore has not checked
+  what players do with it.
+* The codes in the clip and playlist files come from libbluray's
+  `bd_video_format_e` / `bd_video_rate_e`, read in its `bluray.h`
+  (code.videolan.org/videolan/libbluray): 720P = 5; 23.976 = 1, 50 = 6,
+  59.94 = 7 (1080I = 4, 1080P = 6, 25 = 3, 29.97 = 4, as before).
+* A 720p stream has no fields, so x264's fake-interlaced flag is only set
+  for 1080i. A key frame still comes at least every second (60 pictures
+  at 59.94).
+* A picture copied as it is (`transcode: false`) may now also be AVCHD's
+  1440×1080 H.264 with 4:3 pixels (at 1080i or 1080p, the same codes as
+  1920×1080). On a 720 disc only 1280×720 at 50 / 59.94 (or 23.976) is
+  copied; anything else is encoded, with the reason as a warning, as
+  before.
+* Still missing (ROADMAP): SD on Blu-ray (720×480 / 576), 24.000p, and
+  MPEG-2 Blu-ray video.
+* `tests/test_bd720.py` builds a 720 disc from a 59.94p and a 1080i
+  source, with a menu, a pop-up menu and subtitles. It checks:
+  * every stream is 1280×720 at 60000/1001;
+  * each picture moves on from the one before (a 29.97 source shown twice
+    alternates about 2 and 0.02 there; the test asks for more than 0.3);
+  * the subtitles' composition is 1280×720;
+  * libbluray reads the codes as 720p 59.94.
+
 ## 103. Typesetting menu texts: boxes, vertical text, underline
 
 The classic app's manual describes paragraph text in a box, vertical text
