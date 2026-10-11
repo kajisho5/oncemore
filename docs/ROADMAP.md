@@ -436,6 +436,49 @@ against their published help, not from memory)
   parts to drag in (Alt: replace the selected item); selecting words, lines
   and paragraphs by clicking 2–5 times in a text
 
+**Still missing after reading the classic app's whole manual** (184
+pages, read page by page against the code; most important first)
+
+- [ ] Blu-ray video formats besides 1080: 1280×720 at 50 / 59.94p,
+  1440×1080 (AVCHD sources kept as they are), SD on Blu-ray, 24.000p
+- [ ] Multi-language defaults: the disc's default audio track, subtitles
+  explicitly off, a menu's default button following the audio or
+  subtitle track playing, audio and subtitle tracks per playlist item,
+  playlists inside playlists
+- [ ] Japanese typesetting on menus: vertical text, wrapping inside a
+  box, formatting part of a text, kinsoku line breaking, underline and
+  strikethrough
+- [ ] Subtitle placement and formatting per cue (position, font, outline
+  width), vertical subtitles, duplicating a subtitle track
+- [ ] Subtitle deliveries: the older image script (Display_Area /
+  Directory lines) and the FAB image script with colour mapping; UTF-16
+  scripts; GIF images
+- [ ] Assets used where they are (an external or network drive) instead
+  of copied into media/; .m2v, .mp2, WMA, GIF, TGA and 96 kHz / 24-bit
+  WAV sources; overriding a source's pixel aspect ratio; compliant
+  sources marked "do not transcode" by themselves
+- [ ] Named transcode presets (CBR, minimum / maximum bitrate, GOP
+  length), exported and imported
+- [ ] DVD highlights in three colours per state and two highlight groups
+  chosen per button; named colour sets shared between menus, made from a
+  Photoshop file's highlight colours, exported and imported
+- [ ] Replacement layers: a picture dropped on a placeholder takes its
+  place, mask and effects; a parts library (buttons, shapes, pictures in
+  sets) with Place and Replace; Photoshop files written back (menus made
+  in oncemore edited in Photoshop); editable text from Photoshop text
+  layers; HD Photoshop files kept at HD for Blu-ray
+- [ ] Project panel folders, multiple selection and changing several
+  items' properties at once
+- [ ] Flowchart zoom, manual layout and a shortcut menu
+- [ ] Timeline: trimming clips by their edges, sound of another file
+  offset, a track selector and subtitles shown in the Monitor, chapter
+  marks selected and deleted in the ruler
+- [ ] Slideshows: looping music, pan and zoom per slide with a direction
+- [ ] Burning options (speed, test write, copies), choosing the output
+  folder in the app, a custom disc size, a layer break at any frame
+- [ ] User operations for the whole disc, and the presentation-mode,
+  resume and menu-key operations
+
 **Beyond the classic apps**
 
 - [x] Check for Updates (Help): says which version this is and opens the
