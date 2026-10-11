@@ -302,6 +302,13 @@ def add_subtitles(project, title, mpg, plan, work, reporter):
         reporter.step("subtitles", f"Rendering {len(cues)} subtitle(s) for '{title.id}' "
                       f"(stream {j + 1}{', ' + sub.lang if sub.lang else ''})", item=title.id)
         xmls.append(renderer.stream_xml(cues, sub.lang or "xx", j, sub.position, sub.color))
+    # (a title's subpictures share 16 colours, transparent included: text
+    # colours are counted before the build, pictures' own only once drawn)
+    if len(renderer.colours) > 15:
+        raise ProjectError("media check failed", [{
+            "path": f"titles[{project.titles.index(title)}].subtitles",
+            "message": f"the subtitles use {len(renderer.colours) + 1} subpicture colours (a DVD "
+                       "title has 16): use fewer colours in the subtitle pictures"}])
     return subtitles.mux_streams(mpg, xmls, subdir, project.disc.standard,
                                  os.path.join(work, "logs", f"spumux-{title.id}"))
 
@@ -724,17 +731,24 @@ def bluray_subtitles(project, title, plan, work, reporter):
                       f"(stream {j + 1}{', ' + sub.lang if sub.lang else ''})", item=title.id)
         times = pgs.timeline(cues)
         workers = min(8, os.cpu_count() or 2)
+        def draw(nc):
+            n, cue = nc
+            if cue.image:
+                # a picture in its own colours (a PGS palette holds 255)
+                idx, w, h, x, y, colours = subtitles.reduce_colours(
+                    renderer.image_rgba(cue, sub.position), hd.width, hd.height, 255,
+                    alpha_steps=pgs.STEPS)
+                return (None if idx is None else (idx, w, h, x, y)), pgs.picture_palette(colours)
+            fill = cue.color or sub.color or cue.style_color or style["color"]
+            return (pgs.indexed(renderer.render_rgba(cue, f"pg{j}_{n:05d}", sub.position),
+                                hd.width, hd.height), pgs.palette(fill, style["outline"]))
         with concurrent.futures.ThreadPoolExecutor(workers) as pool:
-            frames = list(pool.map(lambda nc: renderer.render_rgba(nc[1], f"pg{j}_{nc[0]:05d}",
-                                                                   sub.position),
-                                   enumerate(cues)))
+            frames = list(pool.map(draw, enumerate(cues)))
         pictures = []
-        for cue, span, rgba in zip(cues, times, frames):
+        for span, (pic, entries) in zip(times, frames):
             if span is None:
                 continue
-            fill = cue.color or sub.color or cue.style_color or style["color"]
-            pictures.append((span[0], span[1], pgs.indexed(rgba, hd.width, hd.height),
-                             pgs.palette(fill, style["outline"])))
+            pictures.append((span[0], span[1], pic, entries))
         sups.append(pgs.write_sup(os.path.join(subdir, f"track{j}.sup"), pictures,
                                   (hd.width, hd.height)))
     return sups
