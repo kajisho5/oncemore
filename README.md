@@ -170,6 +170,10 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   in any project; the font is kept with the style.
 * **Paragraphs** (a text's Properties): text of several lines, lined up
   left, centred or right, with the space between the lines.
+* **Menus with pages** (Menu > Add new page): a menu's buttons spread over
+  pages, turned with buttons to the next, previous or a given page; a
+  heading or background shape can be on every page. Each page is a menu of
+  its own on the disc.
 * **Layer break** (Disc panel, DVD-9): the chapter where a dual-layer disc
   goes on to its second layer, or the first one past the middle of the disc.
   The built-in ISO writer puts it on an ECC block, `oncemore iso` reports its
@@ -488,12 +492,18 @@ light up when it is selected, instead of the automatic highlight.
 A text can be a paragraph: its `text` holds several lines (newlines), `align`
 lines them up (`left`, `center`, `right`; `x` is the paragraph's left edge)
 and `line_spacing` adds pixels between them.
+A menu with `pages` (2 or more) shows its buttons, texts, rectangles and
+pictures with a `page` on that page only and the rest on every page; the
+actions `page:next`, `page:prev` and `page:<n>` turn the pages (next from the
+last page goes to the first). Page *n* is a menu of its own, `<id>~<n>`, and
+`menu:<id>:<button>` opens the page that holds the button.
 | `buttons[]` | 1–36 buttons | required |
 
 **buttons[]**: `id`, `label`, `x`, `y` (top-left of the label), `action`,
 `auto_activate` (run as soon as the button is selected),
 (`menu:<id>` \| `title:<id>` \| `chapter:<title id>:<n>` \| `playall` \| `audio:<n>` \|
-`subtitle:<n>` \| `subtitle:off` \| `resume` \| `stop`), optional `size`, `color`, and `nav`
+`subtitle:<n>` \| `subtitle:off` \| `page:next` \| `page:prev` \| `page:<n>` \| `resume` \| `stop`),
+optional `size`, `color`, and `nav`
 (`{"up": id, "down": id, "left": id, "right": id}`) to override the automatic
 navigation. `audio:<n>` / `subtitle:<n>` (1-based) select a stream and stay on
 the menu, so a "setup" menu is just a few of these buttons plus a BACK button.
