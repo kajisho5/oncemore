@@ -1,3 +1,5 @@
+<p><img src="docs/images/logo/lockup-dark.svg" alt="oncemore" height="56"></p>
+
 # oncemore
 
 *The DVD authoring app Mac forgot. Menus, chapters, ISO — once more.*

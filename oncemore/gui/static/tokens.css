@@ -20,7 +20,7 @@
   --c-bg-4: hsl(0 0% calc(20% + var(--ui-b)));     /* raised: headers, buttons */
   --c-bg-5: hsl(0 0% calc(24% + var(--ui-b)));     /* track headers, hover */
   --c-field: hsl(0 0% calc(9% + var(--ui-b)));     /* text fields */
-  --c-field-border: hsl(0 0% calc(24% + var(--ui-b)));
+  --c-field-border: hsl(0 0% calc(43% + var(--ui-b)));
   --c-text-field: #e6e6e6;
   --c-line: hsl(0 0% calc(7% + var(--ui-b)));      /* separators (darker than panels) */
   --c-line-strong: hsl(0 0% calc(30% + var(--ui-b)));
@@ -28,8 +28,8 @@
   --c-active-panel: #3d8bfd;                        /* outline of the panel in use */
   --c-timecode: #5aa9ff;
   --c-clip: #3f6c9b;                                /* video clips on a timeline */
-  --c-clip-head: #4f84bb;
-  --c-clip-audio: #3a7f67;
+  --c-clip-head: #3f71a4;
+  --c-clip-audio: #387a63;
   --c-clip-text: #f2f2f2;
   --c-playhead: #f0544f;
 
@@ -38,14 +38,16 @@
   --c-text-2: #9d9d9d;      /* secondary: labels, hints */
   --c-text-on-accent: #111111;
   --c-text-on-ui: #ffffff;
+  --c-text-on-danger: #111111;         /* text on c-danger fills */
 
   /* -- the interface's own selection / focus / primary action */
-  --c-ui: #3d8bfd;
+  --c-ui: #3170dd;
   --c-ui-soft: #2c4f7c;
 
   /* -- the accent is the default DVD highlight colour */
   --c-accent: #ffd400;
   --c-accent-2: #ff5a00;    /* "selected" / activated */
+  --c-accent-text: #ffd400;            /* the accent as text on panels */
   --c-focus: #4c9bf0;
 
   /* -- status */
@@ -62,6 +64,13 @@
   --c-kind-audio: #4fb6d8;
   --c-kind-subtitle: #e58bd0;
   --c-kind-chapter: #ff8a3d;
+
+  /* -- the brand (logo, app icon, the New Project banner): the same in every
+        skin and theme; not for the interface's own surfaces */
+  --brand-highlight: #ffd400;
+  --brand-activated: #ff5a00;
+  --brand-ink: #181b22;
+  --brand-paper: #f2f2f2;
 
   /* -- picture areas stay black in both themes; editor overlays */
   --c-picture: #000000;
@@ -118,28 +127,36 @@
   color-scheme: dark;
 }
 
+/* less motion when the system asks for it */
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0ms; --dur-med: 0ms; }
+}
+
 :root[data-skin="classic"] {
   --c-bg-0: hsl(0 0% calc(13% + var(--ui-b)));
   --c-bg-1: hsl(0 0% calc(34% + var(--ui-b)));
   --c-bg-2: hsl(0 0% calc(28% + var(--ui-b)));
-  --c-bg-3: hsl(213 18% calc(48% + var(--ui-b)));
+  --c-bg-3: hsl(213 18% calc(42% + var(--ui-b)));
   --c-bg-4: hsl(0 0% calc(40% + var(--ui-b)));
-  --c-bg-5: hsl(0 0% calc(49% + var(--ui-b)));
+  --c-bg-5: hsl(0 0% calc(42% + var(--ui-b)));
   --c-field: hsl(0 0% calc(66% + var(--ui-b)));
   --c-field-border: hsl(0 0% calc(13% + var(--ui-b)));
   --c-text-field: #111111;
   --c-line: hsl(0 0% calc(18% + var(--ui-b)));
   --c-line-strong: hsl(0 0% calc(48% + var(--ui-b)));
   --c-active-panel: #e8ac05;
-  --c-timecode: #e8a628;
+  --c-timecode: #f0c676;
   --c-clip: #d6bcd3;
   --c-clip-head: #b48daf;
   --c-clip-audio: #c49abd;
   --c-clip-text: #1b1b1b;
   --c-playhead: #e03a2f;
-  --c-text: #e2e2e2;
-  --c-text-2: #b4b4b4;
-  --c-ui: #3d78c8;
+  --c-text: #f0f0f0;
+  --c-text-2: #cccccc;
+  --c-ui: #3b77c7;
+  --c-danger: #ffbbc1;
+  --c-focus: #6bacf3;
+  --c-kind-playlist: #b994ff;
   --c-ui-soft: #61779a;
   --font-ui: "Segoe UI", Tahoma, "Lucida Grande", -apple-system, BlinkMacSystemFont,
     "Hiragino Sans", "Noto Sans CJK JP", "Noto Sans JP", sans-serif;
@@ -170,9 +187,9 @@
   --c-bg-5: #b0b0b0;
   --c-field: #f6f6f6;
   --c-text-field: #111111;
-  --c-field-border: #9c9c9c;
+  --c-field-border: #787878;
   --c-active-panel: #2a6fc4;
-  --c-timecode: #1f63c4;
+  --c-timecode: #1a52a3;
   --c-clip: #9dbde2;
   --c-clip-head: #7aa3d2;
   --c-clip-audio: #94c9b4;
@@ -185,21 +202,23 @@
   --c-text-2: #4d4d4d;
   --c-accent: #c79a00;
   --c-accent-2: #d84a00;
-  --c-text-on-accent: #ffffff;
+  --c-accent-text: #695100;
+  --c-text-on-accent: #111111;
+  --c-text-on-danger: #ffffff;
   --c-text-on-ui: #ffffff;
   --c-ui: #2a6fc4;
   --c-ui-soft: #b9cfe9;
   --c-focus: #2f6fdb;
-  --c-success: #1e9e65;
-  --c-warning: #b9800f;
-  --c-danger: #d63848;
-  --c-kind-menu: #b48a00;
-  --c-kind-title: #23945f;
+  --c-success: #12603d;
+  --c-warning: #704d09;
+  --c-danger: #a0212e;
+  --c-kind-menu: #957300;
+  --c-kind-title: #208857;
   --c-kind-playlist: #7a4fd6;
   --c-kind-remote: #2f6fdb;
-  --c-kind-audio: #1f86a8;
+  --c-kind-audio: #1d7f9f;
   --c-kind-subtitle: #b8479f;
-  --c-kind-chapter: #d8621a;
+  --c-kind-chapter: #c45918;
   --shadow-1: 0 1px 2px rgba(0, 0, 0, .12);
   --shadow-2: 0 8px 28px rgba(0, 0, 0, .18);
   color-scheme: light;
