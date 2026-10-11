@@ -195,7 +195,10 @@ const I18N = {
     cmd_revert_backup: "Revert to a saved version…", revert: "Revert", no_backups: "No earlier versions yet.",
     backups_hint: "oncemore keeps the project as it was before your changes, at most every {m} minutes (the last 30, in .oncemore-backup next to the project). Reverting is one more edit: Undo brings you back.",
     backup_counts: "{t} titles, {m} menus", confirm_revert: "Replace the project with this version? (Undo brings the current one back.)",
-    cmd_save_template: "Save menu as template…", cmd_chapter_index: "Create chapter index…", lib_my_styles: "My styles", ustyle_use: "Give the selected objects this look (a shape takes its colour)", ustyle_none: "No styles yet: select a text, button or shape and save its look.", ustyle_save: "Save selection as style…", ustyle_save_hint: "Keep the look of the selected object (font, size, colour, outline, shadow) for any menu of any project", ustyle_name: "Style name", ustyle_default_name: "My style", lib_my_templates: "My templates",
+    cmd_save_template: "Save menu as template…", cmd_chapter_index: "Create chapter index…", cmd_add_page: "Add new page", cmd_delete_page: "Delete page",
+    pages: "Pages", pages_hint: "The menu's pages, one shown at a time: each is a menu of its own on the disc. Buttons turn the pages (Next page, Previous page, Page n).",
+    page_field: "Page", page_all: "every page", page_item: "Page {n}", page_next: "Next page", page_prev: "Previous page", page_of: "Page {n} of {m}",
+    page_hint: "On this page only, or on every page of the menu (a heading, a background, buttons that turn the pages).", lib_my_styles: "My styles", ustyle_use: "Give the selected objects this look (a shape takes its colour)", ustyle_none: "No styles yet: select a text, button or shape and save its look.", ustyle_save: "Save selection as style…", ustyle_save_hint: "Keep the look of the selected object (font, size, colour, outline, shadow) for any menu of any project", ustyle_name: "Style name", ustyle_default_name: "My style", lib_my_templates: "My templates",
     utpl_use: "New menu from this template", utpl_none: "Menu > Save menu as template keeps a menu here, with its pictures, for every project.",
     utpl_hint: "The menu and copies of the files it uses (backgrounds, pictures, fonts, music) are kept in your template library, so any project can start a menu from it.",
     utpl_saved: "Saved “{n}” to the Library (My templates).",
@@ -451,7 +454,10 @@ const I18N = {
     cmd_revert_backup: "保存済みの版に戻す…", revert: "戻す", no_backups: "まだ以前の版はありません。",
     backups_hint: "oncemore は変更前のプロジェクトを最大 {m} 分ごとに保存しています（直近 30 版、プロジェクトの隣の .oncemore-backup）。戻すのも 1 つの編集なので、取り消すで今の状態に戻れます。",
     backup_counts: "タイトル {t}・メニュー {m}", confirm_revert: "プロジェクトをこの版に置き換えますか？（取り消すで今の状態に戻せます）",
-    cmd_save_template: "メニューをテンプレートとして保存…", cmd_chapter_index: "チャプターインデックスを作成…", lib_my_styles: "マイスタイル", ustyle_use: "選択中のオブジェクトにこの見た目を適用（図形は色のみ）", ustyle_none: "まだありません：テキスト・ボタン・図形を選んで見た目を保存してください。", ustyle_save: "選択範囲をスタイルとして保存…", ustyle_save_hint: "選択中のオブジェクトの見た目（フォント・サイズ・色・縁取り・影）を、どのプロジェクトのどのメニューでも使えるよう保存します", ustyle_name: "スタイル名", ustyle_default_name: "マイスタイル", lib_my_templates: "マイテンプレート",
+    cmd_save_template: "メニューをテンプレートとして保存…", cmd_chapter_index: "チャプターインデックスを作成…", cmd_add_page: "新規ページを追加", cmd_delete_page: "ページを削除",
+    pages: "ページ", pages_hint: "メニューのページ（一度に 1 ページを表示）。ディスクではページごとに別のメニューになります。ボタンでページをめくります（次のページ・前のページ・ページ n）。",
+    page_field: "ページ", page_all: "すべてのページ", page_item: "ページ {n}", page_next: "次のページ", page_prev: "前のページ", page_of: "ページ {n} / {m}",
+    page_hint: "このページだけに置くか、メニューのすべてのページに置くか（見出し・背景・ページをめくるボタンなど）。", lib_my_styles: "マイスタイル", ustyle_use: "選択中のオブジェクトにこの見た目を適用（図形は色のみ）", ustyle_none: "まだありません：テキスト・ボタン・図形を選んで見た目を保存してください。", ustyle_save: "選択範囲をスタイルとして保存…", ustyle_save_hint: "選択中のオブジェクトの見た目（フォント・サイズ・色・縁取り・影）を、どのプロジェクトのどのメニューでも使えるよう保存します", ustyle_name: "スタイル名", ustyle_default_name: "マイスタイル", lib_my_templates: "マイテンプレート",
     utpl_use: "このテンプレートから新しいメニュー", utpl_none: "メニュー > メニューをテンプレートとして保存 で、画像ごとメニューをここに保存し、どのプロジェクトでも使えます。",
     utpl_hint: "メニューと、使っているファイル（背景・画像・フォント・BGM）のコピーをテンプレートライブラリに保存します。どのプロジェクトからでもこのメニューを元に作れます。",
     utpl_saved: "「{n}」をライブラリ（マイテンプレート）に保存しました。",
@@ -692,6 +698,11 @@ function uniqueId(prefix, existing) {
 }
 function actionOptions({ forButton = true, allowStop = true, includeChapters = forButton, allowPlayAll = forButton, allowLast = false } = {}) {
   const p = P(), opts = [];
+  const here = forButton && S.sel.view === "menu" ? curMenu() : null;
+  if (here && pagesOf(here) > 1) {
+    opts.push(["page:next", pageName("next")], ["page:prev", pageName("prev")]);
+    for (let i = 1; i <= pagesOf(here); i++) opts.push([`page:${i}`, pageName(String(i))]);
+  }
   if (allowLast && (p.menus || []).length) opts.push(["lastmenu", t("last_menu")]);
   for (const id of allMenuIds()) {
     opts.push([`menu:${id}`, t("menu_item", { m: id })]);
@@ -1078,7 +1089,11 @@ function renderMenusPanel(sb) {
     <div class="panel-foot"><button class="icon-text" id="add-menu">${t("add_menu_short")}</button></div>`;
   sb.querySelectorAll(".nav-item").forEach((el) => (el.onclick = () => select("menu", el.dataset.id)));
   bindLinkSources(sb);
-  sb.querySelectorAll(".brow").forEach((r) => (r.onclick = () => { S.element = { kind: "button", i: Number(r.dataset.bi) }; S.sels = [S.element]; renderMain(); renderInspector(); renderSidebar(); }));
+  sb.querySelectorAll(".brow").forEach((r) => (r.onclick = () => {
+    const b = cur.buttons[Number(r.dataset.bi)];
+    if (b.page && b.page !== curPage(cur)) (S.pages = S.pages || {})[cur.id] = b.page;
+    S.element = { kind: "button", i: Number(r.dataset.bi) }; S.sels = [S.element]; renderMain(); renderInspector(); renderSidebar(); renderLayers();
+  }));
   $("#add-menu").onclick = addMenu;
 }
 function renderTimelinesPanel(sb) {
@@ -1105,13 +1120,98 @@ const linkName = (a) => {
   if (k === "chapter") return `▶ ${id} ◆${n}`;
   if (k === "menu") return "▦ " + id + (n ? ` › ${n}` : "");
   if (k === "playlist") return "≡ " + id;
+  if (k === "page") return "⇥ " + pageName(id);
   return a;
 };
+// -- pages: a menu with pages (menus[].pages) shows one page at a time in the
+// viewer; its objects with a page are on that page only, the rest on every
+// page. On the disc each page is a menu of its own, <id>~<n> after the first.
+const pagesOf = (menu) => Math.max(1, Number(menu?.pages) || 1);
+const curPage = (menu) => Math.min(pagesOf(menu), (S.pages || {})[menu?.id] || 1);
+const onPage = (menu, x) => pagesOf(menu) === 1 || !x.page || x.page === curPage(menu);
+const pageId = (menu) => (curPage(menu) > 1 ? `${menu.id}~${curPage(menu)}` : menu.id);
+const newOnPage = (menu) => (pagesOf(menu) > 1 ? { page: curPage(menu) } : {});
+const pageName = (n) => (n === "next" ? t("page_next") : n === "prev" ? t("page_prev") : t("page_item", { n }));
+function showPage(menu, n) {
+  (S.pages = S.pages || {})[menu.id] = n;
+  S.element = null; S.sels = []; S.preview = null;
+  renderMain(); renderInspector(); renderLayers();
+}
+// Menu > Add New Page: the page after the last, with a button back to the one
+// before (and a NEXT button there if it has no way on). The first time, the
+// menu's buttons become page 1's; its texts, rectangles and pictures stay on
+// every page.
+function addPage() {
+  const menu = curMenu();
+  if (!menu) return;
+  const n = pagesOf(menu) + 1;
+  commit((p) => {
+    const mm = p.menus.find((x) => x.id === menu.id);
+    if (n === 2) for (const b of mm.buttons) if (!b.page) b.page = 1;
+    mm.pages = n;
+    const ids = () => mm.buttons.map((b) => b.id);
+    const prev = mm.buttons.filter((b) => !b.page || b.page === n - 1);
+    if (!prev.some((b) => b.action === "page:next"))
+      mm.buttons.push({ id: uniqueId("next", ids()), label: "NEXT", x: 560, y: Math.min(discH() - 40, Math.round(discH() * 0.85)), action: "page:next", page: n - 1 });
+    mm.buttons.push({ id: uniqueId("back", ids()), label: "BACK", x: 80, y: Math.round(discH() * 0.85), action: "page:prev", page: n });
+  });
+  showPage(curMenu(), n);
+}
+// Menu > Delete Page: the page shown and what is on it alone; the pages after
+// it move up one, and so do the page links to them
+function deletePage() {
+  const menu = curMenu();
+  if (!menu || pagesOf(menu) < 2) return;
+  const pg = curPage(menu), n = pagesOf(menu) - 1;
+  commit((p) => {
+    const mm = p.menus.find((x) => x.id === menu.id);
+    for (const k of ["buttons", "texts", "shapes", "images"]) {
+      if (!mm[k]) continue;
+      mm[k] = mm[k].filter((x) => x.page !== pg);
+      for (const x of mm[k]) if (x.page > pg) x.page -= 1;
+    }
+    for (const b of mm.buttons) {
+      const m = /^page:(\d+)$/.exec(b.action);
+      if (m && Number(m[1]) >= pg) b.action = Number(m[1]) === pg ? "page:prev" : `page:${Number(m[1]) - 1}`;
+    }
+    if (n === 1) {
+      // one page left: no pages, no page links
+      delete mm.pages;
+      for (const k of ["buttons", "texts", "shapes", "images"]) for (const x of mm[k] || []) delete x.page;
+      const rest = mm.buttons.filter((b) => !b.action.startsWith("page:"));
+      if (rest.length) mm.buttons = rest; else for (const b of mm.buttons) b.action = "stop";
+    } else mm.pages = n;
+    if (!mm.buttons.length) mm.buttons.push({ id: "button1", label: "BUTTON", x: 80, y: 200, action: "stop" });
+    if (mm.default_button && !mm.buttons.some((b) => b.id === mm.default_button)) delete mm.default_button;
+    for (const b of mm.buttons) if (b.nav) for (const [d, v] of Object.entries(b.nav)) if (!mm.buttons.some((x) => x.id === v)) delete b.nav[d];
+    dropLostButtonLinks(p);
+  });
+  showPage(curMenu(), Math.max(1, Math.min(pg, n)));
+}
+// the page an object is on (Properties): one page, or every page
+function pageHtml(menu, it) {
+  if (pagesOf(menu) < 2) return "";
+  return `<label class="field" data-nobind><span>${t("page_field")}</span>${selectHtml("obj-page", [["0", t("page_all")], ...Array.from({ length: pagesOf(menu) }, (_, i) => [String(i + 1), t("page_item", { n: i + 1 })])], String(it.page || 0), 'id="obj-page"')}<div class="hint">${esc(t("page_hint"))}</div></label>`;
+}
+function bindPage(el, get) {
+  const f = el.querySelector("#obj-page");
+  if (!f) return;
+  f.onchange = () => {
+    const v = Number(f.value);
+    commit((p) => { const o = get(p); if (v) o.page = v; else delete o.page; });
+    if (v && v !== curPage(curMenu())) showPage(curMenu(), v);
+  };
+}
 function select(view, id) {
   if (view === "build") {                       // Build is a panel in the Project frame
     S.leftTab = "build";
     if (S.sel.view === "sim") S.sel = S.lastAuthor || { view: "disc" };
     renderAll(); return;
+  }
+  if (view === "menu" && /~\d+$/.test(id || "")) {        // a page of a menu (flowchart)
+    const [base, n] = id.split("~");
+    (S.pages = S.pages || {})[base] = Number(n);
+    id = base;
   }
   S.sel = { view, id }; S.element = null; S.selectedMedia = null; S.preview = null;
   if (workspaceOf(view) === "author") S.lastAuthor = { view, id };
@@ -2133,12 +2233,15 @@ function renderMenu(m) {
     ...(menu.images || []).map((x, i) => ({ kind: "image", i, x: x.x, y: x.y, w: x.w, h: x.h, file: x.file, opacity: x.opacity ?? 1, ...turnOf(x) })),
     ...(menu.texts || []).map((x, i) => ({ kind: "text", i, x: x.x, y: x.y, size: x.size || defSize, color: x.color || defColor, label: x.text, align: x.align, ls: x.line_spacing || 0, ...styleOf(x), ...turnOf(x) })),
     ...(menu.buttons || []).map((b, i) => ({ kind: "button", i, x: b.x, y: b.y, size: b.size || defSize, color: b.color || defColor, label: b.label || "", image: b.image, width: b.width, hl: !b.label && !b.image ? b.highlight_image : null, ...styleOf(b), ...turnOf(b) })),
-  ].filter((e) => !menu[KIND_LIST[e.kind]][e.i].hidden);   // (switched off in Layers)
+  ].filter((e) => !menu[KIND_LIST[e.kind]][e.i].hidden && onPage(menu, menu[KIND_LIST[e.kind]][e.i]));   // (switched off in Layers; another page)
   // selection: S.sels (all selected), S.element (the one the inspector shows)
   if (!S.element) S.sels = [];
   else if (!(S.sels || []).some((x) => x.kind === S.element.kind && x.i === S.element.i)) S.sels = [S.element];
   const isSel = (e) => S.sels.some((x) => x.kind === e.kind && x.i === e.i);
-  const firstBtn = Math.max(0, (menu.buttons || []).findIndex((b) => b.id === menu.default_button));
+  const shownBtns = (menu.buttons || []).map((b, i) => i).filter((i) => onPage(menu, menu.buttons[i]));
+  const defBtn = (menu.buttons || []).findIndex((b) => b.id === menu.default_button);
+  const firstBtn = shownBtns.includes(defBtn) ? defBtn : (shownBtns[0] ?? 0);
+  const pg = curPage(menu), npg = pagesOf(menu);
   for (const e of els) if (e.font) loadFont(e.font);
   const css = (e) => {
     let st = `left:${e.x * sx * scale}px;top:${e.y * scale}px;${turnCss(e.rot, e.flip)}`;
@@ -2167,7 +2270,7 @@ function renderMenu(m) {
       ${bg}
       ${S.showGuides === false ? "" : guidesHtml(menu, scale, sx, "uguide")}
       ${S.showSafe ? `<div class="safe" style="left:${w * 0.05}px;top:${h * 0.05}px;width:${w * 0.9}px;height:${h * 0.9}px"></div>` : ""}
-      ${(menu.buttons || []).filter((b) => b.thumbnail && !b.hidden).map((b) => {
+      ${(menu.buttons || []).filter((b) => b.thumbnail && !b.hidden && onPage(menu, b)).map((b) => {
         const th = b.thumbnail, src = thumbSrc(b);
         return `<div class="thumb-pv" style="left:${th.x * sx * scale}px;top:${th.y * scale}px;width:${th.w * sx * scale}px;height:${th.h * scale}px">${src ? `<img src="${src}" alt="" draggable="false">` : ""}</div>`;
       }).join("")}
@@ -2183,6 +2286,7 @@ function renderMenu(m) {
       ${S.showGuides === false ? "" : guidesHtml(menu, scale, sx, "uline")}
     </div></div>
     <div class="viewer-bar">
+      <span class="seg pages" title="${esc(t("pages_hint"))}"><span class="seg-label">${t("pages")}</span>${Array.from({ length: npg }, (_, i) => `<button class="small ${pg === i + 1 ? "on" : ""}" data-page="${i + 1}">${i + 1}</button>`).join("")}<button class="small" id="add-page" title="${esc(t("cmd_add_page"))}">+</button></span>
       ${zoomSel}
       <label title="${esc(t("safe_hint"))}"><input type="checkbox" id="safe" ${S.showSafe ? "checked" : ""}> ${t("safe_area")}</label>
       <label title="${esc(t("routing_hint"))}"><input type="checkbox" id="routing" ${S.showRouting ? "checked" : ""}> ${t("routing")}</label>
@@ -2197,6 +2301,8 @@ function renderMenu(m) {
     <div class="hint" style="text-align:center">${esc(t("link_hint"))}</div>
     </div></div>`;
   if ($("#psd-reimport")) $("#psd-reimport").onclick = () => { S.psdChanged = null; importPsd(menu.psd, menu.id); };
+  m.querySelectorAll("[data-page]").forEach((b) => (b.onclick = () => showPage(menu, Number(b.dataset.page))));
+  $("#add-page").onclick = addPage;
   const stage = $("#stage");
   const nodeOf = (k) => stage.querySelector(`.el[data-kind="${k.kind}"][data-i="${k.i}"]`);
   // element boxes on the 720-wide grid (texts measured from the page)
@@ -2289,7 +2395,7 @@ function renderMenu(m) {
       S.tool = "select";                    // one text per click, as with a text tool
       commit((p) => {
         const mm = p.menus.find((x) => x.id === menu.id);
-        (mm.texts = mm.texts || []).push({ text: "TEXT", x: Math.max(0, Math.min(700, px)), y: Math.max(0, Math.min(H - 20, py)) });
+        (mm.texts = mm.texts || []).push({ text: "TEXT", x: Math.max(0, Math.min(700, px)), y: Math.max(0, Math.min(H - 20, py)), ...newOnPage(menu) });
         S.element = { kind: "text", i: mm.texts.length - 1 }; S.sels = [S.element];
       });
       setTimeout(() => { const f = $("#inspector [data-k=text]"); if (f) { f.focus(); f.select?.(); } }, 0);
@@ -2323,11 +2429,11 @@ function renderMenu(m) {
   m.querySelectorAll("[data-sp]").forEach((b) => (b.onclick = () => {
     if (S.spView === b.dataset.sp) { S.spView = null; S.preview = null; renderMain(); return; }
     S.spView = b.dataset.sp; S.preview = null;
-    requestPreview(menu.id, null, false, { every: true, state: b.dataset.sp });
+    requestPreview(pageId(menu), null, false, { every: true, state: b.dataset.sp });
     renderMain();
   }));
-  $("#exact").onclick = () => { S.spView = null; if (S.preview) { S.preview = null; renderMain(); } else requestPreview(menu.id, S.element && S.element.kind === "button" ? menu.buttons[S.element.i].id : null); };
-  if (S.preview && S.previewFor === menu.id) drawPreview();
+  $("#exact").onclick = () => { S.spView = null; if (S.preview) { S.preview = null; renderMain(); } else requestPreview(pageId(menu), S.element && S.element.kind === "button" ? menu.buttons[S.element.i].id : null); };
+  if (S.preview && S.previewFor === pageId(menu)) drawPreview();
   stage.classList.toggle("tool-text", tool === "text");
   stage.classList.toggle("tool-zoom", tool === "zoom");
   stage.classList.toggle("tool-rotate", tool === "rotate");
@@ -2547,8 +2653,8 @@ function addMenuButton() {
   commit((p) => {
     const mm = p.menus.find((x) => x.id === menu.id);
     const id = uniqueId("button", mm.buttons.map((b) => b.id));
-    const last = mm.buttons[mm.buttons.length - 1];
-    mm.buttons.push({ id, label: "BUTTON", x: last ? last.x : 80, y: last ? Math.min(H - 40, last.y + 60) : 200, action: "stop" });
+    const last = mm.buttons.filter((b) => onPage(menu, b)).pop();      // (of the page shown)
+    mm.buttons.push({ id, label: "BUTTON", x: last ? last.x : 80, y: last ? Math.min(H - 40, last.y + 60) : 200, action: "stop", ...newOnPage(menu) });
     S.element = { kind: "button", i: mm.buttons.length - 1 }; S.sels = [S.element];
   });
 }
@@ -2558,7 +2664,7 @@ function addMenuShape() {
   const H = discH();
   commit((p) => {
     const mm = p.menus.find((x) => x.id === menu.id);
-    (mm.shapes = mm.shapes || []).push({ x: 60, y: Math.round(H * 0.7), w: 600, h: 60, color: "#00000080" });
+    (mm.shapes = mm.shapes || []).push({ x: 60, y: Math.round(H * 0.7), w: 600, h: 60, color: "#00000080", ...newOnPage(menu) });
     S.element = { kind: "shape", i: mm.shapes.length - 1 }; S.sels = [S.element];
   });
 }
@@ -2580,7 +2686,7 @@ function placeMenuPicture(path) {
     w = Math.max(1, Math.round(w * k)); h = Math.max(1, Math.round(h * k));
     commit((p) => {
       const mm = p.menus.find((x) => x.id === menu.id);
-      (mm.images = mm.images || []).push({ file: path, x: Math.round((720 - w) / 2), y: Math.round((H - h) / 2), w, h });
+      (mm.images = mm.images || []).push({ file: path, x: Math.round((720 - w) / 2), y: Math.round((H - h) / 2), w, h, ...newOnPage(menu) });
       S.element = { kind: "image", i: mm.images.length - 1 }; S.sels = [S.element];
     });
   };
@@ -2650,6 +2756,7 @@ function duplicateElements(fromClipboard) {
       const c = JSON.parse(JSON.stringify(it));
       c.x = Math.min(719, c.x + 12); c.y = Math.min(H - 1, c.y + 12);
       if (kind === "button") { c.id = uniqueId(c.id.replace(/\d+$/, "") || "button", mm.buttons.map((b) => b.id)); delete c.nav; }
+      if (pagesOf(mm) < 2) delete c.page; else if (c.page) c.page = curPage(menu);   // (pasted on the page shown)
       const l = elementList(mm, kind); l.push(c); added.push({ kind, i: l.length - 1 });
     }
     S.sels = added; S.element = added[added.length - 1];
@@ -2680,7 +2787,7 @@ async function requestPreview(menuId, button, generated = false, opts = null) {
     S.preview = r; S.previewFor = menuId;
     drawPreview(generated);
   } catch (e) {
-    if (e.data?.issues) showIssues(e.data.issues, t("preview_err")); else openModal(`<h2>${t("preview_err")}</h2><pre class="log">${esc(e.message + "\n" + (e.data?.output || ""))}</pre>`);
+    if (e.data?.issues?.length) showIssues(e.data.issues, t("preview_err")); else openModal(`<h2>${t("preview_err")}</h2><pre class="log">${esc(e.message + "\n" + (e.data?.output || ""))}</pre>`);
   } finally { if ($("#stage")) $("#stage").style.opacity = 1; }
 }
 function drawPreview() {
@@ -2715,10 +2822,11 @@ function renderMenuInspector(el) {
       </div>
       <label class="field" data-nobind><span></span><label><input type="checkbox" id="pic-ratio" ${S.picFree ? "" : "checked"}> ${t("keep_ratio")}</label></label>
       <label class="field" data-nobind><span>${t("opacity")}</span><input type="range" id="pic-a" min="0" max="100" value="${Math.round((it.opacity ?? 1) * 100)}"></label>
-      ${transformHtml(it, "image")}
+      ${pageHtml(menu, it)}${transformHtml(it, "image")}
       <button class="danger" id="del-el">${t("delete")}</button>`;
     bindFields(el, (p) => find(p).images[sel.i], { numeric: ["x", "y"] });
     bindTransform(el, (p) => find(p).images[sel.i]);
+    bindPage(el, (p) => find(p).images[sel.i]);
     const resize = (which) => commit((p) => {
       const x = find(p).images[sel.i], ratio = x.h / x.w;
       const v = Math.max(1, Math.round(Number($(which === "w" ? "#pic-w" : "#pic-h").value) || 1));
@@ -2746,10 +2854,11 @@ function renderMenuInspector(el) {
         <label class="field"><span>${t("fill")}</span><input type="color" id="shape-rgb" value="${esc(c.slice(0, 7))}"></label>
         <label class="field"><span>${t("opacity")}</span><input type="range" id="shape-a" min="0" max="255" value="${c.length > 7 ? parseInt(c.slice(7), 16) : 255}"></label>
       </div>
-      ${transformHtml(it, "shape")}
+      ${pageHtml(menu, it)}${transformHtml(it, "shape")}
       <button class="danger" id="del-el">${t("delete")}</button>`;
     bindFields(el, (p) => find(p).shapes[sel.i], { numeric: ["x", "y", "w", "h"] });
     bindTransform(el, (p) => find(p).shapes[sel.i]);
+    bindPage(el, (p) => find(p).shapes[sel.i]);
     const setColor = () => commit((p) => {
       const a = Number($("#shape-a").value);
       find(p).shapes[sel.i].color = $("#shape-rgb").value.toUpperCase() + (a >= 255 ? "" : a.toString(16).padStart(2, "0").toUpperCase());
@@ -2763,7 +2872,9 @@ function renderMenuInspector(el) {
     const it = list[sel.i];
     if (!it) { S.element = null; return renderMenuInspector(el); }
     const fonts = [["__none__", t("disc_font")], ...mediaOf("font").map((x) => [x, x.replace(/^media\//, "")])];
-    const btnIds = [["__none__", t("nav_auto")], ...menu.buttons.filter((b) => b !== it).map((b) => [b.id, `${b.id} (${b.label || b.image})`])];
+    // (on a menu with pages: the buttons on its page, or on every page)
+    const btnIds = [["__none__", t("nav_auto")], ...menu.buttons.filter((b) => b !== it && (!b.page || b.page === it.page)).map((b) => [b.id, `${b.id} (${b.label || b.image})`])];
+    const numbered = menu.buttons.map((b, i) => [b, i]).filter(([b]) => onPage(menu, b));
     const isImage = sel.kind === "button" && it.image;
     el.innerHTML = `<h2>${sel.kind === "button" ? t("button") : t("text")}</h2>
       ${sel.kind === "button" ? `<label class="field"><span>${t("text")}</span><input data-k="label" value="${esc(it.label)}"></label>
@@ -2802,12 +2913,13 @@ function renderMenuInspector(el) {
           <label class="field"><span>${t("thumb_time")}</span><input type="number" data-th="time" min="0" step="0.1" value="${it.thumbnail.time ?? ""}" placeholder="1"></label></div>
           <label class="field"><span></span><label><input type="checkbox" id="th-anim" ${it.thumbnail.animated ? "checked" : ""} ${menu.background_video ? "" : "disabled"}> ${t("thumb_anim")}</label></label>` : ""}</div>` : ""}
       ${sel.kind === "button" ? `<label class="field"><span>${t("highlight_image")}</span>${selectHtml("highlight_image", [["__none__", t("auto")], ...mediaOf("image").map((x) => [x, x])], it.highlight_image || "__none__")}<div class="hint">${esc(t("highlight_image_hint"))}</div></label>` : ""}
-      ${sel.kind === "button" ? `<label class="field" data-nobind><span>${t("button_number")}</span>${selectHtml("number", menu.buttons.map((b, i) => [String(i), menu.button_offset ? t("number_on_remote", { n: i + 1, k: i + 1 + menu.button_offset }) : String(i + 1)]), String(sel.i), 'id="btn-number"')}<div class="hint">${esc(t("button_number_hint"))}</div></label>
+      ${sel.kind === "button" ? `<label class="field" data-nobind><span>${t("button_number")}</span>${selectHtml("number", numbered.map(([, i], k) => [String(i), menu.button_offset ? t("number_on_remote", { n: k + 1, k: k + 1 + menu.button_offset }) : String(k + 1)]), String(sel.i), 'id="btn-number"')}<div class="hint">${esc(t("button_number_hint"))}</div></label>
         <h3>${t("nav")}</h3><div class="grid2">${["up", "down", "left", "right"].map((d) =>
         `<label class="field"><span>${d}</span>${selectHtml("nav." + d, btnIds, (it.nav || {})[d] || "__none__")}</label>`).join("")}</div>` : ""}
-      ${transformHtml(it, sel.kind)}
+      ${pageHtml(menu, it)}${transformHtml(it, sel.kind)}
       <button class="danger" id="del-el">${t("delete")}</button>`;
     bindTransform(el, (p) => (sel.kind === "button" ? find(p).buttons : find(p).texts)[sel.i]);
+    bindPage(el, (p) => (sel.kind === "button" ? find(p).buttons : find(p).texts)[sel.i]);
     // Number: the button moves to that place; the others close up
     if ($("#btn-number")) $("#btn-number").onchange = (e) => {
       const to = Number(e.target.value);
@@ -3315,10 +3427,15 @@ function renderLayers() {
       <span class="ico">${ico}</span><span class="nm">${esc(name)}</span>${to ? `<span class="to">${esc(to)}</span>` : ""}
       <span class="ops"><button class="small" data-lmove="-1" ${i ? "" : "disabled"} title="▲">▲</button><button class="small" data-lmove="1" ${i + 1 < n ? "" : "disabled"} title="▼">▼</button><button class="small danger" data-ldel title="${esc(t("delete"))}">✕</button></span></div>`;
   const bs = menu.buttons || [], ts = menu.texts || [], ss = menu.shapes || [], ims = menu.images || [];
-  body.innerHTML = `<div class="layer-group">${t("buttons")} (${bs.length})</div>${bs.map((b, i) => row("button", i, b.image ? "▣" : b.label ? "◉" : "⬚", b.label || b.id, b.action, bs.length)).join("")}
-    ${ts.length ? `<div class="layer-group">${t("texts")} (${ts.length})</div>${ts.map((x, i) => row("text", i, "T", x.text, "", ts.length)).join("")}` : ""}
-    ${ims.length ? `<div class="layer-group">${t("pictures")} (${ims.length})</div>${ims.map((x, i) => row("image", i, "▨", x.file.replace(/^media\//, ""), "", ims.length)).join("")}` : ""}
-    ${ss.length ? `<div class="layer-group">${t("shapes")} (${ss.length})</div>${ss.map((x, i) => row("shape", i, "■", `${t("rectangle")} ${i + 1}`, "", ss.length)).join("")}` : ""}
+  // (a menu with pages: the objects of the page shown, those on every page marked)
+  const paged = pagesOf(menu) > 1, every = (x) => (paged && !x.page ? ` · ${t("page_all")}` : "");
+  const rows = (list, fn) => list.map((x, i) => (onPage(menu, x) ? fn(x, i) : "")).join("");
+  const count = (list) => list.filter((x) => onPage(menu, x)).length;
+  body.innerHTML = `${paged ? `<div class="layer-group">${esc(t("page_of", { n: curPage(menu), m: pagesOf(menu) }))}</div>` : ""}
+    <div class="layer-group">${t("buttons")} (${count(bs)})</div>${rows(bs, (b, i) => row("button", i, b.image ? "▣" : b.label ? "◉" : "⬚", (b.label || b.id) + every(b), linkName(b.action), bs.length))}
+    ${count(ts) ? `<div class="layer-group">${t("texts")} (${count(ts)})</div>${rows(ts, (x, i) => row("text", i, "T", x.text + every(x), "", ts.length))}` : ""}
+    ${count(ims) ? `<div class="layer-group">${t("pictures")} (${count(ims)})</div>${rows(ims, (x, i) => row("image", i, "▨", x.file.replace(/^media\//, "") + every(x), "", ims.length))}` : ""}
+    ${count(ss) ? `<div class="layer-group">${t("shapes")} (${count(ss)})</div>${rows(ss, (x, i) => row("shape", i, "■", `${t("rectangle")} ${i + 1}` + every(x), "", ss.length))}` : ""}
     <div class="layer-group">${t("background")}</div><div class="layer-row"><span class="ico">▤</span><span class="nm">${esc(menu.background_video || menu.background || menu.background_color || "#000")}</span></div>`;
   const list = elementList;
   body.querySelectorAll(".layer-row[data-lk]").forEach((r) => {
@@ -3538,11 +3655,11 @@ function setTool(tool) {
 // (areas measured by the server exactly as the build lays them out)
 async function checkOverlaps(stage, menu, scale, sx) {
   S.routing = S.routing || {};
-  const k = JSON.stringify([menu, P().disc.standard, P().disc.aspect]);
+  const k = JSON.stringify([menu, curPage(menu), P().disc.standard, P().disc.aspect]);
   clearTimeout(S.overlapTimer);
   S.overlapTimer = setTimeout(async () => {
     if (!S.routing[k]) {
-      try { S.routing[k] = await api("/api/routing", { method: "POST", body: { project: S.project, menu: menu.id } }); }
+      try { S.routing[k] = await api("/api/routing", { method: "POST", body: { project: S.project, menu: pageId(menu) } }); }
       catch (e) { return; }
     }
     if (!document.body.contains(stage)) return;
@@ -3646,9 +3763,9 @@ function convertElement() {
 // ones dashed).
 async function drawRouting(stage, menu, scale, sx) {
   S.routing = S.routing || {};
-  const k = JSON.stringify([menu, P().disc.standard, P().disc.aspect]);
+  const k = JSON.stringify([menu, curPage(menu), P().disc.standard, P().disc.aspect]);
   if (!S.routing[k]) {
-    try { S.routing[k] = await api("/api/routing", { method: "POST", body: { project: S.project, menu: menu.id } }); }
+    try { S.routing[k] = await api("/api/routing", { method: "POST", body: { project: S.project, menu: pageId(menu) } }); }
     catch (e) { return; }
   }
   const r = S.routing[k];
@@ -3744,7 +3861,7 @@ function bindLinkDrop(stage, menu, scale, sx) {
       const x = Math.max(0, Math.min(700, Math.round((e.clientX - rect.left) / (sx * scale))));
       const y = Math.max(0, Math.min(discH() - 20, Math.round((e.clientY - rect.top) / scale)));
       const id = uniqueId(action.split(":")[1].replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 30) + "_btn", mm.buttons.map((b) => b.id));
-      mm.buttons.push({ id, label: linkLabel(action), x, y, action });
+      mm.buttons.push({ id, label: linkLabel(action), x, y, action, ...newOnPage(menu) });
       S.element = { kind: "button", i: mm.buttons.length - 1 };
     });
     S.sels = [S.element];
@@ -3917,6 +4034,8 @@ const COMMANDS = {
   // -- Menu
   new_menu: { run: () => addMenu(), when: hasProject },
   chapter_index: { run: chapterIndexBox, when: () => hasProject() && (P().titles || []).length > 0 },
+  add_page: { run: addPage, when: inMenu },
+  delete_page: { run: deletePage, when: () => inMenu() && pagesOf(curMenu()) > 1 },
   add_button: { run: addMenuButton, when: inMenu },
   add_text: { run: addMenuText, when: inMenu },
   add_rectangle: { run: addMenuShape, when: inMenu },
@@ -4017,7 +4136,7 @@ const MENUBAR = [
     ["m_distribute", ["distribute_h", "distribute_v"]], ["m_arrange", ["bring_front", "bring_forward", "send_backward", "send_back"]], "-",
     ["m_rotate", ["rotate_180", "rotate_cw", "rotate_ccw"]], "flip_h", "flip_v", "-",
     "convert_button", "convert_object", "-", "drop_shadow"]],
-  ["m_menu", ["new_menu", "chapter_index", "-", "add_button", "add_text", "add_rectangle", "add_picture", "-", "set_link", "default_button",
+  ["m_menu", ["new_menu", "chapter_index", "add_page", "delete_page", "-", "add_button", "add_text", "add_rectangle", "add_picture", "-", "set_link", "default_button",
     "set_first_play", "-", "colour_set", "save_template", "save_menu_file", "-", ["m_tools", ["tool_select", "tool_rotate", "tool_text", "tool_zoom"]]]],
   ["m_timeline", ["new_timeline", "new_slideshow", "new_playlist", "chapter_playlist", "-", "add_audio_track", "add_subtitle_track",
     "import_subtitles", ["m_export_subs", ["export_subtitles", "export_subtitles_script"]], "-", "add_chapter", "chapters_interval", "chapters_from_source", "clear_chapters", "set_poster", "-",
@@ -4329,7 +4448,7 @@ function addMenuText() {
   const H = discH();
   commit((p) => {
     const mm = p.menus.find((x) => x.id === S.sel.id);
-    (mm.texts = mm.texts || []).push({ text: "TEXT", x: 80, y: Math.round(H / 2) });
+    (mm.texts = mm.texts || []).push({ text: "TEXT", x: 80, y: Math.round(H / 2), ...newOnPage(curMenu()) });
     S.element = { kind: "text", i: mm.texts.length - 1 }; S.sels = [S.element];
   });
   setTimeout(() => { const f = $("#inspector [data-k=text]"); if (f) { f.focus(); f.select?.(); } }, 0);

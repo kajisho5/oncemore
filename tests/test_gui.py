@@ -1693,6 +1693,68 @@ class TestGuiBrowser(unittest.TestCase):
             browser.close()
         self.assertEqual(errors, [])
 
+    def test_menu_pages(self):
+        """Menu > Add new page: the menu's buttons become page 1's with a NEXT
+        to the new page, which has a BACK; the viewer shows one page at a
+        time; a new object goes on the page shown; Properties > Page moves
+        an object to every page; the page's own preview; Delete page."""
+        self.s.call("/api/new", "POST", {"sample": True})
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click(".nav-item[data-view=menu][data-id=main]", timeout=120000)
+            menu = lambda: self.project()["menus"][0]  # noqa: E731
+            page.evaluate("window.oncemoreCommand('add_page')")
+            self.poll(lambda: menu().get("pages") == 2)
+            buttons = menu()["buttons"]
+            self.assertEqual([(b["id"], b.get("page"), b["action"]) for b in buttons],
+                             [("play", 1, "playall"), ("ch", 1, "menu:chapters"),
+                              ("b", 1, "title:t2"), ("next1", 1, "page:next"),
+                              ("back1", 2, "page:prev")])
+            self.assertNotIn("page", menu()["texts"][0])        # the heading: every page
+            # page 2 shown: its BACK and the heading
+            page.locator(".viewer-bar [data-page='2'].on").wait_for()
+            self.assertEqual(page.locator(".stage .el.button").count(), 1)
+            self.assertEqual(page.locator(".stage .el.text").count(), 1)
+            page.evaluate("window.oncemoreCommand('add_button')")
+            self.poll(lambda: len(menu()["buttons"]) == 6)
+            self.assertEqual(menu()["buttons"][5].get("page"), 2)
+            # (put where it does not cover BACK)
+            page.locator(".stage .el.button[data-i='5']").click()
+            page.fill("#inspector input[data-k=y]", "200")
+            page.press("#inspector input[data-k=y]", "Tab")
+            self.poll(lambda: menu()["buttons"][5]["y"] == 200)
+            # its link: the page links are offered
+            options = page.eval_on_selector_all("#inspector select[data-k=action] option",
+                                                "os => os.map(o => o.value)")
+            self.assertEqual(options[:4], ["page:next", "page:prev", "page:1", "page:2"])
+            page.select_option("#inspector select[data-k=action]", "page:1")
+            self.poll(lambda: menu()["buttons"][5]["action"] == "page:1")
+            # Properties > Page: on every page
+            page.select_option("#obj-page", "0")
+            self.poll(lambda: "page" not in menu()["buttons"][5])
+            self.assertTrue(self.s.app.check(self.project())["valid"])
+            # page 1: four of its own and the one on every page
+            page.click(".viewer-bar [data-page='1']")
+            page.locator(".viewer-bar [data-page='1'].on").wait_for()
+            self.assertEqual(page.locator(".stage .el.button").count(), 5)
+            # the exact preview of page 2 is of its own menu
+            page.click(".viewer-bar [data-page='2']")
+            page.click("#exact")
+            page.locator(".stage img.exact").wait_for(timeout=120000)
+            self.assertEqual(page.evaluate("S.previewFor"), "main~2")
+            # Delete page: one page left, no pages and no page links
+            page.evaluate("window.oncemoreCommand('delete_page')")
+            self.poll(lambda: "pages" not in menu())
+            self.assertEqual([b["id"] for b in menu()["buttons"]], ["play", "ch", "b"])
+            self.assertFalse(any("page" in b for b in menu()["buttons"]))
+            self.assertTrue(self.s.app.check(self.project())["valid"])
+            browser.close()
+        self.assertEqual(errors, [])
+
     def test_layer_break(self):
         """Disc > Layer break: offered for a DVD-9, a chapter or auto."""
         self.s.call("/api/new", "POST", {"sample": True})
