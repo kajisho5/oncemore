@@ -507,8 +507,9 @@ class MenuBuilder:
         f += self._dressing(el, style)
         if getattr(el, "line_spacing", 0):
             f += f":line_spacing={el.line_spacing}"
+        # (lines to line up: the text's own, or those its box breaks it into)
         if (getattr(el, "align", "left") != "left"
-                and "\n" in self._read(os.path.join(self.work, textfile))):
+                and ("\n" in getattr(el, "text", "") or getattr(el, "width", None))):
             if tools.drawtext_option("text_align", self.ffmpeg):
                 f += f":text_align={'C' if el.align == 'center' else 'R'}"
             elif not self._align_warned:
