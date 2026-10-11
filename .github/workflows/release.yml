@@ -4,6 +4,8 @@ name: Release
 # for Apple silicon and Intel and attach both zips to a GitHub Release: a
 # pre-release published at once for 0.x versions, a draft from 1.0 on. Its
 # notes are docs/release-notes/<tag>.md when that file exists.
+# Or run the workflow by hand with "tag" set (Actions > Release > Run
+# workflow): the same release, and the tag is made on the commit it ran on.
 #
 # Signing and notarisation are used when these repository secrets exist;
 # without them the app is ad-hoc signed (first launch needs "Open Anyway"):
@@ -18,6 +20,11 @@ on:
   pull_request:
     paths: [".github/workflows/release.yml", "macos/**"]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release this commit as tag v<version> (empty: only build the app)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -38,10 +45,12 @@ jobs:
         with:
           fetch-depth: 0   # CFBundleVersion = commit count
       - name: Tag matches the package version
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || inputs.tag
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           v="$(sed -n 's/^__version__ = "\(.*\)"/\1/p' oncemore/__init__.py)"
-          [ "$GITHUB_REF_NAME" = "v$v" ] || { echo "tag $GITHUB_REF_NAME != v$v"; exit 1; }
+          [ "$TAG" = "v$v" ] || { echo "tag $TAG != v$v"; exit 1; }
       - name: External tools for the smoke test
         run: brew install ffmpeg-full dvdauthor
       - name: Signing certificate (if configured)
@@ -85,7 +94,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.tag)
     needs: app
     runs-on: ubuntu-latest
     permissions:
@@ -104,13 +113,15 @@ jobs:
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           # 0.x: a pre-release, published; 1.0 and later: a draft to look over first
-          case "$GITHUB_REF_NAME" in
+          case "$TAG" in
             v0.*) kind="--prerelease" ;;
             *) kind="--draft" ;;
           esac
-          notes="docs/release-notes/$GITHUB_REF_NAME.md"
+          notes="docs/release-notes/$TAG.md"
           if [ -f "$notes" ]; then how=(--notes-file "$notes"); else how=(--generate-notes); fi
-          gh release create "$GITHUB_REF_NAME" dist/Oncemore-*.zip dist/SHA256SUMS \
-            -R "$GITHUB_REPOSITORY" $kind "${how[@]}" --title "oncemore $GITHUB_REF_NAME"
+          # (run by hand: the tag is made on the commit the workflow ran on)
+          gh release create "$TAG" dist/Oncemore-*.zip dist/SHA256SUMS --target "$GITHUB_SHA" \
+            -R "$GITHUB_REPOSITORY" $kind "${how[@]}" --title "oncemore $TAG"
