@@ -37,6 +37,9 @@ ENTRY_REG = 2                  # GPR: button a link highlights in the menu it op
 LOOP_REG = 3                   # GPR: times the current menu has played (menus with a loop count)
 OVERRIDE_REG = 4               # GPR: end-action override k of the playing title (0 = none)
 STREAMS_REG = 5                # GPR: 1 = the link chose the streams, the title keeps them
+COUNT_REG = 6                  # GPR: items a random or shuffled playlist has played
+PICK_REG = 7                   # GPR: the item it picked (1-based)
+PLAYED_REG = 8                 # GPRs 8..: 1 = shuffle has played that item
 PMT_PID = 0x0100
 VERSION = b"0200"
 
@@ -565,6 +568,11 @@ def add(reg, value):
     return _cmd(0x50, 0x40, reg, value, 0x03)
 
 
+def rnd(reg, top):
+    """Set general register <reg> to a random number from 1 to <top>."""
+    return _cmd(0x50, 0x40, reg, top, 0x08)
+
+
 def if_at_least(reg, value):
     """Compare: the next command runs only if general register `reg` >= value."""
     return _cmd(0x48, 0x40, reg, value, b2=0x04)
@@ -792,6 +800,14 @@ class Nav:
             kind, tid, n = parse_action(a)
             if kind == "chapter" and (tid, n) not in chapters:
                 chapters.append((tid, n))
+        # random and shuffled playlists: a playlist file per item (after the
+        # titles' own), played one by one in the order the object picks
+        self.item_playlists = {}
+        k = len(titles) + 1
+        for x in p.playlists:
+            if x.order != "sequential":
+                self.item_playlists[x.id] = list(range(k, k + len(x.items)))
+                k += len(x.items)
         self.first_play = len(titles)
         self.top_menu = len(titles) + 1
         self.chapter_objects = {key: len(titles) + 2 + k for k, key in enumerate(chapters)}
@@ -880,6 +896,30 @@ class Nav:
             return [if_equal(STREAMS_REG, 0), set_subtitles(on)] + keep
         return [set_subtitles(on)]
 
+    def _picked(self, pl, numbers, base):
+        """Commands playing a random or shuffled playlist's items, each its
+        own playlist file (`numbers`), from command `base` of the object on.
+        Random: as many picks as there are items, an item may come again;
+        shuffle: each item once (a pick already played is picked again)."""
+        n, shuffle = len(numbers), pl.order == "shuffle"
+        cmds = [move(COUNT_REG, 0)] + ([move(PLAYED_REG + k, 0) for k in range(n)]
+                                       if shuffle else [])
+        top = base + len(cmds)
+        size = 6 if shuffle else 3
+        blocks = top + 3 + 2 * n + 1
+        end = blocks + size * n
+        cmds += [if_at_least(COUNT_REG, n), goto(end), rnd(PICK_REG, n)]
+        for k in range(n):
+            cmds += [if_equal(PICK_REG, k + 1), goto(blocks + size * k)]
+        cmds.append(goto(top))
+        for k, number in enumerate(numbers):
+            if shuffle:
+                cmds += [if_equal(PLAYED_REG + k, 1), goto(top + 2),
+                         move(PLAYED_REG + k, 1)]
+            cmds += [play_pl(number), add(COUNT_REG, 1), goto(top)]
+        assert base + len(cmds) == end
+        return cmds
+
     def objects(self, menus=None):
         """All movie objects. menus: {menu id: (still, loop_mark)} for the
         menus' own objects (a still menu holds its picture; others play
@@ -915,7 +955,12 @@ class Nav:
                 p.title(p.playlist(ident).items[0].title_id) if kind == "playlist" \
                 else p.titles[0]
             ends = self._ends(end) if kind == "title" else self.go(end)
-            out.append(self._start(first) + [play_pl(n)] + ends)
+            start = self._start(first)
+            if kind == "playlist" and ident in self.item_playlists:
+                out.append(start + self._picked(p.playlist(ident), self.item_playlists[ident],
+                                                len(start)) + ends)
+                continue
+            out.append(start + [play_pl(n)] + ends)
         out.append(self.go(p.disc.first_play) or [jump_title(1)])
         top = p.disc.title_key or (f"menu:{p.menus[0].id}" if p.menus else None)
         out.append(self.go(top) or [jump_title(1)])
@@ -947,6 +992,11 @@ def playlist_items(project, kind, ident, pieces):
         parts = [(pieces[project.link_transitions[ident - 1][0]], 1, None)]
     else:
         parts = [(pieces[t.id], 1, None) for t in project.titles]
+    return parts_items(parts)
+
+
+def parts_items(parts):
+    """(items, marks) of a playlist of (piece, first chapter, last chapter)."""
     if any(piece.hold for piece, _, _ in parts):
         # (a slideshow advanced by hand: one item per picture, each held)
         split = []
@@ -1057,6 +1107,10 @@ def write_bdmv(project, clips, out_dir, menus=None, popups=(), transitions=None)
         whole = pieces[ident if kind == "title" else f"menu:{ident}"].uo \
             if kind in ("title", "menu") else 0
         _write(out_dir, os.path.join("PLAYLIST", f"{n:05d}.mpls"), mpls(items, marks, whole))
+    for pid, numbers in nav.item_playlists.items():
+        for it, n in zip(project.playlist(pid).items, numbers):
+            items, marks = parts_items([(pieces[it.title_id], it.first, it.last)])
+            _write(out_dir, os.path.join("PLAYLIST", f"{n:05d}.mpls"), mpls(items, marks))
     objects, first, top = nav.objects(loops), nav.first_play, nav.top_menu
     first_piece = pieces[project.titles[0].id]
     interactive = {n for n, (kind, _, _) in enumerate(titles, 1) if kind == "menu"}

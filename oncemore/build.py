@@ -41,6 +41,11 @@ def inspect(project, reporter=None, prepare=True, bd=False):
             probes[path] = encode.probe(path)
         return probes[path]
 
+    if not bd:
+        for i, pl in enumerate(project.playlists):
+            if pl.order != "sequential":
+                warnings.append(f"playlists[{i}].order: a DVD plays the items as listed "
+                                f"({pl.order} is for Blu-ray and the web version)")
     for i, t in enumerate(project.titles):
         where = f"titles[{i}]"
         if t.slideshow:
