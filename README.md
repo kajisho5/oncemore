@@ -570,13 +570,17 @@ Imported buttons are ordinary buttons with only a `highlight_image` (and a
 "playlists": [{
   "id": "best", "name": "Best scenes",
   "items": ["t1:2", "t2:2-3", "t1"],   // a chapter, a chapter range, a whole title
-  "end_action": "menu:main"            // any title end action; stop (default)
+  "end_action": "menu:main",           // any title end action; stop (default)
+  "order": "shuffle"                   // sequential (default) | random | shuffle
 }]
 ```
 
 A button with `"action": "playlist:best"` (or `first_play` / `title_key`) plays the
 items in order, also across titles with different formats; an item stops at the
 end of its last chapter. Title, chapter and play-all buttons leave playlist mode.
+`order` plays them shuffled (each once, in a random order) or at random (as many
+items as the playlist has, each picked at random, so one can come again) on a
+Blu-ray and in the web version; a DVD plays them as listed.
 
 ### Slideshows
 
@@ -607,7 +611,10 @@ The pictures are fitted on the disc's square-pixel canvas (854 × 480 for NTSC
 16:9) and rendered once into a lossless video in `.oncemore-cache/slideshow`;
 that video is then encoded like any other title (and re-rendered only when a
 picture, a duration or a setting changes). Slide *k* starts at the sum of the
-earlier durations and is a chapter unless `chapters` is given. `fit` decides
+earlier durations and is a chapter unless `chapters` is given. A slideshow
+can have up to 999 pictures; a DVD title has at most 99 chapters, so on a DVD
+the pictures after the 98th are part of chapter 99 (one advanced by hand has
+at most 99 pictures there), while a Blu-ray keeps a chapter for each. `fit` decides
 what happens to pictures of another shape: `fit` shows all of each with the
 background colour around, `fill` fills the frame and crops what is outside;
 a slide can have its own `fit`. With `fit_to_audio` the pictures' durations

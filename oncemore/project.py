@@ -466,6 +466,7 @@ class Playlist:
     name: str
     items: list
     end_action: str = "stop"
+    order: str = "sequential"   # "random" (as many picks, repeats allowed) | "shuffle" (each once)
 
 
 @dataclass
@@ -1267,7 +1268,8 @@ class _Builder:
                 items.append(PlaylistItem(tid))
             else:
                 items.append(PlaylistItem(tid, int(a), int(b) if b else int(a)))
-        return Playlist(pl["id"], pl.get("name", pl["id"]), items, pl.get("end_action", "stop"))
+        return Playlist(pl["id"], pl.get("name", pl["id"]), items, pl.get("end_action", "stop"),
+                        pl.get("order", "sequential"))
 
     def chapter_menus(self, i, title, spec, disc, default_menu):
         """Expand auto_chapter_menu into one or more pages of thumbnails."""
