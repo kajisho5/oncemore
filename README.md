@@ -858,6 +858,21 @@ all made again by the next build).
   documents BD media, `hdiutil burn` with a BD writer has not been tried.
 * No copy protection (by design, permanently).
 
+## Libraries
+
+Parts of oncemore are published on their own, for other tools to use. They
+are pure Python with no dependencies, like oncemore:
+
+| Library | What it does | License |
+|---|---|---|
+| [udfkit](https://github.com/kajisho5/udfkit) | DVD-Video (UDF 1.02 + ISO 9660) and Blu-ray (UDF 2.50) disc images | Apache-2.0 |
+| [bdmvkit](https://github.com/kajisho5/bdmvkit) | Blu-ray (BDMV) authoring: playlists, clip information, HDMV navigation, PGS subtitles | LGPL-3.0-or-later |
+| [dvdcc](https://github.com/kajisho5/dvdcc) | Line-21 closed captions (CEA-608) into a DVD's MPEG-2 video | Apache-2.0 |
+| [vtskit](https://github.com/kajisho5/vtskit) | DVD-Video authoring without dvdauthor (planned, [#75](https://github.com/kajisho5/oncemore/issues/75)) | LGPL-3.0-or-later |
+
+oncemore keeps its own copy of this code, so it still installs with no
+dependencies. Fixes go to both places.
+
 ## Support oncemore
 
 oncemore is free and stays free. If it saves you time, you can support its

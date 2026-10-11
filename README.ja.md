@@ -729,6 +729,19 @@ DVD ナビゲーションライブラリ）でメニューのボタンを実際�
   BD メディア対応を明記していますが、BD ドライブでの `hdiutil burn` は未確認です。
 * コピーガードなし（設計方針として今後も入れません）。
 
+## ライブラリ
+
+oncemore の一部は、他のツールからも使えるよう単体のライブラリとして公開しています。oncemore と同じく Python だけで動き、依存ライブラリはありません。
+
+| ライブラリ | 内容 | ライセンス |
+|---|---|---|
+| [udfkit](https://github.com/kajisho5/udfkit) | DVD-Video（UDF 1.02 + ISO 9660）と Blu-ray（UDF 2.50）のディスクイメージ | Apache-2.0 |
+| [bdmvkit](https://github.com/kajisho5/bdmvkit) | Blu-ray（BDMV）のオーサリング：プレイリスト、クリップ情報、HDMV ナビゲーション、PGS 字幕 | LGPL-3.0 以降 |
+| [dvdcc](https://github.com/kajisho5/dvdcc) | DVD の MPEG-2 映像へのライン 21 クローズドキャプション（CEA-608） | Apache-2.0 |
+| [vtskit](https://github.com/kajisho5/vtskit) | dvdauthor を使わない DVD-Video のオーサリング（計画中、[#75](https://github.com/kajisho5/oncemore/issues/75)） | LGPL-3.0 以降 |
+
+oncemore は依存ライブラリ無しでインストールできるよう、これらのコードを自分の中にも持っています。修正は両方に入れます。
+
 ## oncemore を支援する
 
 oncemore は無料で、これからも無料です。役に立ったら [GitHub Sponsors](https://github.com/sponsors/kajisho5)（このリポジトリ上部の
