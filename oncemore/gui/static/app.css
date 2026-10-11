@@ -236,6 +236,16 @@ h3 { font-size: 12px; margin: 18px 0 8px; color: var(--muted); text-transform: u
 .stage .guide { position: absolute; background: var(--c-guide); pointer-events: none; z-index: 5; }
 .stage .guide.gx { top: 0; bottom: 0; width: 1px; }
 .stage .guide.gy { left: 0; right: 0; height: 1px; }
+/* guides placed on the menu: the line over everything (no clicks), and a
+   band to grab under the objects */
+.stage .uline { position: absolute; z-index: 4; pointer-events: none; }
+.stage .uline.h { left: 0; right: 0; height: 0; border-top: 1px solid var(--c-menu-guide); }
+.stage .uline.v { top: 0; bottom: 0; width: 0; border-left: 1px solid var(--c-menu-guide); }
+.stage .uguide { position: absolute; }
+.stage .uguide.h { left: 0; right: 0; top: 0; height: 8px; margin-top: -4px; cursor: ns-resize; }
+.stage .uguide.v { top: 0; bottom: 0; left: 0; width: 8px; margin-left: -4px; cursor: ew-resize; }
+.stage .uguide.locked { pointer-events: none; }
+.stage .uline.leaving { opacity: 0.3; }
 .stage:focus { outline: none; }
 .align-tools { margin-top: -4px; align-items: center; }
 .template-list { display: grid; gap: 8px; margin-top: 12px; }
@@ -391,6 +401,7 @@ table.shortcuts td.mono { font-family: var(--font-mono); text-align: right; whit
 .viewer-bar .seg button.on { background: var(--c-accent); color: var(--c-text-on-accent); }
 .stage.tool-text { cursor: text; }
 .stage.tool-zoom { cursor: zoom-in; }
+.stage.tool-rotate .el { cursor: grab; }
 .stage .overlap { position: absolute; border: 2px solid var(--c-danger); pointer-events: none; z-index: 5; }
 /* the pick whip */
 .whip { display: inline-block; margin-left: 4px; color: var(--c-kind-remote); cursor: crosshair; font-size: var(--fs-md); line-height: 1; user-select: none; }

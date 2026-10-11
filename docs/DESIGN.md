@@ -54,7 +54,7 @@ raw hex colour outside the tokens).
 | Brand | `--brand-highlight`, `--brand-activated`, `--brand-ink`, `--brand-paper` (the logo and its ground; the same in every skin and theme) |
 | Status | `--c-success`, `--c-warning`, `--c-danger` |
 | Kinds | `--c-kind-menu`, `-title`, `-playlist`, `-remote`, `-audio`, `-subtitle`, `-chapter` |
-| Picture | `--c-picture` (black), `--c-on-picture`, `--c-guide` (snapping), `--c-hit` (hit areas) |
+| Picture | `--c-picture` (black), `--c-on-picture`, `--c-guide` (snapping), `--c-menu-guide` (guides placed on a menu), `--c-hit` (hit areas) |
 | Type | `--font-ui`, `--font-mono`, `--fs-xs` 11 / `-sm` 12 / `-md` 13 / `-lg` 15 / `-xl` 20, `--lh` |
 | Space | `--sp-1` 2 … `--sp-7` 32 (4 px grid) |
 | Shape | `--r-sm` 4, `--r-md` 6, `--r-lg` 10, `--r-pill`, `--shadow-1`, `--shadow-2` |

@@ -196,15 +196,19 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   *Media* or an element on the menu. Shortcuts: ⌘N / ⌘O / ⌘S / ⇧⌘S new,
   open, save, save as, ⌘I import, ⌘B build, ⌘X / ⌘C / ⌘V / ⌘D cut, copy,
   paste, duplicate, ⌘A select all, ⌘Z / ⇧⌘Z undo / redo, ⌘[ / ⌘] / ⇧⌘[ /
-  ⇧⌘] stacking order, ⌘0 fit, ⌘L link of the selected button, V / T / Z
-  selection, text and zoom tools, + / − zoom, `*` (Shift+8) chapter at the
+  ⇧⌘] stacking order, ⌘0 fit, ⌘L link of the selected button, V / R / T / Z
+  selection, rotate, text and zoom tools, ⌘; / ⌥⌘; / ⇧⌘; show / lock / snap to
+  guides, + / − zoom, `*` (Shift+8) chapter at the
   playhead, PgUp / PgDn previous / next chapter, Space play / pause, ⇧Space
   preview, ⌥⇧1–4 workspaces, ? the list (Ctrl instead of ⌘ on other systems).
-* **The menu editor**: a tools strip (selection, text — click where it goes,
-  zoom, new button / rectangle, preview) and a viewer bar under the menu: zoom,
-  safe area, routing, snapping, and *Highlights: Normal / Selected /
-  Activated* showing every button as the disc will in that state. Buttons
-  whose areas overlap are outlined in red.
+* **The menu editor**: a tools strip (selection, rotate — drag an object
+  around its centre, text — click where it goes, zoom, new button /
+  rectangle, preview) and a viewer bar under the menu: zoom, safe area,
+  routing, snapping, guides and *New guide*, and *Highlights: Normal /
+  Selected / Activated* showing every button as the disc will in that state.
+  Buttons whose areas overlap are outlined in red. Object > Rotate and Flip
+  turn and mirror texts, buttons, rectangles and pictures (on the disc too,
+  highlights included).
 * **Pick whip**: drag the ◎ next to a button's link (or a title's end action,
   or the disc's first play) to a title, menu or playlist in the project panel
   or the flowchart. In the **flowchart**, drag from one item to another to link
@@ -447,6 +451,8 @@ when there are more.
 | `font_size`, `text_color` | defaults for texts/buttons | `32`, `#FFFFFF` |
 | `highlight_color`, `select_color` | button colours when selected / activated; `#RRGGBBAA` for translucent (a DVD has 16 levels of opacity) | `#FFD400`, `#FF5A00` |
 | `hidden` (buttons, texts, shapes, images) | switched off in the Layers panel: kept in the project, not on the disc | `false` |
+| `rotate`, `flip` (buttons, texts, shapes, images) | degrees turned clockwise about the object's centre, and `horizontal` / `vertical` / `both` to mirror it first (Object > Rotate / Flip, the Rotate tool). A button's label or picture turns with its highlight; its thumbnail stays as it is | `0`, none |
+| `guides` | `{horizontal: [y…], vertical: [x…]}` guides for placing objects (View > New Guide; dragged in the editor; read from a Photoshop file's guides). Kept with the menu, never on the disc | none |
 | `normal_color` | colour of the buttons' highlight shapes while not selected (the colour set's Normal state); none when absent | — |
 | `texts[]` | `{text, x, y, size?, color?}` decorative text, plus the text style keys below | `[]` |
 | `shapes[]` | `{x, y, w, h, color}` filled rectangles (bars, panels; `#RRGGBBAA` for translucent) drawn under texts and buttons | `[]` |

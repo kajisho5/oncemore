@@ -586,7 +586,7 @@ class TestDesignSystem(unittest.TestCase):
         tokens = self.read("tokens.css")
         dark, light = tokens.split(':root[data-theme="light"]')
         need = {v for v in re.findall(r"(--c-[\w-]+)\s*:", dark)
-                if v not in ("--c-picture", "--c-on-picture", "--c-guide", "--c-hit")}
+                if v not in ("--c-picture", "--c-on-picture", "--c-guide", "--c-menu-guide", "--c-hit")}
         self.assertEqual(need - set(re.findall(r"(--c-[\w-]+)\s*:", light)), set())
 
     # (text, ground) pairs the interface uses: text needs 4.5:1 (WCAG 2 AA)
@@ -1377,6 +1377,110 @@ class TestGuiBrowser(unittest.TestCase):
             page.locator("#st-transcode").wait_for(state="detached", timeout=30000)
             self.assertEqual(errors, [])
             browser.close()
+
+    def test_rotate_flip_and_guides(self):
+        """Object > Rotate / Flip, Properties' rotation, the Rotate tool, and
+        guides placed, snapped to, moved, locked, dragged off and cleared."""
+        self.s.call("/api/new", "POST", {"sample": True})
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.on("dialog", lambda d: d.accept())
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click(".nav-item[data-view=menu][data-id=main]", timeout=120000)
+            cmd = lambda c: page.evaluate(f"window.oncemoreCommand('{c}')")  # noqa: E731
+            btn = lambda: self.project()["menus"][0]["buttons"][0]          # noqa: E731
+            page.click(".stage .el.button[data-i='0']")
+            cmd("rotate_cw")
+            self.poll(lambda: btn().get("rotate") == 90)
+            cmd("rotate_cw")
+            cmd("rotate_180")
+            self.poll(lambda: "rotate" not in btn())                # a whole turn: none
+            cmd("rotate_ccw")
+            self.poll(lambda: btn().get("rotate") == 270)
+            cmd("flip_h")                                           # on the screen's axis
+            self.poll(lambda: (btn().get("rotate"), btn().get("flip")) == (90, "horizontal"))
+            cmd("flip_v")
+            self.poll(lambda: (btn().get("rotate"), btn().get("flip")) == (270, "both"))
+            style = page.locator(".stage .el.button[data-i='0']").get_attribute("style")
+            self.assertIn("rotate(270deg) scale(-1,-1)", style)
+            # Properties: the angle and the flip
+            page.fill("#tf-rot", "15")
+            page.press("#tf-rot", "Tab")
+            page.select_option("#tf-flip", "__none__")
+            self.poll(lambda: btn().get("rotate") == 15 and "flip" not in btn())
+            # the Rotate tool: a quarter turn by dragging (Shift: 45° steps)
+            cmd("tool_rotate")
+            node = page.locator(".stage .el.button[data-i='0']")
+            box = node.bounding_box()
+            cx, cy = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+            page.mouse.move(box["x"] + box["width"] - 4, cy)
+            page.mouse.down()
+            page.keyboard.down("Shift")
+            page.mouse.move(cx + 2, cy + 120, steps=8)
+            page.mouse.up()
+            page.keyboard.up("Shift")
+            self.poll(lambda: btn().get("rotate") == 90)
+            cmd("tool_select")
+            # the menu, with them, is a valid project
+            self.assertTrue(self.s.app.check(self.project())["valid"])
+            # guides: New Guide…
+            cmd("new_guide")
+            page.check("input[name=gdir][value=vertical]")
+            page.fill("#g-pos", "300")
+            page.click("#m-ok")
+            guides = lambda: self.project()["menus"][0].get("guides")     # noqa: E731
+            self.poll(lambda: guides() == {"vertical": [300]})
+            page.locator(".stage .uguide.v").wait_for()
+            # a text dragged near it snaps to it (Snap to objects off: only guides)
+            cmd("snap")
+            stage = page.locator("#stage").bounding_box()
+            k = stage["width"] / 720                                 # screen px per menu px
+            text = page.locator(".stage .el.text[data-i='0']")
+            tb = text.bounding_box()
+            x0 = self.project()["menus"][0]["texts"][0]["x"]
+            page.mouse.move(tb["x"] + 10, tb["y"] + 10)
+            page.mouse.down()
+            page.mouse.move(tb["x"] + 10 + (297 - x0) * k, tb["y"] + 10, steps=6)
+            page.mouse.up()
+            self.poll(lambda: self.project()["menus"][0]["texts"][0]["x"] == 300)
+            cmd("snap")
+            # moved by dragging
+            g = page.locator(".stage .uguide.v").bounding_box()
+            page.mouse.move(g["x"] + 1, g["y"] + 40)
+            page.mouse.down()
+            page.mouse.move(g["x"] + 1 + 100 * k, g["y"] + 40, steps=5)
+            page.mouse.up()
+            self.poll(lambda: guides() and abs(guides()["vertical"][0] - 400) <= 1)
+            # locked: it cannot be grabbed
+            cmd("lock_guides")
+            self.assertIn("locked", page.locator(".stage .uguide.v").get_attribute("class"))
+            cmd("lock_guides")
+            # dragged off the menu: gone
+            g = page.locator(".stage .uguide.v").bounding_box()
+            page.mouse.move(g["x"] + 1, g["y"] + 40)
+            page.mouse.down()
+            page.mouse.move(stage["x"] - 60, g["y"] + 40, steps=5)
+            page.mouse.up()
+            self.poll(lambda: guides() is None)
+            # Clear Guides
+            cmd("new_guide")
+            page.click("#m-ok")
+            self.poll(lambda: guides() and len(guides().get("horizontal", [])) == 1)
+            cmd("show_guides")
+            self.assertEqual(page.locator(".stage .uguide").count(), 0)
+            cmd("show_guides")
+            cmd("clear_guides")
+            self.poll(lambda: guides() is None)
+            # the View and Object menus have them
+            page.click("#menubar > button:has-text('View')")
+            for label in ("Show guides", "Lock guides", "Clear guides", "New guide…", "Snap to guides"):
+                self.assertTrue(page.locator(f".popup :text-is('{label}')").count(), label)
+            page.keyboard.press("Escape")
+            browser.close()
+        self.assertEqual(errors, [])
 
     def test_remote_keys_turned_off(self):
         """Properties > Remote keys turned off, for a title and a menu."""

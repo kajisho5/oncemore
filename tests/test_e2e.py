@@ -1213,6 +1213,54 @@ class TestSlideshow(unittest.TestCase):
 
 
 @unittest.skipUnless(TOOLS_OK, SKIP_REASON)
+class TestTurnedMenuObjects(unittest.TestCase):
+    """A menu with turned and mirrored objects (Object > Rotate / Flip) built
+    as a DVD: its buttons' areas are where the turned buttons are, and they
+    still work through libdvdnav."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-e2e-turn-")
+        rc, _, err = run_cli("init", "t", cwd=cls.tmp)
+        assert rc == 0, err
+        cls.path = os.path.join(cls.tmp, "t", "project.oncemore.json")
+        with open(cls.path) as f:
+            data = json.load(f)
+        m = data["menus"][0]
+        m["texts"][0].update({"rotate": -8, "flip": "vertical"})
+        m["shapes"] = [{"x": 520, "y": 60, "w": 150, "h": 24, "color": "#FFFFFF60", "rotate": 60}]
+        m["buttons"][0]["rotate"] = 90
+        m["buttons"][0]["x"] = 560                 # (standing up: clear of the others)
+        m["guides"] = {"vertical": [120]}
+        with open(cls.path, "w") as f:
+            json.dump(data, f)
+        cls.iso = os.path.join(cls.tmp, "t.iso")
+        cls.rc, cls.out, cls.err = run_cli("--json", "iso", cls.path, "-o", cls.iso, "--fast",
+                                           "--keep-work", cwd=cls.tmp)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def test_button_areas(self):
+        self.assertEqual(self.rc, 0, self.err + self.out)
+        build_dir = json_lines(self.out)[-1]["build_dir"]
+        with open(os.path.join(build_dir, ".work", "menus", "main.spumux.xml")) as f:
+            xml = f.read()
+        x0, y0, x1, y1 = (int(v) for v in re.search(
+            r'name="play" x0="(\d+)" y0="(\d+)" x1="(\d+)" y1="(\d+)"', xml).groups())
+        self.assertGreater(y1 - y0, (x1 - x0) * 2)            # standing up
+
+    @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
+    def test_buttons_work(self):
+        with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
+            d.wait_menu()
+            self.assertEqual(d.button_count(), 3)
+            d.activate(1)                                       # the turned PLAY ALL
+            self.assertEqual(d.wait_title(), (1, 1))
+
+
+@unittest.skipUnless(TOOLS_OK, SKIP_REASON)
 class TestLastMenuBeforeAnyMenu(unittest.TestCase):
     """A title in the second titleset that starts the disc and ends on "the
     last menu": no menu was shown yet, so its Menu-key menu opens, not what

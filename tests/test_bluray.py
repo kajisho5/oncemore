@@ -1004,5 +1004,51 @@ class TestBlurayPopup(unittest.TestCase):
         self.assertTrue(white, drawn)
 
 
+
+@unittest.skipUnless(ffmpeg_has_x264() and LIBBLURAY, "needs ffmpeg with libx264 and libbluray")
+class TestBlurayTurnedButton(unittest.TestCase):
+    """A button turned a quarter (Object > Rotate): on the Blu-ray its
+    graphics and its selection stand upright, and it still plays."""
+
+    @classmethod
+    def setUpClass(cls):
+        from oncemore.tools import has_drawtext
+        if not has_drawtext():
+            raise unittest.SkipTest("ffmpeg without drawtext")
+        cls.tmp = d = tempfile.mkdtemp(prefix="oncemore-bdturn-")
+        subprocess.run(["ffmpeg", "-hide_banner", "-v", "error", "-y", "-f", "lavfi", "-i",
+                        "testsrc2=size=640x360:rate=30000/1001:duration=2", "-c:v", "libx264",
+                        "-preset", "ultrafast", os.path.join(d, "a.mp4")], check=True)
+        with open(os.path.join(d, "project.oncemore.json"), "w") as f:
+            json.dump({"version": 1,
+                       "disc": {"label": "BD_TURN", "standard": "NTSC", "aspect": "16:9",
+                                "first_play": "menu:main"},
+                       "titles": [{"id": "one", "source": "a.mp4"}],
+                       "menus": [{"id": "main", "background_color": "#203040",
+                                  "shapes": [{"x": 500, "y": 100, "w": 120, "h": 30,
+                                              "color": "#C04040", "rotate": 30}],
+                                  "buttons": [{"id": "play", "label": "PLAY THIS", "x": 200,
+                                               "y": 200, "action": "title:one",
+                                               "rotate": 90}]}]}, f)
+        cls.out = os.path.join(d, "out")
+        cls.rc, cls.stdout, cls.stderr = run_cli("build", d, "-o", cls.out, "--format", "bluray",
+                                                 "--fast")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def test_upright_and_plays(self):
+        self.assertEqual(self.rc, 0, self.stderr + self.stdout)
+        with bluray_sim.Disc(LIBBLURAY, self.out) as disc:
+            disc.info()
+            events = [e for e in disc.play(keys=["enter"])
+                      if e[0] in ("title", "playlist", "key", "menu") and e[1] != 0xFFFF]
+        menu = next(e for e in events if e[0] == "menu")
+        _, x, y, w, h, colour = menu[1][0]
+        self.assertGreater(h, w * 2, menu)                 # a word standing on its end
+        rest = events[events.index(("key", "enter")) + 1:]
+        self.assertIn(("playlist", 1), rest)
+
 if __name__ == "__main__":
     unittest.main()

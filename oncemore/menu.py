@@ -12,6 +12,7 @@ scanned for its bounding box and glyph mask.
 """
 
 import glob
+import math
 import os
 import shutil
 import struct
@@ -269,6 +270,7 @@ class MenuBuilder:
         self._font_link = None
         self._font_links = {}      # own fonts of elements: path -> linked name
         self._probe_cache = {}
+        self._glyphs = {}          # rendered texts: their glyph masks
 
     # -- font ------------------------------------------------------------------
     def font(self):
@@ -328,9 +330,21 @@ class MenuBuilder:
     # -- measuring ---------------------------------------------------------------
     def measure(self, menu_id, button):
         """Render one label alone; return its glyph Mask (storage pixels)."""
-        tf = self._textfile(f"{menu_id}.{button.id}.label.txt", button.label)
+        mask = self.glyphs(f"{menu_id}.{button.id}.label", button.label, button)
+        if mask.bbox() is None:
+            raise ProjectError(f"menu {menu_id!r}: label of button {button.id!r} is empty "
+                               "or entirely off-screen")
+        return mask
+
+    def glyphs(self, name, text, el):
+        """The glyph Mask (storage pixels) of `text` drawn as `el` places it,
+        without its outline or shadow."""
+        key = (name, text, el.x, el.y, el.size, getattr(el, "font", None))
+        if key in self._glyphs:
+            return self._glyphs[key]
+        tf = self._textfile(f"{name}.txt", text)
         W, H = self.disc.width, self.disc.height
-        vf = (self._drawtext(tf, button.x, button.y, button.size, "#FFFFFF", button,
+        vf = (self._drawtext(tf, el.x, el.y, el.size, "#FFFFFF", el,
                              style=False) + "," + self._squeeze() + ",format=gray")
         cmd = [self.ffmpeg, "-hide_banner", "-nostdin", "-v", "error", "-f", "lavfi", "-i",
                f"color=c=black:s={self.dw}x{H}:r=1:d=1", "-vf", vf, "-frames:v", "1",
@@ -339,10 +353,7 @@ class MenuBuilder:
         if p.returncode != 0 or len(p.stdout) < W * H:
             raise ToolFailedError("ffmpeg could not render menu text",
                                   details={"output": tools.tail(p.stderr.decode("utf-8", "replace"))})
-        mask = png4.Mask.from_gray(p.stdout[:W * H], W, H, threshold=110)
-        if mask.bbox() is None:
-            raise ProjectError(f"menu {menu_id!r}: label of button {button.id!r} is empty "
-                               "or entirely off-screen")
+        mask = self._glyphs[key] = png4.Mask.from_gray(p.stdout[:W * H], W, H, threshold=110)
         return mask
 
     def image_box(self, menu_id, button, path=None):
@@ -386,6 +397,87 @@ class MenuBuilder:
             raise ProjectError(f"menu {menu_id!r}: image of button {button.id!r} is fully "
                                "transparent; use highlight \"frame\"")
         return mask
+
+    # -- turned / mirrored objects ------------------------------------------------
+    # An object with a rotation or a flip is drawn on a layer of its own:
+    # the layer is cut to a square around the object's centre (large enough
+    # for any turn), mirrored, turned about that centre and laid back. The
+    # turn is in display pixels, as the person sees the menu.
+    @staticmethod
+    def turned(el):
+        return bool(getattr(el, "rotate", 0)) or bool(getattr(el, "flip", None))
+
+    @staticmethod
+    def _turn(el, fill):
+        f = []
+        if el.flip in ("horizontal", "both"):
+            f.append("hflip")
+        if el.flip in ("vertical", "both"):
+            f.append("vflip")
+        if el.rotate:
+            f.append(f"rotate=a={math.radians(el.rotate):.6f}:c={fill}")
+        return ",".join(f)
+
+    def pivot(self, menu_id, el, kind, i=None):
+        """(centre x, centre y, radius) of an object, in whole display
+        pixels: what it turns about, and half the side of its square."""
+        margin = 4
+        if kind in ("shape", "image"):
+            w, h = el.w * self.sx, el.h
+            cx, cy = el.x * self.sx + w / 2, el.y + h / 2
+        elif kind == "button" and (el.image or (el.highlight_image and not el.label)):
+            dwid, h, _ = self.image_box(menu_id, el, el.image or el.highlight_image)
+            w, cx, cy = dwid, el.x * self.sx + dwid / 2, el.y + h / 2
+            margin += 4                     # (its highlight frame)
+        else:
+            name = f"{menu_id}.{el.id}.label" if kind == "button" else f"{menu_id}.text{i}"
+            text = el.label if kind == "button" else el.text
+            box = self.glyphs(name, text, el).bbox()
+            if box is None:
+                raise ProjectError(f"menu {menu_id!r}: a turned text is empty or off-screen")
+            x0, y0, x1, y1 = box
+            w, h = (x1 - x0 + 1) * self.sx, y1 - y0 + 1
+            cx, cy = (x0 + x1 + 1) / 2 * self.sx, (y0 + y1 + 1) / 2
+            margin += (el.outline_width if el.outline else 0) + \
+                (el.shadow_offset if el.shadow else 0) + 8      # (+ a button's underline)
+        return round(cx), round(cy), math.ceil(math.hypot(w, h) / 2) + margin
+
+    def turned_layer(self, source, el, pivot):
+        """Filter chain turning `source` (an RGBA picture of the whole menu
+        with the object where it stands) about the object's centre. Returns
+        (chain, x, y): the turned square and where it goes."""
+        cx, cy, r = pivot
+        chain = (f"{source},pad={self.dw + 2 * r}:{self.disc.height + 2 * r}:{r}:{r}:"
+                 f"color=0x00000000,crop={2 * r}:{2 * r}:{cx}:{cy},{self._turn(el, '0x00000000')}")
+        return chain, cx - r, cy - r
+
+    def turned_mask(self, name, el, shapes, pivot):
+        """Highlight shapes (storage pixels) turned like their button."""
+        W, H = self.disc.width, self.disc.height
+        c = png4.Canvas(W, H)
+        for sh in shapes:
+            if isinstance(sh, png4.Mask):
+                c.blit_mask(sh, 1)
+            elif sh[0] == "fill":
+                c.fill_rect(*sh[1], 1)
+            elif sh[0] == "frame":
+                c.stroke_rect(*sh[1], 1, width=3)
+        src = os.path.join(self.work, f"{name}.turn.png")
+        png4.write_indexed_png(src, c, [(0, 0, 0, 255), (255, 255, 255, 255)])
+        cx, cy, r = pivot
+        graph = (f"[1:v]scale={self.dw}:{H}:flags=neighbor,format=gray,"
+                 f"pad={self.dw + 2 * r}:{H + 2 * r}:{r}:{r}:color=black,"
+                 f"crop={2 * r}:{2 * r}:{cx}:{cy},{self._turn(el, 'black')}[t];"
+                 f"[0:v][t]overlay={cx - r}:{cy - r}," + self._squeeze() + ",format=gray")
+        cmd = [self.ffmpeg, "-hide_banner", "-nostdin", "-v", "error", "-f", "lavfi", "-i",
+               f"color=c=black:s={self.dw}x{H}:r=1:d=1", "-i", src,
+               "-filter_complex", graph, "-frames:v", "1",
+               "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1"]
+        p = subprocess.run(cmd, cwd=self.work, capture_output=True, timeout=300)
+        if p.returncode != 0 or len(p.stdout) < W * H:
+            raise ToolFailedError("ffmpeg could not turn a button's highlight",
+                                  details={"output": tools.tail(p.stderr.decode("utf-8", "replace"))})
+        return png4.Mask.from_gray(p.stdout[:W * H], W, H, threshold=110)
 
     # -- geometry ----------------------------------------------------------------
     def layout(self, menu, overlaps=None):
@@ -455,6 +547,9 @@ class MenuBuilder:
             y1 += y1 % 2
             geoms.append(ButtonGeom(b.id, (x0, y0, x1, y1), shapes, b.action,
                                     auto=b.auto_activate))
+        for g, b in zip(geoms, menu.buttons):
+            if self.turned(b):
+                self._turn_geom(menu, g, b)
         for i, a in enumerate(geoms):
             for b in geoms[i + 1:]:
                 if a.rect[0] < b.rect[2] and b.rect[0] < a.rect[2] and \
@@ -469,6 +564,34 @@ class MenuBuilder:
         for g in geoms:
             g.nav = nav[g.id]
         return geoms
+
+    def _turn_geom(self, menu, g, b):
+        """A turned button: its highlight turned with it (not its thumbnail's
+        frame, which stays where the thumbnail is)."""
+        W, H = self.disc.width, self.disc.height
+        frame = None
+        if b.thumb:
+            t = b.thumb
+            frame = ("frame", (t.x - 4, t.y - 4, t.x + t.w + 4, t.y + t.h + 4))
+        body = [sh for sh in g.shape if not (frame and not isinstance(sh, png4.Mask)
+                                              and tuple(sh) == frame)]
+        mask = self.turned_mask(f"{menu.id}.{b.id}", b, body,
+                                self.pivot(menu.id, b, "button"))
+        box = mask.bbox()
+        if box is None:
+            raise ProjectError(f"menu {menu.id!r}: button {b.id!r} is turned entirely "
+                               "off the menu")
+        x0, y0, x1, y1 = box
+        shapes = [mask]
+        if frame and frame in [tuple(sh) for sh in g.shape if not isinstance(sh, png4.Mask)]:
+            shapes.append(frame)
+            f = frame[1]
+            x0, y0, x1, y1 = min(x0, f[0]), min(y0, f[1]), max(x1, f[2]), max(y1, f[3])
+        x0, y0 = max(0, x0 - 4), max(0, y0 - 4)
+        x1, y1 = min(W - 1, x1 + 4), min(H - 2, y1 + 4)
+        y0 -= y0 % 2
+        y1 += y1 % 2
+        g.rect, g.shape = (x0, y0, x1, y1), shapes
 
     def highlight_canvas(self, geoms, only=None, outline=False, index_of=None):
         """The buttons' shapes on a canvas, in palette index 1 (or
@@ -591,12 +714,19 @@ class MenuBuilder:
             bg = "[0:v]format=rgb24"
         chains = [bg + "[bg0]"]
         cur = "bg0"
-        if menu.shapes and transparent:
-            # (drawbox leaves the alpha alone: shapes are overlaid instead)
+        if any(self.turned(s) for s in menu.shapes) or (menu.shapes and transparent):
+            # (drawbox leaves the alpha alone, and cannot turn: shapes are
+            # overlaid instead)
             for k, s in enumerate(menu.shapes):
                 w, h = max(1, round(s.w * self.sx)), s.h
-                chains.append(f"color=c={_hex(s.color)}:s={w}x{h}:d=1,format=rgba[shape{k}]")
-                chains.append(f"[{cur}][shape{k}]overlay={round(s.x * self.sx)}:{s.y}[shp{k}]")
+                x, y, turn = round(s.x * self.sx), s.y, ""
+                if self.turned(s):
+                    cx, cy, r = self.pivot(menu.id, s, "shape")
+                    turn = (f",pad={2 * r}:{2 * r}:(ow-iw)/2:(oh-ih)/2:color=0x00000000,"
+                            + self._turn(s, "0x00000000"))
+                    x, y = cx - r, cy - r
+                chains.append(f"color=c={_hex(s.color)}:s={w}x{h}:d=1,format=rgba{turn}[shape{k}]")
+                chains.append(f"[{cur}][shape{k}]overlay={x}:{y}[shp{k}]")
                 cur = f"shp{k}"
         elif menu.shapes:
             boxes = ",".join(
@@ -604,16 +734,24 @@ class MenuBuilder:
                 f"h={s.h}:color={_hex(s.color)}:t=fill" for s in menu.shapes)
             chains.append(f"[{cur}]{boxes}[shp]")
             cur = "shp"
+
+        def placed(path, el, kind, x, y, pre):
+            if not self.turned(el):
+                return (path, x, y, pre)
+            cx, cy, r = self.pivot(menu.id, el, kind)
+            return (path, cx - r, cy - r, f"{pre},pad={2 * r}:{2 * r}:(ow-iw)/2:(oh-ih)/2:"
+                                          f"color=0x00000000,{self._turn(el, '0x00000000')}")
         overlays = []
         for p in menu.images:
             fade = f",colorchannelmixer=aa={p.opacity:.3f}" if p.opacity < 1 else ""
-            overlays.append((p.file, round(p.x * self.sx), p.y,
-                             f"scale={max(1, round(p.w * self.sx))}:{p.h},format=rgba{fade}"))
+            overlays.append(placed(p.file, p, "image", round(p.x * self.sx), p.y,
+                                   f"scale={max(1, round(p.w * self.sx))}:{p.h},format=rgba{fade}"))
         overlays += list(self.thumbnails(menu))
         for b in menu.buttons:
             if b.image:
                 dwid, h, _ = self.image_box(menu.id, b)
-                overlays.append((b.image, round(b.x * self.sx), b.y, f"scale={dwid}:{h},format=rgba"))
+                overlays.append(placed(b.image, b, "button", round(b.x * self.sx), b.y,
+                                       f"scale={dwid}:{h},format=rgba"))
         for i, (path, x, y, *rest) in enumerate(overlays, 1):
             pre = rest[0] if rest else None
             opts = rest[1] if len(rest) > 1 else []
@@ -624,16 +762,34 @@ class MenuBuilder:
                 src = f"[im{i}]"
             chains.append(f"[{cur}]{src}overlay={x}:{y}[bg{i}]")
             cur = f"bg{i}"
-        draws = []
+        draws, turned = [], []
         for i, t in enumerate(menu.texts):
             tf = self._textfile(f"{menu.id}.text{i}.txt", t.text)
-            draws.append(self._drawtext(tf, t.x, t.y, t.size, t.color, t))
+            text = self._drawtext(tf, t.x, t.y, t.size, t.color, t)
+            if self.turned(t):
+                turned.append((text, t, self.pivot(menu.id, t, "text", i)))
+            else:
+                draws.append(text)
         for b in menu.buttons:
             if b.image or not b.label:
                 continue
             tf = self._textfile(f"{menu.id}.{b.id}.label.txt", b.label)
-            draws.append(self._drawtext(tf, b.x, b.y, b.size, b.color, b))
-        chains.append(f"[{cur}]" + ",".join(draws + [self._squeeze()]) + "[out]")
+            text = self._drawtext(tf, b.x, b.y, b.size, b.color, b)
+            if self.turned(b):
+                turned.append((text, b, self.pivot(menu.id, b, "button")))
+            else:
+                draws.append(text)
+        if draws:
+            chains.append(f"[{cur}]" + ",".join(draws) + "[txt]")
+            cur = "txt"
+        for k, (text, el, pivot) in enumerate(turned):
+            # (drawn alone on a clear layer of the menu's size, then turned)
+            chain, x, y = self.turned_layer(
+                f"color=c=0x00000000:s={self.dw}x{H}:d=1,format=rgba,{text}", el, pivot)
+            chains.append(f"{chain}[turn{k}]")
+            chains.append(f"[{cur}][turn{k}]overlay={x}:{y}[tl{k}]")
+            cur = f"tl{k}"
+        chains.append(f"[{cur}]{self._squeeze()}[out]")
         return inputs, ";".join(chains)
 
     def render_base(self, menu):

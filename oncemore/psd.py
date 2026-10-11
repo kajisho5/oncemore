@@ -611,6 +611,19 @@ class Document:
             yield layer
             yield from layer.walk()
 
+    def guides(self):
+        """Photoshop's guides (image resource 1032): ("vertical" | "horizontal",
+        position in document pixels), positions stored in 1/32 pixel."""
+        data = self.resources.get(1032)
+        if not data or len(data) < 16:
+            return []
+        count = struct.unpack(">I", data[12:16])[0]
+        out = []
+        for k in range(min(count, (len(data) - 16) // 5)):
+            pos, kind = struct.unpack(">iB", data[16 + 5 * k:21 + 5 * k])
+            out.append(("vertical" if kind == 0 else "horizontal", pos / 32))
+        return out
+
     def find(self, name):
         """The first layer (in walk() order) with this name, or None."""
         return next((layer for layer in self.walk() if layer.name == name), None)

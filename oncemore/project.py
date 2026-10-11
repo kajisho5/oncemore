@@ -378,6 +378,8 @@ class Text:
     outline_width: int = 2
     shadow: str = None
     shadow_offset: int = 3
+    rotate: float = 0.0        # degrees clockwise about its centre
+    flip: str = None           # "horizontal" | "vertical" | "both" (before the rotation)
 
 
 @dataclass
@@ -387,6 +389,8 @@ class Shape:
     w: int
     h: int
     color: str = "#00000080"
+    rotate: float = 0.0
+    flip: str = None
 
 
 @dataclass
@@ -398,6 +402,8 @@ class Picture:
     w: int
     h: int
     opacity: float = 1.0
+    rotate: float = 0.0
+    flip: str = None
 
 
 @dataclass
@@ -452,6 +458,8 @@ class Button:
     audio: int = None          # audio stream (1-based) to switch to with the action
     subtitle: int = None       # subtitle stream (1-based, 0 = off) to switch to with the action
     transition: str = None     # video played after the button is pressed, before its link
+    rotate: float = 0.0        # its label or picture turned about its centre (degrees clockwise)
+    flip: str = None           # ... and mirrored first: "horizontal" | "vertical" | "both"
 
 
 @dataclass
@@ -1006,10 +1014,11 @@ class _Builder:
             remember_button=m.get("remember_button", True),
             buttons_at_loop=bool(m.get("buttons_at_loop")) and loop_point > 0,
             prohibit=self.prohibit(where, m),
-            shapes=[Shape(s["x"], s["y"], s["w"], s["h"], s.get("color", "#00000080"))
+            shapes=[Shape(s["x"], s["y"], s["w"], s["h"], s.get("color", "#00000080"),
+                          **self.transform(s))
                     for s in m.get("shapes", [])],
             images=[Picture(self.file(f"{where}.images[{j}].file", p["file"]), p["x"], p["y"],
-                            p["w"], p["h"], p.get("opacity", 1.0))
+                            p["w"], p["h"], p.get("opacity", 1.0), **self.transform(p))
                     for j, p in enumerate(m.get("images", []))],
             background_video=self.file(f"{where}.background_video", m.get("background_video")),
             background=self.file(f"{where}.background", m.get("background")),
@@ -1083,7 +1092,13 @@ class _Builder:
         """Per-element text style fields."""
         return {"font": self.file(f"{where}.font", spec.get("font")),
                 "outline": spec.get("outline"), "outline_width": spec.get("outline_width", 2),
-                "shadow": spec.get("shadow"), "shadow_offset": spec.get("shadow_offset", 3)}
+                "shadow": spec.get("shadow"), "shadow_offset": spec.get("shadow_offset", 3),
+                **self.transform(spec)}
+
+    @staticmethod
+    def transform(spec):
+        """Rotation (degrees clockwise, kept within 0-360) and flip of an object."""
+        return {"rotate": float(spec.get("rotate", 0) or 0) % 360, "flip": spec.get("flip")}
 
     ITEM_RE = re.compile(r"^([A-Za-z0-9_-]{1,40})(?::([1-9][0-9]*)(?:-([1-9][0-9]*))?)?$")
 

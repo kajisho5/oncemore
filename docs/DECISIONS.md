@@ -1210,3 +1210,31 @@ written that fails before the fix, and then the fix:
   page: stopping dvdauthor or a burn halfway leaves files a person must not
   mistake for a disc, so it waits for a design of its own.
 
+## 73. Guides, rotate and flip
+
+* Guides belong to a menu (`menus[].guides`), at pixel positions of its
+  720-wide grid, as a Photoshop document keeps them, so a menu made from a
+  file brings the file's guides (image resource 1032, in 1/32 pixel; a file
+  without any keeps the menu's own). They are for the editor only.
+* A guide is drawn twice: its line over every object (it takes no clicks)
+  and a band to grab it under the objects. An object placed on a guide,
+  the usual reason for having one, stays clickable where it covers it; the
+  guide is grabbed anywhere it shows.
+* An object's turn is stored as degrees clockwise about its centre and a
+  flip made before the turn, the order a CSS transform and the renderer
+  both apply. Object > Flip works on the screen's axes, so flipping a
+  turned object also turns it the other way (a mirror image of a turn is
+  the opposite turn of the mirror image).
+* The renderer draws a turned object alone on a clear layer, cuts a square
+  around its centre big enough for any angle, mirrors and turns it there,
+  and lays it back: one way for texts, rectangles, pictures and buttons, on
+  DVD and Blu-ray (whose menus are scaled copies of the same objects).
+  Turning happens in square display pixels, as the person sees the menu,
+  not in the DVD's narrow storage pixels.
+* A turned button's highlight is its usual highlight (glyphs and underline,
+  frame or picture shape) drawn on a layer and turned the same way by
+  ffmpeg, so the lit area is exactly the turned button; its area on the
+  disc is the box around it. A thumbnail does not turn with its button:
+  the frame of a video still is not a design element, and its highlight
+  frame stays with it.
+
