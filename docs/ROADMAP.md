@@ -245,6 +245,13 @@ browser) and lands only with green CI.
   its link (menu, title, chapter, playlist, play all), on DVD and Blu-ray;
   drawn in the flowchart, played in the simulator
 
+**P65 — Random and shuffled playlists** (done)
+- [x] `order` on a playlist: sequential, random or shuffle; on Blu-ray the
+  movie object picks the items (Set RND), each item its own playlist
+  file; the web version picks them the same way; a DVD plays them as
+  listed (a warning)
+- [x] Playlist panel > Order
+
 **P62 — Paragraphs** (done)
 - [x] Menu texts of several lines: `align` (left, centre, right) and
   `line_spacing`, drawn the same way on DVD and Blu-ray menus and the web
@@ -384,8 +391,8 @@ against their published help, not from memory)
   next page, a chapter index spread over pages. Pages of one menu on
   Blu-ray and the web version; separate menus linked to each other on DVD
 - [ ] DTS-HD kept as it is on Blu-ray (today DTS is cut down to its core)
-- [ ] Chapter playlists played in random order or shuffled, on Blu-ray and
-  the web version (DVD keeps the order, as the classic apps did)
+- [x] Chapter playlists played in random order or shuffled, on Blu-ray and
+  the web version (DVD keeps the order, as the classic apps did) (P65)
 - [ ] Slideshows of more than 99 pictures (the rest in the last chapter on
   DVD; up to 999 on Blu-ray)
 - [ ] Text: letter spacing, kerning, bold and italic (of fonts that have

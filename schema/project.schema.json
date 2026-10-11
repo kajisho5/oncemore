@@ -1032,6 +1032,15 @@
           "type": "string",
           "pattern": "^(menu:[A-Za-z0-9_-]{1,40}(:[A-Za-z0-9_-]{1,40})?|title:[A-Za-z0-9_-]{1,40}|chapter:[A-Za-z0-9_-]{1,40}:[1-9][0-9]*|playall|playlist:[A-Za-z0-9_-]{1,40}|lastmenu|stop)$",
           "description": "After the last item: menu:<id> | title:<id> | chapter:<title id>:<n> | playall | playlist:<id> | lastmenu (the menu shown last) | stop. Default: stop."
+        },
+        "order": {
+          "enum": [
+            "sequential",
+            "random",
+            "shuffle"
+          ],
+          "default": "sequential",
+          "description": "The order the items play in: as listed, random (as many items as the playlist has, each picked at random, so one can come more than once) or shuffle (each once, in a random order). Random and shuffle are for Blu-ray and the web version; a DVD plays the items as listed."
         }
       }
     },

@@ -1920,6 +1920,11 @@ class TestGuiBrowser(unittest.TestCase):
             self.wait_saved(page)
             pl = self.project()["playlists"][0]
             self.assertEqual((pl["items"], pl["end_action"]), (["t1:2", "t2"], "menu:main"))
+            # Order: shuffled, then back to as listed (the field goes away)
+            page.select_option("select[data-k=order]", "shuffle")
+            self.poll(lambda: self.project()["playlists"][0].get("order") == "shuffle")
+            page.select_option("select[data-k=order]", "sequential")
+            self.poll(lambda: "order" not in self.project()["playlists"][0])
             # buttons can start it
             page.click(".nav-item[data-view=menu][data-id=main]")
             page.locator(".stage .el.button").first.click()

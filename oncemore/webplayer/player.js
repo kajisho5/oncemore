@@ -11,7 +11,7 @@
     tvideo = $("title"), trans = $("transition"), stopped = $("stopped");
   const S = {
     domain: "stopped", menu: null, button: 0, title: null, chapter: 1, playall: false,
-    playlist: null, item: 0, endAt: null, override: null, lastMenu: null, menuKey: null,
+    playlist: null, item: 0, queue: null, pos: 0, endAt: null, override: null, lastMenu: null, menuKey: null,
     remember: {}, resume: null, loops: 0, subtitle: null, log: [],
   };
   window.oncemorePlayer = { state: S, press, disc: D };
@@ -170,11 +170,25 @@
     stopped.hidden = false;
     note("stop");
   }
-  function playlistStart(pid, index = 0) {
+  // the items in the order they play: as listed, shuffled (each once) or
+  // random (as many picks as there are items, one may come again)
+  function itemOrder(pl) {
+    const n = pl.items.length, out = [...Array(n).keys()];
+    if (pl.order === "random") return out.map(() => Math.floor(Math.random() * n));
+    if (pl.order === "shuffle") for (let i = n - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+  }
+  function playlistStart(pid, pos = 0, queue = null) {
     const pl = D.playlists[pid];
-    if (!pl || !pl.items[index]) return stop();
+    if (!pl) return stop();
+    queue = queue || itemOrder(pl);
+    const index = queue[pos];
+    if (index == null || !pl.items[index]) return stop();
     const it = pl.items[index], t = D.titles[it.title];
-    S.override = null; S.playall = false; S.playlist = pid; S.item = index;
+    S.override = null; S.playall = false; S.playlist = pid; S.item = index; S.queue = queue; S.pos = pos;
     S.endAt = it.last && t && it.last < t.chapters.length ? t.chapters[it.last] : null;
     playTitle(it.title, it.first || 1);
   }
@@ -212,7 +226,7 @@
     if (S.override) { const a = S.override; S.override = null; return endCommand(a); }
     if (S.playlist) {
       const pl = D.playlists[S.playlist];
-      if (S.item + 1 < pl.items.length) return playlistStart(S.playlist, S.item + 1);
+      if (S.pos + 1 < S.queue.length) return playlistStart(S.playlist, S.pos + 1, S.queue);
       S.playlist = null;
       return endCommand(pl.end_action);
     }

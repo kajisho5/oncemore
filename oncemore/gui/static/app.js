@@ -107,6 +107,8 @@ const I18N = {
     chapter_name: "Name on the chapter menu", poster: "Poster", poster_hint: "Use the frame at the playhead as this chapter's thumbnail (click again to reset)",
     playlists: "Playlists", playlist: "Playlist", playlist_item: "Playlist: {p}", items: "Items", add_item: "+ Item",
     from_chapter: "From chapter", to_chapter: "To chapter", to_end: "the end", playlist_end: "After the last item",
+    playlist_order: "Order", order_sequential: "As listed", order_random: "Random", order_shuffle: "Shuffle",
+    order_hint: "Random plays as many items as there are, each picked at random (one can come again); Shuffle plays each once in a random order. On Blu-ray and the web version; a DVD plays them as listed.",
     playlist_hint: "A playlist plays titles and chapter ranges in this order. Point a button at it (“Playlist: …”).",
     move_up: "Move up", move_down: "Move down", order_title: "Play all follows this order.",
     order_menu: "The first menu opens when the disc starts, unless “When the disc starts” says otherwise.",
@@ -363,6 +365,8 @@ const I18N = {
     chapter_name: "チャプターメニューに出す名前", poster: "サムネイル", poster_hint: "再生位置のフレームをこのチャプターのサムネイルにする（もう一度押すと解除）",
     playlists: "プレイリスト", playlist: "プレイリスト", playlist_item: "プレイリスト：{p}", items: "再生する内容", add_item: "＋追加",
     from_chapter: "開始チャプター", to_chapter: "終了チャプター", to_end: "最後まで", playlist_end: "最後まで再生したら",
+    playlist_order: "再生順", order_sequential: "並び順", order_random: "ランダム", order_shuffle: "シャッフル",
+    order_hint: "ランダムは項目の数だけ、毎回ランダムに選んで再生します（同じ項目が続くこともあります）。シャッフルは全項目を 1 回ずつ、ランダムな順で再生します。Blu-ray と Web 版で有効です。DVD では並び順に再生します。",
     playlist_hint: "プレイリストはタイトルやチャプターの範囲をこの順に再生します。ボタンのリンク先に「プレイリスト：…」を選んでください。",
     move_up: "上へ", move_down: "下へ", order_title: "「全タイトルを連続再生」はこの順番で再生します。",
     order_menu: "ディスク挿入時は先頭のメニューが開きます（「ディスク挿入時」で別の指定がない場合）。",
@@ -2080,10 +2084,14 @@ function renderPlaylist(m) {
         <button class="small danger shrink" data-item-del ${pl.items.length > 1 ? "" : "disabled"}>✕</button></div>`;
     }).join("")}
     <button class="small" id="add-item">${t("add_item")}</button>
-    <label class="field" style="margin-top:12px"><span>${t("playlist_end")}</span>${selectHtml("end_action", ends, pl.end_action || "stop")}</label>
+    <label class="field" style="margin-top:12px"><span>${t("playlist_order")}</span>${selectHtml("order", [["sequential", t("order_sequential")], ["random", t("order_random")], ["shuffle", t("order_shuffle")]], pl.order || "sequential")}<div class="hint">${esc(t("order_hint"))}</div></label>
+    <label class="field"><span>${t("playlist_end")}</span>${selectHtml("end_action", ends, pl.end_action || "stop")}</label>
     <h3></h3><button class="danger" id="del-playlist">${t("delete")}</button></div>`;
   const find = (p) => p.playlists.find((x) => x.id === pl.id);
-  bindFields(m, find, { onAfter: (p, key, val) => { if (key === "end_action" && val === "stop") delete find(p).end_action; } });
+  bindFields(m, find, { onAfter: (p, key, val) => {
+    if (key === "end_action" && val === "stop") delete find(p).end_action;
+    if (key === "order" && val === "sequential") delete find(p).order;
+  } });
   m.querySelectorAll("[data-item]").forEach((row) => {
     const i = Number(row.dataset.item);
     const save = () => commit((p) => {
