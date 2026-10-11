@@ -63,7 +63,9 @@ def build(project):
         nodes.append({"id": "title_key", "kind": "title_key", "label": "Title key"})
         edge("title_key", project.disc.title_key, "title_key")
     for m in project.menus:
-        nodes.append({"id": node_id("menu", m.id), "kind": "menu", "label": m.id,
+        # (a page of a menu with pages: "main · 2/3")
+        label = f"{m.page_of} · {m.page}/{m.pages}" if m.page_of else m.id
+        nodes.append({"id": node_id("menu", m.id), "kind": "menu", "label": label,
                       "generated": m.generated, "buttons": len(m.buttons),
                       "loop": m.loop})
         for b in m.buttons:
