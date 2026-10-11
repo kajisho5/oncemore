@@ -4,7 +4,7 @@
 
 *The DVD authoring app Mac forgot. Menus, chapters, ISO — once more.*
 
-[English README](README.md)
+**紹介サイト：[kajisho5.github.io/oncemore](https://kajisho5.github.io/oncemore/ja/)** · [English README](README.md)
 
 oncemore は、動画ファイルから **メニュー付きの DVD-Video ディスクイメージ** を作るツールです。
 ボタン付きの静止メニュー、サムネイル付きチャプターメニューの自動生成、チャプタージャンプ、
