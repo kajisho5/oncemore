@@ -110,7 +110,7 @@ class TestBuild720(unittest.TestCase):
                                    "-c:a", "aac", "-shortest", os.path.join(d, "p60.mp4")], check=True)
         subprocess.run(ff + src + ["-vf", "tinterlace=interleave_top,setfield=tff",
                                    "-c:v", "mpeg2video", "-b:v", "15M", "-flags", "+ilme+ildct",
-                                   "-top", "1", "-c:a", "mp2", "-shortest",
+                                   "-c:a", "mp2", "-shortest",
                                    os.path.join(d, "i30.mpg")], check=True)
         with open(os.path.join(d, "t.srt"), "w") as f:
             f.write("1\n00:00:00,300 --> 00:00:01,500\nHello\n")
