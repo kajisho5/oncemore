@@ -754,6 +754,28 @@ class MenuBuilder:
         assets.mpg = out
         return out
 
+    def encode_transition(self, path, out, on_progress=None):
+        """A link transition as a menu video (no buttons): the disc's picture,
+        its sound (or silence) in AC-3 like the menus'."""
+        info = self._probe(path)
+        dur = info["duration"]
+        target = "ntsc-dvd" if self.disc.standard == "NTSC" else "pal-dvd"
+        graph = f"[0:v:0]{encode.fit_filter(info, self.disc)},format=yuv420p[v]"
+        if info.get("has_audio"):
+            graph += ";[0:a:0]aresample=48000,apad[a]"
+        else:
+            graph += ";anullsrc=channel_layout=stereo:sample_rate=48000[a]"
+        args = ["-i", path, "-filter_complex", graph, "-map", "[v]", "-map", "[a]",
+                "-target", target, "-aspect", self.disc.aspect,
+                "-b:v", str(encode.MOTION_MENU_VIDEO_BPS), "-maxrate", "8000000",
+                "-bufsize", "1835008"]
+        args += encode._color_args(self.disc) + encode.audio_args("ac3", 192_000)
+        encode.run_ffmpeg(args + ["-t", f"{dur:.3f}", out], dur,
+                          os.path.join(self.logs, f"transition-{os.path.basename(out)}.log"),
+                          on_progress, cwd=self.work,
+                          what=f"ffmpeg (transition {os.path.basename(path)})")
+        return out
+
     # -- preview -----------------------------------------------------------------
     def preview(self, menu, out_png, button=None, state="highlight", outline=False, every=False):
         """Write a square-pixel PNG of the menu as a viewer would see it.

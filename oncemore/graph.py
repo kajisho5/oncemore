@@ -8,6 +8,8 @@ Title key. The app draws this as the flowchart; `check()` walks it to find
 what a viewer can never reach and where they get stuck.
 """
 
+import os
+
 from .project import parse_action
 
 STOP = "stop"
@@ -45,11 +47,15 @@ def build(project):
     """{"nodes": [...], "edges": [...]} for the flowchart (JSON-ready)."""
     nodes, edges = [], []
 
-    def edge(src, action, kind, label=None):
+    def edge(src, action, kind, label=None, transition=None):
         dst, extra = _target(action, project)
         if dst is not None:
-            edges.append({"from": src, "to": dst, "kind": kind,
-                          "label": " · ".join(x for x in (label, extra) if x) or None})
+            e = {"from": src, "to": dst, "kind": kind,
+                 "label": " · ".join(x for x in (label, extra) if x) or None}
+            if transition:
+                # (the link plays this video first)
+                e["transition"] = os.path.basename(transition)
+            edges.append(e)
 
     nodes.append({"id": "fp", "kind": "first_play", "label": "First play"})
     edge("fp", project.disc.first_play, "first_play")
@@ -61,7 +67,7 @@ def build(project):
                       "generated": m.generated, "buttons": len(m.buttons),
                       "loop": m.loop})
         for b in m.buttons:
-            edge(node_id("menu", m.id), b.action, "button", b.id)
+            edge(node_id("menu", m.id), b.action, "button", b.id, b.transition)
             # the title it plays then ends where the override says
             if b.override and parse_action(b.action)[0] in ("title", "chapter"):
                 edge(node_id("title", parse_action(b.action)[1]), b.override, "override",

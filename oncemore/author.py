@@ -51,6 +51,12 @@ the menus such links reach check it in their <pre> after their usual
 default / remembered button, highlight it and clear it. A menu whose
 buttons wait for the loop point checks it in the intro and again, then
 clears it, in the PGC with the buttons.
+A link transition (a button's `transition`) is a menu PGC of its own after
+the menus' (`transition_pgcs`): the button jumps there, the video plays
+without buttons, and its <post> does what the button would have done
+(streams, override, link). It stays in the menu domain, so a menu-to-menu
+dissolve never leaves the menus, and "last menu" is still the one whose
+button was pressed.
 The VMGM title menu is what the Title / Top Menu key opens: g1 == 0 there
 means the key was pressed (routes always set g1), so `disc.title_key` applies.
 
@@ -66,7 +72,7 @@ import os
 from xml.sax.saxutils import quoteattr
 
 from . import tools
-from .project import chapter_points, format_time, parse_action, title_fps
+from .project import chapter_points, format_time, parse_action, title_fps, transition_key
 
 NAV_REG = "g1"
 PLAYALL_REG = "g2"
@@ -281,8 +287,37 @@ def _subtitle_set(num):
 
 def stream_prefix(button):
     """Audio / subtitle switches a button makes along with its action."""
-    out = f"audio = {button.audio - 1}; " if button.audio else ""
-    return out + (_subtitle_set(button.subtitle) + " " if button.subtitle is not None else "")
+    return _streams(button.audio, button.subtitle)
+
+
+def _streams(audio, subtitle):
+    out = f"audio = {audio - 1}; " if audio else ""
+    return out + (_subtitle_set(subtitle) + " " if subtitle is not None else "")
+
+
+def transition_pgcs(project):
+    """{transition key: menu PGC number} of the link transitions, after the
+    menus' own PGCs (see project.transition_key)."""
+    if not project.menus:
+        return {}
+    first = max(m.loop_pgc for m in project.menus) + 1
+    return {key: first + k for k, key in enumerate(project.link_transitions)}
+
+
+def menu_button_command(project, menu, button):
+    """What a button of `menu` does: its streams and action, or, with a link
+    transition, a jump to the transition (which then does them)."""
+    if button.transition:
+        reg = button_reg(menu)
+        go = f"jump menu {transition_pgcs(project)[transition_key(button)]};"
+        return f"{reg} = button; {go}" if reg else go
+    return f"{stream_prefix(button)}{button_command(project, button.action, menu, button.override)}"
+
+
+def transition_post(project, key):
+    """<post> of a link transition: what the button does after it."""
+    _, action, override, audio, subtitle = key
+    return f"{_streams(audio, subtitle)}{button_command(project, action, None, override)}"
 
 
 def default_subtitle(project):
@@ -551,8 +586,9 @@ def chapters_attr(chapters, fps):
     return ",".join(format_time(c) for c in chapter_points(chapters, fps)[1])
 
 
-def build_xml(project, menu_files, title_files, dest):
-    """menu_files / title_files: {id: path to the .mpg}."""
+def build_xml(project, menu_files, title_files, dest, transition_files=None):
+    """menu_files / title_files: {id: path to the .mpg}; transition_files:
+    {transition video: path to its .mpg}."""
     disc = project.disc
     multi = project.titleset_count > 1
     jumppad = ' jumppad="yes"' if multi else ""
@@ -587,10 +623,13 @@ def build_xml(project, menu_files, title_files, dest):
                     x.append(f"        <pre>{' '.join(again)}</pre>")
             for b in m.buttons:
                 x.append(f"        <button name={quoteattr(b.id)}>"
-                         f"{stream_prefix(b)}{button_command(project, b.action, m, b.override)}</button>")
+                         f"{menu_button_command(project, m, b)}</button>")
             x.append(f"        {menu_vob(m, loop if m.buttons_at_loop else menu_files[m.id])}")
             x.append(f"        <post>{menu_post(project, m)}</post>")
             x.append("      </pgc>")
+        for key in transition_pgcs(project):
+            x += ["      <pgc>", f"        <vob file={quoteattr(transition_files[key[0]])}/>",
+                  f"        <post>{transition_post(project, key)}</post>", "      </pgc>"]
         x.append("    </menus>")
     for ts in range(1, project.titleset_count + 1):
         if ts > 1:

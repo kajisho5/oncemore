@@ -28,6 +28,44 @@ TOOLS_OK = (have("ffmpeg", "ffprobe", "dvdauthor", "spumux") and tools.has_drawt
 SKIP_REASON = "needs ffmpeg (drawtext), ffprobe, dvdauthor, spumux and an ISO tool"
 
 
+def make_transition_project(d):
+    """Two titles and two menus whose buttons play link transitions: a
+    menu-to-menu one (with sound), one before a title whose end is
+    overridden, and one back to a particular button (silent, another shape)."""
+    for name, seconds in (("a.mp4", 2), ("b.mp4", 2)):
+        subprocess.run(["ffmpeg", "-hide_banner", "-v", "error", "-y",
+                        "-f", "lavfi", "-i", f"testsrc2=size=640x360:rate=30000/1001:duration={seconds}",
+                        "-f", "lavfi", "-i", f"sine=frequency=440:sample_rate=48000:duration={seconds}",
+                        "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", "-shortest",
+                        os.path.join(d, name)], check=True)
+    subprocess.run(["ffmpeg", "-hide_banner", "-v", "error", "-y",
+                    "-f", "lavfi", "-i", "color=c=red:size=640x360:rate=30000/1001:duration=1",
+                    "-f", "lavfi", "-i", "sine=frequency=880:sample_rate=48000:duration=1",
+                    "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", "-shortest",
+                    os.path.join(d, "fade.mp4")], check=True)
+    subprocess.run(["ffmpeg", "-hide_banner", "-v", "error", "-y",
+                    "-f", "lavfi", "-i", "color=c=blue:size=320x240:rate=25:duration=1.5",
+                    "-c:v", "libx264", "-preset", "ultrafast", os.path.join(d, "wipe.mp4")],
+                   check=True)
+    project = {
+        "version": 1,
+        "disc": {"label": "LINK_TR", "standard": "NTSC", "aspect": "16:9"},
+        "titles": [{"id": "one", "source": "a.mp4", "end_action": "menu:main"},
+                   {"id": "two", "source": "b.mp4", "end_action": "menu:main"}],
+        "menus": [
+            {"id": "main", "buttons": [
+                {"id": "sub", "label": "SUB", "x": 100, "y": 150, "action": "menu:sub",
+                 "transition": "fade.mp4"},
+                {"id": "one", "label": "ONE THEN TWO", "x": 100, "y": 220, "action": "title:one",
+                 "override": "title:two", "transition": "fade.mp4"}]},
+            {"id": "sub", "buttons": [
+                {"id": "back", "label": "BACK", "x": 100, "y": 150, "action": "menu:main:one",
+                 "transition": "wipe.mp4"}]}],
+    }
+    with open(os.path.join(d, "project.oncemore.json"), "w") as f:
+        json.dump(project, f)
+
+
 def ffprobe_streams(path):
     p = subprocess.run(["ffprobe", "-v", "error", "-print_format", "json", "-show_streams",
                         "-probesize", "50M", "-analyzeduration", "50M", path],
@@ -1661,6 +1699,50 @@ class TestTranscodeNow(unittest.TestCase):
             self.assertNotEqual(rc, 0)
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
+
+
+@unittest.skipUnless(TOOLS_OK, SKIP_REASON)
+class TestLinkTransitions(unittest.TestCase):
+    """Buttons whose link plays a transition video first (DVD)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-e2e-tr-")
+        make_transition_project(cls.tmp)
+        cls.out = os.path.join(cls.tmp, "dvd")
+        cls.rc, cls.stdout, cls.stderr = run_cli("--json", "build", cls.tmp, "-o", cls.out,
+                                                 "--fast")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def test_transitions_encoded_once(self):
+        self.assertEqual(self.rc, 0, self.stderr + self.stdout)
+        steps = [e.get("message", "") for e in json_lines(self.stdout) if e["event"] == "step"]
+        self.assertEqual([m for m in steps if "ransition" in m],
+                         ["Encoding transition 'fade.mp4'", "Encoding transition 'wipe.mp4'"])
+
+    @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
+    def test_buttons_play_their_transition(self):
+        self.assertEqual(self.rc, 0, self.stderr + self.stdout)
+        MAIN, SUB, TO_SUB, TO_ONE, BACK = 1, 2, 3, 4, 5        # menu PGCs
+        with dvdnav_sim.DvdSim(self.out, LIBDVDNAV) as d:
+            self.assertEqual(d.wait_menu(), MAIN)
+            n = len(d.cells)
+            d.activate(1)                                       # SUB, through the fade
+            self.assertEqual(d.wait_menu(), SUB)
+            self.assertEqual(d.cells[n:], [("vtsm", TO_SUB, 1), ("vtsm", SUB, 1)])
+            n = len(d.cells)
+            d.activate(1)                                       # BACK to ONE THEN TWO
+            self.assertEqual(d.wait_menu(), MAIN)
+            self.assertEqual(d.highlight(), 2)
+            self.assertEqual(d.cells[n:], [("vtsm", BACK, 1), ("vtsm", MAIN, 1)])
+            n = len(d.cells)
+            d.activate(2)                                       # the fade, one, then two
+            seen, menu = d.trace_until_menu()
+            self.assertEqual((seen, menu), ([(1, 1), (2, 1)], MAIN))
+            self.assertEqual(d.cells[n], ("vtsm", TO_ONE, 1))
 
 
 if __name__ == "__main__":

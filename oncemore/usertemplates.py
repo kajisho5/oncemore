@@ -186,6 +186,7 @@ def apply(tid, project, project_dir, menu_id):
         if not _link_ok(b.get("action"), targets):
             b["action"] = "stop"
             b.pop("override", None)
+            b.pop("transition", None)          # (a stop has no link to lead into)
         if not _link_ok(b.get("override"), targets):
             b.pop("override", None)
     if not _link_ok(menu.get("end_action"), targets):

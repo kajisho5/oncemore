@@ -240,6 +240,11 @@ browser) and lands only with green CI.
 - [x] A sound file as a title's source (music), shown with a still picture
   or black, on DVD and Blu-ray; thumbnails show the picture
 
+**P45 — Link transitions** (done)
+- [x] `transition` on a button: a video played when it is pressed, before
+  its link (menu, title, chapter, playlist, play all), on DVD and Blu-ray;
+  drawn in the flowchart, played in the simulator
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

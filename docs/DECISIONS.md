@@ -1047,3 +1047,22 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   encode cache key. Menu thumbnails of such a title show the picture (or a
   black box).
 
+## 68. Link transitions
+
+* A button's `transition` video plays between the press and the link. On
+  a DVD it is a menu PGC of its own after the menus' (titleset 1): the
+  button only remembers itself and jumps there; the PGC has no buttons and
+  its <post> is exactly what the button would have run (streams, override,
+  entry button, link). Staying in the menu domain keeps a menu-to-menu
+  dissolve seamless, leaves "last menu" on the menu whose button was
+  pressed, and needs no register.
+* On a Blu-ray it is a title of its own after the menus' titles, whose
+  movie object plays it and then runs the button's commands; the button
+  jumps to that title.
+* One transition per (video, link, override, streams): buttons that do
+  the same share it. Each such program carries its own copy of the video
+  (dvdauthor writes a PGC's VOB each time), so the bitrate plan counts it
+  once per program. The video is fitted to the disc's picture like a
+  title and encoded with its sound (or silence) like a menu.
+* Not allowed on stream buttons, Resume or Stop: there is nothing to lead
+  into, and a Blu-ray title in between would lose what Resume resumes.

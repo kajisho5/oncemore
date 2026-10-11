@@ -289,6 +289,29 @@ class TestNavigationFiles(unittest.TestCase):
         with self.assertRaises(ProjectError):
             project(disc={"bluray": {"target": "BD100"}})
 
+    def test_link_transitions(self):
+        p = project(menus=[{"id": "main", "buttons": [
+            {"id": "one", "label": "ONE", "x": 100, "y": 150, "action": "title:one",
+             "override": "title:two", "transition": "fade.mp4"},
+            {"id": "sub", "label": "SUB", "x": 100, "y": 220, "action": "menu:sub",
+             "transition": "fade.mp4"}]},
+            {"id": "sub", "buttons": [{"id": "back", "label": "BACK", "x": 100, "y": 150,
+                                       "action": "menu:main:sub", "transition": "wipe.mp4"}]}])
+        nav = bluray.Nav(p)
+        # titles one, two, the menus, then one Blu-ray title per transition
+        self.assertEqual([k for k, _, _ in nav.titles],
+                         ["title", "title", "menu", "menu", "transition", "transition",
+                          "transition"])
+        main, sub = p.menu("main"), p.menu("sub")
+        self.assertEqual([commands(nav.button(b)) for b in main.buttons + sub.buttons],
+                         [["jump_title 5"], ["jump_title 6"], ["jump_title 7"]])
+        objs = nav.objects()
+        # each plays its video, then does what the button would have done
+        self.assertEqual(commands(objs[4]), ["play_pl 5", "move 4 1", "jump_title 1"])
+        self.assertEqual(commands(objs[5]), ["play_pl 6", "jump_title 4"])
+        self.assertEqual(commands(objs[6]), ["play_pl 7", "move 2 1", "jump_title 3"])
+
+
 
 def ffmpeg_has_x264():
     if not have("ffmpeg", "ffprobe"):
@@ -678,6 +701,43 @@ class TestBlurayLoopsAndOverrides(unittest.TestCase):
                                   ("key", "down"), ("key", "enter"), ("title", 1),
                                   ("title", 4)])
 
+
+
+@unittest.skipUnless(ffmpeg_has_x264() and LIBBLURAY, "needs ffmpeg with libx264 and libbluray")
+class TestBlurayLinkTransitions(unittest.TestCase):
+    """The same buttons on a Blu-ray: each transition is a title of its own
+    that plays, then goes where its button leads."""
+
+    @classmethod
+    def setUpClass(cls):
+        from oncemore.tools import has_drawtext
+        if not has_drawtext():
+            raise unittest.SkipTest("ffmpeg without drawtext")
+        from .test_e2e import make_transition_project
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-bdtr-")
+        make_transition_project(cls.tmp)
+        cls.out = os.path.join(cls.tmp, "out")
+        cls.rc, cls.stdout, cls.stderr = run_cli("--json", "build", cls.tmp, "-o", cls.out,
+                                                 "--format", "bluray", "--fast")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def test_buttons_play_their_transition(self):
+        self.assertEqual(self.rc, 0, self.stderr + self.stdout)
+        with bluray_sim.Disc(LIBBLURAY, self.out) as disc:
+            self.assertEqual(disc.info()["titles"], 7)
+            # titles: one, two, main, sub, then the transitions (fade to sub,
+            # fade to one, wipe back to main's second button)
+            self.assertAlmostEqual(disc.playlist(5)["duration"], 1, delta=0.1)
+            self.assertAlmostEqual(disc.playlist(7)["duration"], 1.5, delta=0.1)
+            events = [e for e in disc.play(keys=("enter", "enter", "enter"))
+                      if e[0] in ("title", "key") and e[1] != 0xFFFF]
+        self.assertEqual(events, [("title", 3), ("key", "enter"), ("title", 5), ("title", 4),
+                                  ("key", "enter"), ("title", 7), ("title", 3),
+                                  ("key", "enter"), ("title", 6), ("title", 1), ("title", 2),
+                                  ("title", 3)])
 
 
 @unittest.skipUnless(ffmpeg_has_x264() and LIBBLURAY, "needs ffmpeg with libx264 and libbluray")

@@ -1638,11 +1638,21 @@ class TestGuiBrowser(unittest.TestCase):
             self.wait_saved(page)
             self.assertEqual(self.project()["menus"][0]["buttons"][2]["override"], "menu:chapters")
             self.assertTrue(self.s.app.check(self.project())["valid"])
+            # a link transition: a video before the title
+            page.select_option("#inspector select[data-k=transition]", "media/sample_b.mp4")
+            self.wait_saved(page)
+            self.assertEqual(self.project()["menus"][0]["buttons"][2]["transition"],
+                             "media/sample_b.mp4")
+            self.assertTrue(self.s.app.check(self.project())["valid"])
             page.select_option("#inspector select[data-k=action]", "menu:main")
             self.wait_saved(page)
             b = self.project()["menus"][0]["buttons"][2]
             self.assertNotIn("thumbnail", b)
             self.assertNotIn("override", b)                     # (only for title / chapter links)
+            self.assertEqual(b["transition"], "media/sample_b.mp4")   # (a menu link keeps it)
+            page.select_option("#inspector select[data-k=transition]", "__none__")
+            self.wait_saved(page)
+            self.assertNotIn("transition", self.project()["menus"][0]["buttons"][2])
             # the chapter menu's texts
             page.click(".nav-item[data-view=title][data-id=t1]")
             page.fill("#inspector [data-cm=back_label]", "RETURN")

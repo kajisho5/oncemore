@@ -430,6 +430,13 @@ can chain into each other for "play all" while each song button still
 returns to the menu. `audio` (1-based) and `subtitle` (1-based, `0` = off)
 on a button switch streams along with its action, e.g. a "play with
 commentary" button: `{"action": "title:film", "audio": 2, "subtitle": 0}`.
+`transition` (a video file) on a button that leads somewhere (a menu, title,
+chapter, playlist or play all) is a **link transition**: the video plays
+when the button is pressed, then the button does what it says, e.g. the
+main menu dissolving into the scene menu (render the dissolve as a short
+clip in a video editor). On a DVD it plays as a menu program of its own,
+on a Blu-ray as a title of its own; buttons with the same video and link
+share one copy.
 **Image buttons**: `image` (a picture, transparent PNG works best) replaces the
 label (then optional), drawn with its top-left at `x`/`y`; `width` on the
 720-wide grid (default: the picture's own width; the height follows its

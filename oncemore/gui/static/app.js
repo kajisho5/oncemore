@@ -40,6 +40,7 @@ const I18N = {
     last_menu: "Return to the last menu",
     override: "Then (override)", override_none: "The title's own end action",
     override_hint: "Where to go when the title this button plays ends, instead of its own end action (only when started from this button).",
+    transition: "Link transition", transition_hint: "A short video played when the button is pressed, before its link: for example this menu dissolving into the next one.",
     thumb_section: "Thumbnail", thumb_on: "Show a picture of the linked title / chapter",
     thumb_time: "Frame at (s)", thumb_anim: "Play it (motion menus)",
     sub_style: "Subtitle look (all tracks)", sub_margin: "Bottom margin", outline_w: "Outline width",
@@ -235,6 +236,7 @@ const I18N = {
     last_menu: "直前のメニューに戻る",
     override: "終了後（上書き）", override_none: "タイトル自身の終了時アクション",
     override_hint: "このボタンで再生したタイトルが終わったときの行き先。タイトル自身の終了時アクションの代わりに使われます（このボタンから再生したときだけ）。",
+    transition: "リンクトランジション", transition_hint: "ボタンを押したとき、リンク先の前に再生する短いビデオ。たとえばこのメニューが次のメニューへ溶けていく映像。",
     thumb_section: "サムネイル", thumb_on: "リンク先のタイトル／チャプターの絵を表示",
     thumb_time: "フレーム位置（秒）", thumb_anim: "再生する（モーションメニュー）",
     sub_style: "字幕の見た目（全トラック）", sub_margin: "下の余白", outline_w: "縁取りの太さ",
@@ -398,6 +400,9 @@ let LANG = (() => {
   try { const saved = localStorage.getItem("oncemore.lang"); if (saved) return saved; } catch (e) { /* storage blocked */ }
   return (navigator.language || "en").toLowerCase().startsWith("ja") ? "ja" : "en";
 })();
+// links a link transition can lead into (not stream switches, resume or stop)
+const TRANSITION_RE = /^(menu|title|chapter|playlist):|^playall$/;
+
 function t(key, vars) {
   let s = (I18N[LANG] && I18N[LANG][key]) || I18N.en[key] || key;
   for (const [k, v] of Object.entries(vars || {})) s = s.replace(`{${k}}`, v);
@@ -1547,7 +1552,7 @@ async function renderFlow(m) {
   };
   const svg = `<svg class="flow-svg" width="${width}" height="${height + 40}" viewBox="0 0 ${width} ${height + 40}">
     <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrowhead"/></marker></defs>
-    ${edges.map((e, k) => `<path class="edge ${e.kind}" d="${path(e, k)}" marker-end="url(#arr)"><title>${esc(e.from)} → ${esc(e.to)}${e.label ? " (" + esc(e.label) + ")" : ""}</title></path>`).join("")}
+    ${edges.map((e, k) => `<path class="edge ${e.kind}${e.transition ? " via-transition" : ""}" d="${path(e, k)}" marker-end="url(#arr)"><title>${esc(e.from)} → ${esc(e.to)}${e.label ? " (" + esc(e.label) + ")" : ""}${e.transition ? ` · ${esc(t("transition"))}: ${esc(e.transition)}` : ""}</title></path>`).join("")}
     ${unused.size ? `<line class="unused-line" x1="${PAD}" x2="${width - PAD}" y1="${spareY - 26}" y2="${spareY - 26}"/><text class="unused-label" x="${PAD}" y="${spareY - 8}">${esc(t("unused"))}</text>` : ""}
     ${nodes.map((n) => `<g class="node ${n.kind} ${level[n.id] || ""} ${unused.has(n.id) ? "unused" : ""}" data-node="${esc(n.id)}" transform="translate(${pos[n.id].x},${pos[n.id].y})">
       ${card(n)}</g>`).join("")}
@@ -2407,6 +2412,7 @@ function renderMenuInspector(el) {
       ${sel.kind === "button" ? `<label class="field"><span>${t("text")}</span><input data-k="label" value="${esc(it.label)}"></label>
         <label class="field"><span>${t("action")} ${whipHtml("action")}</span>${selectHtml("action", actionOptions(), it.action)}</label>
         ${/^(title|chapter):/.test(it.action || "") ? `<label class="field"><span>${t("override")}</span>${selectHtml("override", [["__none__", t("override_none")], ...actionOptions({ forButton: false, includeChapters: true, allowPlayAll: true, allowLast: true })], it.override || "__none__")}<div class="hint">${esc(t("override_hint"))}</div></label>` : ""}
+        ${TRANSITION_RE.test(it.action || "") ? `<label class="field"><span>${t("transition")}</span>${selectHtml("transition", [["__none__", t("none")], ...mediaOf("video").map((x) => [x, x])], it.transition || "__none__")}<div class="hint">${esc(t("transition_hint"))}</div></label>` : ""}
         ${streamsHtml(it)}
         <label class="field"><span></span><label><input type="checkbox" data-k="auto_activate" ${it.auto_activate ? "checked" : ""}> ${t("auto_activate")}</label></label>
         <label class="field" data-nobind><span>${t("image")}</span>${selectHtml("image", [["__none__", t("none")], ...mediaOf("image").map((x) => [x, x])], it.image || "__none__")}
@@ -2447,6 +2453,7 @@ function renderMenuInspector(el) {
         if (key === "auto_activate" && !o.auto_activate) delete o.auto_activate;
         if (key === "action" && !/^(title|chapter):/.test(o.action)) { delete o.thumbnail; delete o.override; }   // need a title / chapter
         if (key === "action" && /^(audio|subtitle):/.test(o.action)) { delete o.audio; delete o.subtitle; }      // already a switch
+        if (key === "action" && !TRANSITION_RE.test(o.action)) delete o.transition;                           // nothing to lead into
       },
     });
     const thSet = (fn) => commit((p) => { const o = find(p).buttons[sel.i]; fn(o); });
@@ -3324,7 +3331,7 @@ function dropRefs(p, gone, titleId) {
   }
   for (const m of p.menus || []) {
     for (const b of m.buttons || []) {
-      if (dead(b.action)) { b.action = "stop"; delete b.override; }
+      if (dead(b.action)) { b.action = "stop"; delete b.override; delete b.transition; }
       if (dead(b.override)) delete b.override;
     }
     if (dead(m.end_action)) m.end_action = "stop";

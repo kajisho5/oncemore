@@ -215,6 +215,15 @@ def parse_action(s):
 # model
 # --------------------------------------------------------------------------
 
+TRANSITION_ACTIONS = ("menu", "title", "chapter", "playlist", "playall")
+
+
+def transition_key(button):
+    """What a button with a link transition does: buttons that play the same
+    video and then do the same share one transition on the disc."""
+    return (button.transition, button.action, button.override, button.audio, button.subtitle)
+
+
 @dataclass
 class Disc:
     label: str
@@ -413,6 +422,7 @@ class Button:
     override: str = None       # end action of the title this button plays, instead of its own
     audio: int = None          # audio stream (1-based) to switch to with the action
     subtitle: int = None       # subtitle stream (1-based, 0 = off) to switch to with the action
+    transition: str = None     # video played after the button is pressed, before its link
 
 
 @dataclass
@@ -493,6 +503,18 @@ class Project:
         """End-action overrides used by buttons, in a fixed order (1-based
         numbers in the override register)."""
         return sorted({b.override for m in self.menus for b in m.buttons if b.override})
+
+    @property
+    def link_transitions(self):
+        """The link transitions the disc plays: one per (transition video,
+        action, override, audio, subtitle) of a button, in menu and button
+        order (see transition_key)."""
+        out = []
+        for m in self.menus:
+            for b in m.buttons:
+                if b.transition and transition_key(b) not in out:
+                    out.append(transition_key(b))
+        return out
 
     @property
     def uses_last_menu(self):
@@ -885,7 +907,9 @@ class _Builder:
                           **self.style(f"{where}.buttons[{j}]", b),
                           width=b.get("width"), highlight=b.get("highlight", "frame"),
                           override=b.get("override"), audio=b.get("audio"),
-                          subtitle=b.get("subtitle"))
+                          subtitle=b.get("subtitle"),
+                          transition=self.file(f"{where}.buttons[{j}].transition",
+                                               b.get("transition")))
                    for j, b in enumerate(m["buttons"])]
         for j, (b, spec) in enumerate(zip(buttons, m["buttons"])):
             if "thumbnail" in spec:
@@ -1164,6 +1188,14 @@ class _Builder:
                         self.err(f"{where}.buttons[{j}].override",
                                  "an override needs a title:... or chapter:... action")
                     check(f"{where}.buttons[{j}].override", b.override, allow_last=True)
+                if b.transition:
+                    if parse_action(b.action)[0] not in TRANSITION_ACTIONS:
+                        self.err(f"{where}.buttons[{j}].transition",
+                                 "a link transition needs a link to a menu, title, chapter, "
+                                 "playlist or play all")
+                    elif is_image(b.transition):
+                        self.err(f"{where}.buttons[{j}].transition",
+                                 "a link transition is a video (a still picture cannot play)")
             if m.loop is not None:
                 check(f"{where}.end_action", m.end_action)
         for i, pl in enumerate(project.playlists):
