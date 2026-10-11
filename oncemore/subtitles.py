@@ -587,7 +587,7 @@ def mux_streams(title_mpg, stream_xmls, work, standard, log_prefix=None):
     stream order) into the title: returns (the final .mpg path, the title's
     subpicture palette as (Y, Cr, Cb) in the order the units name them)."""
     from . import png4
-    from ._vendor.vtskit import spu as vspu, subtitles as vsubs
+    from ._vendor.vtskit import ps as vps, spu as vspu, subtitles as vsubs
     from .videots import ycc
     palette = []          # (r, g, b) in order of first use
 
@@ -618,11 +618,9 @@ def mux_streams(title_mpg, stream_xmls, work, standard, log_prefix=None):
         raise ProjectError("media check failed", [{
             "path": "titles", "message": f"the subtitles use {len(palette)} subpicture colours (a DVD "
                                          "title has 16)"}])
-    with open(title_mpg, "rb") as f:
-        data = f.read()
     out = os.path.splitext(title_mpg)[0] + ".subs.mpg"
-    with open(out, "wb") as f:
-        f.write(vsubs.mux(data, streams))
+    with vps.Mapped(title_mpg) as data, open(out, "wb") as f:
+        vsubs.mux(data, streams, out=f)          # the title passes through in blocks
     return out, [ycc("#%02X%02X%02X" % rgb)[:3] for rgb in palette]
 
 
