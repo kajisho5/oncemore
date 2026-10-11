@@ -17,7 +17,7 @@ import os
 import shutil
 import struct
 
-from . import encode
+from . import encode, uops
 from .errors import OncemoreError, ProjectError
 from .project import parse_action, title_fps, transition_key
 
@@ -472,16 +472,19 @@ def _pg_attr(lang, coding=CODING_PG):
     return bytes([coding]) + lang.encode("ascii") + b"\0"
 
 
-def mpls(items, marks):
+def mpls(items, marks, uo=0):
     """A playlist. items: [(clip name, in, out, video_format, frame_rate,
-    audio, pg, ig, still)] played one after the other, times in 45 kHz on
-    each clip's time line, audio [(coding, channels, lang3)], pg [lang3]
+    audio, pg, ig, still[, uo])] played one after the other, times in 45 kHz
+    on each clip's time line, audio [(coding, channels, lang3)], pg [lang3]
     (subtitles), ig: the clip carries menu buttons, still: 2 holds the
-    last picture (a still menu), (1, s) holds it for s seconds; marks:
-    chapter marks as (item index, time)."""
-    app = _u32(14) + bytes([0, 1]) + _u16(0) + bytes(8) + _u16(0)
+    last picture (a still menu), (1, s) holds it for s seconds, uo: the
+    item's UO mask; marks: chapter marks as (item index, time); uo: the
+    whole playlist's UO mask (the remote keys it does not allow)."""
+    app = _u32(14) + bytes([0, 1]) + _u16(0) + uo.to_bytes(8, "big") + _u16(0)
     body = b""
-    for clip, in_time, out_time, video_format, frame_rate, audio, pg, ig, still in items:
+    for it in items:
+        clip, in_time, out_time, video_format, frame_rate, audio, pg, ig, still = it[:9]
+        item_uo = it[9] if len(it) > 9 else 0
         stn = _u16(0) + bytes([1, len(audio), len(pg), int(ig), 0, 0, 0, 0]) + bytes(4)
         entry = _u8(1) + _u16(VIDEO_PID) + bytes(6)
         stn += _u8(len(entry)) + entry + _u8(5) + _video_attr(video_format, frame_rate)
@@ -497,7 +500,7 @@ def mpls(items, marks):
         still_mode, still_time = still if isinstance(still, tuple) else (still, 0)
         # connection_condition 1: the clips are not seamless; STC id 0
         item = clip.encode("ascii") + b"M2TS" + _u16(1) + _u8(0) + _u32(in_time) + \
-            _u32(out_time) + bytes(8) + _u8(0) + _u8(still_mode) + _u16(still_time) + \
+            _u32(out_time) + item_uo.to_bytes(8, "big") + _u8(0) + _u8(still_mode) + _u16(still_time) + \
             _u16(len(stn)) + stn
         body += _u16(len(item)) + item
     playlist = _u16(0) + _u16(len(items)) + _u16(0) + body
@@ -598,13 +601,14 @@ class Piece:
     ig: bool = False      # a menu: the clip carries its buttons
     hold: bool = False    # every chapter its own item held as a still (manual slideshow)
     still: object = 0     # 2: hold the last picture (a still menu); (1, s): for s seconds
+    uo: int = 0           # UO mask: the remote keys it does not allow (uops.bd_mask)
 
     def item(self, first=1, last=None):
         """PlayItem covering chapters first..last (1-based, inclusive)."""
         start = self.marks[first - 1]
         stop = self.marks[last] if last and last < len(self.marks) else self.end
         return (self.clip, start, stop, self.video_format, self.frame_rate, self.audio, self.pg,
-                self.ig, self.still)
+                self.ig, self.still, self.uo)
 
 
 class Nav:
@@ -793,7 +797,7 @@ def playlist_items(project, kind, ident, pieces):
     for k, (piece, first, last) in enumerate(parts):
         item = piece.item(first, last)
         if piece.hold:
-            item = item[:-1] + (2,)
+            item = item[:8] + (2,) + item[9:]
         items.append(item)
         marks += [(k, m) for m in piece.marks if item[1] <= m < item[2]]
     return items, marks
@@ -840,7 +844,8 @@ def write_bdmv(project, clips, out_dir, menus=None, popups=(), transitions=None)
         pg = [lang3(sub.lang) for sub in t.subtitles]
         pieces[t.id] = Piece(name, video_format, frame_rate, audio, pg,
                              chapter_marks(t, scan), scan.end_pts // 2, ig=t.id in popups,
-                             hold=bool(t.slideshow and t.slideshow.advance == "manual"))
+                             hold=bool(t.slideshow and t.slideshow.advance == "manual"),
+                             uo=uops.bd_mask(t.prohibit))
         _write(out_dir, os.path.join("CLIPINF", f"{name}.clpi"),
                clpi(scan, video_format, frame_rate, audio, pg, ig=t.id in popups))
         dest = os.path.join(out_dir, "BDMV", "STREAM", f"{name}.m2ts")
@@ -860,7 +865,8 @@ def write_bdmv(project, clips, out_dir, menus=None, popups=(), transitions=None)
         pieces[f"menu:{m.id}"] = Piece(name, video_format, frame_rate, audio, [], marks,
                                        scan.end_pts // 2, ig=True,
                                        still=((1, info["still_time"]) if info.get("still_time")
-                                              else 2) if info["still"] else 0)
+                                              else 2) if info["still"] else 0,
+                                       uo=uops.bd_mask(m.prohibit))
         loops[m.id] = (info["still"], len(marks) - 1)
         _write(out_dir, os.path.join("CLIPINF", f"{name}.clpi"),
                clpi(scan, video_format, frame_rate, audio, (), ig=True))
@@ -880,7 +886,11 @@ def write_bdmv(project, clips, out_dir, menus=None, popups=(), transitions=None)
     titles = nav.titles
     for n, (kind, ident, _) in enumerate(titles, 1):
         items, marks = playlist_items(project, kind, ident, pieces)
-        _write(out_dir, os.path.join("PLAYLIST", f"{n:05d}.mpls"), mpls(items, marks))
+        # a title's or a menu's keys are off for its whole playlist; in a
+        # playlist or play all, each item keeps its own title's
+        whole = pieces[ident if kind == "title" else f"menu:{ident}"].uo \
+            if kind in ("title", "menu") else 0
+        _write(out_dir, os.path.join("PLAYLIST", f"{n:05d}.mpls"), mpls(items, marks, whole))
     objects, first, top = nav.objects(loops), nav.first_play, nav.top_menu
     first_piece = pieces[project.titles[0].id]
     interactive = {n for n, (kind, _, _) in enumerate(titles, 1) if kind == "menu"}

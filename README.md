@@ -409,6 +409,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `audio.channels` | `2` (stereo, sources are down-mixed) \| `6` (5.1, AC-3 only) | `2` |
 | `end_action` | `menu:<id>` \| `title:<id>` \| `chapter:<title id>:<n>` \| `playlist:<id>` \| `playall` \| `lastmenu` (back to the menu shown last) \| `stop` | first-play menu, else `stop` |
 | `remote_menu` | menu the remote's Menu key opens during this title | first menu |
+| `prohibit` | remote keys that do nothing during this title (user operations), e.g. a notice that cannot be skipped: `["next", "fast_forward", "menu"]`; any of `next` `prev` (chapter skip), `fast_forward` `rewind`, `pause`, `stop`, `search` (number keys: title, chapter and time search), `menu` (Menu / Pop-up key), `title` (Title / Top Menu key), `audio`, `subtitle` | none |
 | `aspect` | `4:3` \| `16:9` for this title | `disc.aspect` |
 | `audio.lang` | ISO 639-1 code of the (single) audio track | none |
 | `audio_tracks` | 1–8 `{source?, stream?, lang?}`: several audio streams (below) | one track from `source` |
@@ -441,6 +442,7 @@ when there are more.
 | `end_action` | after the last loop: `menu:` \| `title:` \| `chapter:` \| `playall` \| `stop` | `stop` |
 | `default_button` | button id highlighted when the menu opens | the first |
 | `remember_button` | coming back highlights the button used last (menus 1–7) | `true` |
+| `prohibit` | remote keys that do nothing while the menu shows (as for titles) | none |
 | `font_size`, `text_color` | defaults for texts/buttons | `32`, `#FFFFFF` |
 | `highlight_color`, `select_color` | button colours when selected / activated; `#RRGGBBAA` for translucent (a DVD has 16 levels of opacity) | `#FFD400`, `#FF5A00` |
 | `hidden` (buttons, texts, shapes, images) | switched off in the Layers panel: kept in the project, not on the disc | `false` |

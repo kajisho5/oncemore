@@ -231,6 +231,10 @@ const I18N = {
     chapter_playlist_hint: "A playlist that plays the title's chapters one after another (each is an item you can reorder or remove).",
     export_subs_hint: "Which track? It is saved as SubRip (.srt) in exports/.",
     confirm_clear_chapters: "Remove every chapter point after the start?",
+    uops: "Remote keys turned off", uops_hint_title: "What the viewer cannot do while this title plays, e.g. skip a notice. Players follow it (DVD: user operations; Blu-ray: UO mask).",
+    uops_hint_menu: "What the viewer cannot do while this menu shows.",
+    uop_next: "Next chapter", uop_prev: "Previous chapter", uop_fast_forward: "Fast forward", uop_rewind: "Rewind", uop_pause: "Pause", uop_stop: "Stop",
+    uop_search: "Number keys (title, chapter, time search)", uop_menu: "Menu / Pop-up key", uop_title: "Title / Top Menu key", uop_audio: "Audio change", uop_subtitle: "Subtitle change",
   },
   ja: {
     check: "チェック", build: "ビルド", drop_here: "ファイルをドロップしてプロジェクトに追加",
@@ -460,6 +464,10 @@ const I18N = {
     chapter_playlist_hint: "タイトルのチャプターを順に再生するプレイリストです（各チャプターが項目になり、並べ替えや削除ができます）。",
     export_subs_hint: "どのトラックを書き出しますか？ exports/ に SubRip（.srt）として保存します。",
     confirm_clear_chapters: "先頭以外のチャプターポイントをすべて削除しますか？",
+    uops: "無効にするリモコン操作", uops_hint_title: "このタイトルの再生中に視聴者ができない操作（注意書きを飛ばせないようにするなど）。プレーヤーはこれに従います（DVD：ユーザー操作、Blu-ray：UO マスク）。",
+    uops_hint_menu: "このメニューの表示中に視聴者ができない操作。",
+    uop_next: "次のチャプター", uop_prev: "前のチャプター", uop_fast_forward: "早送り", uop_rewind: "巻き戻し", uop_pause: "一時停止", uop_stop: "停止",
+    uop_search: "数字キー（タイトル・チャプター・時間の検索）", uop_menu: "メニュー／ポップアップキー", uop_title: "タイトル／トップメニューキー", uop_audio: "音声の切り替え", uop_subtitle: "字幕の切り替え",
   },
 };
 let LANG = (() => {
@@ -1746,6 +1754,21 @@ async function renderSimScreen() {
   }
 }
 
+// User operations: the remote keys a title or a menu turns off (prohibit)
+const UOPS = ["next", "prev", "fast_forward", "rewind", "pause", "stop", "search", "menu", "title", "audio", "subtitle"];
+function uopsHtml(obj, kind) {
+  const on = new Set(obj.prohibit || []);
+  return `<h3>${t("uops")}</h3><div class="hint">${esc(t("uops_hint_" + kind))}</div>
+    <div class="uop-grid" data-nobind>${UOPS.map((k) => `<label><input type="checkbox" data-uop="${k}" ${on.has(k) ? "checked" : ""}> ${esc(t("uop_" + k))}</label>`).join("")}</div>`;
+}
+function bindUops(root, find) {
+  root.querySelectorAll("[data-uop]").forEach((c) => (c.onchange = () => commit((p) => {
+    const x = find(p), on = new Set(x.prohibit || []);
+    if (c.checked) on.add(c.dataset.uop); else on.delete(c.dataset.uop);
+    const list = UOPS.filter((k) => on.has(k));
+    if (list.length) x.prohibit = list; else delete x.prohibit;
+  })));
+}
 function renderTitleInspector(el) {
   const ti = curTitle();
   if (!ti) { el.innerHTML = ""; return; }
@@ -1802,6 +1825,7 @@ function renderTitleInspector(el) {
       ${[["title", "cm_heading", ti.name || ti.id], ["label_format", "cm_label_format", "Chapter {n}"], ["back_label", "cm_back_label", "BACK"],
         ["prev_label", "cm_prev_label", "PREV"], ["next_label", "cm_next_label", "NEXT"]].map(([k, l, ph]) =>
         `<label class="field"><span>${t(l)}</span><input data-cm="${k}" value="${esc(cm === true ? "" : cm[k] || "")}" placeholder="${esc(ph)}"></label>`).join("")}</div>` : ""}
+    ${uopsHtml(ti, "title")}
     <h3></h3>${orderHtml(t("order_title"))}
     <h3></h3><button class="danger" id="del-title">${t("delete")}</button>`;
   const find = (p) => p.titles.find((x) => x.id === ti.id);
@@ -1874,6 +1898,7 @@ function renderTitleInspector(el) {
     commit((p) => { renameRefs(p, "title", ti.id, nid); find(p).id = nid; });
     S.sel.id = nid; renderAll();
   };
+  bindUops(el, find);
   bindOrder(el, "titles", ti.id);
   $("#del-title").onclick = () => deleteItem("title", ti.id);
 }
@@ -2607,6 +2632,7 @@ function renderMenuInspector(el) {
     ${menu.psd ? `<label class="field"><span>Photoshop</span><div class="row"><span class="mono shrink" style="overflow:hidden;text-overflow:ellipsis">${esc(menu.psd)}</span><button class="small shrink" id="psd-edit">${t("cmd_edit_psd")}</button><button class="small shrink" id="psd-again">${t("reimport")}</button></div><div class="hint">${esc(t("reimport_hint"))}</div></label>` : ""}
     <label class="field"><span>${t("default_button")}</span>${selectHtml("default_button", [["__none__", t("auto")], ...(menu.buttons || []).map((b) => [b.id, `${b.id} (${b.label || b.image || ""})`])], menu.default_button || "__none__")}</label>
     <label class="field"><span></span><label><input type="checkbox" id="remember-btn" ${menu.remember_button === false ? "" : "checked"}> ${t("remember_button")}</label></label>
+    ${uopsHtml(menu, "menu")}
     ${orderHtml(t("order_menu"))}
     <h3></h3><button class="danger" id="del-menu">${t("delete")}</button>`;
   bindFields(el, find, {
@@ -2623,6 +2649,7 @@ function renderMenuInspector(el) {
   bindColourSet(el, menu);
   if ($("#btn-at-loop")) $("#btn-at-loop").onchange = (e) => commit((p) => { const mm = find(p); if (e.target.checked) mm.buttons_at_loop = true; else delete mm.buttons_at_loop; });
   $("#remember-btn").onchange = (e) => commit((p) => { const mm = find(p); if (e.target.checked) delete mm.remember_button; else mm.remember_button = false; });
+  bindUops(el, find);
   bindOrder(el, "menus", menu.id);
   $("#menu-id").onchange = (e) => {
     const nid = e.target.value.trim().replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 40);
@@ -3717,10 +3744,12 @@ async function folderBox(mode) {
     <div class="fb-list" id="fb-list" role="listbox" aria-label="${esc(t("folders"))}"></div>
     <div class="hint">${esc(t("fb_hint_" + mode))}</div>
     <div class="dlg-buttons"><span class="hint" id="fb-err"></span><span class="spacer"></span><button id="fb-ok" class="primary">${t(mode === "open" ? "open" : "ok")}</button></div>`);
-  let cur = null;
+  let cur = null, asked = 0;
   const show = async (path) => {
+    const mine = ++asked;            // (only the folder asked for last is shown)
     try {
       const r = await api("/api/dirs?" + new URLSearchParams(path ? { path } : {}));
+      if (mine !== asked) return;
       cur = r; $("#fb-path").value = r.path; $("#fb-err").textContent = "";
       $("#fb-up").disabled = !r.parent; $("#fb-home").onclick = () => show(r.home);
       $("#fb-list").innerHTML = r.dirs.length ? r.dirs.map((d) => `<button class="fb-item ${d.project ? "is-project" : ""}" data-dir="${esc(d.name)}">${d.project ? "◉" : "▸"} ${esc(d.name)}</button>`).join("")
@@ -3730,7 +3759,7 @@ async function folderBox(mode) {
         b.onclick = () => show(full);
         b.ondblclick = () => { if (mode === "open") go(full); };
       });
-    } catch (e) { $("#fb-err").textContent = e.message; }
+    } catch (e) { if (mine === asked) $("#fb-err").textContent = e.message; }
   };
   $("#fb-path").onchange = () => show($("#fb-path").value.trim());
   $("#fb-up").onclick = () => cur?.parent && show(cur.parent);

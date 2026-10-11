@@ -251,6 +251,13 @@ browser) and lands only with green CI.
   projects, bring media in, validate, render menus, simulate the remote and
   build in the background; only inside allowed folders
 
+**P49 — Remote keys turned off (user operations)** (done)
+- [x] `prohibit` on a title or a menu: next / previous chapter, fast forward,
+  rewind, pause, stop, the number keys, the Menu and Title keys, audio and
+  subtitle changes; on a DVD the program chains' prohibited user
+  operations (and the title search table), on a Blu-ray the playlists' UO
+  masks; the simulator ignores them too; checkboxes in Properties
+
 **P48 — The whole menu bar** (done)
 - [x] File, Edit, Object, Menu, Timeline, View, Window and Help with
   submenus and every command behind them: new / open / open recent / save /

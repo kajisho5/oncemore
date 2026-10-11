@@ -51,6 +51,14 @@
       "pattern": "^[A-Za-z0-9_-]{1,40}$",
       "description": "Identifier used in actions, e.g. title:t1 or menu:main."
     },
+    "prohibit": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": ["next", "prev", "fast_forward", "rewind", "pause", "stop", "search", "menu", "title", "audio", "subtitle"]
+      },
+      "description": "next / prev (chapter skip), fast_forward / rewind, pause, stop, search (number keys: title, chapter and time search), menu (Menu / Pop-up key), title (Title / Top Menu key), audio, subtitle (stream change). On a DVD: the program chain's prohibited user operations; on a Blu-ray: the playlist's UO mask."
+    },
     "color": {
       "type": "string",
       "pattern": "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$"
@@ -388,6 +396,10 @@
         "remote_menu": {
           "$ref": "#/$defs/id",
           "description": "Menu opened by the remote's Menu key during this title. Default: the first menu."
+        },
+        "prohibit": {
+          "$ref": "#/$defs/prohibit",
+          "description": "Remote keys that do nothing during this title (user operations), e.g. a notice that cannot be skipped: [\"next\", \"fast_forward\", \"menu\"]."
         },
         "auto_chapter_menu": {
           "description": "Generate a chapter-selection menu with thumbnails for this title.",
@@ -798,6 +810,10 @@
         "buttons_at_loop": {
           "type": "boolean",
           "description": "The buttons appear (and work) only from loop_point on, so the intro before it plays out. Default false."
+        },
+        "prohibit": {
+          "$ref": "#/$defs/prohibit",
+          "description": "Remote keys that do nothing while this menu shows (user operations)."
         },
         "fade_in": {
           "$ref": "#/$defs/time",

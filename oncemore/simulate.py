@@ -266,6 +266,11 @@ class Simulator:
             raise SimError(f"unknown key {key!r}")
         if s["domain"] == "stopped":
             return s
+        # a key the title or menu turns off (prohibit) does nothing
+        here = self.p.title(s["title"]) if s["domain"] == "title" else self.menu(s["menu"])
+        if key in ("menu", "title", "next", "prev") and key in (here.prohibit or ()):
+            self.note(s, f"{key} not allowed here")
+            return s
         if s["domain"] == "title" and key in ("menu", "title") and self.p.menus:
             s["resume"] = {"title": s["title"], "chapter": s["chapter"], "button": s["button"]}
         if key == "title":
