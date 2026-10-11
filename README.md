@@ -433,6 +433,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `source` | any video ffmpeg reads | required (or `slideshow` / `clips`) |
 | `slideshow` | a title made from pictures (below) | none |
 | `clips` | a title made of parts of several videos (below) | none |
+| `angles` | more views of the same scene (DVD only): video files the viewer switches between with the remote's Angle key, the `source` being angle 1; up to 8, each at least as long as the source, encoded with the title's settings and sound | `[]` |
 | `chapters` | list of times, or `{time, name, poster}` objects (`name` labels the chapter-menu button, `poster` is the time of its thumbnail); `0` is added if missing | `[0]` |
 | `audio.codec` | `ac3` \| `lpcm` \| `dts` (48 kHz DTS copied from the sources, never encoded; 5.1 unless `channels` says 2; a DTS-HD source gives its DTS core; a DVD takes up to 1536k) | `ac3` |
 | `audio.bitrate` | AC-3 only, 64k–448k | `192k` (`448k` for 5.1) |

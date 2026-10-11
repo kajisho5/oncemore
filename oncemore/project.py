@@ -396,6 +396,7 @@ class Title:
     captions: str = None     # DVD line-21 closed captions: a .scc file, or subtitles sent as captions
     captions_offset: float = 0.0   # taken off the captions' times (a file timed from 01;00;00;00)
     prohibit: list = field(default_factory=list)   # remote keys the title does not allow (uops.NAMES)
+    angles: list = field(default_factory=list)     # DVD: more views of the scene (files), the source is angle 1
 
     @property
     def track_bps(self):
@@ -1019,6 +1020,13 @@ class _Builder:
             picture=self.file(f"{where}.picture", t.get("picture")),
             prohibit=self.prohibit(where, t),
         )
+        if "angles" in t:
+            title.angles = [self.file(f"{where}.angles[{j}]", a) for j, a in enumerate(t["angles"])]
+            if clips or show:
+                self.err(f"{where}.angles", "angles are for a title from one video file")
+            if not t.get("transcode", True):
+                self.err(f"{where}.angles", "angles are encoded to line up; the picture cannot "
+                                             "be used as it is (transcode: false)")
         if "captions" in t:
             cap = t["captions"] if isinstance(t["captions"], dict) else {"file": t["captions"]}
             title.captions = self.file(f"{where}.captions", cap["file"])

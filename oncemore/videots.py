@@ -22,7 +22,7 @@ from . import author, uops
 from .project import chapter_points, title_fps
 from ._vendor.vtskit import lang, spu, titleset, vmg
 from ._vendor.vtskit.menu import Button, Menu
-from ._vendor.vtskit.titleset import Audio, Subpicture, Title
+from ._vendor.vtskit.titleset import Angles, Audio, Subpicture, Title
 
 PROVIDER = "oncemore"
 
@@ -73,16 +73,19 @@ def _menu(project, disc, m, stream, geoms, overlay, buttons_texts, pre, post, ce
                 button_offset=m.button_offset if geoms else 0, uops=uops.dvd_mask(m.prohibit))
 
 
-def write(project, menu_files, title_files, dest, transition_files=None, layouts=None, palettes=None):
+def write(project, menu_files, title_files, dest, transition_files=None, layouts=None, palettes=None,
+          angle_files=None):
     """Write <dest>/VIDEO_TS. `menu_files` / `title_files`: {id: path to the
     .mpg} (a menu with its buttons after the loop point: (intro, loop));
     `transition_files`: {transition video: its .mpg}; `layouts`: {menu id:
     (its ButtonGeoms, the canvas of their shapes)}; `palettes`: {title id:
-    its subtitles' colours (Y, Cr, Cb)}. Returns the files written."""
+    its subtitles' colours (Y, Cr, Cb)}; `angle_files`: {title id: the .mpg
+    of each further angle}. Returns the files written."""
     disc = disc_of(project)
     video_ts = os.path.join(dest, "VIDEO_TS")
     layouts = layouts or {}
     palettes = palettes or {}
+    angle_files = angle_files or {}
     W, H = project.disc.width, project.disc.height
     pan_scan = project.disc.aspect != "16:9"           # 16:9: widescreen="nopanscan"
 
@@ -135,15 +138,18 @@ def write(project, menu_files, title_files, dest, transition_files=None, layouts
             pre = author.title_pre(project, t)
             cell_commands = {k: disc.compile(f"if ({author.ITEM_END_REG} == {k}) jump pgc tail;", "vts", ts)[0]
                              for k in ends}
+            angles = angle_files.get(t.id)
             vts_titles.append(Title(
-                title_files[t.id], tuple(points), audio[:max(1, len(t.audio_tracks))],
+                None if angles else title_files[t.id], tuple(points), audio[:max(1, len(t.audio_tracks))],
                 tuple(Subpicture(sub_langs[j] if j < len(sub_langs) else None) for j in range(len(t.subtitles))),
                 palette=tuple(palettes.get(t.id, ())),
                 pre=disc.compile(pre, "vts", ts) if pre else (),
                 post=disc.compile(author.end_command(project, t.end_action, t), "vts", ts),
                 cell_commands=cell_commands,
                 stills={k: None for k in range(1, len(points) + 1)} if held else {},
-                uops=uops.dvd_mask(t.prohibit)))
+                uops=uops.dvd_mask(t.prohibit),
+                # an angle block over the whole title: the source and its angles interleaved
+                parts=(Angles((title_files[t.id], *angles)),) if angles else ()))
         sets.append((ts, vts_titles, menus, any(t.captions for t in titles)))
     first_play = disc.compile(author.first_play_command(project), "fp")
     vmgm_menus = []

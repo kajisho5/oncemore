@@ -446,7 +446,7 @@ against their published help, not from memory)
   it is served from a web site (opening the folder from disk works today)
 - [x] DVD titlesets written by oncemore itself (vtskit) instead of dvdauthor
   ([#75](https://github.com/kajisho5/oncemore/issues/75))
-- [ ] Multi-angle titles ([#75](https://github.com/kajisho5/oncemore/issues/75))
+- [x] Multi-angle titles ([#75](https://github.com/kajisho5/oncemore/issues/75))
 
 **Not planned**
 
