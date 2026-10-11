@@ -113,6 +113,7 @@ const I18N = {
     new_menu_with_bg: "New menu with this background",
     menu_props: "Menu", background: "Background image", background_video: "Background video",
     background_color: "Background colour", music: "Music", duration: "Loop length (s)",
+    advance_manual: "Advance by hand (each picture stays until Next / Play)",
     add_music: "+ Add music…", fit_to_music: "Fit the pictures to the music (their seconds become proportions)", fitted_to: "Fitted: {d}",
     font_size: "Text size", text_color: "Text colour", highlight: "Highlight", select_color: "Activated",
     add_button: "+ Button", add_text: "+ Text", exact_preview: "Exact preview", hide_preview: "Hide preview",
@@ -306,6 +307,7 @@ const I18N = {
     new_menu_with_bg: "この背景で新しいメニュー",
     menu_props: "メニュー", background: "背景画像", background_video: "背景動画",
     background_color: "背景色", music: "BGM", duration: "ループ長（秒）",
+    advance_manual: "手動で送る（次へ／再生を押すまで写真を表示）",
     add_music: "＋BGM を追加…", fit_to_music: "写真の表示時間を BGM の長さに合わせる（秒数は比率になります）", fitted_to: "調整後：{d}",
     font_size: "文字サイズ", text_color: "文字色", highlight: "選択中の色", select_color: "決定時の色",
     add_button: "＋ボタン", add_text: "＋テキスト", exact_preview: "実レンダリング確認", hide_preview: "確認を閉じる",
@@ -1386,6 +1388,7 @@ const transitionOptions = () => [["crossfade", t("crossfade")], ...TRANSITION_KI
 function renderSlideshow(m, ti) {
   const sh = ti.slideshow, slides = sh.slides || [];
   const music = sh.audio ? (Array.isArray(sh.audio) ? sh.audio : [sh.audio]) : [];
+  const manual = sh.advance === "manual";
   const total = slides.reduce((a, s) => a + (s.duration || 5), 0);
   m.innerHTML = `<div class="card">
     <div class="row"><h2 class="shrink">${esc(ti.name || ti.id)}</h2><span class="muted">${esc(t("slideshow"))} · ${slides.length} · ${total.toFixed(1)}s</span></div>
@@ -1395,12 +1398,13 @@ function renderSlideshow(m, ti) {
     <div class="transport"><button id="ss-play" class="primary">▶ ${t("render_play")}</button></div>
     <div class="slides">${slides.map((s, i) => `<div class="slide" data-slide="${i}">
         <img src="${imgUrl("file", { path: s.image })}" alt="">
-        <div class="row"><input type="number" min="0.5" max="600" step="0.5" data-f="duration" value="${s.duration || 5}" title="${esc(t("seconds"))}"> s <span class="muted" data-fitted></span></div>
+        <div class="row" ${manual ? 'style="display:none"' : ""}><input type="number" min="0.5" max="600" step="0.5" data-f="duration" value="${s.duration || 5}" title="${esc(t("seconds"))}"> s <span class="muted" data-fitted></span></div>
         <div class="row">${selectHtml("sfit", [["", t("fit_own")], ["fit", t("fit_fit")], ["fill", t("fit_fill")]], s.fit || "", `data-f="fit" title="${esc(t("fit"))}"`)}</div>
-        ${i + 1 < slides.length ? `<div class="row">${selectHtml("str", [["", t("tr_own")], ...transitionOptions()], s.transition || "", `data-f="transition" title="${esc(t("tr_next"))}"`)}</div>` : ""}
+        ${i + 1 < slides.length && !manual ? `<div class="row">${selectHtml("str", [["", t("tr_own")], ...transitionOptions()], s.transition || "", `data-f="transition" title="${esc(t("tr_next"))}"`)}</div>` : ""}
         <div class="row"><button class="small" data-mv="-1" ${i ? "" : "disabled"}>◀</button><button class="small" data-mv="1" ${i + 1 < slides.length ? "" : "disabled"}>▶</button><button class="small danger" data-rm ${slides.length > 1 ? "" : "disabled"}>✕</button></div></div>`).join("")}
       <div class="slide add">${selectHtml("addimg", [["", t("add_picture")], ...mediaOf("image").map((x) => [x, x.replace(/^media\//, "")])], "", 'id="ss-add"')}</div></div>
-    <div class="grid2" style="margin-top:12px">
+    <label style="display:block;margin-top:12px"><input type="checkbox" id="ss-manual" ${manual ? "checked" : ""}> ${t("advance_manual")}</label>
+    <div class="grid2" style="margin-top:12px${manual ? ";display:none" : ""}">
       <label class="field"><span>${t("transition")}</span>${selectHtml("transition", transitionOptions(), sh.transition || "crossfade", 'id="ss-tr"')}</label>
       <label class="field"><span>${t("transition_duration")}</span><input type="number" id="ss-td" min="0.1" max="5" step="0.1" value="${sh.transition_duration || 1}"></label>
       <div class="field"><span>${t("music")}</span><div>${music.map((x, i) => `<div class="row ss-music"><span class="mono">${esc(x.replace(/^media\//, ""))}</span><span class="spacer"></span><button class="small danger" data-rmmusic="${i}">✕</button></div>`).join("")}
@@ -1429,6 +1433,13 @@ function renderSlideshow(m, ti) {
   };
   $("#ss-audio").onchange = (e) => { if (e.target.value) edit((x) => setMusic(x, [...music, e.target.value])); };
   m.querySelectorAll("[data-rmmusic]").forEach((b) => (b.onclick = () => edit((x) => setMusic(x, music.filter((_, i) => i !== Number(b.dataset.rmmusic))))));
+  // by hand: a still per picture, so no timing, transitions or music
+  $("#ss-manual").onchange = (e) => edit((x) => {
+    if (!e.target.checked) { delete x.advance; return; }
+    x.advance = "manual";
+    for (const k of ["transition", "transition_duration", "audio", "fit_to_audio", "pan_zoom"]) delete x[k];
+    for (const s of x.slides) { delete s.duration; delete s.transition; }
+  });
   $("#ss-fitaudio").onchange = (e) => edit((x) => { if (e.target.checked) x.fit_to_audio = true; else delete x.fit_to_audio; });
   $("#ss-pz").onchange = (e) => edit((x) => { if (e.target.checked) x.pan_zoom = true; else delete x.pan_zoom; });
   $("#ss-fit").onchange = (e) => edit((x) => { if (e.target.value === "fill") x.fit = "fill"; else delete x.fit; });

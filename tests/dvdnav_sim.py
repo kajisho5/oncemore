@@ -103,6 +103,7 @@ class DvdSim:
         self.stopped = False
         self.events = 0
         self.cells = []        # (domain, pgcn, cell) at every cell change
+        self.stills = []       # (domain, pgcn, cell, length) at every still (255 = held)
 
     def close(self):
         if self.h:
@@ -127,6 +128,10 @@ class DvdSim:
         self.events += 1
         e = ev.value
         if e == EV_STILL_FRAME:
+            # (the player's Next / Play: on at once) length 255 = held until then
+            length = int.from_bytes(self.buf.raw[:4], "little", signed=True)
+            self.stills.append((self.domain(), self.pgcn(), self.cells[-1][2] if self.cells
+                                else None, length))
             self.lib.dvdnav_still_skip(self.h)
         elif e == EV_WAIT:
             self.lib.dvdnav_wait_skip(self.h)

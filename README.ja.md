@@ -434,6 +434,7 @@ oncemore doctor                                # 外部ツールの有無・バ�
     "audio": "media/music.m4a",       // 長さに合わせて切り、最後はフェードアウト。
                                       // リストにすると順番に続けて再生
     "fit_to_audio": false,            // true で写真の秒数を比率として BGM の長さに合わせる
+    "advance": "auto",                // "manual" で次へ／再生を押すまで各写真を表示（カットのみ・BGM なし）
     "background_color": "#000000"     // 縦横比の違う写真の余白の色
   },
   "end_action": "menu:main"

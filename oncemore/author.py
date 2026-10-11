@@ -511,13 +511,16 @@ def title_vob(project, title, path):
     ends = item_end_chapters(project, title)
     fps = title_fps(title, project.disc)
     points = chapter_points(title.chapters, fps)[1]
-    if not ends:
+    # a slideshow advanced by hand: every chapter (picture) ends in a still
+    held = bool(title.slideshow and title.slideshow.advance == "manual")
+    if not ends and not held:
         return f'<vob file={quoteattr(path)} chapters="{chapters_attr(title.chapters, fps)}"/>'
+    pause = ' pause="inf"' if held else ""
     cells = []
     for k, start in enumerate(points, 1):
         end = f' end="{format_time(points[k])}"' if k < len(points) else ""
         cmd = f"if ({ITEM_END_REG} == {k}) jump pgc tail;" if k in ends else ""
-        cells.append(f'<cell start="{format_time(start)}"{end} chapter="1">{cmd}</cell>')
+        cells.append(f'<cell start="{format_time(start)}"{end} chapter="1"{pause}>{cmd}</cell>')
     return f"<vob file={quoteattr(path)}>{''.join(cells)}</vob>"
 
 

@@ -1015,7 +1015,8 @@ class TestCacheRomPassthrough(unittest.TestCase):
 class TestSlideshow(unittest.TestCase):
     """A title made from three pictures with cross-fades, pan & zoom and
     music: one chapter per picture, and the rendered show is reused. A
-    second one fitted to two pieces of music played one after another."""
+    second one fitted to two pieces of music played one after another, a
+    third advanced by hand (every picture held until Next / Play)."""
 
     @classmethod
     def setUpClass(cls):
@@ -1050,6 +1051,11 @@ class TestSlideshow(unittest.TestCase):
                                             "y": 380, "action": "title:pics"})
         data["menus"][0]["buttons"].append({"id": "fitted", "label": "FITTED", "x": 400,
                                             "y": 380, "action": "title:fitted"})
+        data["titles"].append({"id": "byhand", "end_action": "menu:main", "slideshow": {
+            "slides": [{"image": "media/pic0.png"}, {"image": "media/pic1.png"},
+                       {"image": "media/pic2.png"}], "advance": "manual"}})
+        data["menus"][0]["buttons"].append({"id": "byhand", "label": "BY HAND", "x": 400,
+                                            "y": 320, "action": "title:byhand"})
         with open(cls.path, "w") as f:
             json.dump(data, f)
         cls.iso = os.path.join(cls.tmp, "s.iso")
@@ -1094,6 +1100,20 @@ class TestSlideshow(unittest.TestCase):
         self.assertAlmostEqual(tone(1.0), 330, delta=30)
         self.assertAlmostEqual(tone(4.2), 660, delta=60)
 
+    @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
+    def test_advanced_by_hand(self):
+        byhand = next(t for t in self.events[-1]["titles"] if t["id"] == "byhand")
+        self.assertEqual(byhand["chapters"], [0.0, 1.0, 2.0])      # a moment each
+        with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
+            d.wait_menu()
+            d.activate(d.button_count())                          # BY HAND
+            title, _ = d.wait_title()
+            seen, _ = d.trace_until_menu()
+        self.assertEqual([p for t, p in seen if t == title], [1, 2, 3])
+        # every picture ends in a still held until Next / Play (255)
+        held = [s for s in d.stills if s[0] == "title"]
+        self.assertEqual([(c, length) for _, _, c, length in held], [(1, 255), (2, 255), (3, 255)])
+
     def test_rendered_once(self):
         again = os.path.join(self.tmp, "again.iso")
         rc, out, err = run_cli("--json", "iso", self.path, "-o", again, "--fast", cwd=self.tmp)
@@ -1106,7 +1126,7 @@ class TestSlideshow(unittest.TestCase):
         with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
             d.wait_menu()
             n = d.button_count()
-            d.activate(n - 1)                               # PICTURES
+            d.activate(n - 2)                               # PICTURES
             title, part = d.wait_title()
             self.assertEqual(part, 1)
             self.assertEqual(d.num_parts(title), 3)

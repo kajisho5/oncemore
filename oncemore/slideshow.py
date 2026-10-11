@@ -27,6 +27,7 @@ from . import tools
 from .errors import OncemoreError
 
 CACHE_VERSION = 1
+MANUAL_SECONDS = 1.0     # a picture advanced by hand: shown this long, then held
 
 # transition name -> ffmpeg xfade transition (all in ffmpeg 4.4 and later)
 TRANSITIONS = {"crossfade": "fade", "dissolve": "dissolve", "fadeblack": "fadeblack",
@@ -55,6 +56,7 @@ class Slideshow:
     background_color: str = "#000000"
     fit: str = "fit"                  # "fit" (whole picture) | "fill" (cropped to the frame)
     fit_to_audio: bool = False        # durations scaled to the music's length
+    advance: str = "auto"             # "manual": each picture held until Next / Play
     auto_chapters: bool = True        # the title's chapters are the slides' starts
     extra: dict = field(default_factory=dict)
 

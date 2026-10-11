@@ -221,6 +221,12 @@ class TestProjectFields(unittest.TestCase):
         d["titles"][-1]["slideshow"]["slides"] = []
         self.assertIn("slides", self.issues(d))
         self.assertIn("fit", self.issues(self.data(fit="crop")))
+        # advanced by hand: a moment per picture, cuts, no music
+        s = self.build(self.data(advance="manual")).titles[-1]
+        self.assertEqual([x.duration for x in s.slideshow.slides], [1.0, 1.0])
+        self.assertEqual((s.slideshow.fade, s.chapters), (0.0, [0.0, 1.0]))
+        self.assertIn("no music", self.issues(self.data(advance="manual", audio="media/a.wav")))
+        self.assertIn("with cuts", self.issues(self.data(advance="manual", transition="wipeleft")))
         self.assertIn("slideshow.fit_to_audio: needs music", self.issues(self.data(fit_to_audio=True)))
         d = self.data()
         del d["titles"][-1]["slideshow"]

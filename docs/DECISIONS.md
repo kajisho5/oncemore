@@ -1029,3 +1029,12 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   buttons, and a non-button object covering the rest would overlap them.
 * Buttons that only change streams also close the pop-up (Pop-up Off).
 
+## 66. Slideshows advanced by hand
+
+* Every picture is rendered as a moment of video (1 s, a chapter of its
+  own) and then held: on DVD its cell has an infinite still (`pause="inf"`,
+  which the player's Next / Play ends); on Blu-ray each picture is its own
+  play item with still mode "infinite". Pictures change with cuts (a
+  transition cannot be held half way) and there is no music (it would
+  stop at every picture).
+

@@ -1072,6 +1072,11 @@
           ],
           "description": "Music: one file, or several played one after another; cut to the slideshow's length and faded out."
         },
+        "advance": {
+          "enum": ["auto", "manual"],
+          "default": "auto",
+          "description": "manual: every picture stays on screen until the viewer presses Next or Play (a still on the disc); the pictures change with cuts, and there is no music."
+        },
         "fit_to_audio": {
           "type": "boolean",
           "default": false,
