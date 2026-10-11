@@ -146,7 +146,9 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   duplicate. Shift-drag moves in a straight line, Alt (⌥)-drag leaves a copy,
   and holding ⌘ / Ctrl while dragging turns snapping off. A selected
   rectangle or picture has handles to resize it (Shift: keep the
-  proportions, Alt: from the centre). Choose
+  proportions, Alt: from the centre); a text or button has corner handles
+  that scale its type. Slides, clips, playlist items and layers can be
+  dragged to a new place in their lists. Choose
   each button's target (a menu, a title, a chapter, an audio or subtitle
   stream). A button can be a picture instead of text (*Image*, highlighted by a
   frame or by its shape). Use an image or a video as the background. **Exact preview**
