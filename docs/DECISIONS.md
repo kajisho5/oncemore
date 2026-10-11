@@ -1502,6 +1502,28 @@ written that fails before the fix, and then the fix:
   yet: each page there has its own artwork, which needs a background per
   page.
 
+## 85. Random and shuffled playlists
+
+* A playlist can play its items shuffled (each once, in a random order) or
+  at random (as many items as it has, each picked at random, so one can
+  come twice and another not at all), as the classic apps' chapter
+  playlists did on Blu-ray and the web; a DVD plays them as listed, as
+  they did there too (with a warning when one is set).
+* The Blu-ray format has its own playlist playback types for this, but
+  libbluray (and so VLC, mpv and Kodi) reads them and plays the items in
+  order anyway, so the disc does it with commands, which every HDMV player
+  runs: each item becomes a playlist file of its own (after the titles'),
+  and the playlist's movie object counts the items played, picks one with
+  the random-number command (Set RND), plays it, and goes again until it
+  has played as many as there are; for shuffle it keeps a register per
+  item and picks again when the item was played already. Then the
+  playlist's end action, as before.
+* The web version shuffles or picks in the player the same way.
+* The tests read the object's commands, and play discs built both ways in
+  libbluray from first play: shuffle plays the three items once each,
+  random three items from them. libbluray seeds its random numbers from
+  the clock, and the orders seen differ from run to run.
+
 ## 86. Slideshows of more than 99 pictures
 
 * A slideshow takes up to 999 pictures, as many chapters as a Blu-ray

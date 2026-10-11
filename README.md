@@ -566,13 +566,17 @@ Imported buttons are ordinary buttons with only a `highlight_image` (and a
 "playlists": [{
   "id": "best", "name": "Best scenes",
   "items": ["t1:2", "t2:2-3", "t1"],   // a chapter, a chapter range, a whole title
-  "end_action": "menu:main"            // any title end action; stop (default)
+  "end_action": "menu:main",           // any title end action; stop (default)
+  "order": "shuffle"                   // sequential (default) | random | shuffle
 }]
 ```
 
 A button with `"action": "playlist:best"` (or `first_play` / `title_key`) plays the
 items in order, also across titles with different formats; an item stops at the
 end of its last chapter. Title, chapter and play-all buttons leave playlist mode.
+`order` plays them shuffled (each once, in a random order) or at random (as many
+items as the playlist has, each picked at random, so one can come again) on a
+Blu-ray and in the web version; a DVD plays them as listed.
 
 ### Slideshows
 
