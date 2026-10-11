@@ -66,6 +66,28 @@ def make_transition_project(d):
         json.dump(project, f)
 
 
+def make_uop_project(d):
+    """A notice that cannot be skipped (no next chapter, fast forward, menu
+    or number keys), then the feature; a menu whose Title key is off."""
+    for name, seconds in (("notice.mp4", 2), ("feature.mp4", 2)):
+        subprocess.run(["ffmpeg", "-hide_banner", "-v", "error", "-y",
+                        "-f", "lavfi", "-i", f"testsrc2=size=640x360:rate=30000/1001:duration={seconds}",
+                        "-f", "lavfi", "-i", f"sine=frequency=440:sample_rate=48000:duration={seconds}",
+                        "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", "-shortest",
+                        os.path.join(d, name)], check=True)
+    project = {
+        "version": 1,
+        "disc": {"label": "UOPS", "standard": "NTSC", "aspect": "16:9", "first_play": "title:notice"},
+        "titles": [{"id": "notice", "source": "notice.mp4", "chapters": [0, 1],
+                    "end_action": "menu:main", "prohibit": ["next", "fast_forward", "menu", "search"]},
+                   {"id": "feature", "source": "feature.mp4", "end_action": "menu:main"}],
+        "menus": [{"id": "main", "prohibit": ["title"], "buttons": [
+            {"id": "play", "label": "PLAY", "x": 100, "y": 150, "action": "title:feature"}]}],
+    }
+    with open(os.path.join(d, "project.oncemore.json"), "w") as f:
+        json.dump(project, f)
+
+
 def ffprobe_streams(path):
     p = subprocess.run(["ffprobe", "-v", "error", "-print_format", "json", "-show_streams",
                         "-probesize", "50M", "-analyzeduration", "50M", path],
@@ -1743,6 +1765,55 @@ class TestLinkTransitions(unittest.TestCase):
             seen, menu = d.trace_until_menu()
             self.assertEqual((seen, menu), ([(1, 1), (2, 1)], MAIN))
             self.assertEqual(d.cells[n], ("vtsm", TO_ONE, 1))
+
+
+@unittest.skipUnless(TOOLS_OK, SKIP_REASON)
+class TestUserOperations(unittest.TestCase):
+    """Remote keys a title or a menu turns off (prohibited user operations)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-e2e-uop-")
+        make_uop_project(cls.tmp)
+        cls.out = os.path.join(cls.tmp, "dvd")
+        cls.rc, cls.stdout, cls.stderr = run_cli("--json", "build", cls.tmp, "-o", cls.out,
+                                                 "--fast")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def ifo(self, name):
+        with open(os.path.join(self.out, "VIDEO_TS", name), "rb") as f:
+            return f.read()
+
+    def test_written_in_the_ifo_files(self):
+        self.assertEqual(self.rc, 0, self.stderr + self.stdout)
+        from oncemore import uops
+        vts = self.ifo("VTS_01_0.IFO")
+        self.assertEqual(vts, self.ifo("VTS_01_0.BUP"))
+        pgcit = int.from_bytes(vts[0xCC:0xD0], "big") * 2048
+        pgcs = [pgcit + int.from_bytes(vts[pgcit + 12 + 8 * k:pgcit + 16 + 8 * k], "big")
+                for k in range(int.from_bytes(vts[pgcit:pgcit + 2], "big"))]
+        masks = [int.from_bytes(vts[p + 8:p + 12], "big") for p in pgcs]
+        self.assertEqual(masks, [uops.dvd_mask(["next", "fast_forward", "menu", "search"]), 0])
+        # the notice's number keys are off in the title search table too
+        vmg = self.ifo("VIDEO_TS.IFO")
+        srpt = int.from_bytes(vmg[0xC4:0xC8], "big") * 2048
+        self.assertEqual([vmg[srpt + 8 + 12 * k] & 3 for k in range(2)], [3, 0])
+
+    @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
+    def test_player_sees_them(self):
+        self.assertEqual(self.rc, 0, self.stderr + self.stdout)
+        with dvdnav_sim.DvdSim(self.out, LIBDVDNAV) as d:
+            self.assertEqual(d.wait_title(), (1, 1))
+            # next chapter 7, scan forward 8, the menus 11-15, number keys 0, 1, 2, 5
+            self.assertEqual(d.restrictions(), {0, 1, 2, 5, 7, 8, 11, 12, 13, 14, 15})
+            self.assertEqual(d.wait_menu(), 1)
+            self.assertEqual(d.restrictions(), {10})                 # Title menu call
+            d.activate(1)
+            self.assertEqual(d.wait_title(), (2, 1))
+            self.assertEqual(d.restrictions(), set())
 
 
 if __name__ == "__main__":

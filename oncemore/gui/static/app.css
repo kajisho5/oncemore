@@ -347,6 +347,8 @@ table.clips td.act { white-space: nowrap; }
 .popup .lbl { flex: 1; }
 .popup .check { width: 12px; flex: none; margin-left: -6px; }
 .popup button.has-sub.open:not(:disabled) { background: var(--c-bg-3); }
+/* Properties > Remote keys turned off */
+.uop-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px var(--sp-3); font-size: var(--fs-sm); }
 /* File > Open project / New project / Save as: the page's folder chooser */
 .fb-list { display: flex; flex-direction: column; max-height: 260px; overflow: auto; margin: var(--sp-2) 0; border: 1px solid var(--c-line); border-radius: var(--r-sm); background: var(--c-bg-1); }
 .fb-list .hint { padding: 6px 10px; }

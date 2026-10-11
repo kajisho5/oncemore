@@ -325,6 +325,7 @@ oncemore doctor                                # 外部ツールの有無・バ�
 | `audio.channels` | `2`（ステレオ。素材はダウンミックス）\| `6`（5.1ch、AC-3 のみ） | `2` |
 | `end_action` | `menu:<id>` \| `title:<id>` \| `chapter:<タイトルid>:<番号>` \| `playlist:<id>` \| `playall` \| `lastmenu`（直前に表示したメニューへ戻る） \| `stop` | first_play のメニュー、無ければ `stop` |
 | `remote_menu` | このタイトルの再生中にリモコンのメニューキーで開くメニュー | 最初のメニュー |
+| `prohibit` | このタイトルの再生中は効かないリモコン操作（ユーザー操作）。例：飛ばせない注意書き `["next", "fast_forward", "menu"]`。指定できるのは `next` `prev`（チャプター送り・戻し）、`fast_forward` `rewind`、`pause`、`stop`、`search`（数字キー：タイトル・チャプター・時間の検索）、`menu`（メニュー／ポップアップキー）、`title`（タイトル／トップメニューキー）、`audio`、`subtitle` | なし |
 | `aspect` | このタイトルの `4:3` \| `16:9` | `disc.aspect` |
 | `audio.lang` | 音声（1 トラック時）の ISO 639-1 言語コード | なし |
 | `audio_tracks` | 1〜8 個の `{source?, stream?, lang?}`：複数音声（下記） | `source` の音声 1 本 |
@@ -355,6 +356,7 @@ oncemore doctor                                # 外部ツールの有無・バ�
 | `end_action` | 最後の再生のあと：`menu:` \| `title:` \| `chapter:` \| `playall` \| `stop` | `stop` |
 | `default_button` | メニューを開いたときに選ばれているボタンの id | 先頭 |
 | `remember_button` | 戻ってきたとき前に使ったボタンを選ぶ（メニュー 1〜7） | `true` |
+| `prohibit` | このメニューの表示中は効かないリモコン操作（タイトルと同じ） | なし |
 | `font_size`、`text_color` | テキスト・ボタンの既定値 | `32`、`#FFFFFF` |
 | `highlight_color`、`select_color` | 選択中／決定時のボタンの色。`#RRGGBBAA` で半透明（DVD の不透明度は 16 段階） | `#FFD400`、`#FF5A00` |
 | `hidden`（ボタン・テキスト・長方形・画像） | レイヤーパネルで非表示：プロジェクトには残り、ディスクには入らない | `false` |

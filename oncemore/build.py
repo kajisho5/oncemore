@@ -9,7 +9,8 @@ import os
 import shutil
 import tempfile
 
-from . import author, bdmenu, bluray, clips, encode, iso, lpcmfix, pgs, slideshow, subtitles, tools, udf250
+from . import (author, bdmenu, bluray, clips, encode, iso, lpcmfix, pgs, slideshow, subtitles,
+               tools, udf250, uops)
 from . import menu as menu_module
 from .errors import OncemoreError, ProjectError
 from .project import parse_action
@@ -500,6 +501,8 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None, ca
     with open(xml_path, "w", encoding="utf-8") as f:
         f.write(xml)
     author.run_dvdauthor(xml_path, project, os.path.join(logs, "dvdauthor.log"))
+    # (dvdauthor writes no prohibited user operations: the remote keys a title or menu turns off)
+    uops.patch_dvd(os.path.join(out_dir, "VIDEO_TS"), project)
     os.makedirs(os.path.join(out_dir, "AUDIO_TS"), exist_ok=True)
     rom = copy_rom_files(project, out_dir)
 

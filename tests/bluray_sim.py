@@ -27,6 +27,7 @@ BD_EVENT_STILL_TIME = 26
 KEYS = {"popup": 11, "up": 12, "down": 13, "left": 14, "right": 15, "enter": 16}
 OVERLAY_IG, OVERLAY_DRAW, OVERLAY_CLEAR, OVERLAY_WIPE = 1, 3, 2, 4
 BD_EVENT_IDLE = 28
+BD_EVENT_UO_MASK_CHANGED = 33     # param: BLURAY_UO_* bits (0x1 menu call, 0x10 skip next ...)
 
 _CANDIDATES = ("libbluray.so.2", "libbluray.so", "libbluray.2.dylib", "libbluray.dylib",
                "/opt/homebrew/lib/libbluray.dylib", "/usr/local/lib/libbluray.dylib")
@@ -229,7 +230,7 @@ class Disc:
         names = {BD_EVENT_TITLE: "title", BD_EVENT_PLAYLIST: "playlist",
                  BD_EVENT_CHAPTER: "chapter", BD_EVENT_END_OF_TITLE: "end",
                  BD_EVENT_ERROR: "error", BD_EVENT_PG_TEXTST_STREAM: "subtitle_stream",
-                 BD_EVENT_PG_TEXTST: "subtitles_shown"}
+                 BD_EVENT_PG_TEXTST: "subtitles_shown", BD_EVENT_UO_MASK_CHANGED: "uo"}
         self.draws = []
         if keys:
             # (libbluray runs menus only for a player that draws them)
