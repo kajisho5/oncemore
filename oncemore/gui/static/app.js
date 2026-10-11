@@ -180,7 +180,10 @@ const I18N = {
     settings: "Settings", size_estimate: "Estimated size", check_project: "Check Project…", new_item: "New Item", delete_item: "Delete",
     tool_import_psd: "Make a menu from a Photoshop file", preview_close: "Close the preview",
     basic: "Basic", motion: "Motion", toggle_safe: "Show Safe Area",
-    cmd_chapters_interval: "Add chapter points at intervals…", cmd_replace_asset: "Replace asset…", cmd_project_settings: "Project settings…",
+    cmd_chapters_interval: "Add chapter points at intervals…", cmd_chapters_scenes: "Add chapter points at scene changes…",
+    sc_sensitivity: "Sensitivity", sc_low: "Low (clear cuts only)", sc_medium: "Medium", sc_high: "High (smaller changes too)", sc_gap: "At least (s) apart",
+    sc_find: "Find", sc_looking: "Looking for scene changes…", sc_found: "{n} scene changes found: {c} chapters.",
+    sc_hint: "Finds the cuts in the picture and puts a chapter at each, at least the given seconds apart.", cmd_replace_asset: "Replace asset…", cmd_project_settings: "Project settings…",
     cmd_edit_psd: "Edit menu in Photoshop", cmd_win_project: "Project", cmd_win_menus: "Menus", cmd_win_timelines: "Timelines", cmd_win_build: "Build",
     cmd_win_monitor: "Monitor", cmd_win_flowchart: "Flowchart", cmd_win_properties: "Properties", cmd_win_layers: "Layers", cmd_win_library: "Library",
     ci_every: "A chapter every", ci_minutes: "minutes", ci_seconds: "seconds", ci_replace: "Remove the chapters there are now (the first stays)",
@@ -436,7 +439,10 @@ const I18N = {
     settings: "設定", size_estimate: "推定サイズ", check_project: "プロジェクトをチェック…", new_item: "新規項目", delete_item: "削除",
     tool_import_psd: "Photoshop ファイルからメニューを作る", preview_close: "プレビューを閉じる",
     basic: "基本", motion: "モーション", toggle_safe: "セーフエリアを表示",
-    cmd_chapters_interval: "一定間隔でチャプターポイントを追加…", cmd_replace_asset: "アセットを置き換え…", cmd_project_settings: "プロジェクト設定…",
+    cmd_chapters_interval: "一定間隔でチャプターポイントを追加…", cmd_chapters_scenes: "シーンチェンジにチャプターポイントを追加…",
+    sc_sensitivity: "感度", sc_low: "低（はっきりしたカットだけ）", sc_medium: "中", sc_high: "高（小さな変化も）", sc_gap: "最小間隔（秒）",
+    sc_find: "検出", sc_looking: "シーンチェンジを探しています…", sc_found: "シーンチェンジが {n} か所見つかりました：チャプター {c} 個。",
+    sc_hint: "映像のカット（場面の切り替わり）を見つけ、指定した秒数以上の間隔でチャプターを置きます。", cmd_replace_asset: "アセットを置き換え…", cmd_project_settings: "プロジェクト設定…",
     cmd_edit_psd: "Photoshop でメニューを編集", cmd_win_project: "プロジェクト", cmd_win_menus: "メニュー", cmd_win_timelines: "タイムライン", cmd_win_build: "ビルド",
     cmd_win_monitor: "モニター", cmd_win_flowchart: "フローチャート", cmd_win_properties: "プロパティ", cmd_win_layers: "レイヤー", cmd_win_library: "ライブラリ",
     cmd_chapters_from_source: "ソースのチャプターマーカーを読み込む", no_source_chapters: "ソースにチャプターマーカーがありません。",
@@ -3947,6 +3953,7 @@ const COMMANDS = {
   export_subtitles_script: { run: () => exportSubtitlesBox("script"), when: () => inTitle() && (curTitle().subtitles || []).length > 0 },
   add_chapter: { key: "*", run: () => $("#add-ch")?.click(), when: () => S.sel.view === "title" && !!$("#add-ch") },
   chapters_interval: { run: chaptersAtIntervals, when: () => inTitle() && !curTitle().slideshow && titleLength(curTitle()) > 0 },
+  chapters_scenes: { run: chaptersAtScenes, when: () => inTitle() && !curTitle().slideshow && titleLength(curTitle()) > 0 },
   chapters_from_source: { run: chaptersFromSource, when: () => inTitle() && !curTitle().slideshow },
   clear_chapters: { run: clearChapters, when: () => inTitle() && chaptersOf(curTitle()).length > 1 },
   set_poster: { run: setPosterFrame, when: () => inTitle() && !curTitle().slideshow },
@@ -4020,7 +4027,7 @@ const MENUBAR = [
   ["m_menu", ["new_menu", "chapter_index", "-", "add_button", "add_text", "add_rectangle", "add_picture", "-", "set_link", "default_button",
     "set_first_play", "-", "colour_set", "save_template", "save_menu_file", "-", ["m_tools", ["tool_select", "tool_rotate", "tool_text", "tool_zoom"]]]],
   ["m_timeline", ["new_timeline", "new_slideshow", "new_playlist", "chapter_playlist", "-", "add_audio_track", "add_subtitle_track",
-    "import_subtitles", ["m_export_subs", ["export_subtitles", "export_subtitles_script"]], "-", "add_chapter", "chapters_interval", "chapters_from_source", "clear_chapters", "set_poster", "-",
+    "import_subtitles", ["m_export_subs", ["export_subtitles", "export_subtitles_script"]], "-", "add_chapter", "chapters_interval", "chapters_scenes", "chapters_from_source", "clear_chapters", "set_poster", "-",
     "save_frame", "-", "prev_chapter", "next_chapter", "play"]],
   ["m_view", ["zoom_in", "zoom_out", "zoom_fit", "zoom_actual", "-", "safe_area", "routing", "snap", "-",
     "show_guides", "lock_guides", "clear_guides", "new_guide", "snap_guides", "-", "chapter_names", "-",
@@ -4642,6 +4649,56 @@ function chaptersAtIntervals() {
   $("#ci-ok").onclick = () => {
     if (!(step() > 0)) return;
     S.ciLast = { n: Number($("#ci-n").value), unit: Number($("#ci-unit").value) };
+    const list = planned();
+    closeModal();
+    commit((p) => setChapters(p.titles.find((x) => x.id === ti.id), list));
+  };
+}
+// Timeline > Add chapter points at scene changes: the cuts ffmpeg finds in the
+// picture (each clip of a title made of clips on its own), at least a gap apart
+function chaptersAtScenes() {
+  const ti = curTitle(), dur = titleLength(ti);
+  const last = S.scLast || { level: "medium", gap: 10 };
+  openModal(`<h2>${t("cmd_chapters_scenes")}</h2>
+    <label class="field"><span>${t("sc_sensitivity")}</span>${selectHtml("sc-level", [["low", t("sc_low")], ["medium", t("sc_medium")], ["high", t("sc_high")]], last.level, 'id="sc-level"')}</label>
+    <label class="field"><span>${t("sc_gap")}</span><input id="sc-gap" type="number" min="1" step="1" value="${last.gap}" style="width:90px"></label>
+    <label class="field"><span></span><label><input type="checkbox" id="sc-replace" checked> ${esc(t("ci_replace"))}</label></label>
+    <div class="hint" id="sc-preview">${esc(t("sc_hint"))}</div>
+    <div class="dlg-buttons"><button id="sc-find">${t("sc_find")}</button><span class="spacer"></span><button id="sc-ok" class="primary" disabled>OK</button></div>`);
+  let found = null;
+  // what to look at: the source, or each clip (where it plays on the title's timeline)
+  const parts = () => {
+    if (!ti.clips) return [{ path: ti.source, start: 0, end: null, at: 0 }];
+    const join = clipJoinNow(ti);
+    return ti.clips.map((c, i) => {
+      if (isStill(c) || !join) return null;
+      const start = c.in != null ? parseTime(c.in) : 0;
+      return { path: c.source, start, end: start + join.clips[i].duration, at: join.clips[i].start };
+    }).filter(Boolean);
+  };
+  const planned = () => {
+    const keep = $("#sc-replace").checked ? chapterEntries(ti).slice(0, 1) : chapterEntries(ti), out = [...keep];
+    for (const x of found || []) if (x < dur - 0.5 && !out.some((c) => Math.abs(c.time - x) < 0.5)) out.push({ time: Math.round(x * 1000) / 1000, name: "", poster: null });
+    if (!out.length) out.push({ time: 0, name: "", poster: null });
+    return out.sort((a, b) => a.time - b.time);
+  };
+  const reset = () => { found = null; $("#sc-ok").disabled = true; $("#sc-preview").textContent = t("sc_hint"); };
+  ["#sc-level", "#sc-gap"].forEach((s) => ($(s).onchange = reset));
+  $("#sc-replace").onchange = () => { if (found) $("#sc-preview").textContent = t("sc_found", { n: found.length, c: planned().length }); };
+  $("#sc-find").onclick = async () => {
+    const level = $("#sc-level").value, gap = Number($("#sc-gap").value) || 10;
+    $("#sc-find").disabled = true; $("#sc-preview").textContent = t("sc_looking");
+    try {
+      const lists = await Promise.all(parts().map((x) => api("/api/scenes", { method: "POST", body: { path: x.path, sensitivity: level, min_gap: gap, start: x.start, end: x.end } })
+        .then((r) => r.times.map((tm) => tm - x.start + x.at))));
+      found = lists.flat().sort((a, b) => a - b);
+      S.scLast = { level, gap };
+      $("#sc-preview").textContent = t("sc_found", { n: found.length, c: planned().length });
+      $("#sc-ok").disabled = !found.length;
+    } catch (e) { $("#sc-preview").textContent = e.message; }
+    finally { if ($("#sc-find")) $("#sc-find").disabled = false; }
+  };
+  $("#sc-ok").onclick = () => {
     const list = planned();
     closeModal();
     commit((p) => setChapters(p.titles.find((x) => x.id === ti.id), list));

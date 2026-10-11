@@ -25,6 +25,7 @@ API (all JSON unless noted):
   POST /api/transcode                encode titles now (job), ahead of the build
   POST /api/encode_status            which titles are already transcoded
   GET  /api/waveform?path=REL&w&h&s  the sound of a file (stream s) as a PNG
+  POST /api/scenes                   the scene changes of a file (chapter suggestions)
   GET  /api/recent                   recently opened project folders
   GET  /api/dirs?path=ABS            the folders in a folder (folder chooser)
   POST /api/switch                   open another project folder (or make one)
@@ -54,7 +55,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 
 from .. import (__version__, build, burn, clips, encode, graph, png4, scaffold, simulate, slideshow,
-               subtitles, templates, tools, userstyles, usertemplates, web)
+               scenes, subtitles, templates, tools, userstyles, usertemplates, web)
 from ..errors import OncemoreError, ProjectError
 from ..project import (PROJECT_FILENAME, build_project, clip_starts, parse_time, read_json,
                        source_at)
@@ -675,6 +676,19 @@ class Handler(BaseHTTPRequestHandler):
         os.replace(dest + ".part", dest)
         self.json({"path": self.app.rel(dest), "kind": media_kind(dest),
                    "media": self.app.media()})
+
+    def api_post_scenes(self, q):
+        body = self.body_json()
+        full = self.app.resolve(body.get("path"))
+        if not os.path.isfile(full):
+            raise FileNotFoundError(body.get("path"))
+        level = body.get("sensitivity", "medium")
+        if level not in scenes.SENSITIVITY:
+            raise ValueError("sensitivity is low, medium or high")
+        start, end = float(body.get("start") or 0), body.get("end")
+        self.json({"times": scenes.detect(full, scenes.SENSITIVITY[level],
+                                          float(body.get("min_gap", 10)), start,
+                                          float(end) if end is not None else None)})
 
     def api_get_probe(self, q):
         self.json(self.app.probe(self.app.resolve(q.get("path"))))

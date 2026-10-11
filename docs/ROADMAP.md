@@ -403,8 +403,10 @@ against their published help, not from memory)
 - [ ] Check for Updates (Help): says which version this is and opens the
   releases page in the browser. oncemore itself makes no connection (no
   network access is one of its promises), so it does not look by itself
-- [ ] Chapters from the picture: suggested chapter points where the scene
-  changes, and the best thumbnail frame near each, to accept or drop
+- [x] Chapters from the picture: suggested chapter points where the scene
+  changes (P69: Timeline > Add chapter points at scene changes, `oncemore
+  scenes`)
+- [ ] ... and the best thumbnail frame near each chapter
 - [ ] Loudness: measure each title's loudness and offer to even them out
   (EBU R128), so menus and titles do not jump in level
 - [ ] Quality preview: encode a few seconds at the planned bitrate and show
