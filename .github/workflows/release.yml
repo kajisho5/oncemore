@@ -1,7 +1,9 @@
 name: Release
 
 # Push a tag "v<version>" (matching oncemore/__init__.py) to build the Mac app
-# for Apple silicon and Intel and attach both zips to a draft GitHub Release.
+# for Apple silicon and Intel and attach both zips to a GitHub Release: a
+# pre-release published at once for 0.x versions, a draft from 1.0 on. Its
+# notes are docs/release-notes/<tag>.md when that file exists.
 #
 # Signing and notarisation are used when these repository secrets exist;
 # without them the app is ad-hoc signed (first launch needs "Open Anyway"):
@@ -89,6 +91,9 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: docs/release-notes
       - uses: actions/download-artifact@v7
         with:
           pattern: Oncemore-macOS-*
@@ -96,9 +101,16 @@ jobs:
           path: dist
       - name: Checksums
         run: cd dist && sha256sum Oncemore-*.zip > SHA256SUMS && cat SHA256SUMS
-      - name: Draft release
+      - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # 0.x: a pre-release, published; 1.0 and later: a draft to look over first
+          case "$GITHUB_REF_NAME" in
+            v0.*) kind="--prerelease" ;;
+            *) kind="--draft" ;;
+          esac
+          notes="docs/release-notes/$GITHUB_REF_NAME.md"
+          if [ -f "$notes" ]; then how=(--notes-file "$notes"); else how=(--generate-notes); fi
           gh release create "$GITHUB_REF_NAME" dist/Oncemore-*.zip dist/SHA256SUMS \
-            -R "$GITHUB_REPOSITORY" --draft --generate-notes --title "oncemore $GITHUB_REF_NAME"
+            -R "$GITHUB_REPOSITORY" $kind "${how[@]}" --title "oncemore $GITHUB_REF_NAME"
