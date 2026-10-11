@@ -326,6 +326,15 @@ table.clips td.act { white-space: nowrap; }
 .result-err { border-color: var(--err); }
 .sizebar { height: 10px; background: var(--bg); border-radius: 5px; overflow: hidden; margin: 6px 0; }
 .sizebar > div { height: 100%; background: var(--ok); }
+.budget { display: flex; height: 14px; background: var(--bg); border-radius: 5px; overflow: hidden; margin: 6px 0; }
+.budget .seg { height: 100%; min-width: 1px; }
+.budget .seg.title { background: var(--c-kind-title); }
+.budget .seg.title.alt { background: var(--c-kind-title); opacity: .65; }
+.budget .seg.menus { background: var(--c-kind-menu); }
+.budget .seg.other { background: var(--c-text-2); }
+.budget-table { width: 100%; border-collapse: collapse; }
+.budget-table th { text-align: left; font-weight: normal; color: var(--c-text-2); }
+.budget-table td, .budget-table th { padding: 2px 6px 2px 0; }
 
 /* modal */
 #modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; z-index: 60; }

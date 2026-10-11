@@ -1547,3 +1547,18 @@ written that fails before the fix, and then the fix:
 * That test found pan & zoom pictures one frame short each: zoompan makes
   its frames at the disc's rate already, and the fps filter after it
   dropped the last one. It is left out after zoompan now.
+
+## 87. The bit budget
+
+* The size estimate was one number. The classic apps showed where the
+  space goes, so the plan now keeps its parts: each title (its length,
+  video rate as planned, audio rate, and bytes with the packet overhead),
+  the menus, the disc's own files (the IFO reserve) and what is left.
+  The parts add up to the estimate the plan already made, so the bar and
+  the number agree.
+* On a Blu-ray the pictures are encoded at a constant quality up to a peak
+  rate, so a title's part is the most it takes, not what it will take.
+* Check Project shows a bar of the whole disc (titles in turn, menus, disc
+  files) and a table; `oncemore validate` prints each title's rates and
+  size, and the free space. Changing a title's bitrate (Properties) and
+  checking again shows the effect before anything is encoded.
