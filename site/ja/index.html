@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>oncemore — DVD と Blu-ray を、もう一度自分の手で</title>
+<meta name="description" content="oncemore は、手持ちの動画からメニュー・チャプター・プレイリスト・字幕の入った DVD と Blu-ray を作るオープンソースのオーサリングツールです。Mac でもブラウザでも動きます。">
+<link rel="canonical" href="https://kajisho5.github.io/oncemore/ja/">
+<link rel="alternate" hreflang="en" href="https://kajisho5.github.io/oncemore/">
+<link rel="alternate" hreflang="ja" href="https://kajisho5.github.io/oncemore/ja/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="oncemore">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:title" content="oncemore — DVD と Blu-ray を、もう一度自分の手で">
+<meta property="og:description" content="メニュー、チャプター、字幕、ディスクイメージ。Mac でもブラウザでも。オープンソース（GPL-3.0）。">
+<meta property="og:url" content="https://kajisho5.github.io/oncemore/ja/">
+<meta property="og:image" content="https://kajisho5.github.io/oncemore/images/social-preview-ja.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="oncemore のメニューエディタ。PLAY ALL ボタンがハイライトされたディスクのメニュー">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../images/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@600&display=swap">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="wrap top">
+  <a class="logo" href="./"><img src="../images/logo/lockup-dark.svg" alt="oncemore" width="190" height="40"></a>
+  <nav aria-label="セクション">
+    <a href="#features">機能</a>
+    <a href="#screens">画面</a>
+    <a href="#install">インストール</a>
+    <a href="https://github.com/kajisho5/oncemore">GitHub</a>
+    <a href="../" hreflang="en" lang="en">English</a>
+  </nav>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <div>
+      <h1 class="ja">DVD と <span class="nb">Blu-ray</span> を、<br><span class="nb"><em>もう一度</em>自分の手で。</span></h1>
+      <p class="lead">oncemore は、手持ちの動画から本物のメニューが入ったディスクを作ります。リモコンで選ぶと光るボタン、サムネイル付きのチャプターメニュー、プレイリスト、字幕、そして再生・マウント・書き込みができるディスクイメージまで。自分の Mac でもブラウザでも動く、オープンソースのソフトです。</p>
+      <div class="actions">
+        <a class="button primary" href="#install">インストール</a>
+        <a class="button" href="https://github.com/kajisho5/oncemore">GitHub でソースを見る</a>
+      </div>
+    </div>
+    <div class="frame"><img src="../images/gui-menu-ja.png" alt="メニューエディタ。3 つのボタンのうち PLAY ALL がハイライトされたディスクのメニューと、ボタンのプロパティ" width="1440" height="860"></div>
+  </div>
+
+  <section id="features">
+    <div class="wrap">
+      <h2>メニューからディスクイメージまで</h2>
+      <p class="intro">ディスクに必要なものを、1 年後にまた開けるひとつのプロジェクトにまとめます。</p>
+      <div class="features">
+        <div><h3>ディスクらしく動くメニュー</h3>
+          <p>静止画や動画の背景、選択時と決定時のハイライト色、リモコンでの移動先、既定のボタンと前回のボタン、ボタンとリンク先の間に挟む短い映像。レイヤー付きの Photoshop ファイルからもメニューを作れます。</p></div>
+        <div><h3>チャプターとプレイリスト</h3>
+          <p>タイムライン上のチャプター、サムネイル付きのチャプターメニュー、タイトルやチャプター範囲を並べたプレイリスト、すべて再生、そしてそれぞれが終わったあとの行き先。</p></div>
+        <div><h3>音声と字幕</h3>
+          <p>複数の音声トラック、5.1ch の AC-3、SRT・WebVTT・ASS からの字幕とその見た目、ストリームを切り替えるボタン。</p></div>
+        <div><h3>スライドショー</h3>
+          <p>写真と音楽、トランジション、パンとズーム。音楽の長さに合わせることも、リモコンで 1 枚ずつ送ることもできます。</p></div>
+        <div><h3>Blu-ray も</h3>
+          <p>HD のタイトル、メニューとポップアップメニュー、PGS 字幕。BDMV フォルダか UDF 2.50 のイメージに書き出します。</p></div>
+        <div><h3>焼く前に確かめる</h3>
+          <p>ディスク全体のフローチャート、プロジェクトのチェック、エンコード前にディスクを再生できるリモコン付きシミュレーター。</p></div>
+        <div><h3>ディスクイメージも自前で</h3>
+          <p>ISO（UDF と ISO 9660）は oncemore 自身が書き出します。空のディスクへの書き込みは最後の任意の一手です。</p></div>
+        <div><h3>アプリでもコマンドでも</h3>
+          <p>同じオーサリングアプリを Mac のウインドウでもブラウザのタブでも。その下に、JSON ファイル 1 つからディスクを作るコマンドラインがあります。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="screens">
+    <div class="wrap">
+      <h2>できあがる前に、ディスクを見る</h2>
+      <p class="intro">エディタはディスクをそのまま見せます。プレーヤーが描くとおりのメニュー、すべてのつながり、そして試すためのリモコン。</p>
+      <div class="screens">
+        <figure><img src="../images/gui-title-ja.png" alt="タイムライン上のタイトル。チャプター、音声トラック、字幕" width="1440" height="860" loading="lazy">
+          <figcaption>タイトル：タイムライン上のチャプター、音声トラック、字幕。</figcaption></figure>
+        <figure><img src="../images/gui-flow-ja.png" alt="フローチャート。ディスクのメニュー、タイトルとそのつながり" width="1440" height="860" loading="lazy">
+          <figcaption>フローチャート：メニュー、タイトル、プレイリストと、そのつながり。</figcaption></figure>
+        <figure><img src="../images/gui-sim-ja.png" alt="ディスクシミュレーター。画面のメニューと横のリモコン" width="1440" height="860" loading="lazy">
+          <figcaption>シミュレーター：リモコンのキーを押して、ディスクの動きを追えます。</figcaption></figure>
+        <figure><img src="../images/gui-menu-ja.png" alt="ボタンを選んだ状態のメニューエディタ" width="1440" height="860" loading="lazy">
+          <figcaption>メニューエディタ：ボタン、ハイライト、移動先を、ディスクと同じピクセルで。</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="promises">
+    <div class="wrap">
+      <h2>ずっと、あなたのもの</h2>
+      <p class="intro">oncemore があるのは、次の約束のためです。テストがそれぞれを守っているので、いつの間にか消えることはありません。</p>
+      <ul class="promises">
+        <li><strong>オープンソース</strong><span>GPL-3.0-or-later。読めて、変えられて、残せます。</span></li>
+        <li><strong>アカウント不要</strong><span>サインインも、ネット接続も、利用状況の送信もありません。</span></li>
+        <li><strong>コピーガードなし</strong><span>リージョンコードもコピーガードも、これからも付けません。</span></li>
+        <li><strong>ただのファイル</strong><span>プロジェクトは素材の隣に置く JSON ファイル 1 つです。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <h2>インストール</h2>
+      <p class="intro">oncemore は Python 3.11 以降の標準ライブラリだけで動きます。エンコードとオーサリングには ffmpeg と dvdauthor を使い、足りないものがあれば <code>oncemore doctor</code> が教えてくれます。</p>
+      <div class="install">
+        <div><h3>macOS（Homebrew）</h3>
+<pre><code>brew install ffmpeg-full dvdauthor
+pip install git+https://github.com/kajisho5/oncemore
+oncemore gui my-disc</code></pre></div>
+        <div><h3>Debian / Ubuntu</h3>
+<pre><code>sudo apt-get install ffmpeg dvdauthor genisoimage
+pip install git+https://github.com/kajisho5/oncemore
+oncemore gui my-disc</code></pre></div>
+      </div>
+      <p class="note"><code>oncemore gui</code> は、自分のマシンから配信するアプリをブラウザで開きます。同じアプリを Mac のウインドウで動かす
+        Oncemore.app（Apple シリコンと Intel）は、最初のリリースから <a href="https://github.com/kajisho5/oncemore/releases">Releases</a>
+        ページで配布します。それまでは README に自分でビルドする方法があります。</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>oncemore は GPL-3.0-or-later のフリーソフトウェアです。</span>
+    <nav aria-label="その他">
+      <a href="https://github.com/kajisho5/oncemore/blob/main/README.ja.md">README</a>
+      <a href="https://github.com/kajisho5/oncemore/blob/main/docs/ROADMAP.md">ロードマップ</a>
+      <a href="https://github.com/kajisho5/oncemore/issues">Issues</a>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>
