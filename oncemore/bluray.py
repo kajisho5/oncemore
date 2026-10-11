@@ -152,9 +152,11 @@ def stream_video_args(fps, max_bps, fast, keys=()):
 
 
 def encode_title(title, info, disc, max_bps, out_path, work, fast=False, on_progress=None,
-                 probes=None, sups=()):
+                 probes=None, sups=(), popup=None):
     """Encode one title to a Blu-ray transport stream (.m2ts); `sups` are its
-    subtitle tracks as PGS streams (pgs.write_sup), muxed in as they are."""
+    subtitle tracks as PGS streams (pgs.write_sup), muxed in as they are;
+    `popup` its pop-up menu as an IG stream (bdmenu.popup_stream; the caller
+    marks it Interactive Graphics in the PMT, bdmenu.patch_ig_stream_type)."""
     if not info.get("has_video"):
         raise OncemoreError(f"title {title.id!r}: {title.source} has no video stream")
     duration = info["duration"]
@@ -198,7 +200,12 @@ def encode_title(title, info, disc, max_bps, out_path, work, fast=False, on_prog
         inputs = inputs + ["-i", sup]
         maps = maps + ["-map", f"{n_inputs + k}:s:0"]
         pids += ["-streamid", f"{1 + tracks + k}:{PG_PID + k}"]
-    if sups:
+    if popup:
+        n = inputs.count("-i")
+        inputs = inputs + ["-f", "sup", "-i", popup]
+        maps = maps + ["-map", f"{n}:0"]
+        pids += ["-streamid", f"{1 + tracks + len(sups)}:{IG_PID}"]
+    if sups or popup:
         acodec += ["-c:s", "copy"]
     encode.run_ffmpeg(inputs + maps + video_args(title, disc, max_bps, fast) + acodec + pids +
                       ["-t", f"{duration:.3f}", "-f", "mpegts", "-mpegts_m2ts_mode", "1",
@@ -394,6 +401,11 @@ def if_equal(reg, value):
 def if_not_equal(reg, value):
     """Compare: the next command runs only if general register `reg` != value."""
     return _cmd(0x48, 0x40, reg, value, b2=0x03)
+
+
+def popup_off():
+    """Pop-up Off: close the pop-up menu."""
+    return _cmd(0x11, 0x00, b3=0x07)
 
 
 def resume():
@@ -755,10 +767,11 @@ def _write(out_dir, rel, data):
             f.write(data)
 
 
-def write_bdmv(project, clips, out_dir, menus=None):
+def write_bdmv(project, clips, out_dir, menus=None, popups=()):
     """Write the BDMV folder. clips: {title id: encoded .m2ts}; menus:
-    {menu id: {"m2ts", "still", "loop_point"}} (bdmenu.encode_menu). The
-    streams are moved into BDMV/STREAM."""
+    {menu id: {"m2ts", "still", "loop_point"}} (bdmenu.encode_menu); popups:
+    the ids of the titles whose clip carries a pop-up menu. The streams are
+    moved into BDMV/STREAM."""
     menus = menus or {}
     for d in DIRS:
         os.makedirs(os.path.join(out_dir, d), exist_ok=True)
@@ -770,9 +783,9 @@ def write_bdmv(project, clips, out_dir, menus=None):
         audio = audio_streams(t)
         pg = [lang3(sub.lang) for sub in t.subtitles]
         pieces[t.id] = Piece(name, video_format, frame_rate, audio, pg,
-                             chapter_marks(t, scan), scan.end_pts // 2)
+                             chapter_marks(t, scan), scan.end_pts // 2, ig=t.id in popups)
         _write(out_dir, os.path.join("CLIPINF", f"{name}.clpi"),
-               clpi(scan, video_format, frame_rate, audio, pg))
+               clpi(scan, video_format, frame_rate, audio, pg, ig=t.id in popups))
         dest = os.path.join(out_dir, "BDMV", "STREAM", f"{name}.m2ts")
         if os.path.abspath(clips[t.id]) != os.path.abspath(dest):
             shutil.move(clips[t.id], dest)

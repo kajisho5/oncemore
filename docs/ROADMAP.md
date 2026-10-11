@@ -228,6 +228,10 @@ browser) and lands only with green CI.
 - [x] Dissolves, fades through black / white, wipes, slides, circles, radial,
   pixelate, random; per picture, mixed with cuts
 
+**P42 — Blu-ray pop-up menus** (done)
+- [x] A title's Menu-key menu is its pop-up menu on Blu-ray, shown over
+  the picture with the Pop-up key
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 
@@ -288,7 +292,7 @@ below.
 
 Menu-less BDMV with titles, chapters and playlists (P28) and its UDF 2.50
 image (P29), PGS subtitles (P30) and menus (P33), menu loop counts and
-overrides (P38): done. Next: pop-up menus (a menu over the playing title).
+overrides (P38), pop-up menus (P42): done.
 
 ## Later
 

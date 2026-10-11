@@ -12,6 +12,7 @@ import tempfile
 from . import author, bdmenu, bluray, clips, encode, iso, lpcmfix, pgs, slideshow, subtitles, tools, udf250
 from . import menu as menu_module
 from .errors import OncemoreError, ProjectError
+from .project import parse_action
 from .menu import (MenuBuilder, check_element_fonts, display_width, find_font, link_font,
                    menu_seconds, menu_text)
 
@@ -512,28 +513,43 @@ def build_bluray(project, out_dir, reporter, fast=False, keep_work=False, work=N
                   f"({project.disc.bluray_target})")
     cache = encode_cache_dir(project) if cache else None
     os.makedirs(os.path.join(work, "titles"), exist_ok=True)
+    nav = bluray.Nav(project) if project.menus else None
+    hd = bdmenu.hd_project(project, lambda path: plan["_probes"].get(path)
+                           or encode.probe(path)) if project.menus else None
+    popups = {}
+    for m_id in sorted({t.remote_menu for t in project.titles if t.remote_menu}):
+        # a title's Menu-key menu: its pop-up menu, over the picture
+        reporter.step("menu", f"Rendering pop-up menu '{m_id}'", item=m_id)
+
+        def popup_commands(b):
+            stays = parse_action(b.action)[0] in ("audio", "subtitle")
+            return nav.button(b) + ([bluray.popup_off()] if stays else [])
+        popups[m_id] = bdmenu.popup_stream(
+            hd, hd.menu(m_id), work, plan["font"], popup_commands,
+            bluray.FORMATS[project.disc.fps][1])
     clips = {}
     for t in project.titles:
         out = os.path.join(work, "titles", f"{t.id}.m2ts")
         sups = bluray_subtitles(project, t, plan, work, reporter) if t.subtitles else []
+        popup = popups.get(t.remote_menu)
         key = _cache_key("bluray-title", {
             "title": title_cache_key(project, t, infos[t.id], plan["max_bps"], fast),
-            "subtitles": [_digest(p) for p in sups]})
+            "subtitles": [_digest(p) for p in sups],
+            **({"popup": _digest(popup)} if popup else {})})
         if _cache_get(cache, key, out):
             reporter.step("encode", f"Title '{t.id}' unchanged (cached)", item=t.id)
         else:
             reporter.step("encode", f"Encoding title '{t.id}' in HD "
                           f"({infos[t.id]['duration']:.1f}s)", item=t.id)
             bluray.encode_title(t, infos[t.id], project.disc, plan["max_bps"], out, work,
-                                fast=fast, probes=plan["_probes"], sups=sups,
+                                fast=fast, probes=plan["_probes"], sups=sups, popup=popup,
                                 on_progress=lambda f, tid=t.id: reporter.progress("encode", f, tid))
+            if popup:
+                bdmenu.patch_ig_stream_type(out)
             _cache_put(cache, key, out)
         clips[t.id] = out
     menus = {}
     if project.menus:
-        nav = bluray.Nav(project)
-        hd = bdmenu.hd_project(project, lambda path: plan["_probes"].get(path)
-                               or encode.probe(path))
         for m in hd.menus:
             reporter.step("menu", f"Rendering menu '{m.id}' in HD", item=m.id)
             menus[m.id] = bdmenu.encode_menu(
@@ -544,7 +560,8 @@ def build_bluray(project, out_dir, reporter, fast=False, keep_work=False, work=N
         p = os.path.join(out_dir, sub)
         if os.path.isdir(p):
             shutil.rmtree(p)
-    disc = bluray.write_bdmv(project, clips, out_dir, menus)
+    disc = bluray.write_bdmv(project, clips, out_dir, menus,
+                             popups={t.id for t in project.titles if t.remote_menu})
     rom = copy_rom_files(project, out_dir)
     size = sum(os.path.getsize(os.path.join(r, f))
                for r, _, fs in os.walk(os.path.join(out_dir, "BDMV")) for f in fs)

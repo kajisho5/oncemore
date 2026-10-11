@@ -1008,3 +1008,24 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   number of pictures and the change's place, so a build (and its cache
   key) is the same every time.
 
+## 65. Blu-ray pop-up menus
+
+* The remote's Menu key has no per-title target on Blu-ray, but its
+  Pop-up key opens the pop-up menu carried in the playing clip. So a
+  title's `remote_menu` becomes its pop-up: an Interactive Graphics stream
+  with a pop-up composition (user interface model 1) muxed into the
+  title's clip, as libbluray reads it (ig_decode.c, graphics_controller.c).
+* The video under a pop-up is the title, so the buttons must carry their
+  own look: the menu is drawn on a transparent picture (no background;
+  shapes overlaid, as drawbox leaves the alpha alone), each button's area
+  of it is the normal state, and the same with the highlight shapes
+  painted over in the highlight / select colours are the selected and
+  activated states. drawtext and overlay blend onto transparent black, so
+  the colours are divided by alpha again first.
+* All objects share one palette of at most 255 colours: the channels are
+  cut to fewer bits until the colours fit (the rarest then go to their
+  nearest kept colour).
+* Only what lies inside the buttons' areas appears: IG objects belong to
+  buttons, and a non-button object covering the rest would overlap them.
+* Buttons that only change streams also close the pop-up (Pop-up Off).
+

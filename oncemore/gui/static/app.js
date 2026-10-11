@@ -15,7 +15,7 @@ const I18N = {
     auto: "Automatic", empty_project: "Create empty project", sample_project: "Create sample project",
     title_props: "Title", name: "Name", id: "ID", source: "Video file", audio: "Audio",
     codec: "Codec", bitrate: "Bitrate", language: "Language", end_action: "When it ends",
-    title_key: "Title / Top Menu key opens", menu_key: "Menu key opens", first_menu: "First menu",
+    title_key: "Title / Top Menu key opens", menu_key: "Menu key opens", menu_key_hint: "On a Blu-ray, a menu chosen here is this title's pop-up menu: the Pop-up key shows its buttons over the picture.", first_menu: "First menu",
     playback: "Playback", loop: "Plays", loop_forever: "Repeat forever", loop_n: "{n} time(s), then…",
     loop_point: "Repeat from (s)", buttons_at_loop: "Buttons appear at the loop point (the intro plays out)", fade_in: "Fade in from black (s)", menu_end: "After the last time", default_button: "Button highlighted first",
     remember_button: "Come back to the button used last", auto_activate: "Run on selection (no Enter needed)",
@@ -208,7 +208,7 @@ const I18N = {
     auto: "自動", empty_project: "空のプロジェクトを作成", sample_project: "サンプル付きで作成",
     title_props: "タイトル", name: "名前", id: "ID", source: "動画ファイル", audio: "音声",
     codec: "形式", bitrate: "ビットレート", language: "言語", end_action: "再生終了後",
-    title_key: "タイトル／トップメニューキーで開く", menu_key: "メニューキーで開く", first_menu: "最初のメニュー",
+    title_key: "タイトル／トップメニューキーで開く", menu_key: "メニューキーで開く", menu_key_hint: "Blu-ray では、ここで選んだメニューがこのタイトルのポップアップメニューになり、ポップアップキーで映像の上にボタンが表示されます。", first_menu: "最初のメニュー",
     playback: "再生", loop: "再生回数", loop_forever: "ずっと繰り返す", loop_n: "{n} 回再生して…",
     loop_point: "繰り返しの開始位置（秒）", buttons_at_loop: "ボタンを繰り返しの開始位置から表示（イントロは最後まで再生）", fade_in: "黒からのフェードイン（秒）", menu_end: "最後の再生のあと", default_button: "最初に選ばれるボタン",
     remember_button: "戻ってきたら前に使ったボタンを選ぶ", auto_activate: "選んだだけで実行（決定キー不要）",
@@ -1674,7 +1674,7 @@ function renderTitleInspector(el) {
     ${ti.slideshow || ti.clips ? "" : `<label class="field"><span></span><label><input type="checkbox" id="ti-copy" ${ti.transcode === false ? "checked" : ""}> ${t("no_transcode")}</label><div class="hint">${esc(t("no_transcode_hint"))}</div></label>`}
     ${ti.transcode === false ? "" : `<label class="field"><span>${t("scan")}</span>${selectHtml("scan", [["__none__", t("scan_auto")], ["progressive", t("scan_progressive")], ["interlaced", t("scan_interlaced")], ...(P().disc.standard === "NTSC" ? [["pulldown", t("scan_pulldown")], ["ivtc", t("scan_ivtc")]] : [])], ti.scan || "__none__")}<div class="hint">${esc(t("scan_hint"))}</div></label>`}
     <label class="field"><span>${t("end_action")} ${whipHtml("end_action")}</span>${selectHtml("end_action", [["__none__", t("auto")], ...ends], ti.end_action || "__none__")}</label>
-    <label class="field"><span>${t("menu_key")}</span>${selectHtml("remote_menu", [["__none__", t("first_menu")], ...allMenuIds().map((id) => [id, t("menu_item", { m: id })])], ti.remote_menu || "__none__")}</label>
+    <label class="field"><span>${t("menu_key")}</span>${selectHtml("remote_menu", [["__none__", t("first_menu")], ...allMenuIds().map((id) => [id, t("menu_item", { m: id })])], ti.remote_menu || "__none__")}<div class="hint">${esc(t("menu_key_hint"))}</div></label>
     <h3>${t("audio")}</h3>
     <div class="grid2">
       <label class="field"><span>${t("codec")}</span>${selectHtml("audio.codec", [["ac3", "AC-3"], ["lpcm", "LPCM"]], audio.codec || "ac3")}</label>

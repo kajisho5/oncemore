@@ -607,7 +607,9 @@ metadata file and its mirror):
   Blu-ray interactive menu: the same highlights in full colour, the same
   routing, links to titles, chapters, playlists, Play All and other menus,
   stream changes, Resume, end-action overrides and the remote's Top Menu
-  key. Still menus hold their picture; menus with motion or music repeat
+  key. A title's Menu-key menu (`remote_menu`) is its pop-up menu: the
+  remote's Pop-up key shows its buttons over the playing picture. Still
+  menus hold their picture; menus with motion or music repeat
   (from the loop point); with a loop count a menu plays that many times
   (a still one for its length each time) and then follows its end action;
 * `disc.bluray.target` (`BD25` or `BD50`) caps the video rate so the
@@ -712,8 +714,9 @@ to ignore it, and delete the folder to reclaim the space.
   DVDs and genisoimage keep the UDF volume descriptor, and hdiutil puts it
   elsewhere. The UDF and ISO 9660 volume names themselves are correct
   (checked by the tests); playback is unaffected.
-* On Blu-ray the Menu key during a title opens the top menu (no menu per
-  title); the build says so when a project sets one. 4:3 titles and menus are
+* A Blu-ray pop-up menu shows the menu's buttons (whatever lies inside each
+  button's area) over the picture; texts and pictures elsewhere on the menu
+  and its background are left out. 4:3 titles and menus are
   pillarboxed in the 16:9 HD frame. Burning a BD uses the same tools as a DVD; growisofs
   documents BD media, `hdiutil burn` with a BD writer has not been tried.
 * No copy protection (by design, permanently).

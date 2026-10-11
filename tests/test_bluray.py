@@ -170,6 +170,29 @@ class TestNavigationFiles(unittest.TestCase):
         at = data.index(b"00003M2TS") + 9 + 2 + 1 + 8 + 8 + 1
         self.assertEqual(data[at:at + 3], bytes([1, 0, 5]))      # still mode 1, 5 s
 
+    def test_popup_pictures(self):
+        from oncemore import bdmenu, png4
+        # colours as drawn over transparent black come back as they are
+        self.assertEqual(bdmenu.straight((128, 64, 0, 128)), (255, 128, 0, 128))
+        self.assertEqual(bdmenu.straight((10, 20, 30, 255)), (10, 20, 30, 255))
+        # 300 colours: fewer bits until at most 255, transparent stays 0
+        pics = [bytes(c for k in range(300) for c in (k % 256, k // 256 * 80, 7, 255)) + bytes(4)]
+        palette, out = bdmenu.quantize(pics)
+        self.assertLessEqual(len(palette), 255)
+        self.assertEqual(out[0][-1], 0)
+        self.assertTrue(all(out[0][:300]))
+        # a button's area as it is, and with the highlight painted over its shape
+        menu = type("M", (), {"highlight_color": "#FF0000", "select_color": "#00FF00"})
+        canvas = png4.Canvas(4, 2)
+        canvas.fill_rect(0, 0, 1, 1, 1)                  # the shape: the left half
+        look = bytes((255, 255, 255, 255)) * 8
+        geom = type("G", (), {"rect": (0, 0, 3, 1)})
+        (normal, selected, activated), = bdmenu.popup_states(menu, [geom], canvas, look)
+        self.assertEqual(normal, look)
+        self.assertEqual(selected[:4], bytes((255, 0, 0, 255)))
+        self.assertEqual(selected[8:12], bytes((255, 255, 255, 255)))
+        self.assertEqual(activated[:4], bytes((0, 255, 0, 255)))
+
     def test_links_to_a_button(self):
         p = project(menus=[
             {"id": "m", "default_button": "c", "buttons": [
@@ -639,6 +662,79 @@ class TestBlurayLoopsAndOverrides(unittest.TestCase):
                                   ("key", "enter"), ("title", 1), ("title", 2), ("title", 4),
                                   ("key", "down"), ("key", "enter"), ("title", 1),
                                   ("title", 4)])
+
+
+
+@unittest.skipUnless(ffmpeg_has_x264() and LIBBLURAY, "needs ffmpeg with libx264 and libbluray")
+class TestBlurayPopup(unittest.TestCase):
+    """A title's Menu-key menu as its pop-up menu: opened with the Pop-up
+    key while the title plays, its buttons drawn over the picture and
+    working there."""
+
+    @classmethod
+    def setUpClass(cls):
+        from oncemore.tools import has_drawtext
+        if not has_drawtext():
+            raise unittest.SkipTest("ffmpeg without drawtext")
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-bdpopup-")
+        d = cls.tmp
+        for name, seconds in (("a.mp4", 8), ("b.mp4", 2)):
+            subprocess.run(["ffmpeg", "-hide_banner", "-v", "error", "-y",
+                            "-f", "lavfi", "-i", f"testsrc2=size=640x360:rate=30000/1001:duration={seconds}",
+                            "-f", "lavfi", "-i", f"sine=frequency=440:sample_rate=48000:duration={seconds}",
+                            "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", "-shortest",
+                            os.path.join(d, name)], check=True)
+        project = {
+            "version": 1,
+            "disc": {"label": "BD_POPUP", "standard": "NTSC", "aspect": "16:9",
+                     "first_play": "title:one"},
+            "titles": [{"id": "one", "source": "a.mp4", "chapters": [0, 4], "remote_menu": "pop"},
+                       {"id": "two", "source": "b.mp4"}],
+            "menus": [
+                {"id": "pop", "background_color": "#203040", "buttons": [
+                    {"id": "ch", "label": "CHAPTER 2", "x": 100, "y": 380,
+                     "action": "chapter:one:2"},
+                    {"id": "two", "label": "SECOND", "x": 400, "y": 380, "action": "title:two"}]}],
+        }
+        with open(os.path.join(d, "project.oncemore.json"), "w") as f:
+            json.dump(project, f)
+        cls.out = os.path.join(d, "out")
+        cls.rc, cls.stdout, cls.stderr = run_cli("--json", "build", d, "-o", cls.out,
+                                                 "--format", "bluray", "--fast")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def setUp(self):
+        self.assertEqual(self.rc, 0, self.stderr + self.stdout)
+
+    def test_popup_stream_in_the_title(self):
+        with open(os.path.join(self.out, "BDMV", "STREAM", "00001.m2ts"), "rb") as f:
+            data = f.read()
+        pids = {(data[i + 5] & 0x1F) << 8 | data[i + 6] for i in range(0, len(data), 192)}
+        self.assertIn(bluray.IG_PID, pids)
+        self.assertIn(bytes([0x91, 0xF4, 0x00]), data)          # Interactive Graphics
+        self.assertNotIn("Menu key", self.stdout)               # (no Blu-ray warning left)
+
+    def test_popup_opens_and_its_buttons_work(self):
+        with bluray_sim.Disc(LIBBLURAY, self.out) as disc:
+            disc.info()
+            events = [e for e in disc.play(keys=("live:popup", "live:right", "live:enter"))
+                      if e[0] in ("title", "key", "menu") and e[1] != 0xFFFF]
+        keys = [e for e in events if e[0] in ("title", "key")]
+        # title one, the pop-up opened over it, SECOND chosen: title two
+        self.assertEqual(keys[:5], [("title", 1), ("key", "live:popup"), ("key", "live:right"),
+                                    ("key", "live:enter"), ("title", 2)])
+        drawn = [d for e in events if e[0] == "menu" for d in e[1]]
+        # both buttons drawn where the menu has them (x 100 and 400 of 720 -> HD)
+        xs = sorted(d[1] for d in drawn if d[0] == "draw")
+        self.assertTrue(any(250 < x < 280 for x in xs), drawn)
+        self.assertTrue(any(1050 < x < 1080 for x in xs), drawn)
+        # a button not selected shows its white label over the picture (not a box)
+        white = [d for d in drawn if d[5] and d[5][0] > 220 and abs(d[5][1] - 128) < 8
+                 and abs(d[5][2] - 128) < 8]
+        self.assertTrue(white, drawn)
 
 
 if __name__ == "__main__":
