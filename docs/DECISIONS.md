@@ -943,3 +943,18 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
 * In the app, a link whose button is deleted or made into text falls back
   to opening its menu as usual.
 
+## 60. End actions to chapters, playlists and play all
+
+* A title's <post> can jump to a chapter of a title in its own titleset
+  (`jump title K chapter N`), but not of another titleset: there the target
+  gets a route number in g1 (2000 + its place in `end_chapters`) and the
+  VMGM title menu, which can jump anywhere, takes it, like the playlist
+  route (1000). That needs the VMGM menu, so a disc with several titlesets
+  and no menu cannot have such end actions (reported).
+* A playlist from an end action starts like one from a button (state and
+  end-chapter registers, play all off) and jumps to its first item, through
+  the playlist route when that item is in another titleset. Play all sets
+  its flag and jumps to the first title.
+* On Blu-ray every chapter any action names (not only buttons') gets its
+  own movie object; that also covers a menu's end action to a chapter.
+

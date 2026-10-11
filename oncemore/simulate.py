@@ -197,6 +197,13 @@ class Simulator:
             self.via_root(s, s["last_menu"] or key or self.root().id)
         elif kind == "title":
             self.play(s, target)
+        elif kind == "chapter":
+            self.play(s, target, num)
+        elif kind == "playlist":
+            self.playlist_start(s, target)
+        elif kind == "playall":
+            s["playall"] = 1
+            self.play(s, self.p.titles[0].id)
         else:
             self.stop(s)
 

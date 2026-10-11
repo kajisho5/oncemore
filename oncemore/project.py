@@ -484,10 +484,7 @@ class Project:
 
     @property
     def uses_playall(self):
-        actions = [self.disc.first_play, self.disc.title_key] + \
-            [b.action for m in self.menus for b in m.buttons] + \
-            [m.end_action for m in self.menus if m.loop is not None]
-        return "playall" in actions
+        return "playall" in self.actions()
 
     @property
     def overrides(self):
@@ -1159,6 +1156,10 @@ class _Builder:
                 self.err("menus", "a resume button needs one free player register, and "
                                   "this disc uses them all (fewer menus that remember "
                                   "their last button would free one)")
+            if project.titleset_count > 1 and not project.menus and author.end_chapters(project):
+                self.err("titles", "on a disc with several titlesets, an end action that goes "
+                                   "to a chapter needs a menu (its route goes through the "
+                                   "disc's title menu)")
             if project.entry_buttons and author.entry_reg(project) is None:
                 self.err("menus", "links to a menu button need one free player register, "
                                   "and this disc uses them all (fewer menus that remember "

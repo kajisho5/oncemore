@@ -575,11 +575,10 @@ class Nav:
         self.titles = titles
         self.numbers = {f"{k}:{i}" if i else k: n for n, (k, i, _) in enumerate(titles, 1)}
         chapters = []
-        for m in p.menus:
-            for b in m.buttons:
-                kind, tid, n = parse_action(b.action)
-                if kind == "chapter" and (tid, n) not in chapters:
-                    chapters.append((tid, n))
+        for a in p.actions():           # buttons, end actions, first play ...
+            kind, tid, n = parse_action(a)
+            if kind == "chapter" and (tid, n) not in chapters:
+                chapters.append((tid, n))
         self.first_play = len(titles)
         self.top_menu = len(titles) + 1
         self.chapter_objects = {key: len(titles) + 2 + k for k, key in enumerate(chapters)}

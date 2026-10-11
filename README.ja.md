@@ -310,7 +310,7 @@ oncemore doctor                                # 外部ツールの有無・バ�
 | `scan` | `auto` \| `progressive` \| `interlaced` \| `pulldown`（NTSC のフィルム）\| `ivtc`（NTSC：29.97i にテレシネ済みのフィルム。逆テレシネでフィルムのコマに戻し、ソフトプルダウンで収録）：映像の収録方式。「既知の制限」参照 | `auto` |
 | `video_bitrate` | このタイトル専用の映像ビットレート。残りを他のタイトルで分け合う | 共有 |
 | `audio.channels` | `2`（ステレオ。素材はダウンミックス）\| `6`（5.1ch、AC-3 のみ） | `2` |
-| `end_action` | `menu:<id>` \| `title:<id>` \| `lastmenu`（直前に表示したメニューへ戻る） \| `stop` | first_play のメニュー、無ければ `stop` |
+| `end_action` | `menu:<id>` \| `title:<id>` \| `chapter:<タイトルid>:<番号>` \| `playlist:<id>` \| `playall` \| `lastmenu`（直前に表示したメニューへ戻る） \| `stop` | first_play のメニュー、無ければ `stop` |
 | `remote_menu` | このタイトルの再生中にリモコンのメニューキーで開くメニュー | 最初のメニュー |
 | `aspect` | このタイトルの `4:3` \| `16:9` | `disc.aspect` |
 | `audio.lang` | 音声（1 トラック時）の ISO 639-1 言語コード | なし |
@@ -370,7 +370,7 @@ oncemore doctor                                # 外部ツールの有無・バ�
 `menu:<id>:<ボタンid>` と書くと、既定のボタンや前回のボタンではなく、そのボタンを選んだ状態でメニューが開きます。
 たとえば BACK ボタンで、来たときのボタンを選んだままメインメニューに戻したり、
 タイトルの終了時に「次の話」のボタンを選んだメインメニューに戻したりできます。
-`title:` / `chapter:` のボタンに `override`（`menu:<id>` \| `title:<id>` \| `stop`）を付けると、
+`title:` / `chapter:` のボタンに `override`（終了時アクションと同じ指定）を付けると、
 そのボタンから再生したときに限り、タイトルの終了時アクションを置き換えます。
 タイトル同士を連続再生でつなぎつつ、曲ごとのボタンからはメニューに戻る、といった構成ができます。
 ボタンの `audio`（1 始まり）と `subtitle`（1 始まり、`0` でオフ）は、リンク先へ移るのと同時に
@@ -407,7 +407,7 @@ oncemore doctor                                # 外部ツールの有無・バ�
 "playlists": [{
   "id": "best", "name": "名場面集",
   "items": ["t1:2", "t2:2-3", "t1"],   // チャプター 1 つ、チャプター範囲、タイトル全体
-  "end_action": "menu:main"            // menu:<id> | title:<id> | stop（既定）
+  "end_action": "menu:main"            // タイトルの終了時アクションと同じ。既定は stop
 }]
 ```
 

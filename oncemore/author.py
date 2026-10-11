@@ -75,6 +75,7 @@ LOOP_REG = "g4"
 STATE_REG = "g0"
 ITEM_END_REG = "g12"
 PLAYLIST_ROUTE = 1000   # g1 value: "continue the playlist" (VMGM, between titlesets)
+CHAPTER_ROUTE = 2000    # g1 value 2000 + k: "play end_chapters()[k]" (VMGM, between titlesets)
 
 
 def button_reg(menu):
@@ -328,12 +329,43 @@ def _end_command(project, action, ts):
         return f"{reg} call vmgm menu entry title;"
     if kind == "title":
         return f"jump {_title_ref(project, target, ts)};"
+    if kind == "chapter":
+        t = project.title(target)
+        if num == 1:
+            return f"jump {_title_ref(project, target, ts)};"
+        if t.titleset == ts:
+            return f"jump title {t.number} chapter {num};"
+        # (a title cannot jump to a chapter of another titleset: the VMGM can)
+        k = end_chapters(project).index((target, num))
+        return f"{NAV_REG} = {CHAPTER_ROUTE + k}; call vmgm menu entry title;"
+    if kind == "playlist":
+        state, _, _, item = next(x for x in playlist_states(project) if x[1].id == target)
+        flag = (f"{PLAYALL_REG} = 0; " if project.uses_playall else "") + _no_override(project)
+        go = flag + _item_start(project, state, item)
+        if project.title(item.title_id).titleset == ts:
+            return go + _item_jump(project, item, "title", ts)
+        return go + f"{NAV_REG} = {PLAYLIST_ROUTE}; call vmgm menu entry title;"
+    if kind == "playall":
+        return f"{PLAYALL_REG} = 1; jump {_title_ref(project, project.titles[0].id, ts)};"
     if kind == "lastmenu":
         reg = f"{NAV_REG} = {last_menu_reg(project)};"
         if ts == 1:
             return f"{reg} call menu entry root;"
         return f"{reg} call vmgm menu entry title;"
     return "exit;"
+
+
+def end_chapters(project):
+    """(title id, chapter) that title / playlist end actions and overrides
+    go to, in a fixed order (their VMGM routes)."""
+    ends = [t.end_action for t in project.titles] + [p.end_action for p in project.playlists] + \
+        project.overrides
+    out = []
+    for a in ends:
+        kind, tid, n = parse_action(a)
+        if kind == "chapter" and n > 1 and (tid, n) not in out:
+            out.append((tid, n))
+    return out
 
 
 def first_play_command(project):
@@ -374,6 +406,10 @@ def vmgm_title_command(project):
         go = " ".join(f"if ({STATE_REG} == {state}) {{ {_item_jump(project, it, 'vmgm')} }}"
                       for state, _, _, it in playlist_states(project))
         cmds.append(f"if ({NAV_REG} == {PLAYLIST_ROUTE}) {{ {NAV_REG} = 0; {go} }}")
+    for k, (tid, n) in enumerate(end_chapters(project) if project.titleset_count > 1 else []):
+        t = project.title(tid)
+        cmds.append(f"if ({NAV_REG} == {CHAPTER_ROUTE + k}) {{ {NAV_REG} = 0; "
+                    f"jump titleset {t.titleset} title {t.number} chapter {n}; }}")
     if project.uses_remote_menu:
         cmds.append(f"{MENUKEY_REG} = 0;")
     tk = project.disc.title_key
