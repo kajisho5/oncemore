@@ -4439,10 +4439,14 @@ async function folderBox(mode) {
   let cur = null, asked = 0;
   const show = async (path) => {
     const mine = ++asked;            // (only the folder asked for last is shown)
+    const typed = $("#fb-path").value;
     try {
       const r = await api("/api/dirs?" + new URLSearchParams(path ? { path } : {}));
       if (mine !== asked) return;
-      cur = r; $("#fb-path").value = r.path; $("#fb-err").textContent = "";
+      // (a path being typed stays: the folders shown are the old ones until it is entered)
+      const field = $("#fb-path");
+      cur = r; if (field.value === typed && document.activeElement !== field) field.value = r.path;
+      $("#fb-err").textContent = "";
       $("#fb-up").disabled = !r.parent; $("#fb-home").onclick = () => show(r.home);
       $("#fb-list").innerHTML = r.dirs.length ? r.dirs.map((d) => `<button class="fb-item ${d.project ? "is-project" : ""}" data-dir="${esc(d.name)}">${d.project ? "◉" : "▸"} ${esc(d.name)}</button>`).join("")
         : `<div class="hint">${esc(t("fb_empty"))}</div>`;

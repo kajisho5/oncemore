@@ -1452,6 +1452,37 @@ class TestGuiBrowser(unittest.TestCase):
             browser.close()
         self.assertEqual(errors, [])
 
+    def test_folder_chooser_keeps_a_typed_path(self):
+        """The first folders arriving after a path was typed leave the path alone."""
+        other = os.path.realpath(tempfile.mkdtemp(prefix="oncemore-other-"))
+        self.addCleanup(shutil.rmtree, other, True)
+        self.s.call("/api/new", "POST", {"sample": True})
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.locator(".stage .el.button").first.wait_for(timeout=120000)
+            held = []
+            page.route("**/api/dirs?*", lambda route: held.append(route) if not held else route.continue_())
+            page.evaluate("window.oncemoreCommand('open_project')")
+            while not held:
+                page.wait_for_timeout(50)
+            page.fill("#fb-path", other)
+            # the start folder's list arrives late, while the path is in the field
+            with page.expect_response("**/api/dirs?*"):
+                held[0].continue_()
+            page.wait_for_timeout(200)
+            self.assertEqual(page.input_value("#fb-path"), other)
+            page.locator("#fb-path").dispatch_event("change")
+            page.locator("#fb-list", has_text="No folders").wait_for()
+            # moving about from the list shows where you are again
+            page.click("#fb-up")
+            self.poll(lambda: page.input_value("#fb-path") == os.path.dirname(other))
+            browser.close()
+        self.assertEqual(errors, [])
+
     def test_job_picked_up_again(self):
         """A page opened while a transcode runs shows it, and its end."""
         self.s.call("/api/new", "POST", {"label": "again", "sample": True})
