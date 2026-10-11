@@ -232,6 +232,10 @@ browser) and lands only with green CI.
 - [x] A title's Menu-key menu is its pop-up menu on Blu-ray, shown over
   the picture with the Pop-up key
 
+**P43 — Slideshows advanced by hand** (done)
+- [x] `advance: manual`: every picture held until Next / Play, on DVD and
+  Blu-ray
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

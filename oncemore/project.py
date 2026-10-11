@@ -983,7 +983,19 @@ class _Builder:
                    if isinstance(spec.get("audio"), list)
                    else self.file(f"{where}.slideshow.audio", spec.get("audio"))),
             background_color=spec.get("background_color", "#000000"),
-            fit=spec.get("fit", "fit"), fit_to_audio=bool(spec.get("fit_to_audio")))
+            fit=spec.get("fit", "fit"), fit_to_audio=bool(spec.get("fit_to_audio")),
+            advance=spec.get("advance", "auto"))
+        if show.advance == "manual":
+            # each picture a moment of video, then a still on the disc; cuts only
+            if show.music:
+                self.err(f"{where}.slideshow.audio", "a slideshow advanced by hand has no music")
+            if spec.get("transition", "none") != "none" or any(
+                    s.get("transition", "none") != "none" for s in spec["slides"]):
+                self.err(f"{where}.slideshow.transition", "a slideshow advanced by hand "
+                                                          "changes pictures with cuts")
+            show.transition = "none"
+            for s in slides:
+                s.duration, s.transition = slideshow.MANUAL_SECONDS, None
         if show.fit_to_audio and not show.music:
             self.err(f"{where}.slideshow.fit_to_audio", "needs music (audio)")
         # (fitted to the music the durations are proportions; fit_to keeps each

@@ -494,6 +494,7 @@ end of its last chapter. Title, chapter and play-all buttons leave playlist mode
     "audio": "media/music.m4a",       // trimmed to the show and faded out; or a list,
                                       // played one after another
     "fit_to_audio": false,            // true: durations become proportions of the music's length
+    "advance": "auto",                // "manual": each picture held until Next / Play (cuts, no music)
     "background_color": "#000000"     // around pictures of another shape
   },
   "end_action": "menu:main"

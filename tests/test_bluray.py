@@ -170,6 +170,21 @@ class TestNavigationFiles(unittest.TestCase):
         at = data.index(b"00003M2TS") + 9 + 2 + 1 + 8 + 8 + 1
         self.assertEqual(data[at:at + 3], bytes([1, 0, 5]))      # still mode 1, 5 s
 
+    def test_slideshow_advanced_by_hand(self):
+        p = project(titles=[{"id": "one", "slideshow": {
+            "slides": [{"image": "a.png"}, {"image": "b.png"}, {"image": "c.png"}],
+            "advance": "manual"}}])
+        piece = bluray.Piece("00001", 6, 1, [], [], [0, 45000, 90000], 135000,
+                             hold=bool(p.titles[0].slideshow.advance == "manual"))
+        items, marks = bluray.playlist_items(p, "title", "one", {"one": piece})
+        # one item per picture, each held at its end until the viewer goes on
+        self.assertEqual([(i[1], i[2], i[-1]) for i in items],
+                         [(0, 45000, 2), (45000, 90000, 2), (90000, 135000, 2)])
+        self.assertEqual(marks, [(0, 0), (1, 45000), (2, 90000)])
+        from oncemore import author
+        x = author.title_vob(p, p.titles[0], "one.mpg")
+        self.assertEqual(x.count('pause="inf"'), 3)
+
     def test_popup_pictures(self):
         from oncemore import bdmenu, png4
         # colours as drawn over transparent black come back as they are

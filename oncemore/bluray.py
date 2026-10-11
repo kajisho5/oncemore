@@ -572,6 +572,7 @@ class Piece:
     marks: list           # chapter starts, 45 kHz on the clip's time line
     end: int              # end of the clip, 45 kHz
     ig: bool = False      # a menu: the clip carries its buttons
+    hold: bool = False    # every chapter its own item held as a still (manual slideshow)
     still: object = 0     # 2: hold the last picture (a still menu); (1, s): for s seconds
 
     def item(self, first=1, last=None):
@@ -737,9 +738,21 @@ def playlist_items(project, kind, ident, pieces):
         parts = [(pieces[f"menu:{ident}"], 1, None)]
     else:
         parts = [(pieces[t.id], 1, None) for t in project.titles]
+    if any(piece.hold for piece, _, _ in parts):
+        # (a slideshow advanced by hand: one item per picture, each held)
+        split = []
+        for piece, first, last in parts:
+            if piece.hold:
+                last = last or len(piece.marks)
+                split += [(piece, k, k) for k in range(first, last + 1)]
+            else:
+                split.append((piece, first, last))
+        parts = split
     items, marks = [], []
     for k, (piece, first, last) in enumerate(parts):
         item = piece.item(first, last)
+        if piece.hold:
+            item = item[:-1] + (2,)
         items.append(item)
         marks += [(k, m) for m in piece.marks if item[1] <= m < item[2]]
     return items, marks
@@ -783,7 +796,8 @@ def write_bdmv(project, clips, out_dir, menus=None, popups=()):
         audio = audio_streams(t)
         pg = [lang3(sub.lang) for sub in t.subtitles]
         pieces[t.id] = Piece(name, video_format, frame_rate, audio, pg,
-                             chapter_marks(t, scan), scan.end_pts // 2, ig=t.id in popups)
+                             chapter_marks(t, scan), scan.end_pts // 2, ig=t.id in popups,
+                             hold=bool(t.slideshow and t.slideshow.advance == "manual"))
         _write(out_dir, os.path.join("CLIPINF", f"{name}.clpi"),
                clpi(scan, video_format, frame_rate, audio, pg, ig=t.id in popups))
         dest = os.path.join(out_dir, "BDMV", "STREAM", f"{name}.m2ts")

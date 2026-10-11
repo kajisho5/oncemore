@@ -1089,6 +1089,16 @@ class TestGuiBrowser(unittest.TestCase):
             page.click("[data-rmmusic='1']")
             self.poll(lambda: self.project()["titles"][-1]["slideshow"].get("audio") ==
                       "media/song1.wav")
+            # advanced by hand: timing, transitions and music go
+            page.check("#ss-manual")
+            self.poll(lambda: self.project()["titles"][-1]["slideshow"].get("advance") == "manual")
+            self.wait_saved(page)
+            sh = self.project()["titles"][-1]["slideshow"]
+            self.assertEqual(sh, {"slides": [{"image": "media/menu_bg.png"},
+                                             {"image": "media/menu_bg.png", "fit": "fit"}],
+                                  "fit": "fill", "advance": "manual"})
+            self.assertTrue(self.s.app.check(self.project())["valid"])
+            self.assertTrue(page.locator("#ss-tr").is_hidden())
             # subtitles: a new track, two cues typed in, one removed
             page.click(".nav-item[data-view=title][data-id=t1]")
             page.click("#sub-new")
