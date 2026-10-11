@@ -245,6 +245,12 @@ browser) and lands only with green CI.
   its link (menu, title, chapter, playlist, play all), on DVD and Blu-ray;
   drawn in the flowchart, played in the simulator
 
+**P51 — AI assistants (MCP)** (done)
+- [x] `oncemore mcp`: an MCP server over stdio (revision 2026-07-28 and the
+  earlier initialize-based ones) whose tools create, read and change
+  projects, bring media in, validate, render menus, simulate the remote and
+  build in the background; only inside allowed folders
+
 **P49 — Remote keys turned off (user operations)** (done)
 - [x] `prohibit` on a title or a menu: next / previous chapter, fast forward,
   rewind, pause, stop, the number keys, the Menu and Title keys, audio and

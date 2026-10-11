@@ -263,6 +263,11 @@ def cmd_gui(args, rep):
     return serve(path, port=args.port, open_browser=not args.no_browser, reporter=rep)
 
 
+def cmd_mcp(args, rep):
+    from .mcp import serve
+    return serve(args.root)
+
+
 def make_parser():
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
@@ -375,6 +380,13 @@ def make_parser():
 
     s = sub.add_parser("doctor", parents=[common], help="check external tools")
     s.set_defaults(func=cmd_doctor)
+
+    s = sub.add_parser("mcp", parents=[common],
+                       help="serve oncemore's tools to AI assistants (MCP over stdio)")
+    s.add_argument("--root", action="append", metavar="DIR",
+                   help="a folder the assistant may use, with everything in it (repeat for "
+                        "several; default: your home folder)")
+    s.set_defaults(func=cmd_mcp)
     return p
 
 
