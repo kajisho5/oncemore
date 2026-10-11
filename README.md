@@ -277,6 +277,7 @@ oncemore validate <project> [--no-media]       # schema + references + media + s
 oncemore build <project> -o out/               # writes out/VIDEO_TS (and out/AUDIO_TS)
 oncemore build <project> -o out/ --format bluray  # writes out/BDMV (Blu-ray, HD)
 oncemore iso <project> -o bd.iso --format bluray   # a Blu-ray image (UDF 2.50, built-in writer)
+oncemore build <project> -o web/ --format web     # the disc for browsers: web/index.html
 oncemore iso <project> -o out.iso [--iso-tool auto|builtin|hdiutil|genisoimage|mkisofs|xorriso]
 oncemore preview-menu <project> --menu main -o main.png [--button id] [--state highlight|select|normal] [--outline]
 oncemore simulate <project> --keys down,enter,menu   # press remote keys, no encoding
@@ -704,6 +705,27 @@ Kodi play Blu-ray with: titles, lengths, chapters, streams, first play
 through the title end actions, and menus driven with the remote's keys
 (which button lights up in which colour, where each key goes); images are
 also read file by file with libudfread.
+
+### The web version
+
+The same project also builds as a folder a browser plays as the disc:
+`oncemore build <project> -o web/ --format web`, or Format: Web (HTML5) in
+the app's Build panel (File > Build > Web (HTML5)…). Open `index.html` from
+the folder, or put the folder on any web server; nothing else is needed.
+
+* the menus as on the disc: their pictures (a video for a motion menu or a
+  menu with sound), the buttons where they are, with their highlights;
+  arrow keys and Enter, the mouse, and the number keys;
+* every title as an MP4 (H.264, 720 lines, square pixels; its first sound
+  track in AAC), with its chapters and its subtitles as WebVTT;
+* the disc's links: buttons, end actions, Play All, playlists, the Menu
+  (M) and Title (T) keys, resume, last menu, menu time-outs, link
+  transitions; PageUp / PageDown change chapters. The player follows the
+  same rules as the disc simulator, and the tests press the same keys in
+  both and compare where they land.
+
+A browser plays one sound track (the first) and draws subtitles as text:
+picture subtitles are left out.
 
 ## How it works
 

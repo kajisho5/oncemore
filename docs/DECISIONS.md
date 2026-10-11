@@ -1353,3 +1353,27 @@ written that fails before the fix, and then the fix:
   the limit stops the build with the count.
 * The app imports a script and its pictures together (several files): they
   land side by side in media/, which is what the script's names need.
+
+## 79. The web version
+
+* Authoring apps used to export the disc for the web as well. oncemore's is
+  a static folder: `index.html`, a small player (`oncemore/webplayer/`,
+  copied as it is) and `disc.js` with what the player needs to know. A
+  script file rather than JSON so that `index.html` works opened from the
+  folder (browsers do not fetch files from a file:// page).
+* The menus are drawn by the same code as the disc's (MenuBuilder): the
+  first frame scaled to square pixels, and the buttons' highlight shapes
+  for all buttons on one transparent picture that the player clips to the
+  selected button. A motion menu, or a still menu with sound, is an MP4 of
+  one loop; the player loops it from the loop point and counts the loops.
+* The titles are encoded with the Blu-ray path's inputs (clips, slideshows,
+  music titles) into H.264 / AAC MP4 at 720 lines: what every current
+  browser plays. Browsers switch sound tracks inconsistently, so only the
+  first goes in, and DVD subpicture colours have no web counterpart, so
+  subtitles are WebVTT text (picture subtitles are left out, with a
+  warning).
+* The player follows the rules of simulate.py (itself checked against
+  libdvdnav on built discs), in JavaScript. The test builds a disc with a
+  playlist, a transition and subtitles and presses the same seventeen keys
+  in the simulator and in the player in a browser, comparing the domain,
+  menu, button, title and chapter after each.

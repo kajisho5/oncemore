@@ -54,7 +54,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 
 from .. import (__version__, build, burn, clips, encode, graph, png4, scaffold, simulate, slideshow,
-               subtitles, templates, tools, usertemplates)
+               subtitles, templates, tools, usertemplates, web)
 from ..errors import OncemoreError, ProjectError
 from ..project import (PROJECT_FILENAME, build_project, clip_starts, parse_time, read_json,
                        source_at)
@@ -427,6 +427,9 @@ class App:
     def start_build(self, kind, fast, cache=True, device=None, fmt="dvd"):
         def work(project, rep):
             outdir = os.path.join(self.dir, "output")
+            if fmt == "web":
+                return web.build_web(project, os.path.join(outdir, f"{project.disc.label}_web"),
+                                     rep, fast=fast)
             if fmt == "bluray" and kind == "folder":
                 return build.build_bluray(project, os.path.join(outdir, f"{project.disc.label}_BD"),
                                           rep, fast=fast, cache=cache)
@@ -1029,8 +1032,10 @@ class Handler(BaseHTTPRequestHandler):
         if kind not in ("iso", "folder", "disc"):
             raise ValueError("kind must be iso, folder or disc")
         fmt = body.get("format", "dvd")
-        if fmt not in ("dvd", "bluray"):
-            raise ValueError("format must be dvd or bluray")
+        if fmt not in ("dvd", "bluray", "web"):
+            raise ValueError("format must be dvd, bluray or web")
+        if fmt == "web":
+            kind = "folder"
         device = body.get("device") or None
         if device is not None and not isinstance(device, str):
             raise ValueError("device must be a string")

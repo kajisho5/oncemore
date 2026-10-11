@@ -353,6 +353,26 @@ class TestGuiApi(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(self.dir, "output", "SAMPLE_DISC.iso")))
 
     @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/dvdauthor/ISO tool")
+    def test_build_web(self):
+        """Build > Web (HTML5): a folder with index.html and the titles."""
+        self.s.call("/api/new", "POST", {"sample": True})
+        status, job = self.s.call("/api/build", "POST", {"format": "web", "kind": "iso",
+                                                         "fast": True})
+        self.assertEqual(status, 200, job)
+        for _ in range(600):
+            status, r = self.s.call(f"/api/jobs/{job['job']}")
+            if r["done"]:
+                break
+            time.sleep(0.5)
+        self.assertTrue(r["ok"], r["events"][-1:])
+        result = r["events"][-1]
+        self.assertEqual(result["event"], "result")
+        out = os.path.join(self.dir, "output", "SAMPLE_DISC_web")
+        self.assertEqual(result["index"], os.path.join(out, "index.html"))
+        for name in ("index.html", "disc.js", "titles/t1.mp4", "titles/t2.mp4", "menus/main.png"):
+            self.assertTrue(os.path.isfile(os.path.join(out, name)), name)
+
+    @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/dvdauthor/ISO tool")
     def test_playback_proxy(self):
         self.s.call("/api/new", "POST", {"sample": True})
         src = os.path.realpath(os.path.join(self.dir, "media", "sample_b.mp4"))  # macOS /var
@@ -1118,6 +1138,12 @@ class TestGuiBrowser(unittest.TestCase):
             page.locator("#sidebar #bformat").wait_for()
             self.assertEqual(page.input_value("#sidebar #bformat"), "bluray")
             self.assertTrue(page.is_checked("#sidebar input[name=kind][value=folder]"))
+            # ... and Web (HTML5)…: a folder only (no image or disc to choose)
+            page.click("#menubar > button:has-text('File')")
+            page.hover(".popup.from-bar button:has-text('Build')")
+            page.click(".popup.sub button:has-text('Web (HTML5)')")
+            page.wait_for_function("document.querySelector('#sidebar #bformat')?.value === 'web'")
+            self.assertEqual(page.locator("#sidebar input[name=kind]").count(), 0)
             # ticks for what is on
             page.evaluate("window.oncemoreCommand('win_project')")
             page.click(".nav-item[data-view=menu][data-id=main]")

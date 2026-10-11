@@ -245,6 +245,13 @@ browser) and lands only with green CI.
   its link (menu, title, chapter, playlist, play all), on DVD and Blu-ray;
   drawn in the flowchart, played in the simulator
 
+**P58 — Web version** (done)
+- [x] `build --format web` (and Build > Web in the app, `build` in MCP): a
+  folder a browser plays as the disc: the menus with their buttons and
+  highlights, the titles as MP4 with chapters and WebVTT subtitles, and a
+  player following the disc's links (checked key by key against the
+  simulator)
+
 **P57 — Image scripts** (done)
 - [x] Subtitles that are pictures: a text script whose text is a picture
   file (keyed or with transparency, frame-sized or smaller), in its own

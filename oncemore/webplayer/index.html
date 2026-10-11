@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Disc</title>
+<link rel="stylesheet" href="player.css">
+</head>
+<body>
+<main>
+  <div id="screen" tabindex="0" aria-label="Disc">
+    <div id="menu" hidden>
+      <img id="menu-image" alt="">
+      <video id="menu-video" playsinline></video>
+      <img id="menu-normal" alt="" hidden>
+      <img id="menu-highlight" alt="">
+      <div id="hotspots"></div>
+    </div>
+    <video id="title" playsinline controls></video>
+    <video id="transition" playsinline hidden></video>
+    <div id="stopped" hidden><button id="restart" type="button">▶</button></div>
+  </div>
+  <nav id="remote" aria-label="Remote">
+    <button type="button" data-key="title">Title</button>
+    <button type="button" data-key="menu">Menu</button>
+    <button type="button" data-key="prev" aria-label="Previous chapter">⏮</button>
+    <button type="button" data-key="next" aria-label="Next chapter">⏭</button>
+  </nav>
+</main>
+<script src="disc.js"></script>
+<script src="player.js"></script>
+</body>
+</html>
