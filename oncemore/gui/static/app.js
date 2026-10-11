@@ -34,6 +34,9 @@ const I18N = {
     paragraph: "Paragraph", para_align: "Lines", para_left: "Left", para_center: "Centre", para_right: "Right", line_spacing: "Line spacing", paragraph_hint: "Each line of the text is a line on the menu (Return starts a new one); X is the paragraph's left edge.",
     text_style: "Text style", font: "Font", disc_font: "Disc font", outline: "Outline", shadow: "Shadow",
     font_hint: "Add .ttf / .otf files to Media to use them here.",
+    bold: "Bold", italic: "Italic", letter_spacing: "Letter spacing", kerning: "Kerning",
+    faces_hint: "Bold and italic use those faces of the font's family: put their files next to the font (or install them). Letter spacing and kerning off draw the characters one by one.",
+    no_face: "This font's family has no such face",
     highlight_image: "Highlight picture", highlight_image_hint: "Optional: a picture whose opaque pixels light up when the button is selected.",
     new_menu: "New menu", blank_menu: "Blank", template_hint: "Start from a layout; everything stays editable.",
     motion_bg: "Motion background", animated_thumbs: "Thumbnails play the chapter",
@@ -303,6 +306,9 @@ const I18N = {
     paragraph: "段落", para_align: "行揃え", para_left: "左揃え", para_center: "中央揃え", para_right: "右揃え", line_spacing: "行間", paragraph_hint: "テキストの各行がメニューの 1 行になります（Return で改行）。X は段落の左端です。",
     text_style: "文字のスタイル", font: "フォント", disc_font: "ディスクのフォント", outline: "縁取り", shadow: "影",
     font_hint: ".ttf / .otf ファイルを素材に追加するとここで選べます。",
+    bold: "太字", italic: "斜体", letter_spacing: "文字間隔", kerning: "カーニング",
+    faces_hint: "太字・斜体には、同じフォントファミリーの太字・斜体のフォントを使います（フォントと同じ場所に置くか、インストールしてください）。文字間隔やカーニングを外したときは、1 文字ずつ描きます。",
+    no_face: "このフォントファミリーにはこの書体がありません",
     highlight_image: "ハイライト画像", highlight_image_hint: "任意：不透明な部分が選択時に光る画像。",
     new_menu: "新しいメニュー", blank_menu: "白紙", template_hint: "レイアウトから始められます。あとから全部編集できます。",
     motion_bg: "動く背景", animated_thumbs: "サムネイルでチャプターを再生",
@@ -2251,7 +2257,8 @@ function renderMenu(m) {
   if (menu.background_video) bg = `<img class="bg" src="${imgUrl("frame", { path: menu.background_video, t: 0, w: 960 })}" alt="">`;
   else if (menu.background) bg = `<img class="bg" src="${imgUrl("file", { path: menu.background })}" alt="">`;
   const defSize = menu.font_size || 32, defColor = menu.text_color || "#FFFFFF";
-  const styleOf = (x) => ({ font: x.font, outline: x.outline, outline_width: x.outline_width || 2, shadow: x.shadow, shadow_offset: x.shadow_offset || 3 });
+  const styleOf = (x) => ({ font: x.font, outline: x.outline, outline_width: x.outline_width || 2, shadow: x.shadow, shadow_offset: x.shadow_offset || 3,
+    bold: !!x.bold, italic: !!x.italic, tracking: x.letter_spacing || 0, kerning: x.kerning !== false });
   const els = [
     ...(menu.shapes || []).map((x, i) => ({ kind: "shape", i, x: x.x, y: x.y, w: x.w, h: x.h, color: x.color || "#00000080", ...turnOf(x) })),
     ...(menu.images || []).map((x, i) => ({ kind: "image", i, x: x.x, y: x.y, w: x.w, h: x.h, file: x.file, opacity: x.opacity ?? 1, ...turnOf(x) })),
@@ -2272,7 +2279,15 @@ function renderMenu(m) {
     if (e.kind === "shape") return st + `width:${e.w * sx * scale}px;height:${e.h * scale}px;background:${cssColor(e.color)}`;
     if (e.kind === "image") return st + `width:${e.w * sx * scale}px;height:${e.h * scale}px;opacity:${e.opacity}`;
     st += `font-size:${e.size * scale}px;color:${esc(e.kind === "button" && e.i === firstBtn ? (menu.highlight_color || "#FFD400") : e.color)};`;
-    if (e.font) st += `font-family:${fontFamily(e.font)},sans-serif;`;
+    const faced = (e.bold || e.italic) ? faceFile(e.font, e.bold, e.italic) : null;
+    if (faced) { loadFont(faced); st += `font-family:${fontFamily(faced)},sans-serif;`; }
+    else {
+      if (e.font) st += `font-family:${fontFamily(e.font)},sans-serif;`;
+      if (e.bold) st += "font-weight:bold;";
+      if (e.italic) st += "font-style:italic;";
+    }
+    if (e.tracking) st += `letter-spacing:${e.tracking * scale}px;`;
+    if (!e.kerning) st += "font-kerning:none;";
     if (e.align) st += `text-align:${e.align};`;
     if (e.ls) st += `line-height:calc(1em + ${e.ls * scale}px);`;
     const sh = [];
@@ -2789,7 +2804,31 @@ function duplicateElements(fromClipboard) {
 }
 // menu fonts in the editor: load the element's font file so the stage looks right
 const loadedFonts = new Set();
-const fontFamily = (path) => `"om-${path.replace(/[^A-Za-z0-9]/g, "_")}"`;
+// (single quotes: it goes into style="..." attributes)
+const fontFamily = (path) => `'om-${path.replace(/[^A-Za-z0-9]/g, "_")}'`;
+// the faces of a font's family (bold, italic): asked of the server once per font
+const fontFaceCache = new Map();
+function fontFaces(path) {
+  const key = path || "";
+  if (!fontFaceCache.has(key)) {
+    fontFaceCache.set(key, api("/api/font_faces" + (path ? "?path=" + encodeURIComponent(path) : ""))
+      .then((f) => { fontFaceCache.set(key, f); return f; })
+      .catch(() => { fontFaceCache.set(key, null); return null; }));
+  }
+  return Promise.resolve(fontFaceCache.get(key));
+}
+// the project file of a bold / italic face, once known (null: the browser makes one up);
+// the stage is drawn again when it turns out there is one
+function faceFile(path, bold, italic) {
+  const f = fontFaceCache.get(path || "");
+  if (f === undefined) {
+    fontFaces(path).then((got) => { if (got && Object.values(got.faces).some((x) => x.path) && S.sel.view === "menu") renderMain(); });
+    return null;
+  }
+  if (!f || typeof f.then === "function") return null;
+  const face = f.faces[bold && italic ? "bold_italic" : bold ? "bold" : "italic"];
+  return face && face.path;
+}
 function loadFont(path) {
   if (loadedFonts.has(path) || typeof FontFace === "undefined") return;
   loadedFonts.add(path);
@@ -2929,7 +2968,15 @@ function renderMenuInspector(el) {
           <span class="row"><input type="color" id="st-outline-c" value="${esc((it.outline || "#000000").slice(0, 7))}"><input type="number" id="st-outline-w" min="1" max="10" value="${it.outline_width || 2}" style="width:56px"></span></label>
         <label class="field"><span><input type="checkbox" id="st-shadow" ${it.shadow ? "checked" : ""}> ${t("shadow")}</span>
           <span class="row"><input type="color" id="st-shadow-c" value="${esc((it.shadow || "#000000").slice(0, 7))}"><input type="number" id="st-shadow-o" min="1" max="20" value="${it.shadow_offset || 3}" style="width:56px"></span></label>
-      </div>`}
+      </div>
+      <div class="grid2" data-nobind>
+        <label class="field"><span></span><span class="row">
+          <label><input type="checkbox" id="st-bold" ${it.bold ? "checked" : ""}> <b>${t("bold")}</b></label>
+          <label><input type="checkbox" id="st-italic" ${it.italic ? "checked" : ""}> <i>${t("italic")}</i></label></span></label>
+        <label class="field"><span>${t("letter_spacing")}</span><input type="number" id="st-tracking" min="-20" max="100" value="${it.letter_spacing || 0}"></label>
+      </div>
+      <label class="field" data-nobind><span></span><label><input type="checkbox" id="st-kerning" ${it.kerning === false ? "" : "checked"}> ${t("kerning")}</label></label>
+      <div class="hint">${esc(t("faces_hint"))}</div>`}
       ${sel.kind === "button" && /^(title|chapter):/.test(it.action || "") ? `<h3>${t("thumb_section")}</h3><div data-nobind>
         <label class="field"><span></span><label><input type="checkbox" id="th-on" ${it.thumbnail ? "checked" : ""}> ${t("thumb_on")}</label></label>
         ${it.thumbnail ? `<div class="grid2">${["x", "y", "w", "h"].map((k) =>
@@ -2988,6 +3035,23 @@ function renderMenuInspector(el) {
       }
     });
     el.querySelectorAll("#st-outline, #st-outline-c, #st-outline-w, #st-shadow, #st-shadow-c, #st-shadow-o").forEach((x) => (x.onchange = style));
+    // bold / italic (the faces the family has), letter spacing, kerning
+    const face = () => commit((p) => {
+      const o = (sel.kind === "button" ? find(p).buttons : find(p).texts)[sel.i];
+      for (const [k, id] of [["bold", "#st-bold"], ["italic", "#st-italic"]]) { if ($(id).checked) o[k] = true; else delete o[k]; }
+      const ls = Math.max(-20, Math.min(100, Math.round(Number($("#st-tracking").value) || 0)));
+      if (ls) o.letter_spacing = ls; else delete o.letter_spacing;
+      if ($("#st-kerning").checked) delete o.kerning; else o.kerning = false;
+    });
+    el.querySelectorAll("#st-bold, #st-italic, #st-tracking, #st-kerning").forEach((x) => (x.onchange = face));
+    if ($("#st-bold")) fontFaces(it.font).then((f) => {
+      for (const [k, id] of [["bold", "#st-bold"], ["italic", "#st-italic"]]) {
+        const box = $(id);
+        if (!box || !f) continue;
+        const has = f.faces[k] && (k !== "bold" || !it.italic || f.faces.bold_italic) && (k !== "italic" || !it.bold || f.faces.bold_italic);
+        if (!has && !box.checked) { box.disabled = true; box.parentElement.title = t("no_face"); }
+      }
+    });
     // picking an image: start at a width that keeps the whole picture on screen
     const imgSel = el.querySelector("select[data-k=image]");
     if (imgSel) imgSel.addEventListener("change", async () => {
@@ -3413,7 +3477,7 @@ async function renderLibrary() {
       for (const k of anyEl) {
         const it = mm[KIND_LIST[k.kind]][k.i];
         if (k.kind === "shape") { if (r.props.color) it.color = r.props.color; continue; }
-        for (const f of ["font", "size", "color", "outline", "outline_width", "shadow", "shadow_offset"]) delete it[f];
+        for (const f of ["font", "size", "color", "outline", "outline_width", "shadow", "shadow_offset", "bold", "italic", "letter_spacing", "kerning"]) delete it[f];
         Object.assign(it, r.props);
       }
     });

@@ -16,11 +16,12 @@ import json
 import os
 import shutil
 
-from . import usertemplates
+from . import fontfaces, usertemplates
 from .errors import OncemoreError
 
 # what a style carries (a shape uses its colour only)
-PROPS = ("font", "size", "color", "outline", "outline_width", "shadow", "shadow_offset")
+PROPS = ("font", "size", "color", "outline", "outline_width", "shadow", "shadow_offset",
+         "bold", "italic", "letter_spacing", "kerning")
 
 
 def library():
@@ -74,6 +75,14 @@ def save(props, name, project_dir):
         if full.startswith(project_dir + os.sep) and os.path.isfile(full):
             shutil.copy2(full, os.path.join(folder, "files", os.path.basename(full)))
             props["font"] = "files/" + os.path.basename(full)
+            # (and the bold or italic face it is drawn with, found next to it again)
+            if props.get("bold") or props.get("italic"):
+                try:
+                    face = fontfaces.face(full, bool(props.get("bold")), bool(props.get("italic")))
+                except (OSError, fontfaces.FontError):
+                    face = None
+                if face and face != full:
+                    shutil.copy2(face, os.path.join(folder, "files", os.path.basename(face)))
     with open(os.path.join(folder, "style.json"), "w", encoding="utf-8") as f:
         json.dump({"name": name, "props": props}, f, indent=2, ensure_ascii=False)
     return sid
@@ -104,6 +113,12 @@ def apply(sid, project_dir):
             if not os.path.exists(dst):
                 shutil.copy2(src, dst)
             props["font"] = "media/" + os.path.basename(dst)
+            # (its other faces go next to it, where the bold or italic one is looked for)
+            for other in sorted(os.listdir(os.path.join(folder, "files"))):
+                path = os.path.join(folder, "files", other)
+                there = os.path.join(media, other)
+                if other != os.path.basename(font) and not os.path.exists(there):
+                    shutil.copy2(path, there)
     return props
 
 

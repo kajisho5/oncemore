@@ -1597,3 +1597,33 @@ written that fails before the fix, and then the fix:
   chapter points at intervals does.
 * `oncemore scenes` lists them for a file; the editor's server has
   POST /api/scenes.
+
+## 90. Bold, italic, letter spacing and kerning
+
+* drawtext draws one font file. Bold and italic text is drawn with the bold
+  or italic face of the font's family, another file: oncemore reads the
+  family name and the weight and italic bits (the `name` and `OS/2` tables)
+  of the fonts next to the chosen one and of the family's installed fonts
+  (fontconfig), and picks the face. A family without that face is an error
+  at the media check that says which face is missing; the editor greys out
+  Bold or Italic for such a family. Making a face up (drawing over itself,
+  slanting) is left out: it never looks like the real one.
+* drawtext has no letter spacing, and kerns by itself. With letter spacing,
+  or kerning off, the characters are drawn one by one: each where the
+  font's advances put it (`hmtx`), plus its kerning pairs when kerning is on
+  (the `kern` feature of `GPOS`, PairPos formats 1 and 2, or a `kern`
+  table), plus the spacing. Every character sits on the baseline drawtext
+  gives the whole text: the first line's top at y, its baseline that line's
+  ascent below, and the lines a pitch apart, both read off two small
+  renders. So a text drawn one by one with no spacing lands where drawtext
+  draws it (the same box, tested). Characters drawn alone are not shaped
+  together: scripts that join their letters should keep spacing 0 and
+  kerning on.
+* Letter spacing is in pixels, like line spacing; Blu-ray menus scale both
+  with the text. A saved style carries the four, and the bold or italic
+  face file with its font.
+* The editor's stage loads the face file when it is in the project
+  (otherwise the browser makes one up) and uses CSS letter-spacing and
+  font-kerning. Font names in the stage's style attributes are now in single
+  quotes: in double quotes they cut the attribute short, and a text with its
+  own font lost its font, alignment and outline on the stage.

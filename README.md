@@ -166,10 +166,14 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   title; Timeline > Import chapter markers from the source reads them again
   (for titles made of clips, the markers inside each clip).
 * **My styles** (Library): save the look of a text, button or shape (font,
-  size, colour, outline, shadow) under a name, and give it to other objects
+  size, colour, outline, shadow, bold, italic, spacing) under a name, and give it to other objects
   in any project; the font is kept with the style.
 * **Paragraphs** (a text's Properties): text of several lines, lined up
   left, centred or right, with the space between the lines.
+* **Bold, italic, letter spacing and kerning** (a text's or button's
+  Properties): bold and italic use those faces of the font's family (offered
+  when the family has them); letter spacing spreads the characters out or
+  closes them up, and kerning can be switched off.
 * **Menus with pages** (Menu > Add new page): a menu's buttons spread over
   pages, turned with buttons to the next, previous or a given page; a
   heading or background shape can be on every page. Each page is a menu of
@@ -491,7 +495,10 @@ when there are more.
 
 Text style (texts and text buttons): `font` (a font file for this element; it
 must contain all its characters), `outline` + `outline_width`, `shadow` +
-`shadow_offset`. A button's `highlight_image` is a picture whose opaque pixels
+`shadow_offset`, `bold` and `italic` (the bold or italic face of the font's
+family: its file next to the font, or installed), `letter_spacing` (pixels
+added between the characters) and `kerning` (`false`: no kerning pairs).
+A button's `highlight_image` is a picture whose opaque pixels
 light up when it is selected, instead of the automatic highlight.
 A text can be a paragraph: its `text` holds several lines (newlines), `align`
 lines them up (`left`, `center`, `right`; `x` is the paragraph's left edge)

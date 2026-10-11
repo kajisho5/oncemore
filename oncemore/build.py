@@ -237,7 +237,7 @@ def inspect(project, reporter=None, prepare=True, bd=False):
                                         for cs in cues.values())
     if project.menus or cues:
         font = find_font(project.disc.font, text)
-    check_element_fonts(project)
+    check_element_fonts(project, font)
     if bd:
         # (a picture used as it is keeps its own rate)
         plan = bluray.plan([(infos[t.id]["duration"], t.audio_bps) +
