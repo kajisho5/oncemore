@@ -1695,8 +1695,10 @@ written that fails before the fix, and then the fix:
 * The angles must line up VOBU for VOBU, so each is encoded exactly as the
   title is: the same bitrate, frame rate, GOP grid and chapter key frames,
   the title's own sound tracks (so the sound does not jump when the picture
-  does), and cut to the title's length (`-t`); a shorter angle is refused at
-  validation. Subtitles are muxed into every angle's stream, so they stay
+  does), and cut to the title's length and to exactly as many pictures as
+  the title's stream has (`-t` alone cuts a frame more or less from one
+  ffmpeg version to the next, and vtskit refuses angles whose GOPs differ);
+  a shorter angle is refused at validation. Subtitles are muxed into every angle's stream, so they stay
   on when the angle changes.
 * Angles are DVD only (a Blu-ray build warns and leaves them out), and a
   title made of clips, a slideshow, or one whose picture is copied as it is
