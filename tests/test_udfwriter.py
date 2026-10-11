@@ -593,10 +593,10 @@ class TestIsoinfo(_TmpCase):
         self.assertEqual(out, b"fictional\n")
 
 
-TOOLS_OK = (have("ffmpeg", "ffprobe", "dvdauthor", "spumux") and tools.has_drawtext())
+TOOLS_OK = (have("ffmpeg", "ffprobe") and tools.has_drawtext())
 
 
-@unittest.skipUnless(TOOLS_OK, "needs ffmpeg (drawtext), ffprobe, dvdauthor and spumux")
+@unittest.skipUnless(TOOLS_OK, "needs ffmpeg (drawtext) and ffprobe")
 class TestSampleDisc(unittest.TestCase):
     """The sample project's real VIDEO_TS, written with the built-in writer."""
 

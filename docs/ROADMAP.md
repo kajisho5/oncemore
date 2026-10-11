@@ -444,8 +444,9 @@ against their published help, not from memory)
   command line and the MCP server, with one shared template
 - [ ] Web version for hosting: an app manifest and offline caching when
   it is served from a web site (opening the folder from disk works today)
-- [ ] Multi-angle titles, and DVD titlesets written by oncemore itself
-  instead of dvdauthor ([#75](https://github.com/kajisho5/oncemore/issues/75))
+- [x] DVD titlesets written by oncemore itself (vtskit) instead of dvdauthor
+  ([#75](https://github.com/kajisho5/oncemore/issues/75))
+- [ ] Multi-angle titles ([#75](https://github.com/kajisho5/oncemore/issues/75))
 
 **Not planned**
 
@@ -520,6 +521,5 @@ overrides (P38), pop-up menus (P42): done.
 
 ## Later
 
-* Replace dvdauthor with a built-in IFO/VOB writer ([#75](https://github.com/kajisho5/oncemore/issues/75)).
 * Built-in UDF 1.02 + ISO 9660 bridge writer, so no external ISO tool is
   needed on any platform (xorriso cannot write UDF; see DECISIONS.md).

@@ -180,8 +180,8 @@ class TestTools(McpCase):
         self.assertTrue(r["structuredContent"]["valid"])
 
 
-@unittest.skipUnless(have("ffmpeg", "ffprobe", "dvdauthor", "spumux") and tools.has_drawtext(),
-                     "needs ffmpeg with drawtext and dvdauthor")
+@unittest.skipUnless(have("ffmpeg", "ffprobe") and tools.has_drawtext(),
+                     "needs ffmpeg with drawtext")
 class TestBuild(McpCase):
     def test_build_in_the_background(self):
         import time

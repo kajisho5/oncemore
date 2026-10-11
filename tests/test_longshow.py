@@ -136,7 +136,7 @@ class TestRenderInPieces(unittest.TestCase):
         self.same("wipe", transition="random")
 
 
-DVD_OK = have("ffmpeg", "ffprobe", "dvdauthor", "spumux") and tools.has_drawtext()
+DVD_OK = have("ffmpeg", "ffprobe") and tools.has_drawtext()
 
 
 def x264():
@@ -148,7 +148,7 @@ def x264():
 
 
 @unittest.skipUnless(DVD_OK and x264() and LIBDVDNAV and LIBBLURAY,
-                     "needs ffmpeg (drawtext, libx264), dvdauthor, spumux, libdvdnav and "
+                     "needs ffmpeg (drawtext, libx264), libdvdnav and "
                      "libbluray")
 class TestDiscs(unittest.TestCase):
     """A slideshow of 120 short pictures: 99 chapters on the DVD, 120 on the

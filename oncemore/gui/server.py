@@ -607,8 +607,6 @@ class Handler(BaseHTTPRequestHandler):
             "project": data, "media": self.app.media(),
             "check": self.app.check(data) if data is not None else None,
             "tools": {"ffmpeg": bool(tools.find("ffmpeg")), "drawtext": dr,
-                      "dvdauthor": bool(tools.find("dvdauthor")),
-                      "spumux": bool(tools.find("spumux")),
                       "iso": tools.iso_tool()[0], "install": tools.install_hint()},
             "platform": sys.platform,
             # (a page opened again while a build runs picks it up)

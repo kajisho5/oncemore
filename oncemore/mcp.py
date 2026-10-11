@@ -369,7 +369,7 @@ class Server:
             return out
 
         @tool("doctor", "Check the tools",
-              "Which external tools oncemore finds (ffmpeg with drawtext, dvdauthor, spumux) "
+              "Which external tools oncemore finds (ffmpeg with drawtext, an ISO tool) "
               "and how to install what is missing.", _obj({}), readonly=True)
         def doctor(args):
             from .cli import cmd_doctor

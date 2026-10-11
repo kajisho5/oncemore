@@ -3,7 +3,6 @@
 oncemore never links against media libraries; it drives these programs:
 
   ffmpeg / ffprobe    encoding, menu rendering, probing
-  dvdauthor / spumux  DVD-Video structure and button subpictures
   ISO image          hdiutil (macOS built-in) / genisoimage / mkisofs, which write
                      the UDF file system DVD players need; xorriso as a last resort
 """
@@ -28,8 +27,6 @@ _FFMPEG_KEGS = (
 _ENV_OVERRIDE = {
     "ffmpeg": "ONCEMORE_FFMPEG",
     "ffprobe": "ONCEMORE_FFPROBE",
-    "dvdauthor": "ONCEMORE_DVDAUTHOR",
-    "spumux": "ONCEMORE_SPUMUX",
     "xorriso": "ONCEMORE_XORRISO",
     "genisoimage": "ONCEMORE_GENISOIMAGE",
     "mkisofs": "ONCEMORE_MKISOFS",
@@ -38,15 +35,13 @@ _ENV_OVERRIDE = {
 _VERSION_ARGS = {
     "ffmpeg": ["-hide_banner", "-version"],
     "ffprobe": ["-hide_banner", "-version"],
-    "dvdauthor": ["-h"],
-    "spumux": ["-h"],
     "xorriso": ["-version"],
     "genisoimage": ["-version"],
     "mkisofs": ["-version"],
     "hdiutil": None,
 }
 
-REQUIRED = ("ffmpeg", "ffprobe", "dvdauthor", "spumux")
+REQUIRED = ("ffmpeg", "ffprobe")
 # "builtin" is oncemore's own UDF + ISO 9660 writer (udfwriter.py), always
 # there; then the external UDF-capable tools; xorriso writes no UDF (iso.py)
 ISO_TOOLS = ("builtin", "hdiutil", "genisoimage", "mkisofs", "xorriso")
@@ -63,16 +58,14 @@ def is_macos():
 def install_hint(names=None):
     """Return a copy-pasteable install command for the current platform."""
     if is_macos():
-        pkgs = {"ffmpeg": "ffmpeg-full", "ffprobe": "ffmpeg-full", "dvdauthor": "dvdauthor",
-                "spumux": "dvdauthor", "xorriso": "xorriso", "drawtext": "ffmpeg-full",
-                "genisoimage": "cdrtools", "mkisofs": "cdrtools", "iso": None}
+        pkgs = {"ffmpeg": "ffmpeg-full", "ffprobe": "ffmpeg-full", "xorriso": "xorriso",
+                "drawtext": "ffmpeg-full", "genisoimage": "cdrtools", "mkisofs": "cdrtools", "iso": None}
         cmd = "brew install"
     else:
-        pkgs = {"ffmpeg": "ffmpeg", "ffprobe": "ffmpeg", "dvdauthor": "dvdauthor",
-                "spumux": "dvdauthor", "xorriso": "xorriso", "drawtext": "ffmpeg",
+        pkgs = {"ffmpeg": "ffmpeg", "ffprobe": "ffmpeg", "xorriso": "xorriso", "drawtext": "ffmpeg",
                 "genisoimage": "genisoimage", "mkisofs": "genisoimage", "iso": "genisoimage"}
         cmd = "sudo apt-get install -y"
-    wanted = names or ["ffmpeg", "dvdauthor", "iso"]
+    wanted = names or ["ffmpeg", "iso"]
     out = []
     for n in wanted:
         p = pkgs.get(n, n)

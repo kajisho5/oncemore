@@ -1004,7 +1004,7 @@ function renderStatus() {
   const issues = S.check?.issues || [];
   const tl = S.tools, miss = [];
   if (!tl.ffmpeg) miss.push("ffmpeg"); else if (tl.drawtext === false) miss.push("drawtext");
-  if (!tl.dvdauthor) miss.push("dvdauthor"); if (!tl.iso) miss.push("ISO");
+  if (!tl.iso) miss.push("ISO");
   bar.innerHTML = `<span class="${issues.length ? "err" : "ok"}" id="st-issues">${issues.length ? "⚠ " + t("issues", { n: issues.length }) : "✓ " + t("no_issues")}</span>
     ${miss.length ? `<span class="warn">${esc(t("tools_missing", { t: miss.join(", ") }))} — <span class="mono">${esc(tl.install || "")}</span></span>` : ""}
     ${S.transcoding ? `<span class="busy" id="st-transcode">${esc(S.transcoding.text)}</span>` : ""}
@@ -1298,7 +1298,7 @@ function renderInspector() {
 function renderToolsInfo(el) {
   el.insertAdjacentHTML("beforeend", `<h3>${t("tools")}</h3>
     <div class="hint">ffmpeg: ${S.tools.ffmpeg ? t("ok") : t("missing")}<br>drawtext: ${S.tools.drawtext ? t("ok") : t("missing")}<br>
-    dvdauthor: ${S.tools.dvdauthor ? t("ok") : t("missing")}<br>ISO: ${esc(S.tools.iso || t("missing"))}</div>
+    ISO: ${esc(S.tools.iso || t("missing"))}</div>
     <h3>oncemore</h3><div class="hint">${esc(t("disc_tips"))}</div>`);
 }
 

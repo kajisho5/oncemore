@@ -22,7 +22,7 @@ from oncemore.subtitles import Cue
 
 from .helpers import have, json_lines, run_cli
 
-DVD_OK = have("ffmpeg", "ffprobe", "dvdauthor", "spumux") and tools.has_drawtext() and \
+DVD_OK = have("ffmpeg", "ffprobe") and tools.has_drawtext() and \
     tools.iso_tool()[0] is not None
 
 
@@ -134,7 +134,7 @@ class TestStream(unittest.TestCase):
             self.assertLess(abs(b - want[1]), 0.7)
 
 
-@unittest.skipUnless(DVD_OK, "needs ffmpeg (drawtext), dvdauthor, spumux and an ISO tool")
+@unittest.skipUnless(DVD_OK, "needs ffmpeg (drawtext) and an ISO tool")
 class TestDisc(unittest.TestCase):
     """The sample disc: the first title captioned from SubRip, the second
     from a Scenarist file."""

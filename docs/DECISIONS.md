@@ -1597,3 +1597,40 @@ written that fails before the fix, and then the fix:
   chapter points at intervals does.
 * `oncemore scenes` lists them for a file; the editor's server has
   POST /api/scenes.
+
+## 90. VIDEO_TS is written by vtskit, not dvdauthor
+
+* The IFO files, the navigation packs, the menus' button subpictures and
+  highlight information and the titles' subtitle streams are written by
+  oncemore's copy of [vtskit](https://github.com/kajisho5/vtskit)
+  (`oncemore/_vendor/vtskit`, LGPL-3.0-or-later, by the same author), so
+  dvdauthor and spumux are no longer needed. vtskit writes what dvdauthor
+  wrote, byte for byte where it can be compared (its tests do), and plays
+  back the same under libdvdnav; it also writes what dvdauthor cannot
+  (angle blocks).
+* The navigation keeps dvdauthor's command language: `author.py` writes
+  the same texts as before (`g1 = 1; call menu entry root;`) and
+  `vtskit.lang` compiles them for the domain they run in, to the commands
+  dvdauthor compiled. The whole description is still put together as
+  dvdauthor's XML, kept in the work folder as `navigation.xml`: a readable
+  record nobody runs. Buttons of several commands, the pads for jumps into
+  another titleset's chapters (what dvdauthor called jumppads, built here
+  from `vtskit.lang.Disc.vmgm_pads` / `vts_pad`) and the default `exit`
+  of a menu without post commands all come out as dvdauthor's did.
+* `videots.py` turns the project into vtskit's titles and menus: the
+  menus' buttons from `menu.py`'s layout (areas, arrow keys, the shapes
+  that light up as the overlay), the colours converted to Y/Cr/Cb as
+  spumux converted them (alpha >> 4 is the contrast), the remote keys a
+  title or menu turns off and the menus' button offsets written straight
+  into the IFOs and navigation packs (no patching afterwards), a title's
+  stills and cell commands as before.
+* Subtitles: `subtitles.stream_xml` still renders each cue to a 4-colour
+  PNG and writes the stream's XML (the same record as before);
+  `mux_streams` reads them back and muxes them with `vtskit.subtitles`,
+  which places each unit where spumux did and writes the same bytes. The
+  title's 16-colour palette is gathered from the cues' PNGs in the order
+  the colours are first used and given to the title's program chain.
+* A menu's cached stream no longer carries its subpicture (vtskit adds it
+  when the disc is written), so the encode cache's version went to 2.
+* Still from the tools: ffmpeg/ffprobe, and an ISO tool if the built-in
+  writer is not wanted. libdvdnav stays a test-only dependency.

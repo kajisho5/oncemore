@@ -33,7 +33,7 @@ try:
 except Exception:  # pragma: no cover
     LIBBLURAY = None
 
-DVD_OK = have("ffmpeg", "ffprobe", "dvdauthor", "spumux") and tools.has_drawtext()
+DVD_OK = have("ffmpeg", "ffprobe") and tools.has_drawtext()
 
 
 def paged(menu):
@@ -169,7 +169,7 @@ def sample_disc(tmp):
     return path
 
 
-@unittest.skipUnless(DVD_OK and LIBDVDNAV, "needs ffmpeg (drawtext), dvdauthor, spumux "
+@unittest.skipUnless(DVD_OK and LIBDVDNAV, "needs ffmpeg (drawtext) "
                                            "and libdvdnav")
 class TestDvd(unittest.TestCase):
     @classmethod

@@ -1,6 +1,6 @@
 """End-to-end: oncemore init -> oncemore iso -> inspect the image.
 
-Needs ffmpeg (with drawtext), ffprobe, dvdauthor/spumux and an ISO tool.
+Needs ffmpeg (with drawtext), ffprobe and an ISO tool.
 The navigation checks additionally need libdvdnav (skipped otherwise).
 """
 
@@ -23,9 +23,9 @@ try:
 except Exception:  # pragma: no cover
     LIBDVDNAV = None
 
-TOOLS_OK = (have("ffmpeg", "ffprobe", "dvdauthor", "spumux") and tools.has_drawtext()
+TOOLS_OK = (have("ffmpeg", "ffprobe") and tools.has_drawtext()
             and tools.iso_tool()[0] is not None)
-SKIP_REASON = "needs ffmpeg (drawtext), ffprobe, dvdauthor, spumux and an ISO tool"
+SKIP_REASON = "needs ffmpeg (drawtext), ffprobe and an ISO tool"
 
 
 def make_transition_project(d):
@@ -293,13 +293,6 @@ class TestPalLpcmBuild(unittest.TestCase):
         self.assertIn("VTS_01_1.VOB", files)
         self.assertIn("disc.label normalised to 'SAMPLE_PAL_DISC'", self.result["warnings"])
 
-    def test_dvdauthor_reports_no_timing_problems(self):
-        """ffmpeg writes fixed LPCM frame counts; without lpcmfix dvdauthor
-        prints thousands of 'Audio pts ... moves backwards' warnings."""
-        with open(os.path.join(self.out, ".work", "logs", "dvdauthor.log")) as f:
-            warns = [l for l in f if l.startswith("WARN")]
-        self.assertEqual(warns, [])
-
     def test_pal_lpcm_streams(self):
         streams = ffprobe_streams(os.path.join(self.out, "VIDEO_TS", "VTS_01_1.VOB"))
         v = next(s for s in streams if s["codec_type"] == "video")
@@ -338,16 +331,32 @@ class TestPalLpcmBuild(unittest.TestCase):
     @unittest.skipUnless(have("spuunmux"), "spuunmux not installed")
     def test_menu_colour_set_on_disc(self):
         """The normal colour is the subpicture's display image; the colours'
-        alpha becomes the DVD contrast (16 levels)."""
+        alpha becomes the DVD contrast (16 levels). The colours themselves
+        are the menu's program chain palette in the IFO (normal, highlight,
+        selection) and the highlight information's colour table in the
+        navigation packs; spuunmux sees neither and draws the shapes black."""
         d = os.path.join(self.tmp, "spu")
         os.makedirs(d, exist_ok=True)
-        subprocess.run(["spuunmux", "-s", "0", os.path.join(self.out, ".work", "menus", "main.mpg")],
-                       cwd=d, capture_output=True, check=True, env={**os.environ, "VIDEO_FORMAT": "PAL"})
-        def colours(name):
-            return {p for p in read_rgba_png(os.path.join(d, name))[2] if p[3]}
-        self.assertEqual(colours("sub00000.png"), {(255, 255, 255, 0x60 // 16 * 17)})
-        self.assertEqual({p[3] for p in colours("sub00000h.png")}, {0xC0 // 16 * 17})
-        self.assertEqual({p[3] for p in colours("sub00000s.png")}, {255})
+        vob = os.path.join(self.out, "VIDEO_TS", "VTS_01_0.VOB")
+        # (the menu VOB: vtskit adds the subpicture when it writes the disc; the main menu is first)
+        subprocess.run(["spuunmux", "-s", "0", vob], cwd=d, capture_output=True, check=True,
+                       env={**os.environ, "VIDEO_FORMAT": "PAL"})
+        self.assertEqual({p[3] for p in read_rgba_png(os.path.join(d, "sub00000.png"))[2] if p[3]},
+                         {0x60 // 16 * 17})
+        with open(vob, "rb") as f:
+            nav = f.read(2048)
+        # the colour table: palette 1 at contrast 12 when selected, palette 2 opaque when activated
+        self.assertEqual(nav[0x2D + 0x60 + 0x16:0x2D + 0x60 + 0x1E].hex(), "001000c0002000f0")
+        with open(os.path.join(self.out, "VIDEO_TS", "VTS_01_0.IFO"), "rb") as f:
+            ifo = f.read()
+        ut = int.from_bytes(ifo[0xD0:0xD4], "big") * 2048                 # VTSM_PGCI_UT
+        lu = ut + int.from_bytes(ifo[ut + 12:ut + 16], "big")              # the first language unit
+        pgc = lu + int.from_bytes(ifo[lu + 12:lu + 16], "big")             # its first program chain
+        palette = [tuple(ifo[pgc + 0xA4 + 4 * k + 1:pgc + 0xA4 + 4 * k + 4]) for k in range(3)]
+        with open(self.project) as f:
+            select = json.load(f)["menus"][0]["select_color"]
+        from oncemore.videots import ycc
+        self.assertEqual(palette, [ycc("#FFFFFF")[:3], ycc("#FFD400")[:3], ycc(select)[:3]])
 
     def test_validate_reports_plan(self):
         rc, out, err = run_cli("--json", "validate", self.project)
@@ -1245,10 +1254,9 @@ class TestTurnedMenuObjects(unittest.TestCase):
     def test_button_areas(self):
         self.assertEqual(self.rc, 0, self.err + self.out)
         build_dir = json_lines(self.out)[-1]["build_dir"]
-        with open(os.path.join(build_dir, ".work", "menus", "main.spumux.xml")) as f:
-            xml = f.read()
-        x0, y0, x1, y1 = (int(v) for v in re.search(
-            r'name="play" x0="(\d+)" y0="(\d+)" x1="(\d+)" y1="(\d+)"', xml).groups())
+        with open(os.path.join(build_dir, ".work", "menus", "main.buttons.json")) as f:
+            buttons = json.load(f)["buttons"]
+        x0, y0, x1, y1 = next(b["rect"] for b in buttons if b["id"] == "play")
         self.assertGreater(y1 - y0, (x1 - x0) * 2)            # standing up
 
     @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
@@ -1369,8 +1377,7 @@ class TestNoTranscode(unittest.TestCase):
 
     def test_film_gets_its_pulldown(self):
         """23.976 MPEG-2 film copied as it is: on the disc it is 29.97 video
-        (soft pulldown flags, as an encode makes); without them dvdauthor
-        warns that it is not a DVD frame rate."""
+        (soft pulldown flags, as an encode makes)."""
         proj = os.path.join(self.tmp, "c")
         film = os.path.join(proj, "media", "film.mpg")
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
@@ -1391,14 +1398,6 @@ class TestNoTranscode(unittest.TestCase):
         mpg = os.path.join(build_dir, ".work", "titles", "t1.mpg")
         v = [s for s in ffprobe_streams(mpg) if s["codec_type"] == "video"][0]
         self.assertEqual(v["avg_frame_rate"], "30000/1001")
-        logs = ""
-        for root, _, files in os.walk(build_dir):
-            for name in files:
-                if name.endswith(".log"):
-                    with open(os.path.join(root, name), errors="replace") as f:
-                        logs += f.read()
-        self.assertIn("INFO: Video pts", logs)                   # (dvdauthor's log is read)
-        self.assertNotIn("not a valid DVD frame rate", logs)
 
 
 @unittest.skipUnless(TOOLS_OK, SKIP_REASON)

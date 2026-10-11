@@ -21,7 +21,7 @@ except Exception:  # pragma: no cover
     LIBDVDNAV = None
 
 FFMPEG = have("ffmpeg", "ffprobe")
-TOOLS_OK = (have("ffmpeg", "ffprobe", "dvdauthor", "spumux") and tools.has_drawtext()
+TOOLS_OK = (have("ffmpeg", "ffprobe") and tools.has_drawtext()
             and tools.iso_tool()[0] is not None)
 
 W, H = 720, 480
@@ -186,7 +186,7 @@ class TestImport(unittest.TestCase):
         self.assertIn("no layer group is named", notes[0]["message"])
 
 
-@unittest.skipUnless(TOOLS_OK, "needs ffmpeg (drawtext), dvdauthor, spumux and an ISO tool")
+@unittest.skipUnless(TOOLS_OK, "needs ffmpeg (drawtext) and an ISO tool")
 class TestImportedMenuOnDisc(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

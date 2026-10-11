@@ -31,7 +31,7 @@ try:
 except Exception:  # pragma: no cover
     LIBDVDNAV = None
 
-DVD_OK = have("ffmpeg", "ffprobe", "dvdauthor", "spumux") and tools.has_drawtext()
+DVD_OK = have("ffmpeg", "ffprobe") and tools.has_drawtext()
 
 
 class TestPick(unittest.TestCase):
@@ -103,7 +103,7 @@ def nav_pack_at(f, sector):
         b[38:42] == b"\x00\x00\x01\xbf"
 
 
-@unittest.skipUnless(DVD_OK, "needs ffmpeg (drawtext), dvdauthor and spumux")
+@unittest.skipUnless(DVD_OK, "needs ffmpeg (drawtext)")
 class TestImage(unittest.TestCase):
     """The sample disc as a DVD-9 image, its layer break at the second
     title (chapter 1)."""

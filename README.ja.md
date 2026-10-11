@@ -39,19 +39,18 @@ Intel ビルドのままです。一方、DVD-Video の必須コーデックは�
 
 ## インストール
 
-oncemore 本体は Python 3.11+ の標準ライブラリのみで動きます。外部プログラムを呼び出します：
+oncemore 本体は Python 3.11+ の標準ライブラリのみで動きます。DVD-Video の構造（IFO、ナビゲーションパック、ボタンと字幕のサブピクチャ）は同梱の [vtskit](https://github.com/kajisho5/vtskit) が書きます。外部プログラムを呼び出します：
 
 | プログラム | 用途 |
 |---|---|
 | `ffmpeg` / `ffprobe`（`drawtext` フィルタ入り） | MPEG-2/AC-3 エンコード、メニュー描画、解析 |
-| `dvdauthor` / `spumux` | DVD-Video 構造（IFO/VOB）、ボタンのハイライト |
 | *（不要）* — UDF + ISO 9660 のディスクイメージは oncemore 自身が書き出します。`hdiutil`・`genisoimage`・`mkisofs` を選ぶこともできます | ディスクイメージ |
 | *（任意）* `growisofs`（dvd+rw-tools。macOS は標準の `hdiutil` を使用） | DVD への書き込み |
 
 ### macOS（Homebrew）
 
 ```sh
-brew install ffmpeg-full dvdauthor
+brew install ffmpeg-full
 pip install git+https://github.com/kajisho5/oncemore
 oncemore doctor
 ```
@@ -66,7 +65,7 @@ oncemore doctor
 ### Debian / Ubuntu
 
 ```sh
-sudo apt-get install ffmpeg dvdauthor genisoimage
+sudo apt-get install ffmpeg genisoimage
 pip install git+https://github.com/kajisho5/oncemore
 oncemore doctor
 ```
@@ -85,7 +84,7 @@ oncemore doctor
 Python は同梱しているので、Homebrew で入れるのは映像ツールだけです：
 
 ```sh
-brew install ffmpeg-full dvdauthor
+brew install ffmpeg-full
 ```
 
 [Releases](https://github.com/kajisho5/oncemore/releases) ページ（または最新の CI 実行の成果物）から
@@ -575,7 +574,7 @@ DVD ではメニュー領域の独立したプログラムとして、Blu-ray �
   `hh:mm:ss:ff` はディスクの方式のフレーム数）。UTF-8 または Shift_JIS。トラックの `"offset"`（秒、`"HH:MM:SS"`、
   `"01;00;00;00"` のようなタイムコード）は各字幕の時間から引かれます。素材自身のタイムコードで作られたファイル用です。
   各字幕をメニューと同じフォントで（白文字＋縁取り、`disc.subtitle_style` で変更可）描き、
-  DVD の 4 色サブピクチャに減色して spumux で多重化します。時間が重なる字幕は前を短くします。
+  DVD の 4 色サブピクチャに減色して vtskit でタイトルに多重化します。時間が重なる字幕は前を短くします。
 * クローズドキャプション（`captions`）：キャプションデコーダー付きのテレビやプレーヤー向けの Line 21 キャプション
   （CEA-608、CC1）を、DVD の MPEG-2 映像（各 GOP ヘッダーのあとのユーザーデータ。DVD の方式）に書き込み、IFO にも記録します。
   Scenarist の `.scc` はバイト列をそのまま、字幕ファイル（上記のどの形式でも）はポップオン方式のキャプション
@@ -654,8 +653,8 @@ bd.iso --format bluray`、またはアプリのビルドパネルで「フォー
 
 ```
 素材 ─ffprobe─▶ ビットレート計画 ─ffmpeg（2パス MPEG-2 + AC-3/LPCM）─▶ titles/*.mpg
-メニュー JSON ─ffmpeg drawtext─▶ base.png ─▶ menu.mpg ─spumux（4色 PNG ハイライト）─▶ menu.mpg
-dvdauthor XML ─dvdauthor─▶ VIDEO_TS ─内蔵 UDF + ISO 9660 ライタ─▶ disc.iso
+メニュー JSON ─ffmpeg drawtext─▶ base.png ─▶ menu.mpg
+ナビゲーション（dvdauthor の命令言語）＋メニュー＋タイトル ─vtskit─▶ VIDEO_TS ─内蔵 UDF + ISO 9660 ライタ─▶ disc.iso
 ```
 
 * **ビットレート**：全タイトルの尺、音声ビットレート、メニュー分と 2% の余裕から算出し、
@@ -664,16 +663,16 @@ dvdauthor XML ─dvdauthor─▶ VIDEO_TS ─内蔵 UDF + ISO 9660 ライタ─�
   DAR は 4:3/16:9 のフラグ、色は BT.601。
 * **チャプター**はフレーム精度です。チャプター位置にキーフレームを強制し、その直前の GOP 長を
   計画して各チャプターが独立した VOBU から始まるようにしています（DVD は VOBU を 0.4 秒以上と
-  定めており、短い GOP は dvdauthor が併合してチャプターが最大 0.5 秒ほど前にずれるため）。
+  定めており、短い GOP は前の GOP と併合されてチャプターが最大 0.5 秒ほど前にずれるため）。
 * **メニュー**はすべて 1 つの titleset に置き、ボタンからはメニュー・タイトル・チャプターへ直接ジャンプします。
   タイトルからはその titleset のルートメニューしか呼べないため、別のメニューへ戻るときは
   GPRM `g1` に行き先番号を入れてルートメニュー経由で振り分けます。
 * **titleset**：DVD は映像・音声の形式を titleset 単位で持つため、タイトルを（アスペクト比, 音声コーデック）で
   自動的にグループ分けします。16:9 AC-3 のタイトルに 4:3 LPCM のタイトルを混ぜれば、後者は titleset 2 に入ります。
-  メニューは titleset 1 に置き、titleset をまたぐジャンプは dvdauthor の jumppad、別 titleset のタイトルから
-  メニューへの復帰は VMGM のトップメニュー経由です（その titleset について dvdauthor が
-  「creating a dummy menu」と出しますが想定どおりです）。
-* **ハイライト**は自前のエンコーダ（`zlib`＋`struct`）で書いた 2bit インデックス PNG を spumux に渡しています。
+  メニューは titleset 1 に置き、titleset をまたぐジャンプは中継のプログラムチェーン（dvdauthor の jumppad に
+  当たるもの）を通り、別 titleset のタイトルからメニューへの復帰は VMGM のトップメニュー経由です。
+* **ハイライト**はボタンの形を 2bit サブピクチャにして vtskit がメニュー VOB に書き込みます。**ナビゲーション命令**は
+  dvdauthor の命令言語で書き（`oncemore/author.py`）、vtskit が変換するので、ディスクの論理は切り替え前と同じ文面で読めます。
 
 ## 動作確認
 
@@ -749,7 +748,7 @@ oncemore の一部は、他のツールからも使えるよう単体のライ�
 | [udfkit](https://github.com/kajisho5/udfkit) | DVD-Video（UDF 1.02 + ISO 9660）と Blu-ray（UDF 2.50）のディスクイメージ | Apache-2.0 |
 | [bdmvkit](https://github.com/kajisho5/bdmvkit) | Blu-ray（BDMV）のオーサリング：プレイリスト、クリップ情報、HDMV ナビゲーション、PGS 字幕 | LGPL-3.0 以降 |
 | [dvdcc](https://github.com/kajisho5/dvdcc) | DVD の MPEG-2 映像へのライン 21 クローズドキャプション（CEA-608） | Apache-2.0 |
-| [vtskit](https://github.com/kajisho5/vtskit) | dvdauthor を使わない DVD-Video のオーサリング（計画中、[#75](https://github.com/kajisho5/oncemore/issues/75)） | LGPL-3.0 以降 |
+| [vtskit](https://github.com/kajisho5/vtskit) | DVD-Video のオーサリング：IFO、ナビゲーションパック、メニュー、字幕、アングルブロック、dvdauthor の命令言語 | LGPL-3.0 以降 |
 
 oncemore は依存ライブラリ無しでインストールできるよう、これらのコードを自分の中にも持っています。修正は両方に入れます。
 
@@ -762,5 +761,5 @@ oncemore は無料で、これからも無料です。役に立ったら [GitHub
 
 ## ライセンス
 
-GPL-3.0-or-later（[LICENSE](LICENSE)）。dvdauthor が GPL のため揃えています。
+GPL-3.0-or-later（[LICENSE](LICENSE)）。
 「Encore」「Adobe」は各社の商標であり、oncemore は Adobe とは無関係です。

@@ -1,4 +1,10 @@
-"""dvdauthor XML generation.
+"""The disc's navigation in dvdauthor's command language, and its XML.
+
+The commands a title, a menu or a button runs are written here in
+dvdauthor's language (`g1 = 1; call menu entry root;`); oncemore.videots
+compiles them with vtskit when it writes the disc. `build_xml` puts the
+whole description together as dvdauthor's XML, kept in the work folder as
+a readable record of the navigation (it is not run).
 
 Layout (phase 1): one titleset holding every title and every menu.
 
@@ -71,7 +77,6 @@ means the key was pressed (routes always set g1), so `disc.title_key` applies.
 import os
 from xml.sax.saxutils import quoteattr
 
-from . import tools
 from .project import chapter_points, format_time, parse_action, title_fps, transition_key
 
 NAV_REG = "g1"
@@ -664,12 +669,6 @@ def build_xml(project, menu_files, title_files, dest, transition_files=None):
         x += ["    </titles>", "  </titleset>"]
     x += ["</dvdauthor>", ""]
     return "\n".join(x)
-
-
-def run_dvdauthor(xml_path, project, log):
-    tools.require(["dvdauthor"])
-    tools.run([tools.find("dvdauthor"), "-x", xml_path],
-              env={"VIDEO_FORMAT": project.disc.standard}, log=log, what="dvdauthor")
 
 
 def video_ts_size(dvd_dir):

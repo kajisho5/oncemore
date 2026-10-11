@@ -23,8 +23,9 @@ class TestCli(unittest.TestCase):
         events = json_lines(out)
         self.assertEqual(events[-1]["event"], "result")
         names = [t["name"] for t in events[-1]["tools"]]
-        for n in ("ffmpeg", "ffprobe", "dvdauthor", "spumux"):
+        for n in ("ffmpeg", "ffprobe"):
             self.assertIn(n, names)
+        self.assertNotIn("dvdauthor", names)
         self.assertIn("iso_tool", events[-1])
         self.assertIn("ok", events[-1]["drawtext_render"])
 

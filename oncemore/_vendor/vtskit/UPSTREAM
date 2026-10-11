@@ -1,0 +1,3 @@
+vtskit, https://github.com/kajisho5/vtskit (LGPL-3.0-or-later, see COPYING.LESSER)
+copied from commit b90168c1660343b647d06c599a3174732679c0c7 (main, after vtskit#15)
+the package vtskit/ only; its tests stay upstream

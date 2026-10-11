@@ -1,4 +1,4 @@
-"""Subtitles: SRT / WebVTT / ASS -> DVD subpicture stream (spumux).
+"""Subtitles: SRT / WebVTT / ASS -> DVD subpicture streams (muxed with vtskit).
 
 Each cue is drawn with drawtext (white text, dark outline) on a transparent
 square-pixel canvas, squeezed to DVD width exactly like menu text, read back
@@ -6,8 +6,10 @@ as RGBA and reduced to the 4 colours a DVD subpicture can hold:
 
   0 transparent, 1 fill, 2 outline, 3 anti-aliasing (between fill and outline)
 
-The bitmaps are cropped to their bounding box and handed to spumux with an
-offset, one spumux pass per subtitle stream.
+The bitmaps are cropped to their bounding box and placed with an offset;
+`mux_streams` turns them into subpicture packs of the title's program stream
+(vtskit.subtitles, as spumux did) and gathers the title's palette, the 16
+colours its subpictures draw with.
 
 An image script's subtitles are pictures instead (Cue.image): read in their
 own colours (a picture without transparency has its corner colour keyed
@@ -580,17 +582,54 @@ def palette_size(tracks_cues, style):
     return 2 + 2 * len(fills)
 
 
-def mux_streams(title_mpg, stream_xmls, work, standard, log_prefix):
-    """Run spumux once per stream; returns the final .mpg path."""
-    spumux = tools.find("spumux")
-    cur = title_mpg
+def mux_streams(title_mpg, stream_xmls, work, standard, log_prefix=None):
+    """Mux the streams described by `stream_xmls` (what stream_xml wrote, in
+    stream order) into the title: returns (the final .mpg path, the title's
+    subpicture palette as (Y, Cr, Cb) in the order the units name them)."""
+    from . import png4
+    from ._vendor.vtskit import spu as vspu, subtitles as vsubs
+    from .videots import ycc
+    palette = []          # (r, g, b) in order of first use
+
+    def entry(rgb):
+        if rgb not in palette:
+            palette.append(rgb)
+        return palette.index(rgb)
+    streams = {}
     for i, xml in enumerate(stream_xmls):
-        nxt = os.path.splitext(title_mpg)[0] + f".s{i}.mpg"
-        with open(cur, "rb") as fin, open(nxt, "wb") as fout:
-            tools.run([spumux, "-s", str(i), os.path.basename(xml)], cwd=work,
-                      env={"VIDEO_FORMAT": standard}, stdin=fin, stdout=fout,
-                      log=f"{log_prefix}-s{i}.log", what=f"spumux (subtitle stream {i})")
-        if cur != title_mpg:
-            os.remove(cur)
-        cur = nxt
-    return cur
+        cues = []
+        with open(xml, encoding="utf-8") as f:
+            for m in _SPU_TAG.finditer(f.read()):
+                attrs = dict(_ATTR.findall(m.group(1)))
+                with open(os.path.join(os.path.dirname(xml), attrs["image"]), "rb") as pf:
+                    canvas, colours = png4.read_indexed_png(pf.read())
+                codes = [0, 0, 0, 0]
+                contrasts = [0, 0, 0, 0]
+                for k, (r, g, b, a) in enumerate(colours[:4]):
+                    if a:
+                        codes[k] = entry((r, g, b))
+                        contrasts[k] = a >> 4
+                picture = vspu.Overlay(canvas.width, canvas.height, bytes(canvas.pixels))
+                cues.append(vsubs.Cue(_seconds(attrs["start"]), _seconds(attrs["end"]), picture,
+                                      int(attrs["xoffset"]), int(attrs["yoffset"]), tuple(codes),
+                                      tuple(contrasts)))
+        streams[i] = cues
+    if len(palette) > 16:
+        raise ProjectError("media check failed", [{
+            "path": "titles", "message": f"the subtitles use {len(palette)} subpicture colours (a DVD "
+                                         "title has 16)"}])
+    with open(title_mpg, "rb") as f:
+        data = f.read()
+    out = os.path.splitext(title_mpg)[0] + ".subs.mpg"
+    with open(out, "wb") as f:
+        f.write(vsubs.mux(data, streams))
+    return out, [ycc("#%02X%02X%02X" % rgb)[:3] for rgb in palette]
+
+
+_SPU_TAG = re.compile(r"<spu\b([^>]*)/>")
+_ATTR = re.compile(r'(\w+)="([^"]*)"')
+
+
+def _seconds(ts):
+    h, m, s = ts.split(":")
+    return int(h) * 3600 + int(m) * 60 + float(s)

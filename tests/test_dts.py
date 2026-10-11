@@ -1,6 +1,6 @@
 """DTS sound copied from the sources (audio.codec "dts").
 
-The project field, the DVD (dvdauthor's DTS audio, read back by libdvdnav;
+The project field, the DVD (its DTS audio, read back by libdvdnav;
 the stream's bytes unchanged) and the Blu-ray (DTS in the transport stream
 and the clip's stream attributes, read back by libbluray).
 """
@@ -136,7 +136,7 @@ class Sources:
                        check=True)
 
 
-@unittest.skipUnless(DTS_OK and have("dvdauthor"), "needs ffmpeg (dca, dca_core) and dvdauthor")
+@unittest.skipUnless(DTS_OK, "needs ffmpeg (dca, dca_core)")
 class TestDvd(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
