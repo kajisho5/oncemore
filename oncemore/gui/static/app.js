@@ -176,6 +176,7 @@ const I18N = {
     disc_tips: "Coordinates are DVD pixels (720 wide). Text is drawn with the font that oncemore picks to cover all characters.",
     tools: "Tools", ok: "OK", missing: "missing", tracks_hint: "Leave empty to use the video's own sound.",
     stream: "Stream", file: "File", add_track: "+ Track", add_sub: "+ Subtitle file",
+    angles: "Angles", add_angle: "+ Angle", angle_n: "Angle {n}", angles_hint: "Other views of the same scene, switched with the remote's Angle key (DVD only; a Blu-ray build leaves them out). Each video must be at least as long as the title's; it is encoded with the title's settings and sound.", angles_none: "Angles need a single video file as the title's source.",
     frame_err: "Cannot show this frame", preview_err: "Preview failed",
     confirm_delete: "Delete “{x}”?", chapter_at: "Chapter {n}", playhead: "Playhead",
     workspace: "Workspace", ws_default: "Default", monitor: "Monitor", no_menus: "(no Menus)", no_timelines: "(no Timelines)",
@@ -449,6 +450,7 @@ const I18N = {
     disc_tips: "座標は DVD のピクセル（幅 720）です。文字は全文字を描けるフォントを oncemore が自動で選んで描きます。",
     tools: "ツール", ok: "OK", missing: "不足", tracks_hint: "空なら動画自体の音声を使います。",
     stream: "ストリーム", file: "ファイル", add_track: "＋トラック", add_sub: "＋字幕ファイル",
+    angles: "アングル", add_angle: "＋アングル", angle_n: "アングル {n}", angles_hint: "同じ場面の別の映像で、リモコンのアングルキーで切り替えます（DVD のみ。Blu-ray のビルドでは省きます）。各動画はタイトルの長さ以上が必要で、タイトルと同じ設定・音声でエンコードします。", angles_none: "アングルを使うには、タイトルのソースが 1 本の動画ファイルである必要があります。",
     frame_err: "このフレームを表示できません", preview_err: "プレビューに失敗",
     confirm_delete: "「{x}」を削除しますか？", chapter_at: "チャプター {n}", playhead: "再生位置",
     workspace: "ワークスペース", ws_default: "初期設定", monitor: "モニター", no_menus: "（メニューなし）", no_timelines: "（タイムラインなし）",
@@ -667,7 +669,7 @@ function bindClipEditor(m, ti, seek) {
     if (v) edit((x) => {
       if (!x.clips) {
         // the title's own video becomes the first clip; joined clips have one sound track
-        x.clips = [{ source: x.source }]; delete x.source; delete x.audio_tracks;
+        x.clips = [{ source: x.source }]; delete x.source; delete x.audio_tracks; delete x.angles;   // (angles need one video)
         if (x.audio) delete x.audio.passthrough;
         // only the start marked: let every clip start a chapter instead
         if ((x.chapters || []).every((c) => typeof c !== "object" && parseTime(c) === 0)) delete x.chapters;
@@ -2014,6 +2016,45 @@ function bindUops(root, find) {
     if (list.length) x.prohibit = list; else delete x.prohibit;
   })));
 }
+// -- a title's angles: more videos of the same scene, angle 1 being its source
+function angleChoices(ti) {
+  return mediaOf("video").filter((v) => v !== ti.source);
+}
+function anglesHtml(ti) {
+  const ok = ti.source && !ti.clips && !ti.slideshow && ti.transcode !== false && mediaOf("video").includes(ti.source);
+  const angles = ti.angles || [];
+  if (!ok && !angles.length) return `<h3>${t("angles")}</h3><div class="hint">${esc(t("angles_none"))}</div>`;
+  const vids = angleChoices(ti);
+  return `<h3>${t("angles")}</h3>
+    <div class="hint">${esc(t("angles_hint"))}</div>
+    <div class="row" style="margin:6px 0"><span class="shrink hint">${esc(t("angle_n", { n: 1 }))}</span><span class="mono">${esc(ti.source || "")}</span></div>
+    ${angles.map((a, i) => `<div class="row" style="margin:6px 0" data-angle="${i}" data-nobind>
+      <span class="shrink hint">${esc(t("angle_n", { n: i + 2 }))}</span>
+      ${selectHtml("angle", vids.map((v) => [v, v.replace(/^media\//, "")]), a)}
+      <button class="small shrink" data-angle-up="${i}" ${i ? "" : "disabled"} title="▲">▲</button>
+      <button class="small danger shrink" data-del-angle="${i}">✕</button></div>`).join("")}
+    <button class="small" id="add-angle" ${ok && vids.length && angles.length < 8 ? "" : "disabled"}>${t("add_angle")}</button>`;
+}
+function bindAngles(el, find) {
+  el.querySelectorAll("[data-angle]").forEach((row) => {
+    const i = Number(row.dataset.angle), sel = row.querySelector("select");
+    sel.addEventListener("change", () => commit((p) => { find(p).angles[i] = sel.value; }));
+  });
+  el.querySelectorAll("[data-angle-up]").forEach((b) => (b.onclick = () => commit((p) => {
+    const a = find(p).angles, i = Number(b.dataset.angleUp);
+    [a[i - 1], a[i]] = [a[i], a[i - 1]];
+  })));
+  el.querySelectorAll("[data-del-angle]").forEach((b) => (b.onclick = () => commit((p) => {
+    const x = find(p); x.angles.splice(Number(b.dataset.delAngle), 1); if (!x.angles.length) delete x.angles;
+  })));
+  const add = el.querySelector("#add-angle");
+  if (add) add.onclick = () => commit((p) => {
+    const x = find(p), used = new Set([x.source, ...(x.angles || [])]);
+    const next = angleChoices(x).find((v) => !used.has(v)) || angleChoices(x)[0];
+    (x.angles = x.angles || []).push(next);
+  });
+}
+
 function renderTitleInspector(el) {
   const ti = curTitle();
   if (!ti) { el.innerHTML = ""; return; }
@@ -2051,6 +2092,7 @@ function renderTitleInspector(el) {
         ${selectHtml("lang", langs, tr.lang || "", 'class="shrink" style="width:90px"')}
         <button class="small danger shrink" data-del-track="${i}">✕</button></div>`).join("")}
     <button class="small" id="add-track" ${ti.clips ? "disabled" : ""}>${t("add_track")}</button>
+    ${anglesHtml(ti)}
     <h3>${t("subtitles")}</h3>
     ${subs.map((s, i) => `<div class="row" style="margin:6px 0 4px" data-sub="${i}" data-nobind>
         ${selectHtml("file", mediaOf("subtitle").filter((f) => !/\.scc$/i.test(f)).map((f) => [f, f.replace(/^media\//, "")]), s.file)}
@@ -2128,6 +2170,7 @@ function renderTitleInspector(el) {
     const x = find(p); x.subtitles.splice(Number(b.dataset.delSub), 1); if (!x.subtitles.length) delete x.subtitles;
   })));
   $("#add-track").onclick = () => commit((p) => { const x = find(p); x.audio_tracks = x.audio_tracks || [{}]; x.audio_tracks.push({}); });
+  bindAngles(el, find);
   $("#add-sub").onclick = () => commit((p) => { const x = find(p); (x.subtitles = x.subtitles || []).push({ file: mediaOf("subtitle").find((f) => !/\.scc$/i.test(f)) }); });
   // closed captions: a file, or {file, offset}
   const ccSet = () => commit((p) => {
