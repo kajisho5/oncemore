@@ -596,7 +596,24 @@
         },
         "text": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "One line, or a paragraph: lines separated by newlines."
+        },
+        "align": {
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ],
+          "default": "left",
+          "description": "How the lines of a paragraph line up (x is the paragraph's left edge)."
+        },
+        "line_spacing": {
+          "type": "integer",
+          "minimum": -50,
+          "maximum": 200,
+          "default": 0,
+          "description": "Pixels added between the lines of a paragraph."
         },
         "x": {
           "type": "integer",

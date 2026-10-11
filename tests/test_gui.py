@@ -1636,6 +1636,40 @@ class TestGuiBrowser(unittest.TestCase):
             browser.close()
         self.assertEqual(errors, [])
 
+    def test_paragraph_text(self):
+        """A text of several lines, centred, with line spacing: saved, and the
+        editor shows the lines that way."""
+        self.s.call("/api/new", "POST", {"sample": True})
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click(".nav-item[data-view=menu][data-id=main]", timeout=120000)
+            page.click(".stage .el.text[data-i='0']")
+            page.fill("#text-body", "SAMPLE DISC\nsecond line")
+            page.press("#text-body", "Tab")
+            text = lambda: self.project()["menus"][0]["texts"][0]  # noqa: E731
+            self.poll(lambda: text()["text"] == "SAMPLE DISC\nsecond line")
+            page.select_option("#inspector select[data-k=align]", "center")
+            self.poll(lambda: text().get("align") == "center")
+            page.fill("#inspector input[data-k=line_spacing]", "12")
+            page.press("#inspector input[data-k=line_spacing]", "Tab")
+            self.poll(lambda: text().get("line_spacing") == 12)
+            self.assertTrue(self.s.app.check(self.project())["valid"])
+            el = page.locator(".stage .el.text[data-i='0']")
+            self.assertEqual(el.evaluate("e => getComputedStyle(e).textAlign"), "center")
+            self.assertEqual(el.inner_text(), "SAMPLE DISC\nsecond line")
+            # back to left and no spacing: the fields go away
+            page.select_option("#inspector select[data-k=align]", "left")
+            self.poll(lambda: "align" not in text())
+            page.fill("#inspector input[data-k=line_spacing]", "0")
+            page.press("#inspector input[data-k=line_spacing]", "Tab")
+            self.poll(lambda: "line_spacing" not in text())
+            browser.close()
+        self.assertEqual(errors, [])
+
     def test_layer_break(self):
         """Disc > Layer break: offered for a DVD-9, a chapter or auto."""
         self.s.call("/api/new", "POST", {"sample": True})

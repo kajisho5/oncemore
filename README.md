@@ -165,6 +165,8 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
 * **My styles** (Library): save the look of a text, button or shape (font,
   size, colour, outline, shadow) under a name, and give it to other objects
   in any project; the font is kept with the style.
+* **Paragraphs** (a text's Properties): text of several lines, lined up
+  left, centred or right, with the space between the lines.
 * **Layer break** (Disc panel, DVD-9): the chapter where a dual-layer disc
   goes on to its second layer, or the first one past the middle of the disc.
   The built-in ISO writer puts it on an ECC block, `oncemore iso` reports its
@@ -477,6 +479,9 @@ Text style (texts and text buttons): `font` (a font file for this element; it
 must contain all its characters), `outline` + `outline_width`, `shadow` +
 `shadow_offset`. A button's `highlight_image` is a picture whose opaque pixels
 light up when it is selected, instead of the automatic highlight.
+A text can be a paragraph: its `text` holds several lines (newlines), `align`
+lines them up (`left`, `center`, `right`; `x` is the paragraph's left edge)
+and `line_spacing` adds pixels between them.
 | `buttons[]` | 1–36 buttons | required |
 
 **buttons[]**: `id`, `label`, `x`, `y` (top-left of the label), `action`,

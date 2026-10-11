@@ -271,6 +271,7 @@ class MenuBuilder:
         self._font_links = {}      # own fonts of elements: path -> linked name
         self._probe_cache = {}
         self._glyphs = {}          # rendered texts: their glyph masks
+        self._align_warned = False
 
     # -- font ------------------------------------------------------------------
     def font(self):
@@ -322,6 +323,16 @@ class MenuBuilder:
         if style and getattr(el, "shadow", None):
             f += (f":shadowx={el.shadow_offset}:shadowy={el.shadow_offset}"
                   f":shadowcolor={_hex(el.shadow)}")
+        if getattr(el, "line_spacing", 0):
+            f += f":line_spacing={el.line_spacing}"
+        if getattr(el, "align", "left") != "left" and "\n" in getattr(el, "text", ""):
+            if tools.drawtext_option("text_align", self.ffmpeg):
+                f += f":text_align={'C' if el.align == 'center' else 'R'}"
+            elif not self._align_warned:
+                self._align_warned = True
+                if self.reporter:
+                    self.reporter.warn("this ffmpeg's drawtext cannot align lines (text_align "
+                                       "came in ffmpeg 6.1): paragraphs are drawn left-aligned")
         return f
 
     def _squeeze(self):
@@ -339,7 +350,8 @@ class MenuBuilder:
     def glyphs(self, name, text, el):
         """The glyph Mask (storage pixels) of `text` drawn as `el` places it,
         without its outline or shadow."""
-        key = (name, text, el.x, el.y, el.size, getattr(el, "font", None))
+        key = (name, text, el.x, el.y, el.size, getattr(el, "font", None),
+               getattr(el, "align", None), getattr(el, "line_spacing", 0))
         if key in self._glyphs:
             return self._glyphs[key]
         tf = self._textfile(f"{name}.txt", text)

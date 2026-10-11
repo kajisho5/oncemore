@@ -106,6 +106,23 @@ def reset_cache():
     _cache.clear()
 
 
+def drawtext_option(name, ffmpeg=None):
+    """Whether this ffmpeg's drawtext has an option (text_align: 6.1 on)."""
+    key = ("drawtext_option", name, ffmpeg)
+    if key not in _cache:
+        ffmpeg = ffmpeg or find("ffmpeg")
+        ok = False
+        if ffmpeg:
+            try:
+                out = subprocess.run([ffmpeg, "-hide_banner", "-h", "filter=drawtext"],
+                                     capture_output=True, text=True, timeout=30).stdout
+                ok = re.search(rf"^\s*{re.escape(name)}\s", out, re.M) is not None
+            except (OSError, subprocess.SubprocessError):
+                ok = False
+        _cache[key] = ok
+    return _cache[key]
+
+
 def has_drawtext(ffmpeg=None):
     key = ("drawtext", ffmpeg)
     if key in _cache:

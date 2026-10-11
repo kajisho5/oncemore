@@ -1448,3 +1448,20 @@ written that fails before the fix, and then the fix:
   disc as if a layer held one sector, check that every chapter sector is a
   navigation pack, that the break is on an ECC block, and that libdvdnav
   still plays the moved image.
+
+## 83. Paragraphs
+
+* Menu text was one line per text. A description, credits or a list of
+  extras on a menu is several lines, lined up the same way, so a text can
+  hold newlines, with `align` (left, centre, right) and `line_spacing`
+  (pixels added between the lines). x is still the left edge of the whole
+  paragraph, so changing the alignment moves the lines, not the paragraph.
+* The menus are drawn with ffmpeg's drawtext, which takes the lines as they
+  are (`line_spacing`) and lines them up within the paragraph with
+  `text_align` (ffmpeg 6.1 on). With an older ffmpeg the paragraph is drawn
+  left-aligned, with a warning, rather than measured and drawn line by line.
+* Only texts: a button label stays one line, since the button's highlight
+  is cut from the label's own pixels and the remote moves between labels.
+* The tests draw a long line over a short one and check where the short
+  one's pixels are for each alignment, and that the spacing moves the
+  second line down by as much.

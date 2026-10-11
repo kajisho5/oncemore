@@ -31,6 +31,7 @@ const I18N = {
     stage_keys: "Shift-click: select several · arrows: nudge · ⌘D: duplicate · ⌘C/⌘V · Alt: no snapping",
     multi_hint: "Drag to move them together, or use the align buttons above the menu.",
     shape: "Rectangle", height: "Height", fill: "Fill", opacity: "Opacity",
+    paragraph: "Paragraph", para_align: "Lines", para_left: "Left", para_center: "Centre", para_right: "Right", line_spacing: "Line spacing", paragraph_hint: "Each line of the text is a line on the menu (Return starts a new one); X is the paragraph's left edge.",
     text_style: "Text style", font: "Font", disc_font: "Disc font", outline: "Outline", shadow: "Shadow",
     font_hint: "Add .ttf / .otf files to Media to use them here.",
     highlight_image: "Highlight picture", highlight_image_hint: "Optional: a picture whose opaque pixels light up when the button is selected.",
@@ -285,6 +286,7 @@ const I18N = {
     stage_keys: "Shift+クリックで複数選択・矢印キーで移動・⌘D 複製・⌘C/⌘V・Alt でスナップなし",
     multi_hint: "ドラッグでまとめて移動、またはメニュー上の整列ボタンを使えます。",
     shape: "四角形", height: "高さ", fill: "塗り", opacity: "不透明度",
+    paragraph: "段落", para_align: "行揃え", para_left: "左揃え", para_center: "中央揃え", para_right: "右揃え", line_spacing: "行間", paragraph_hint: "テキストの各行がメニューの 1 行になります（Return で改行）。X は段落の左端です。",
     text_style: "文字のスタイル", font: "フォント", disc_font: "ディスクのフォント", outline: "縁取り", shadow: "影",
     font_hint: ".ttf / .otf ファイルを素材に追加するとここで選べます。",
     highlight_image: "ハイライト画像", highlight_image_hint: "任意：不透明な部分が選択時に光る画像。",
@@ -2127,7 +2129,7 @@ function renderMenu(m) {
   const els = [
     ...(menu.shapes || []).map((x, i) => ({ kind: "shape", i, x: x.x, y: x.y, w: x.w, h: x.h, color: x.color || "#00000080", ...turnOf(x) })),
     ...(menu.images || []).map((x, i) => ({ kind: "image", i, x: x.x, y: x.y, w: x.w, h: x.h, file: x.file, opacity: x.opacity ?? 1, ...turnOf(x) })),
-    ...(menu.texts || []).map((x, i) => ({ kind: "text", i, x: x.x, y: x.y, size: x.size || defSize, color: x.color || defColor, label: x.text, ...styleOf(x), ...turnOf(x) })),
+    ...(menu.texts || []).map((x, i) => ({ kind: "text", i, x: x.x, y: x.y, size: x.size || defSize, color: x.color || defColor, label: x.text, align: x.align, ls: x.line_spacing || 0, ...styleOf(x), ...turnOf(x) })),
     ...(menu.buttons || []).map((b, i) => ({ kind: "button", i, x: b.x, y: b.y, size: b.size || defSize, color: b.color || defColor, label: b.label || "", image: b.image, width: b.width, hl: !b.label && !b.image ? b.highlight_image : null, ...styleOf(b), ...turnOf(b) })),
   ].filter((e) => !menu[KIND_LIST[e.kind]][e.i].hidden);   // (switched off in Layers)
   // selection: S.sels (all selected), S.element (the one the inspector shows)
@@ -2142,6 +2144,8 @@ function renderMenu(m) {
     if (e.kind === "image") return st + `width:${e.w * sx * scale}px;height:${e.h * scale}px;opacity:${e.opacity}`;
     st += `font-size:${e.size * scale}px;color:${esc(e.kind === "button" && e.i === firstBtn ? (menu.highlight_color || "#FFD400") : e.color)};`;
     if (e.font) st += `font-family:${fontFamily(e.font)},sans-serif;`;
+    if (e.align) st += `text-align:${e.align};`;
+    if (e.ls) st += `line-height:calc(1em + ${e.ls * scale}px);`;
     const sh = [];
     if (e.outline) { const o = Math.max(1, e.outline_width * scale); for (const [dx, dy] of [[o, 0], [-o, 0], [0, o], [0, -o], [o, o], [-o, -o], [o, -o], [-o, o]]) sh.push(`${dx}px ${dy}px 0 ${cssColor(e.outline)}`); }
     if (e.shadow) sh.push(`${e.shadow_offset * scale}px ${e.shadow_offset * scale}px 0 ${cssColor(e.shadow)}`);
@@ -2768,7 +2772,7 @@ function renderMenuInspector(el) {
         <label class="field"><span></span><label><input type="checkbox" data-k="auto_activate" ${it.auto_activate ? "checked" : ""}> ${t("auto_activate")}</label></label>
         <label class="field" data-nobind><span>${t("image")}</span>${selectHtml("image", [["__none__", t("none")], ...mediaOf("image").map((x) => [x, x])], it.image || "__none__")}
           <div class="hint">${esc(t("image_hint"))}</div></label>`
-        : `<label class="field"><span>${t("text")}</span><input data-k="text" value="${esc(it.text)}"></label>`}
+        : `<label class="field"><span>${t("text")}</span><textarea data-k="text" id="text-body" rows="${Math.min(8, Math.max(2, String(it.text).split("\n").length))}">${esc(it.text)}</textarea></label>`}
       <div class="grid2">
         <label class="field"><span>X</span><input type="number" data-k="x" min="0" max="719" value="${it.x}"></label>
         <label class="field"><span>Y</span><input type="number" data-k="y" min="0" max="${discH() - 1}" value="${it.y}"></label>
@@ -2777,6 +2781,10 @@ function renderMenuInspector(el) {
         : `<label class="field"><span>${t("size")}</span><input type="number" data-k="size" min="8" max="200" value="${it.size || ""}" placeholder="${menu.font_size || 32}"></label>
         <label class="field"><span>${t("color")}</span><input type="color" data-k="color" value="${esc(it.color || menu.text_color || "#ffffff")}"></label>`}
       </div>
+      ${sel.kind === "text" ? `<h3>${t("paragraph")}</h3><div class="grid2">
+        <label class="field"><span>${t("para_align")}</span>${selectHtml("align", [["left", t("para_left")], ["center", t("para_center")], ["right", t("para_right")]], it.align || "left")}</label>
+        <label class="field"><span>${t("line_spacing")}</span><input type="number" data-k="line_spacing" min="-50" max="200" value="${it.line_spacing || 0}"></label>
+      </div><div class="hint">${esc(t("paragraph_hint"))}</div>` : ""}
       ${isImage ? "" : `<h3>${t("text_style")}</h3>
       <label class="field"><span>${t("font")}</span>${selectHtml("font", fonts, it.font || "__none__")}<div class="hint">${esc(t("font_hint"))}</div></label>
       <div class="grid2" data-nobind>
@@ -2806,9 +2814,11 @@ function renderMenuInspector(el) {
       renderMain(); renderInspector();
     };
     bindFields(el, (p) => (sel.kind === "button" ? find(p).buttons : find(p).texts)[sel.i], {
-      numeric: ["x", "y", "size", "width", "audio", "subtitle"],
+      numeric: ["x", "y", "size", "width", "audio", "subtitle", "line_spacing"],
       onAfter: (p, key) => {
         const o = (sel.kind === "button" ? find(p).buttons : find(p).texts)[sel.i];
+        if (key === "align" && o.align === "left") delete o.align;
+        if (key === "line_spacing" && !o.line_spacing) delete o.line_spacing;
         if (o.nav && !Object.keys(o.nav).length) delete o.nav;
         if (key === "highlight" && o.highlight === "frame") delete o.highlight;
         if (key === "auto_activate" && !o.auto_activate) delete o.auto_activate;
