@@ -924,3 +924,22 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
 * In the GUI a title whose only clip is a picture stays a clip title (a
   title's `source` must be a video).
 
+## 59. Links to a menu button
+
+* DVD: a jump cannot name a button, so the link puts the button (k * 1024,
+  the SPRM 8 form) in a free GPRM (`entry_reg`, after the resume flag,
+  override and last menu) and jumps as usual. Only the menus such links
+  reach check it: their <pre> first sets the default or remembered button
+  (always one: a <pre> without one would keep whatever SPRM 8 held), then
+  takes the register's button if it is not 0 and clears it. With the
+  buttons in a PGC after the intro, the intro checks without clearing and
+  the buttons' PGC checks again and clears.
+* Blu-ray: an IG page's default button always wins over the selected button
+  (PSR 10) when a menu starts (libbluray graphics_controller.c, 5.9.8.3),
+  so a linked menu's composition has no default (0xFFFF) and its movie
+  object selects the button itself (Set Button Page): the one in GPR 2 if a
+  link put one there, otherwise its default; then GPR 2 is cleared. The
+  link sets GPR 2 (the button id: its index) and jumps to the menu's title.
+* In the app, a link whose button is deleted or made into text falls back
+  to opening its menu as usual.
+

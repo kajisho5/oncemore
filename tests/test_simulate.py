@@ -38,7 +38,8 @@ def project(data):
 def rich_project():
     """Two titlesets, a playlist across them, play all, remote keys, a
     remembered menu, an auto button, an intro that times out, stream buttons,
-    a resume button, end-action overrides (one back to the last menu)."""
+    a resume button, end-action overrides (one back to the last menu), links
+    that open a menu on a particular button (from a button and an override)."""
     d = sample_project()
     t1, t2 = d["titles"]
     t1["remote_menu"] = "chapters"
@@ -53,14 +54,17 @@ def rich_project():
         {"id": "b2", "label": "B THEN SETUP", "x": 470, "y": 340, "action": "title:t2",
          "override": "menu:setup"},
         {"id": "b3", "label": "CH 2 THEN BACK", "x": 470, "y": 400, "action": "chapter:t1:2",
-         "override": "lastmenu"}]
+         "override": "lastmenu"},
+        {"id": "b4", "label": "B THEN BACK", "x": 120, "y": 400, "action": "title:t2",
+         "override": "menu:setup:back"}]
     d["menus"].append({"id": "setup", "remember_button": False, "buttons": [
         {"id": "a1", "label": "AUDIO 1", "x": 100, "y": 150, "action": "audio:1"},
         {"id": "off", "label": "SUBTITLES OFF", "x": 100, "y": 210, "action": "subtitle:off"},
         {"id": "go", "label": "GO", "x": 100, "y": 270, "action": "title:t2",
          "auto_activate": True},
         {"id": "back", "label": "BACK", "x": 100, "y": 330, "action": "menu:main"},
-        {"id": "res", "label": "RESUME", "x": 420, "y": 150, "action": "resume"}]})
+        {"id": "res", "label": "RESUME", "x": 420, "y": 150, "action": "resume"},
+        {"id": "tob", "label": "TO B", "x": 420, "y": 210, "action": "menu:main:b"}]})
     d["menus"].append({"id": "intro", "background_video": "media/sample_a.mp4",
                        "duration": 4, "loop": 1, "end_action": "menu:main",
                        "buttons": [{"id": "skip", "label": "SKIP", "x": 80, "y": 380,
@@ -94,6 +98,14 @@ class TestSimulator(unittest.TestCase):
         self.sim.press(s, "select:back")
         self.sim.press(s, "enter")
         self.assertEqual(self.sim.view(s), ("menu", "main", 6))     # main remembers SETUP
+
+    def test_links_to_a_button(self):
+        s = self.keys("select:setup", "enter", "select:tob", "enter")
+        self.assertEqual(self.sim.view(s), ("menu", "main", 3))     # B, not the remembered 6
+        self.sim.press(s, "select:b4")
+        self.sim.press(s, "enter")
+        self.sim.press(s, "end")                   # its override: setup, on BACK
+        self.assertEqual(self.sim.view(s), ("menu", "setup", 4))
 
     def test_auto_button_and_streams(self):
         s = self.keys("select:setup", "enter", "select:off", "enter")
@@ -199,6 +211,9 @@ class TestGraph(unittest.TestCase):
         self.assertIn(("menu:intro", "title:t1", "button"), edges)
         self.assertIn(("title:t1", "menu:chapters", "menu_key"), edges)
         self.assertIn(("playlist:best", "title:t2", "item"), edges)
+        self.assertIn(("menu:setup", "menu:main", "button"), edges)
+        # TO B: the button, then the one it opens on
+        self.assertIn("tob · b", [e["label"] for e in g["edges"] if e["from"] == "menu:setup"])
         self.assertIn(("title:t1", "title:t2", "playall"), edges)
         self.assertNotIn("stop", ids)               # nothing stops
         cols = {n["id"]: n["col"] for n in g["nodes"]}
@@ -358,6 +373,31 @@ class TestSimulatorMatchesDisc(unittest.TestCase):
             self.assertEqual(press(*resume), ("title", 1, 2))       # where the Menu key left
             self.assertEqual(press("end")[0], "menu")               # t1 ended
             self.assertEqual(press(*resume), ("title", 1, 1))
+
+    def test_button_links_on_disc(self):
+        """TO B opens main on B (not its remembered button); B THEN BACK's
+        override opens setup on BACK after title 2 (in titleset 2)."""
+        sim = Simulator(self.project, self.layouts)
+        s = sim.start()
+        with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
+            self.settle(d)
+
+            def press(*keys):
+                for key in keys:
+                    before = sim.view(s)
+                    sim.press(s, key)
+                    if key.startswith("select:"):
+                        ids = [g["id"] for g in self.layouts[before[1]]]
+                        d.select(ids.index(key[7:]) + 1)
+                    else:
+                        self.player_key(d, key, before)
+                    self.assertEqual(self.view(d), sim.view(s), f"{before} --{key}-->")
+                return sim.view(s)
+
+            self.assertEqual(press("select:setup", "enter", "select:tob", "enter"),
+                             ("menu", "main", 3))
+            self.assertEqual(press("select:b4", "enter"), ("title", 2, 1))
+            self.assertEqual(press("end"), ("menu", "setup", 4))
 
     def test_override_on_disc(self):
         """B THEN SETUP plays title 2 and then the setup menu, instead of

@@ -135,12 +135,13 @@ def _objects(oid, w, h, pixels):
     return out
 
 
-def ig_stream(menu, geoms, canvas, commands, frame_rate):
+def ig_stream(menu, geoms, canvas, commands, frame_rate, follow_selection=False):
     """The menu's buttons as an IG stream (.sup layout: "PG" segments).
 
     geoms: the builder's ButtonGeom list (HD pixels), canvas: its highlight
     canvas (index 1 where a button's shape is); commands(button) -> its
-    navigation commands; frame_rate: the video's frame rate code."""
+    navigation commands; frame_rate: the video's frame rate code;
+    follow_selection: no default button, the selected one (PSR 10) is kept."""
     index = {g.id: k for k, g in enumerate(geoms)}
     by_id = {b.id: b for b in menu.buttons}
     palette = [(0, 16, 128, 128, 0), _colour(1, menu.highlight_color),
@@ -172,7 +173,9 @@ def ig_stream(menu, geoms, canvas, commands, frame_rate):
         button += struct.pack(">H", len(cmds)) + b"".join(cmds)
         # one button per overlap group: buttons do not overlap
         buttons += struct.pack(">HB", k, 1) + button
-    default = index.get(menu.default_button, 0)
+    # a menu links open on a particular button: the player's selection (which
+    # its movie object sets) decides, not a fixed default
+    default = 0xFFFF if follow_selection else index.get(menu.default_button, 0)
     page = struct.pack(">BB", 0, 0) + bytes(8)           # page 0, no user-operation mask
     page += bytes([0, 0]) + bytes([0, 0])                  # no in / out effects
     page += struct.pack(">BHHBB", 0, default, NO_OBJECT, 0, len(geoms)) + buttons
@@ -243,7 +246,8 @@ def encode_menu(project, menu, work, font, commands, max_bps, fast=False, on_pro
     video_format, frame_rate = bluray.FORMATS[fps]
     sup = os.path.join(mb.work, f"{menu.id}.ig.sup")
     with open(sup, "wb") as f:
-        f.write(ig_stream(menu, geoms, canvas, commands, frame_rate))
+        f.write(ig_stream(menu, geoms, canvas, commands, frame_rate,
+                          follow_selection=menu.id in project.entry_buttons))
     music = menu.audio or (menu.background_video if menu.background_video and
                            mb._probe(menu.background_video).get("has_audio") else None)
     still = not (menu.background_video or music or menu.fade_in)

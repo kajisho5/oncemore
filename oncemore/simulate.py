@@ -79,10 +79,10 @@ class Simulator:
         sub = author.default_subtitle(self.p)
         if sub is not None:
             s["subtitle"] = sub + 1
-        kind, target, _ = parse_action(self.p.disc.first_play)
+        kind, target, num = parse_action(self.p.disc.first_play)
         self.note(s, f"first play: {self.p.disc.first_play}")
         if kind == "menu":
-            self.via_root(s, target)
+            self.via_root(s, target, num)
         elif kind == "playlist":
             self.playlist_start(s, target)
         elif kind == "playall":
@@ -93,7 +93,8 @@ class Simulator:
         return s
 
     # -- moving around -----------------------------------------------------------
-    def enter_menu(self, s, mid):
+    def enter_menu(self, s, mid, button=None):
+        """Show menu `mid`; `button`: the one a link highlights there."""
         m = self.menu(mid)
         s.update(domain="menu", menu=m.id, title=None, chapter=0, loops=0, last_menu=m.id)
         n = len(m.buttons)
@@ -101,18 +102,20 @@ class Simulator:
         default = ids.index(m.default_button) + 1 if m.default_button else 1
         if author.button_reg(m):
             s["button"] = s["remember"].get(m.id) or default
-        elif m.default_button:
-            s["button"] = default
+        elif m.default_button or m.id in self.p.entry_buttons:
+            s["button"] = default          # (a linked menu's pre always sets one)
         elif author.first_button_on_entry(self.p, m):
             s["button"] = 1
         elif not 1 <= s["button"] <= n:
             s["button"] = 1
+        if button:
+            s["button"] = ids.index(button) + 1
         self.note(s, f"menu {m.id}")
 
-    def via_root(self, s, mid):
+    def via_root(self, s, mid, button=None):
         """g1 = menu; call the root menu, whose pre-commands dispatch."""
         s["menu_key"] = None             # the root menu's pre clears g3
-        self.enter_menu(s, mid)
+        self.enter_menu(s, mid, button)
 
     def play(self, s, tid, chapter=1):
         t = self.p.title(tid)
@@ -146,7 +149,7 @@ class Simulator:
         """A button or a menu time-out (menu domain)."""
         kind, target, num = parse_action(action)
         if kind == "menu":
-            self.enter_menu(s, target)
+            self.enter_menu(s, target, num)
         elif kind == "playlist":
             self.playlist_start(s, target)
         elif kind == "playall":
@@ -184,9 +187,9 @@ class Simulator:
 
     def end_command(self, s, action):
         """A title's or playlist's end action (title domain)."""
-        kind, target, _ = parse_action(action)
+        kind, target, num = parse_action(action)
         if kind == "menu":
-            self.via_root(s, target)
+            self.via_root(s, target, num)
         elif kind == "lastmenu":
             # g1 = the last menu; 0 before any: the root's dispatcher then takes
             # the Menu-key target (g3) or stays on the first menu
@@ -231,7 +234,7 @@ class Simulator:
         if self.p.uses_remote_menu:
             s["menu_key"] = None
         tk = self.p.disc.title_key
-        kind, target, _ = parse_action(tk) if tk else ("menu", self.root().id, None)
+        kind, target, num = parse_action(tk) if tk else ("menu", self.root().id, None)
         if kind == "playlist":
             self.playlist_start(s, target)
         elif kind in ("title", "playall"):
@@ -242,7 +245,7 @@ class Simulator:
                 s["playall"] = 1 if kind == "playall" else 0
             self.play(s, self.p.titles[0].id if kind == "playall" else target)
         else:
-            self.via_root(s, target)
+            self.via_root(s, target, num)
 
     # -- keys ------------------------------------------------------------------
     def press(self, s, key):

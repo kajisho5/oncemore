@@ -1380,6 +1380,20 @@ class TestGuiBrowser(unittest.TestCase):
             page.select_option("#inspector select[data-k=action]", "resume")
             self.wait_saved(page)
             self.assertEqual(self.project()["menus"][0]["buttons"][0]["action"], "resume")
+            # a menu opened on one of its buttons
+            m0 = self.project()["menus"][0]
+            link = f"menu:{m0['id']}:{m0['buttons'][-1]['id']}"
+            page.select_option("#inspector select[data-k=action]", link)
+            self.wait_saved(page)
+            self.assertEqual(self.project()["menus"][0]["buttons"][0]["action"], link)
+            self.assertTrue(self.s.app.check(self.project())["valid"])
+            # a link whose button is gone (deleted, made text) opens the menu as usual
+            self.assertEqual(page.evaluate("""() => {
+                const p = {disc: {first_play: "menu:a:x"}, titles: [{end_action: "menu:a:y"}],
+                           menus: [{id: "a", buttons: [{id: "y", action: "menu:a:x"}]}]};
+                dropLostButtonLinks(p);
+                return [p.disc.first_play, p.titles[0].end_action, p.menus[0].buttons[0].action];
+            }"""), ["menu:a", "menu:a:y", "menu:a"])
             page.select_option("#inspector select[data-k=action]", "menu:chapters_t1")
             self.wait_saved(page)
             self.assertEqual(self.project()["menus"][0]["buttons"][0]["action"], "menu:chapters_t1")

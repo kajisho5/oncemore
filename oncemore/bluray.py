@@ -33,6 +33,7 @@ AUDIO_PID = 0x1100             # + track number
 PG_PID = 0x1200                # + subtitle track number
 IG_PID = 0x1400                # a menu's buttons (Interactive Graphics)
 LAST_MENU_REG = 1              # GPR: title number of the menu shown last
+ENTRY_REG = 2                  # GPR: button a link highlights in the menu it opens (0 = none)
 PMT_PID = 0x0100
 VERSION = b"0200"
 
@@ -316,10 +317,10 @@ def index_bdmv(title_objects, first_play, top_menu, video_format, frame_rate, in
         _u32(len(body)) + body
 
 
-def _cmd(b0, b1, dst=0, src=0, b3=0):
+def _cmd(b0, b1, dst=0, src=0, b3=0, b2=0):
     """A 12-byte navigation command: operand count / group / sub-group,
     immediate flags / branch option, compare option, set option; operands."""
-    return bytes([b0, b1, 0, b3]) + _u32(dst) + _u32(src)
+    return bytes([b0, b1, b2, b3]) + _u32(dst) + _u32(src)
 
 
 def play_pl(playlist):
@@ -362,6 +363,25 @@ def goto(pc):
 def move(reg, value):
     """Move <value> into general register <reg>."""
     return _cmd(0x50, 0x40, reg, value, 0x01)
+
+
+def set_button(button=None, reg=None):
+    """Set Button Page: select button `button` (an id), or the one held in
+    general register `reg`; the page stays."""
+    # Set group, SetSystem sub-group, option 3; the operand's top bit: button valid
+    if reg is not None:
+        return _cmd(0x51, 0x40, 0x80000000 | reg, 0, 0x03)
+    return _cmd(0x51, 0xC0, 0x80000000 | button, 0, 0x03)
+
+
+def if_equal(reg, value):
+    """Compare: the next command runs only if general register `reg` == value."""
+    return _cmd(0x48, 0x40, reg, value, b2=0x02)
+
+
+def if_not_equal(reg, value):
+    """Compare: the next command runs only if general register `reg` != value."""
+    return _cmd(0x48, 0x40, reg, value, b2=0x03)
 
 
 def resume():
@@ -578,6 +598,10 @@ class Nav:
             return [jump_title_reg(LAST_MENU_REG)] if self.project.menus else []
         if kind == "resume":
             return [resume()]
+        if kind == "menu" and n:
+            # that button highlighted: the menu's object picks it up (objects)
+            ids = [b.id for b in self.project.menu(ident).buttons]
+            return [move(ENTRY_REG, ids.index(n)), jump_title(self.numbers[f"menu:{ident}"])]
         key = f"{kind}:{ident}" if ident else kind
         return [jump_title(self.numbers[key])] if key in self.numbers else []
 
@@ -592,6 +616,17 @@ class Nav:
         if kind not in ("audio", "subtitle"):
             cmds += self.go(b.action)
         return cmds
+
+    def _entry(self, menu):
+        """For a menu that links open on a particular button: select that
+        button, or else its default one, before it plays (its buttons then
+        follow the selection; see bdmenu.ig_stream)."""
+        if menu.id not in self.project.entry_buttons:
+            return []
+        ids = [b.id for b in menu.buttons]
+        default = ids.index(menu.default_button) if menu.default_button else 0
+        return [if_not_equal(ENTRY_REG, 0), set_button(reg=ENTRY_REG),
+                if_equal(ENTRY_REG, 0), set_button(default), move(ENTRY_REG, 0)]
 
     def _start(self, title):
         """Subtitles as the title starts: its default track, or none."""
@@ -610,9 +645,9 @@ class Nav:
         for n, (kind, ident, end) in enumerate(self.titles, 1):
             if kind == "menu":
                 still, loop_mark = menus.get(ident, (True, 0))
-                cmds = [move(LAST_MENU_REG, n), play_pl(n)]
+                cmds = self._entry(p.menu(ident)) + [move(LAST_MENU_REG, n), play_pl(n)]
                 if not still:
-                    cmds += [play_pl_mark(n, loop_mark), goto(2)]
+                    cmds += [play_pl_mark(n, loop_mark), goto(len(cmds))]
                 out.append(cmds)
                 continue
             first = p.title(ident) if kind == "title" else \

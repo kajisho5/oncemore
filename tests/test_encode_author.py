@@ -251,6 +251,28 @@ class TestAuthorXml(unittest.TestCase):
         self.assertIn("an override needs a title:... or chapter:... action", msg)
         self.assertIn("no title with id 'nope'", msg)
 
+    def test_links_to_a_button(self):
+        d = sample_project()
+        d["titles"][1]["end_action"] = "menu:main:b"
+        d["menus"][0]["buttons"][0]["action"] = "menu:main:ch"
+        p = build_project(d, "/v/project.oncemore.json", check_files=False)
+        self.assertEqual(author.entry_reg(p), "g12")
+        x = author.build_xml(p, {"main": "m", "chapters": "c"}, {"t1": "a", "t2": "b"}, "/o")
+        # the title's end: B (button 3) in g12, then to the main menu
+        self.assertIn("g12 = 3072; g1 = 1; call menu entry root;</post>", x)
+        # a button of the main menu that opens it on CHAPTERS
+        self.assertIn("g5 = button; g12 = 2048; jump menu 1;", x)
+        # main: its remembered button, then the link's, which it clears
+        self.assertIn("if (g5 != 0) { button = g5; } else { button = 1024; } "
+                      "if (g12 != 0) { button = g12; } g12 = 0;</pre>", x)
+        # the chapters menu is not a link target: unchanged
+        self.assertNotIn("g12", x.split("<pgc>")[2].split("</pgc>")[0])
+        # the button must exist in that menu
+        d["titles"][1]["end_action"] = "menu:main:nope"
+        with self.assertRaises(ProjectError) as cm:
+            build_project(d, "/v/project.oncemore.json", check_files=False)
+        self.assertIn("menu 'main' has no button 'nope'", json.dumps(cm.exception.issues))
+
     def test_last_menu(self):
         d = sample_project()
         d["titles"][1]["end_action"] = "lastmenu"

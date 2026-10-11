@@ -417,6 +417,11 @@ the menu, so a "setup" menu is just a few of these buttons plus a BACK button.
 ends with its own `end_action`. `resume` continues the title the remote's Menu
 or Title key interrupted, where it was left; when there is nothing to resume
 (at the start of the disc, or after the title ended) it plays the first title.
+Wherever an action can open a menu (buttons, end actions, overrides, first
+play, the Title key), `menu:<id>:<button id>` opens it with that button
+highlighted instead of its default or remembered one, e.g. a BACK button
+that returns to the main menu on the button that led away from it, or a
+title that ends on the main menu's next episode.
 `override` on a `title:` / `chapter:` button (`menu:<id>` \| `title:<id>` \| `stop`)
 replaces the end action of the title it plays, for that play only: titles
 can chain into each other for "play all" while each song button still
