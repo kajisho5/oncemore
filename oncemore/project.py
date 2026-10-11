@@ -355,6 +355,8 @@ class Title:
     clip_chapters: bool = False   # a chapter at every clip (set once clip lengths are known)
     video_mode: str = None   # what `scan` resolved to for the source (set by build.inspect)
     bd_copy: bool = False    # Blu-ray: the source's H.264 picture is used as it is (build.inspect)
+    captions: str = None     # DVD line-21 closed captions: a .scc file, or subtitles sent as captions
+    captions_offset: float = 0.0   # taken off the captions' times (a file timed from 01;00;00;00)
     prohibit: list = field(default_factory=list)   # remote keys the title does not allow (uops.NAMES)
 
     @property
@@ -930,6 +932,13 @@ class _Builder:
             picture=self.file(f"{where}.picture", t.get("picture")),
             prohibit=self.prohibit(where, t),
         )
+        if "captions" in t:
+            cap = t["captions"] if isinstance(t["captions"], dict) else {"file": t["captions"]}
+            title.captions = self.file(f"{where}.captions", cap["file"])
+            title.captions_offset = self.subtitle_offset(f"{where}.captions.offset",
+                                                         cap.get("offset", 0))
+            if self._disc.standard != "NTSC":
+                self.err(f"{where}.captions", "line-21 closed captions are for NTSC discs")
         if title.picture and (clips or show):
             self.err(f"{where}.picture", "a picture is for a title from a sound file")
         if not title.transcode:

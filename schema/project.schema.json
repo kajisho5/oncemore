@@ -449,6 +449,39 @@
             }
           }
         },
+        "captions": {
+          "description": "Closed captions (line 21, CEA-608) on an NTSC DVD: a Scenarist .scc file used as it is, or a subtitle file (SubRip, WebVTT, ASS, text script) sent as pop-on captions. A file, or {file, offset} with offset taken off every time (seconds, \"HH:MM:SS\" or a timecode such as \"01;00;00;00\").",
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "file"
+              ],
+              "properties": {
+                "file": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "offset": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
         "subtitles": {
           "type": "array",
           "maxItems": 32,

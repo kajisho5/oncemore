@@ -1377,3 +1377,29 @@ written that fails before the fix, and then the fix:
   playlist, a transition and subtitles and presses the same seventeen keys
   in the simulator and in the player in a browser, comparing the domain,
   menu, button, title and chapter after each.
+
+## 80. Closed captions
+
+* A DVD carries line-21 captions inside its video: user data after every
+  GOP header ("CC", then a word pair per field for each of the GOP's
+  frames), which the player sends to line 21 of its analogue output or
+  decodes itself. ffmpeg's encoder writes captions only in the ATSC form,
+  from captions it decodes; so the title's picture goes to an elementary
+  stream (the path soft pulldown already took), the user data is inserted
+  after each GOP header, and the stream is muxed with the sound. The
+  titleset's video attributes say "line 21, field 1" (dvdauthor's
+  caption="field1").
+* A Scenarist file is the format caption tools write: CEA-608 byte pairs
+  with a timecode, used as they are. Anything else is read as subtitles
+  and made into pop-on captions, the usual way for prerecorded video: each
+  is loaded into the hidden memory after the previous one went up (its
+  "end of caption" swaps the memories), shown at its start and erased at
+  its end; one with too much text to load in time is shown late, with a
+  warning. The basic character set is ASCII with a few accented letters;
+  anything else becomes a space (with a count in the warnings).
+* Captions follow frames at 29.97 per second. A film title with soft
+  pulldown has 23.976 coded pictures, two or three fields each, which the
+  DVD form counts differently, so it is refused rather than mistimed.
+* The tests read the captions back with ffmpeg's own decoder (lavfi's
+  subcc on the built VOB): the text, and the times to within a GOP, since
+  the decoder takes a GOP's captions at its start.

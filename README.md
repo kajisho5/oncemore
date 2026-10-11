@@ -424,6 +424,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `audio.lang` | ISO 639-1 code of the (single) audio track | none |
 | `audio_tracks` | 1–8 `{source?, stream?, lang?}`: several audio streams (below) | one track from `source` |
 | `subtitles` | up to 32 `{file, lang?, default?}` SRT files (below) | none |
+| `captions` | closed captions (line 21, CEA-608) on an NTSC DVD: a Scenarist `.scc` file used as it is, or a subtitle file sent as pop-on captions; or `{file, offset}` (below) | none |
 | `auto_chapter_menu` | `true` or object (below) | off |
 
 `auto_chapter_menu` object: `id` (default `chapters_<title id>`; extra pages get
@@ -644,6 +645,15 @@ differs from the frame; `fill` fills the frame and crops the edges.
   against a source's own timecode. Each cue is drawn with the menu font (white with an
   outline, see `disc.subtitle_style`), reduced to a 4-colour DVD subpicture and
   muxed with spumux; overlapping cues are shortened.
+* Closed captions (`captions`): line-21 captions (CEA-608, CC1) for TVs and
+  players with a caption decoder, written into the DVD's MPEG-2 video (user
+  data after each GOP header, as DVDs carry them) and flagged in the IFO. A
+  Scenarist `.scc` file's byte pairs go in as they are; a subtitle file (any
+  of the formats above) becomes pop-on captions: up to four centred rows of
+  32 characters, Latin letters (other characters become spaces), loaded
+  before their time, shown at their start and erased at their end. NTSC
+  only, on 29.97 fps pictures (a film title with 3:2 pulldown is refused:
+  set its scan to interlaced); Blu-ray and web builds leave them out.
 * Image scripts: a text script whose subtitle text is a picture file next to
   the script (`.png`, `.bmp`, `.tif`, `.jpg`, `.webp`) shows that picture in
   its own colours. A picture without transparency has its top-left colour

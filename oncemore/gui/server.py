@@ -65,7 +65,7 @@ MEDIA_EXT = {
               ".ts", ".webm", ".wmv", ".dv", ".vob", ".mxf"},
     "audio": {".wav", ".aif", ".aiff", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".ac3", ".dts", ".opus"},
     "image": {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp"},
-    "subtitle": {".srt", ".vtt", ".ass", ".ssa", ".txt"},
+    "subtitle": {".srt", ".vtt", ".ass", ".ssa", ".txt", ".scc"},
     "font": {".ttf", ".otf", ".ttc"},
     "design": {".psd", ".psb"},
 }

@@ -10,7 +10,7 @@ import shutil
 import tempfile
 import threading
 
-from . import (author, bdmenu, bluray, clips, encode, iso, lpcmfix, pgs, slideshow, subtitles,
+from . import (author, bdmenu, bluray, captions, clips, encode, iso, lpcmfix, pgs, slideshow, subtitles,
                tools, udf250, uops)
 from . import menu as menu_module
 from .errors import OncemoreError, ProjectError
@@ -114,6 +114,21 @@ def inspect(project, reporter=None, prepare=True, bd=False):
                 warnings.append(f"{where}.audio_tracks[{j}]: {os.path.basename(tr.source)} has "
                                 f"{probe(tr.source)['audio_channels']} channel(s); the 5.1 "
                                 "track will only use the front speakers")
+        if t.captions and bd:
+            warnings.append(f"{where}.captions: closed captions are for DVD and are left out here")
+        elif t.captions:
+            film = t.video_mode == "pulldown" or (not t.transcode and info.get("has_video")
+                                                  and encode.is_film(info, project.disc_for(t)))
+            if film:
+                issues.append({"path": f"{where}.captions",
+                               "message": "closed captions need 29.97 fps video; this title is "
+                                          "film with 3:2 pulldown (set scan to interlaced)"})
+            else:
+                try:
+                    for note in captions.load(t.captions, t.captions_offset)[1]:
+                        warnings.append(f"{where}.captions: {note}")
+                except ProjectError as e:
+                    issues.append({"path": f"{where}.captions", "message": e.message})
         if t.audio_codec == "dts" and not bd:
             warnings.append(f"{where}.audio.codec: DTS only: a DVD player without a DTS decoder "
                             "plays no sound unless it passes DTS on to an amplifier (DVDs "
@@ -397,6 +412,8 @@ def title_cache_key(project, title, info, vbps, fast):
         "ivtc": encode.is_ivtc(title),
         "audio": [title.audio_codec, title.audio_bitrate, title.audio_channels,
                   title.audio_passthrough],
+        **({"captions": [_file_sig(title.captions), title.captions_offset]}
+           if title.captions else {}),
         **({} if title.transcode else {"copy": True}),
         # (a sound-only title: the picture shown with it)
         **({"still": _file_sig(info["still"]) if info["still"] else "black"}
