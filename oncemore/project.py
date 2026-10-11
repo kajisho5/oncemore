@@ -356,7 +356,7 @@ class Clip:
         return self.hold is not None
 
 
-IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp")
+IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp", ".gif", ".tga")
 STILL_DEFAULT = 5.0
 
 

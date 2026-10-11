@@ -188,13 +188,13 @@ def graph(show, disc, part=None):
         if show.pan_zoom:
             # one picture in, `frames` pictures out; drawn at twice the size so
             # the slow zoom does not wobble on whole-pixel steps
-            args += ["-i", sl.image]
+            args += tools.still_input(sl.image) + ["-i", sl.image]
             z = (f"1+0.10*on/{frames}" if k % 2 == 0 else f"1.10-0.10*on/{frames}")
             chain = (f"[{i}:v]{_framed(2 * W, 2 * H, sl.fit or show.fit, bg)},"
                      f"zoompan=z='{z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
                      f"d={frames}:s={W}x{H}:fps={num}/{den}")
         else:
-            args += ["-loop", "1", "-framerate", f"{num}/{den}",
+            args += tools.still_input(sl.image) + ["-loop", "1", "-framerate", f"{num}/{den}",
                      "-t", f"{length + 2 * den / num:.3f}", "-i", sl.image]
             chain = f"[{i}:v]{_framed(W, H, sl.fit or show.fit, bg)}"
         # (a piece: the first picture without what the piece before drew, the

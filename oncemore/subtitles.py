@@ -178,7 +178,7 @@ _TC = TIMECODE = re.compile(r"^(\d{1,2})([:;])(\d{1,2})([:;])(\d{1,2})([:;.,])(\
 _SCRIPT_LINE = re.compile(r"^\s*(\d+)[ \t]+(\S+)[ \t]+(\S+)(?:[ \t]+(.*))?$")
 # an image script: the same lines with a picture file instead of the text
 #   1 00;00;02;02 00;00;03;15 sub0001.png
-IMAGE_FILE = re.compile(r"\.(png|bmp|tiff?|jpe?g|webp)$", re.I)
+IMAGE_FILE = re.compile(r"\.(png|bmp|tiff?|jpe?g|webp|gif|tga)$", re.I)
 
 
 def timecode_seconds(tc, standard="NTSC"):
