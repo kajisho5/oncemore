@@ -24,7 +24,7 @@ import random
 import threading
 from dataclasses import dataclass, field
 
-from . import tools
+from . import settings, tools
 from .errors import OncemoreError
 
 CACHE_VERSION = 1
@@ -135,7 +135,7 @@ def output_path(base_dir, show, disc):
                       "disc": [disc.standard, disc.aspect, list(canvas(disc)), disc.fps]},
                      sort_keys=True, default=str)
     name = hashlib.sha256(key.encode("utf-8")).hexdigest()[:24] + ".mkv"
-    return os.path.join(base_dir, ".oncemore-cache", "slideshow", name)
+    return os.path.join(settings.cache_dir(base_dir), "slideshow", name)
 
 
 def _hex(color):
@@ -260,8 +260,9 @@ def apply(title, disc, probe):
     seconds = sum(probe(a).get("duration") or 0.0 for a in show.music)
     fit_to(show, seconds)
     show.music_length = seconds
-    base = os.path.dirname(os.path.dirname(os.path.dirname(title.source)))
-    old, title.source = title.source, output_path(base, show, disc)
+    # (in the same folder as the render before it was fitted)
+    old = title.source
+    title.source = os.path.join(os.path.dirname(old), os.path.basename(output_path("", show, disc)))
     for tr in title.audio_tracks:
         if tr.source == old:
             tr.source = title.source

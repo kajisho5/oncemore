@@ -1465,3 +1465,20 @@ written that fails before the fix, and then the fix:
 * The tests draw a long line over a short one and check where the short
   one's pixels are for each alignment, and that the spacing moves the
   second line down by as much.
+
+## 88. The media cache folder
+
+* The media cache was always `<project>/.oncemore-cache`. Encodes of long
+  titles fill a project's drive, so the classic apps let the cache live
+  anywhere; now Preferences > Media cache (or ONCEMORE_CACHE) chooses a
+  folder, kept in this computer's settings (settings.json next to the
+  recent projects list), not in the project.
+* Each project gets its own folder in it, named after the project folder
+  with a hash of its full path: two projects of the same name do not
+  share one, and `oncemore clean` still removes one project's cache only.
+  (The cache keys are content keys, so sharing would be safe; keeping
+  them apart keeps clean and the sizes simple.)
+* Everything that writes to the cache asks settings.cache_dir: encodes,
+  slideshows, joined clips and the editor's playback copies. A slideshow
+  fitted to its music used to find the project from its render's path
+  (three folders up); it now keeps the render's folder, wherever that is.

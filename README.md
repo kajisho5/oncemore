@@ -818,6 +818,11 @@ to encode everything again (the cache is refreshed with the new encodes), and
 `oncemore clean <project>` to delete the cache and reclaim the space (it is
 all made again by the next build).
 
+The cache (encodes, rendered slideshows, joined clips, playback copies) can
+live elsewhere, say on a larger or faster drive: Preferences > Media cache,
+or `ONCEMORE_CACHE=/path` on the command line. Each project then gets its
+own folder in it, named after the project folder.
+
 ## Known limitations
 
 * Motion menus loop one video (with an optional intro); only chapter thumbnails

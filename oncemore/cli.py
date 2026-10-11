@@ -7,7 +7,7 @@ import shutil
 import sys
 import tempfile
 
-from . import __version__, build, burn, graph, scaffold, tools, web
+from . import __version__, build, burn, graph, scaffold, settings, tools, web
 from .errors import OncemoreError, ProjectError
 from .project import PROJECT_FILENAME, load_project
 from .report import Reporter
@@ -187,7 +187,7 @@ def cmd_clean(args, rep):
     base = path if os.path.isdir(path) else os.path.dirname(path)
     if not os.path.exists(path) or not os.path.isfile(os.path.join(base, PROJECT_FILENAME)):
         raise OncemoreError(f"{args.project}: project file not found")
-    cache = os.path.join(base, ".oncemore-cache")
+    cache = settings.cache_dir(base)
     size = 0
     for root, _, files in os.walk(cache):
         for f in files:

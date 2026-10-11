@@ -14,7 +14,7 @@ import math
 import os
 import threading
 
-from . import encode, tools
+from . import encode, settings, tools
 from .project import clip_starts, retime_thumbs, title_fps
 
 CACHE_VERSION = 1
@@ -81,7 +81,7 @@ def preview_path(base_dir, title, disc):
                       "mode": getattr(title, "video_mode", None)},
                      sort_keys=True, default=str)
     name = hashlib.sha256(key.encode("utf-8")).hexdigest()[:24] + ".mkv"
-    return os.path.join(base_dir, ".oncemore-cache", "clips", name)
+    return os.path.join(settings.cache_dir(base_dir), "clips", name)
 
 
 def render_preview(title, disc, out, log, on_progress=None):

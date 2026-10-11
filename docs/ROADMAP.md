@@ -394,7 +394,7 @@ against their published help, not from memory)
   shape in the editor, and replace it with another picture
 - [ ] Replace a menu's background and layout with a template, keeping its
   buttons' links
-- [ ] Media cache in a folder of your choosing (Preferences)
+- [x] Media cache in a folder of your choosing (Preferences) (P68)
 - [ ] Bit budget: per title and menu, the bitrate and the space it takes
   on the disc, as a bar of the whole disc, before anything is encoded
 

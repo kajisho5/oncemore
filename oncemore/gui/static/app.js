@@ -137,6 +137,9 @@ const I18N = {
     reveal: "Show in Finder", reveal_other: "Open folder", output: "Output", warnings: "Warnings",
     step_probe: "Checking sources", step_menu: "Rendering menu “{i}”", step_encode: "Encoding title “{i}”",
     step_subtitles: "Subtitles for “{i}”", step_author: "Authoring VIDEO_TS", step_iso: "Writing the disc image",
+    media_cache: "Media cache", cache_folder: "Folder", cache_in_project: "In the project folder (.oncemore-cache)", cache_use: "Use",
+    cache_in_project_short: "In the project", cache_now: "This project's: {p}",
+    cache_hint: "Encoded titles and menus, rendered slideshows and playback copies are kept here so builds go fast. A folder for every project (e.g. on a larger or faster drive): each project gets its own folder in it.",
     check_ok: "Ready to build", estimated: "Estimated size", of: "of", video_avg: "Average video bitrate",
     menu_item: "Menu: {m}", menu_button_item: "Menu: {m} › {b}", title_item: "Title: {t}", chapter_item: "{t} › Chapter {n}",
     audio_item: "Audio stream {n}", subtitle_item: "Subtitles {n}", subtitle_off: "Subtitles off",
@@ -393,6 +396,9 @@ const I18N = {
     reveal: "Finder で表示", reveal_other: "フォルダを開く", output: "出力先", warnings: "警告",
     step_probe: "素材をチェック", step_menu: "メニュー「{i}」を作成", step_encode: "タイトル「{i}」をエンコード",
     step_subtitles: "「{i}」の字幕を作成", step_author: "VIDEO_TS を構成", step_iso: "ディスクイメージを書き出し",
+    media_cache: "メディアキャッシュ", cache_folder: "フォルダー", cache_in_project: "プロジェクトフォルダー内（.oncemore-cache）", cache_use: "使う",
+    cache_in_project_short: "プロジェクト内", cache_now: "このプロジェクトの場所：{p}",
+    cache_hint: "エンコード済みのタイトルとメニュー、書き出したスライドショー、再生用のコピーをここに置き、ビルドを速くします。全プロジェクト共通のフォルダー（容量の大きいドライブや速いドライブなど）を選ぶと、その中にプロジェクトごとのフォルダーを作ります。",
     check_ok: "書き出しできます", estimated: "推定サイズ", of: "／", video_avg: "平均映像ビットレート",
     menu_item: "メニュー：{m}", menu_button_item: "メニュー：{m} › {b}", title_item: "タイトル：{t}", chapter_item: "{t} › チャプター {n}",
     audio_item: "音声 {n}", subtitle_item: "字幕 {n}", subtitle_off: "字幕オフ",
@@ -3487,7 +3493,22 @@ function preferencesBox() {
       <div class="hint">${esc(t("brightness_hint"))}</div></label>
     <label class="field"><span>${t("skin")}</span>${selectHtml("skin", [["modern", t("skin_modern")], ["classic", t("skin_classic")]], store.get("skin", "modern"), 'id="pref-skin"')}<div class="hint">${esc(t("skin_hint"))}</div></label>
     <label class="field"><span>${t("cmd_theme")}</span>${selectHtml("theme", [["dark", t("theme_dark")], ["light", t("theme_light")]], store.get("theme", "dark"), 'id="pref-theme"')}</label>
-    <label class="field"><span>${t("language")}</span>${selectHtml("lang", [["en", "English"], ["ja", "日本語"]], LANG, 'id="pref-lang"')}</label>`);
+    <label class="field"><span>${t("language")}</span>${selectHtml("lang", [["en", "English"], ["ja", "日本語"]], LANG, 'id="pref-lang"')}</label>
+    <h3>${t("media_cache")}</h3>
+    <label class="field"><span>${t("cache_folder")}</span>
+      <div class="row"><input id="pref-cache" class="mono" placeholder="${esc(t("cache_in_project"))}">
+      <button class="small shrink" id="pref-cache-set">${t("cache_use")}</button><button class="small shrink" id="pref-cache-def">${t("cache_in_project_short")}</button></div>
+      <div class="hint" id="pref-cache-hint">${esc(t("cache_hint"))}</div></label>`);
+  // the media cache: in the project folder, or one folder for every project
+  const showCache = (r) => {
+    if (!$("#pref-cache")) return;
+    $("#pref-cache").value = r.cache_dir || "";
+    $("#pref-cache-hint").textContent = `${t("cache_hint")} ${t("cache_now", { p: r.project_cache })}`;
+  };
+  const putCache = (v) => api("/api/settings", { method: "PUT", body: { cache_dir: v } }).then(showCache).catch((e) => alert(e.message));
+  api("/api/settings").then(showCache).catch(() => {});
+  $("#pref-cache-set").onclick = () => putCache($("#pref-cache").value.trim() || null);
+  $("#pref-cache-def").onclick = () => putCache(null);
   const set = (v) => { store.set("brightness", v); applyBrightness(); };
   $("#pref-bright").oninput = (e) => set(Number(e.target.value));
   $("#pref-bright-def").onclick = () => { $("#pref-bright").value = 0; set(0); };
