@@ -280,6 +280,27 @@ class TestEncoreDrag(unittest.TestCase):
             browser.close()
         self.assertEqual(errors, [])
 
+    def test_type_handles(self):
+        # a text's corner handle scales its type; the opposite corner stays
+        with sync_playwright() as p:
+            browser, page, errors = self.open(p)
+            t0 = self.menu()["texts"][0]
+            size0 = t0["size"]                                      # (56 in the sample)
+            page.locator(".stage .el.text[data-i='0']").click()
+            self.assertEqual(page.locator(".stage .rz-h").count(), 4)
+            hb, el = page.locator(".stage .rz-h[data-h=se]").bounding_box(), page.locator(".stage .el.text[data-i='0']").bounding_box()
+            x, y = hb["x"] + hb["width"] / 2, hb["y"] + hb["height"] / 2
+            page.mouse.move(x, y)
+            page.mouse.down()
+            page.mouse.move(x + el["width"] / 2, y + 2, steps=6)       # half as wide again
+            page.mouse.up()
+            self.until(lambda: self.menu()["texts"][0]["size"] != size0, "type scaled")
+            t1 = self.menu()["texts"][0]
+            self.assertEqual((t1["x"], t1["y"]), (t0["x"], t0["y"]))
+            self.assertLess(abs(t1["size"] / size0 - 1.5), 0.15)
+            browser.close()
+        self.assertEqual(errors, [])
+
     def test_photoshop_file_becomes_a_menu(self):
         from .test_psdmenu import design
         with sync_playwright() as p:
