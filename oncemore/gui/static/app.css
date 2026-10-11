@@ -231,6 +231,7 @@ h3 { font-size: 12px; margin: 18px 0 8px; color: var(--muted); text-transform: u
 }
 .stage .el:hover { outline-color: rgba(255,255,255,.35); }
 .stage .el.selected { outline: 1px solid var(--focus); }
+.stage .marquee { position: absolute; border: 1px dashed var(--focus); background: color-mix(in srgb, var(--focus) 12%, transparent); pointer-events: none; z-index: 5; }
 .stage .el.button.highlight { text-decoration: underline; text-underline-offset: 3px; }
 .stage .el.shape { outline-offset: -1px; }
 .stage .guide { position: absolute; background: var(--c-guide); pointer-events: none; z-index: 5; }
