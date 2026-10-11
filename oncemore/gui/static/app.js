@@ -232,6 +232,7 @@ const I18N = {
     cmd_view_normal: "Normal", cmd_view_selected: "Selected", cmd_view_activated: "Activated", cmd_exact_preview: "Exact preview",
     cmd_reset_workspace: "Reset workspace", cmd_reload: "Reload", cmd_full_screen: "Enter full screen", cmd_minimize: "Minimise", cmd_zoom_window: "Zoom",
     cmd_help: "oncemore help",
+    cmd_check_updates: "Check for Updates…", updates_text: "This is oncemore {v}. oncemore itself never connects to the internet, so it cannot look for new versions: the releases page lists every version with what is new in it and its download.", open_releases: "Open the releases page",
     cmd_sponsor: "Support oncemore (GitHub Sponsors)…", sponsor_text: "oncemore is free. If it helps you, you can support its development through GitHub Sponsors.",
     folder: "Folder", shadow_offset: "Shadow distance", outline_width: "Stroke width",
     no_recent: "No recent projects", folders: "Folders", fb_up: "Up one folder", fb_home: "Home", fb_empty: "No folders in here.",
@@ -486,6 +487,7 @@ const I18N = {
     cmd_view_normal: "通常", cmd_view_selected: "選択", cmd_view_activated: "決定", cmd_exact_preview: "正確なプレビュー",
     cmd_reset_workspace: "ワークスペースをリセット", cmd_reload: "再読み込み", cmd_full_screen: "フルスクリーンにする", cmd_minimize: "しまう", cmd_zoom_window: "拡大／縮小",
     cmd_help: "oncemore ヘルプ",
+    cmd_check_updates: "アップデートを確認…", updates_text: "このアプリは oncemore {v} です。oncemore 自身はインターネットに接続しないため、新しい版を自動では探しません。リリースのページに、すべての版の新機能とダウンロードがあります。", open_releases: "リリースのページを開く",
     cmd_sponsor: "oncemore を支援（GitHub Sponsors）…", sponsor_text: "oncemore は無料です。役に立ったら GitHub Sponsors から開発を支援できます。",
     folder: "フォルダー", shadow_offset: "影の距離", outline_width: "境界線の幅",
     no_recent: "最近使用したプロジェクトはありません", folders: "フォルダー", fb_up: "1 つ上のフォルダー", fb_home: "ホーム", fb_empty: "フォルダーがありません。",
@@ -3984,6 +3986,7 @@ const COMMANDS = {
   help: { run: openHelp },
   shortcuts: { key: "?", run: shortcutsSheet },
   sponsor: { run: () => openLink(SPONSOR_URL) },
+  check_updates: { run: checkUpdates },
   about: { run: aboutBox },
 };
 // The menu bar, in the order disc authoring people know: File, Edit, Object,
@@ -4015,7 +4018,7 @@ const MENUBAR = [
   ["m_window", [["m_workspace", ["ws_author", "ws_flow", "ws_sim", "ws_build", "-", "reset_workspace"]], "-",
     "win_project", "win_menus", "win_timelines", "win_build", "win_monitor", "win_flowchart", "win_properties", "win_layers", "win_library", "-",
     "theme", "language", "-", "reload", "full_screen", "minimize", "zoom_window"]],
-  ["m_help", ["help", "shortcuts", "-", "sponsor", "about"]],
+  ["m_help", ["help", "shortcuts", "-", "check_updates", "sponsor", "about"]],
 ];
 const MENU_ROLES = { m_file: "file", m_edit: "edit", m_window: "window", m_help: "help" };
 // the menu items as the page shows them (and posts them to the Mac app)
@@ -4478,6 +4481,13 @@ function resetWorkspace() {
   if (P()) WS("author")();
 }
 const SPONSOR_URL = "https://github.com/sponsors/kajisho5";
+const RELEASES_URL = "https://github.com/kajisho5/oncemore/releases";
+// (the browser opens the page: oncemore makes no connection of its own)
+function checkUpdates() {
+  openModal(`<h2>${esc(t("cmd_check_updates").replace(/…$/, ""))}</h2><p>${esc(t("updates_text", { v: S.version || "?" }))}</p>
+    <div class="dlg-buttons"><span class="spacer"></span><button id="open-releases" class="primary">${esc(t("open_releases"))}</button></div>`);
+  $("#open-releases").onclick = () => { openLink(RELEASES_URL); closeModal(); };
+}
 function openLink(url) {
   if (IN_APP) location.assign(url);              // (the app opens it in the browser)
   else window.open(url, "_blank", "noopener");

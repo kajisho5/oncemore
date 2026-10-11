@@ -1180,6 +1180,29 @@ class TestGuiBrowser(unittest.TestCase):
             browser.close()
         self.assertEqual(errors, [])
 
+    def test_check_updates(self):
+        """Help > Check for Updates says which version this is and opens the
+        releases page in the browser (the app itself connects to nothing)."""
+        from oncemore import __version__
+        self.s.call("/api/new", "POST", {"sample": True})
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click(".nav-item[data-view=title][data-id=t1]", timeout=120000)
+            page.evaluate("window.__opened = []; window.open = (u) => { window.__opened.push(u); }; 0")
+            page.click("#menubar > button:has-text('Help')")
+            page.click(".popup.from-bar button:has-text('Check for Updates')")
+            self.assertIn(f"oncemore {__version__}", page.inner_text("#modal-body"))
+            page.click("#open-releases")
+            self.assertEqual(page.evaluate("window.__opened"),
+                             ["https://github.com/kajisho5/oncemore/releases"])
+            self.assertTrue(page.evaluate("document.getElementById('modal').hidden"))
+            browser.close()
+        self.assertEqual(errors, [])
+
     def test_menu_bar_commands(self):
         """Edit, Object, Menu, Timeline and View commands on the sample disc."""
         self.s.call("/api/new", "POST", {"sample": True})

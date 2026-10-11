@@ -98,7 +98,10 @@ Download `Oncemore-<version>-arm64.zip` (Apple silicon) or
 run's artifacts), unzip, and move *Oncemore.app* to Applications. The
 build is not notarised yet, so macOS blocks the first launch: open *System
 Settings › Privacy & Security* and click **Open Anyway** (or run
-`xattr -dr com.apple.quarantine /Applications/Oncemore.app`). Build it yourself
+`xattr -dr com.apple.quarantine /Applications/Oncemore.app`). oncemore never
+connects to the internet, so it does not look for new versions by itself:
+*Help › Check for Updates…* shows which version you have and opens the Releases
+page (or click **Watch › Custom › Releases** on GitHub to be told). Build it yourself
 with `macos/build_app.sh` (Xcode command line tools + `gh`); with a Developer ID
 set `CODESIGN_IDENTITY` and `NOTARIZE=1` to produce a signed, notarised app.
 Pushing a tag `v<version>` runs `.github/workflows/release.yml`, which builds

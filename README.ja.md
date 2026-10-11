@@ -93,6 +93,8 @@ brew install ffmpeg-full dvdauthor
 ダウンロードして展開し、*Oncemore.app* を「アプリケーション」に入れてください。まだ公証（notarize）していないため、
 初回起動は macOS にブロックされます。「システム設定 › プライバシーとセキュリティ」で **このまま開く** を押すか、
 `xattr -dr com.apple.quarantine /Applications/Oncemore.app` を実行してください。
+oncemore はインターネットに接続しないため、新しい版を自動では探しません。「ヘルプ › アップデートを確認…」で今の版を確かめ、
+Releases ページを開けます（GitHub の **Watch › Custom › Releases** を選ぶと新しい版の通知が届きます）。
 自分でビルドする場合は `macos/build_app.sh`（Xcode コマンドラインツールと `gh` が必要）。Developer ID があれば
 `CODESIGN_IDENTITY` と `NOTARIZE=1` で署名・公証済みのアプリを作れます。
 タグ `v<version>` を push すると `.github/workflows/release.yml` が両アーキテクチャをビルドし、
