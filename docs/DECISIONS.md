@@ -1685,7 +1685,7 @@ written that fails before the fix, and then the fix:
 * Still from the tools: ffmpeg/ffprobe, and an ISO tool if the built-in
   writer is not wanted. libdvdnav stays a test-only dependency.
 
-## 91. Multi-angle titles
+## 93. Multi-angle titles
 
 * A title's `angles` are more video files of the same scene; the source is
   angle 1. dvdauthor could not write angle blocks; vtskit interleaves them
