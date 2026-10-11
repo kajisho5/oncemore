@@ -245,6 +245,12 @@ browser) and lands only with green CI.
   its link (menu, title, chapter, playlist, play all), on DVD and Blu-ray;
   drawn in the flowchart, played in the simulator
 
+**P51 — AI assistants (MCP)** (done)
+- [x] `oncemore mcp`: an MCP server over stdio (revision 2026-07-28 and the
+  earlier initialize-based ones) whose tools create, read and change
+  projects, bring media in, validate, render menus, simulate the remote and
+  build in the background; only inside allowed folders
+
 **P48 — The whole menu bar** (done)
 - [x] File, Edit, Object, Menu, Timeline, View, Window and Help with
   submenus and every command behind them: new / open / open recent / save /

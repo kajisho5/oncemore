@@ -229,6 +229,7 @@ oncemore gui [<dir>] [--port N] [--no-browser] # オーサリングアプリ
 oncemore transcode <project> [--title ID] [--fast] [--status]  # 書き出し前にタイトルをエンコード
 oncemore burn out.iso [--device DEV]           # イメージを空の DVD に書き込み（macOS は hdiutil、他は growisofs）
 oncemore doctor                                # 外部ツールの有無・バージョン・ISO バックエンド
+oncemore mcp [--root DIR]                      # AI アシスタント向けのツール（MCP、下記）
 ```
 
 * `<project>` は `project.oncemore.json` かそれを含むディレクトリ。
@@ -240,6 +241,34 @@ oncemore doctor                                # 外部ツールの有無・バ�
 * `--json`（コマンドの前後どちらでも可）で stdout が **JSON Lines** になります（GUI 連携用）：
   `step`、`progress`（`fraction` 0〜1）、`log`、最後に `result` か `error`。
   終了コード：0 成功、1 エラー、2 プロジェクト不正、3 ツール不足、4 外部ツール失敗。
+
+## AI アシスタントから使う（MCP）
+
+`oncemore mcp` を使うと、AI アシスタントにディスク作りを任せられます。oncemore の操作を
+[Model Context Protocol](https://modelcontextprotocol.io) のツールとして stdio で提供するので、
+「この動画 3 本で、黒地に白文字のチャプターメニュー付き DVD を作って」と頼めば、アシスタントが
+プロジェクトを作り、動画を取り込み、メニューを書き、チェックし、メニューを画像で見せ、
+リモコン操作を試し、ディスクイメージまでビルドします。
+
+Claude Code：
+
+```
+claude mcp add --scope user oncemore -- oncemore mcp
+```
+
+Claude Desktop（`claude_desktop_config.json`）などの MCP クライアント：
+
+```json
+{"mcpServers": {"oncemore": {"command": "oncemore", "args": ["mcp"]}}}
+```
+
+ツール：`project_format`（JSON Schema）、`create_project`、`read_project`、`write_project`、
+`edit_project`（JSON Merge Patch）、`import_media`、`validate`、`preview_menu`（PNG）、`simulate`、
+`import_psd`、`build` と `build_status`（バックグラウンドで実行。DVD／Blu-ray のイメージかフォルダーを
+`<project>/output` に作成）、`doctor`。不正になるプロジェクトは書き込まず、問題点をアシスタントに返して
+直してもらいます。触るのはホームフォルダーの中だけです（`--root DIR` を繰り返して広げたり絞ったりできます）。
+接続したアシスタントを通す以外に、データがパソコンの外に出ることはありません。プロトコルは
+2026-07-28 版と、`initialize` で始まるそれ以前の版の両方に対応します。
 
 ## プロジェクトファイル
 

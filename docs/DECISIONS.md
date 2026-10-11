@@ -1096,3 +1096,26 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   into `exports/` in the project folder, never over an earlier one: a page
   cannot save to an arbitrary place on disk, and the folder is where the
   person looks for the project's files anyway (Reveal shows it).
+
+## 71. An MCP server for AI assistants
+
+* `oncemore mcp` speaks the Model Context Protocol over stdio, written with
+  the standard library (JSON-RPC, one message per line), like everything
+  else at runtime: no SDK to install or keep up with.
+* Both protocol eras: revision 2026-07-28 (every request carries its
+  version and capabilities in `_meta`; `server/discover`; results say
+  `resultType`) and the earlier revisions that open with `initialize`
+  (2024-11-05 to 2025-11-25), which most clients still use.
+* The tools are thin: they run the CLI's own commands (validate, simulate,
+  preview-menu, import-psd, doctor) with a reporter that collects their JSON
+  events, and the GUI server's App for saving (backups) and builds (one at a
+  time, in the background, followed with build_status). An assistant gets
+  exactly what the CLI and the app do, and nothing is implemented twice.
+* Every tool names its project folder: no call depends on an earlier one
+  (the protocol is stateless; a build job id is an explicit handle).
+* A project is checked before it is written; an invalid one is refused with
+  its issues as a tool error, which an assistant reads and corrects.
+* Only folders inside the allowed roots (`--root`, default the home folder)
+  are read or written; media are copied in, never linked from elsewhere.
+  stdout carries protocol messages only: anything else that would print is
+  sent to stderr.

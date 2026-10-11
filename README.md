@@ -277,6 +277,7 @@ oncemore gui [<dir>] [--port N] [--no-browser] # the authoring app
 oncemore transcode <project> [--title ID] [--fast] [--status]  # encode titles ahead of the build
 oncemore burn out.iso [--device DEV]           # write the image to a blank DVD (macOS: hdiutil, else growisofs)
 oncemore doctor                                # external tools, versions, ISO backend
+oncemore mcp [--root DIR]                      # tools for AI assistants (MCP, below)
 ```
 
 * `<project>` is a `project.oncemore.json` file or the directory containing it.
@@ -291,6 +292,38 @@ oncemore doctor                                # external tools, versions, ISO b
   for GUIs and scripts: `step`, `progress` (`fraction` 0–1), `log`, and a final
   `result` or `error` object. Exit codes: 0 ok, 1 error, 2 invalid project,
   3 missing tools, 4 an external tool failed.
+
+## From an AI assistant (MCP)
+
+`oncemore mcp` lets an AI assistant author discs for you: it serves
+oncemore's operations as [Model Context Protocol](https://modelcontextprotocol.io)
+tools over stdio, so you can ask in plain words ("make a DVD of these three
+videos with a chapter menu, white text on black") and the assistant creates
+the project, brings the videos in, writes the menus, checks the disc, shows
+you the menu as a picture, presses the remote on it and builds the image.
+
+Claude Code:
+
+```
+claude mcp add --scope user oncemore -- oncemore mcp
+```
+
+Claude Desktop (`claude_desktop_config.json`), or any MCP client:
+
+```json
+{"mcpServers": {"oncemore": {"command": "oncemore", "args": ["mcp"]}}}
+```
+
+Tools: `project_format` (the JSON Schema), `create_project`, `read_project`,
+`write_project`, `edit_project` (a JSON Merge Patch), `import_media`,
+`validate`, `preview_menu` (a PNG), `simulate`, `import_psd`, `build` with
+`build_status` (in the background: a DVD or Blu-ray image or folder in
+`<project>/output`), `doctor`. A project that would be invalid is never
+written; the issues go back to the assistant to correct. Only folders inside
+your home folder are touched (`--root DIR`, repeatable, to allow others or
+narrow it). Nothing leaves your computer except through the assistant you
+connected. Both protocol eras are spoken: revision 2026-07-28 and the earlier
+ones that open with `initialize`.
 
 ## Project file
 
