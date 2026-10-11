@@ -10,6 +10,7 @@ Only used by tests; skipped when libdvdnav is not installed.
 import ctypes
 import ctypes.util
 import os
+import sys
 
 DVDNAV_STATUS_OK = 1
 
@@ -80,6 +81,7 @@ def _declare(lib):
         "dvdnav_menu_call": (ctypes.c_int, [P, ctypes.c_int]),
         "dvdnav_next_pg_search": (ctypes.c_int, [P]),
         "dvdnav_prev_pg_search": (ctypes.c_int, [P]),
+        "dvdnav_get_restrictions": (ctypes.c_uint32, [P]),
     }
     for name, (res, args) in sigs.items():
         fn = getattr(lib, name)
@@ -165,6 +167,16 @@ class DvdSim:
                                                  ctypes.byref(pg)) != DVDNAV_STATUS_OK:
             return None
         return pgc.value
+
+    def restrictions(self):
+        """The user operations (UOP numbers 0-24) the current program chain
+        and VOBU prohibit. (libdvdnav returns its user_ops_t bit-field
+        struct, whose first-declared field is the lowest bit on a
+        little-endian machine: UOP n is bit 31 - n there.)"""
+        v = self.lib.dvdnav_get_restrictions(self.h)
+        if sys.byteorder == "little":
+            return {n for n in range(25) if v >> (31 - n) & 1}
+        return {n for n in range(25) if v >> n & 1}
 
     def highlight(self):
         b = ctypes.c_int32()

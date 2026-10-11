@@ -1285,6 +1285,30 @@ class TestGuiBrowser(unittest.TestCase):
             browser.close()
         self.assertEqual(errors, [])
 
+    def test_remote_keys_turned_off(self):
+        """Properties > Remote keys turned off, for a title and a menu."""
+        self.s.call("/api/new", "POST", {"sample": True})
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click(".nav-item[data-view=title][data-id=t1]", timeout=120000)
+            page.check("#inspector [data-uop=menu]")
+            page.check("#inspector [data-uop=next]")
+            self.poll(lambda: self.project()["titles"][0].get("prohibit") == ["next", "menu"])
+            page.uncheck("#inspector [data-uop=menu]")
+            self.poll(lambda: self.project()["titles"][0].get("prohibit") == ["next"])
+            page.uncheck("#inspector [data-uop=next]")
+            self.poll(lambda: "prohibit" not in self.project()["titles"][0])
+            page.click(".nav-item[data-view=menu][data-id=main]")
+            page.check("#inspector [data-uop=title]")
+            self.poll(lambda: self.project()["menus"][0].get("prohibit") == ["title"])
+            self.assertTrue(self.s.app.check(self.project())["valid"])
+            browser.close()
+        self.assertEqual(errors, [])
+
     def test_reorder_titles(self):
         with sync_playwright() as p:
             browser = self.launch(p)

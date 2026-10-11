@@ -178,7 +178,8 @@ class TestNavigationFiles(unittest.TestCase):
                              hold=bool(p.titles[0].slideshow.advance == "manual"))
         items, marks = bluray.playlist_items(p, "title", "one", {"one": piece})
         # one item per picture, each held at its end until the viewer goes on
-        self.assertEqual([(i[1], i[2], i[-1]) for i in items],
+        # (items: clip, in, out, ..., still mode at 8, UO mask at 9)
+        self.assertEqual([(i[1], i[2], i[8]) for i in items],
                          [(0, 45000, 2), (45000, 90000, 2), (90000, 135000, 2)])
         self.assertEqual(marks, [(0, 0), (1, 45000), (2, 90000)])
         from oncemore import author
@@ -738,6 +739,64 @@ class TestBlurayLinkTransitions(unittest.TestCase):
                                   ("key", "enter"), ("title", 7), ("title", 3),
                                   ("key", "enter"), ("title", 6), ("title", 1), ("title", 2),
                                   ("title", 3)])
+
+
+@unittest.skipUnless(ffmpeg_has_x264() and LIBBLURAY, "needs ffmpeg with libx264 and libbluray")
+class TestBlurayUserOperations(unittest.TestCase):
+    """The remote keys a title or a menu turns off, as the playlists' UO
+    masks: the notice cannot be left with the Top Menu key."""
+
+    @classmethod
+    def setUpClass(cls):
+        from oncemore.tools import has_drawtext
+        if not has_drawtext():
+            raise unittest.SkipTest("ffmpeg without drawtext")
+        from .test_e2e import make_uop_project
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-bduop-")
+        make_uop_project(cls.tmp)
+        cls.out = os.path.join(cls.tmp, "out")
+        cls.rc, cls.stdout, cls.stderr = run_cli("--json", "build", cls.tmp, "-o", cls.out,
+                                                 "--format", "bluray", "--fast")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def masks(self, n):
+        """(the playlist's UO mask, its first play item's)"""
+        with open(os.path.join(self.out, "BDMV", "PLAYLIST", f"{n:05d}.mpls"), "rb") as f:
+            data = f.read()
+        app = 40 + 4 + 4                     # (length, reserved + type, playback count)
+        lst = int.from_bytes(data[8:12], "big")
+        item = lst + 4 + 6 + 2 + 9 + 2 + 1 + 4 + 4   # (header, length, clip, flags, STC, in, out)
+        return int.from_bytes(data[app:app + 8], "big"), int.from_bytes(data[item:item + 8], "big")
+
+    def test_masks_in_the_playlists(self):
+        self.assertEqual(self.rc, 0, self.stderr + self.stdout)
+        from oncemore import uops
+        notice = uops.bd_mask(["next", "fast_forward", "menu", "search"])
+        self.assertEqual(self.masks(1), (notice, notice))          # the notice
+        self.assertEqual(self.masks(2), (0, 0))                    # the feature
+        self.assertEqual(self.masks(3), (uops.bd_mask(["title"]),) * 2)   # the menu
+
+    def test_top_menu_key_does_nothing_in_the_notice(self):
+        self.assertEqual(self.rc, 0, self.stderr + self.stdout)
+        with bluray_sim.Disc(LIBBLURAY, self.out) as disc:
+            events = [e for e in disc.play(keys=("topmenu", "enter"))
+                      if e[0] in ("title", "key", "uo") and e[1] != 0xFFFF]
+        self.assertEqual([e[0] for e in events[:4]], ["title", "uo", "key", "uo"])
+        self.assertEqual((events[0], events[2], events[3]),
+                         (("title", 1), ("key", "topmenu"), ("uo", 0)))
+        # menu call 0x1 and title search 0x2; libbluray 1.4 and later also report
+        # chapter / time search 0x4 0x8, skip to next 0x10 and forward play 0x200
+        mask = events[1][1]
+        self.assertEqual(mask & 0x3, 0x3)
+        if mask & ~0x3:
+            self.assertEqual(mask & 0x21C, 0x21C)
+            self.assertFalse(mask & 0x20)           # (skip back stays allowed)
+        # the notice plays to its end, then its menu; there the feature
+        self.assertEqual([e for e in events[4:] if e[0] != "uo"],
+                         [("title", 3), ("key", "enter"), ("title", 2), ("title", 3)])
 
 
 @unittest.skipUnless(ffmpeg_has_x264() and LIBBLURAY, "needs ffmpeg with libx264 and libbluray")

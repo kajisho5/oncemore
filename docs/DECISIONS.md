@@ -1096,3 +1096,24 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
   into `exports/` in the project folder, never over an earlier one: a page
   cannot save to an arbitrary place on disk, and the folder is where the
   person looks for the project's files anyway (Reveal shows it).
+
+## 70. Remote keys turned off
+
+* A title or a menu lists the remote keys it turns off by name
+  (`prohibit`), the same names for both formats; each name stands for the
+  user operations a player checks for that key (the Menu key is the root
+  menu call and the other menu calls on a DVD, menu call and pop-up on a
+  Blu-ray; the number keys are title, chapter and time play / search).
+* dvdauthor writes no prohibited user operations, so the IFO files (and
+  their .BUP copies) are patched after it: the 4 bytes at offset 8 of the
+  title's program chain (one per title, in titleset order) and of the
+  menu's (by menu number, with its loop program when the intro is apart).
+  A title without number keys also says so in the title search table
+  (UOP 0 and 1), which some players check before the program chain.
+  Patching what dvdauthor wrote, at known offsets of the IFO tables, keeps
+  dvdauthor as the author of everything else.
+* On a Blu-ray the masks are written with the playlists: a title's or a
+  menu's for its whole playlist; in a playlist or play all, each play item
+  carries its own title's.
+* The project names keys, not operation numbers: the person thinks "this
+  notice cannot be skipped", and the same project builds both formats.

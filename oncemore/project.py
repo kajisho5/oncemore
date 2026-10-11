@@ -326,6 +326,7 @@ class Title:
     clips: list = field(default_factory=list)   # Clip, when made of several videos
     clip_chapters: bool = False   # a chapter at every clip (set once clip lengths are known)
     video_mode: str = None   # what `scan` resolved to for the source (set by build.inspect)
+    prohibit: list = field(default_factory=list)   # remote keys the title does not allow (uops.NAMES)
 
     @property
     def track_bps(self):
@@ -450,6 +451,7 @@ class Menu:
     fade_in: float = 0.0       # seconds of fade from black when the menu starts (played once)
     buttons_at_loop: bool = False  # buttons only from the loop point on (the intro plays out)
     loop_pgc: int = 0          # menu PGC with the buttons (number + 1 when the intro is apart)
+    prohibit: list = field(default_factory=list)   # remote keys the menu does not allow (uops.NAMES)
 
 
 @dataclass
@@ -626,6 +628,16 @@ class _Builder:
         self.check_files = check_files
         self.issues = []
         self.warnings = []
+
+    def prohibit(self, where, obj):
+        """A title's or a menu's prohibited remote keys (uops.NAMES), in that order."""
+        from .uops import NAMES
+        names = obj.get("prohibit") or []
+        for n in names:
+            if n not in NAMES:
+                self.err(f"{where}.prohibit", f"{n!r} is not a remote key oncemore can turn off "
+                                              f"({', '.join(NAMES)})")
+        return [n for n in NAMES if n in names]
 
     def err(self, where, msg):
         self.issues.append({"path": where, "message": msg})
@@ -855,6 +867,7 @@ class _Builder:
             scan=t.get("scan", "auto"),
             transcode=t.get("transcode", True),
             picture=self.file(f"{where}.picture", t.get("picture")),
+            prohibit=self.prohibit(where, t),
         )
         if title.picture and (clips or show):
             self.err(f"{where}.picture", "a picture is for a title from a sound file")
@@ -959,6 +972,7 @@ class _Builder:
             default_button=m.get("default_button"),
             remember_button=m.get("remember_button", True),
             buttons_at_loop=bool(m.get("buttons_at_loop")) and loop_point > 0,
+            prohibit=self.prohibit(where, m),
             shapes=[Shape(s["x"], s["y"], s["w"], s["h"], s.get("color", "#00000080"))
                     for s in m.get("shapes", [])],
             images=[Picture(self.file(f"{where}.images[{j}].file", p["file"]), p["x"], p["y"],
