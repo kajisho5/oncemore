@@ -4,7 +4,11 @@ libdvdnav is the navigation engine VLC (and others) use to run DVD menus, so
 "select button N, activate, see which title/chapter starts" through it is a
 faithful automated stand-in for pressing buttons on a remote.
 
-Only used by tests; skipped when libdvdnav is not installed.
+Only used by tests; skipped when libdvdnav is not installed. Only the
+public API is used: the function declarations of dvdnav.h.
+
+(From oncemore's tests, by the same author, relicensed under
+LGPL-3.0-or-later for vtskit; the angle calls are new here.)
 """
 
 import ctypes
@@ -61,6 +65,7 @@ def _declare(lib):
         "dvdnav_wait_skip": (ctypes.c_int, [P]),
         "dvdnav_current_title_info": (ctypes.c_int, [P, i32p, i32p]),
         "dvdnav_current_title_program": (ctypes.c_int, [P, i32p, i32p, i32p]),
+        "dvdnav_get_current_nav_dsi": (ctypes.c_void_p, [P]),
         "dvdnav_get_current_nav_pci": (P, [P]),
         "dvdnav_button_select": (ctypes.c_int, [P, P, ctypes.c_int32]),
         "dvdnav_button_activate": (ctypes.c_int, [P, P]),
@@ -86,6 +91,9 @@ def _declare(lib):
         "dvdnav_next_pg_search": (ctypes.c_int, [P]),
         "dvdnav_prev_pg_search": (ctypes.c_int, [P]),
         "dvdnav_get_restrictions": (ctypes.c_uint32, [P]),
+        "dvdnav_get_number_of_angles": (ctypes.c_int, [P, ctypes.c_int32, i32p]),
+        "dvdnav_get_angle_info": (ctypes.c_int, [P, i32p, i32p]),
+        "dvdnav_angle_change": (ctypes.c_int, [P, ctypes.c_int32]),
     }
     for name, (res, args) in sigs.items():
         fn = getattr(lib, name)
@@ -196,6 +204,36 @@ class DvdSim:
         n = ctypes.c_int32()
         self.lib.dvdnav_get_number_of_parts(self.h, title, ctypes.byref(n))
         return n.value
+
+    def vob_cell(self):
+        """(VOB number, cell number) of the current navigation pack, from its
+        DSI (dsi_t: the general information first: SCR, LBN, four end
+        addresses, then VOB_IDN at 24 and C_IDN at 27, in the host's order)."""
+        dsi = self.lib.dvdnav_get_current_nav_dsi(self.h)
+        if not dsi:
+            return None
+        raw = ctypes.string_at(dsi, 28)
+        return int.from_bytes(raw[24:26], sys.byteorder), raw[27]
+
+    def num_angles(self, title):
+        """The angles of a title, as the player counts them."""
+        n = ctypes.c_int32()
+        if self.lib.dvdnav_get_number_of_angles(self.h, title, ctypes.byref(n)) \
+                != DVDNAV_STATUS_OK:
+            raise NavError("get_number_of_angles: " + self._err())
+        return n.value
+
+    def angle(self):
+        """(current angle, angles) where playback is."""
+        cur, n = ctypes.c_int32(), ctypes.c_int32()
+        if self.lib.dvdnav_get_angle_info(self.h, ctypes.byref(cur), ctypes.byref(n)) \
+                != DVDNAV_STATUS_OK:
+            raise NavError("get_angle_info: " + self._err())
+        return cur.value, n.value
+
+    def change_angle(self, angle):
+        """The remote's Angle key: False when the player refuses."""
+        return self.lib.dvdnav_angle_change(self.h, angle) == DVDNAV_STATUS_OK
 
     def active_audio(self):
         return self.lib.dvdnav_get_active_audio_stream(self.h)

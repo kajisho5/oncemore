@@ -320,6 +320,16 @@
           "$ref": "#/$defs/slideshow",
           "description": "Make this title from pictures instead of a video file."
         },
+        "angles": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "description": "More views of the same scene (DVD only): video files the viewer switches between with the remote's Angle key, the source being angle 1. Each is at least as long as the source and is encoded with the title's settings and sound.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
         "clips": {
           "type": "array",
           "minItems": 1,

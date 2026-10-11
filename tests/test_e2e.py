@@ -1309,6 +1309,96 @@ class TestLastMenuBeforeAnyMenu(unittest.TestCase):
 
 
 @unittest.skipUnless(TOOLS_OK, SKIP_REASON)
+class TestAngles(unittest.TestCase):
+    """A title with two angles: the source and another view of the same
+    length, encoded alike and interleaved on the disc; libdvdnav sees two
+    angles, switches between them and keeps the chapters."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-e2e-angles-")
+        rc, _, err = run_cli("init", "a", cwd=cls.tmp)
+        assert rc == 0, err
+        proj = os.path.join(cls.tmp, "a")
+        for name, pattern in (("cam1.mp4", "testsrc2=s=640x360:r=30000/1001:d=4"),
+                              ("cam2.mp4", "smptebars=s=640x360:r=30000/1001:d=4.5")):
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", pattern,
+                            "-f", "lavfi", "-i", "sine=f=440:d=4.5", "-c:v", "mpeg4", "-q:v", "3",
+                            "-c:a", "aac", "-shortest", os.path.join(proj, "media", name)], check=True)
+        cls.path = os.path.join(proj, "project.oncemore.json")
+        with open(cls.path) as f:
+            cls.data = json.load(f)
+        cls.data["titles"][1].update({"source": "media/cam1.mp4", "chapters": [0, 2],
+                                      "angles": ["media/cam2.mp4"]})
+        with open(cls.path, "w") as f:
+            json.dump(cls.data, f)
+        cls.iso = os.path.join(cls.tmp, "a.iso")
+        cls.rc, cls.out, cls.err = run_cli("--json", "iso", cls.path, "-o", cls.iso, "--fast",
+                                           "--keep-work", cwd=cls.tmp)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    @classmethod
+    def streams_report(cls):
+        """The title's and the angle's encoded streams side by side (their
+        pictures and VOBU start times), for the message of a failed build."""
+        from oncemore._vendor.vtskit import nav, ps
+        lines = []
+        for name in ("t2.mpg", "t2-angle2.mpg"):
+            path = os.path.join(cls.tmp, ".a.oncemore-build", ".work", "titles", name)
+            if not os.path.isfile(path):
+                lines.append(f"{name}: not written")
+                continue
+            with open(path, "rb") as f:
+                stream = ps.scan(ps.drop_padding(f.read()))
+            vobus = nav.vobus(stream)
+            first = vobus[0].s_ptm if vobus else 0
+            lines.append(f"{name}: {len(stream.pictures)} pictures, video_end {stream.video_end - first}, "
+                         f"VOBUs at {[v.s_ptm - first for v in vobus]}")
+            probe = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                                    "frame=pts,pict_type", "-of", "csv=p=0", path],
+                                   capture_output=True, text=True)
+            lines.append(f"  frames: {' '.join(l.strip(',').replace(',', ':') for l in probe.stdout.split())}")
+        return "\n".join(lines)
+
+    def test_built(self):
+        self.assertEqual(self.rc, 0, self.err + self.out + "\n" + self.streams_report())
+        build_dir = json_lines(self.out)[-1]["build_dir"]
+        titles = os.path.join(build_dir, ".work", "titles")
+        self.assertTrue(os.path.isfile(os.path.join(titles, "t2.mpg")))
+        self.assertTrue(os.path.isfile(os.path.join(titles, "t2-angle2.mpg")))
+        self.assertEqual([e["message"] for e in json_lines(self.out) if e.get("level") == "warn"], [])
+
+    @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
+    def test_angles_on_disc(self):
+        self.assertEqual(self.rc, 0, self.err + self.out + "\n" + self.streams_report())
+        with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
+            self.assertEqual([d.num_angles(1), d.num_angles(2)], [1, 2])
+            d.wait_menu()
+            d.activate(d.button_count())                         # SAMPLE TITLE B
+            title, part = d.wait_title()
+            self.assertEqual((title, part, d.num_parts(title)), (2, 1, 2))
+            self.assertEqual(d.angle(), (1, 2))
+            self.assertTrue(d.change_angle(2))
+            self.assertEqual(d.angle(), (2, 2))
+            self.assertTrue(d.next_chapter())                    # chapter 2, still angle 2
+            self.assertEqual(d.wait_title(), (2, 2))
+            self.assertEqual(d.angle(), (2, 2))
+
+    def test_short_angle_refused(self):
+        data = json.loads(json.dumps(self.data))
+        data["titles"][1].update({"source": "media/cam2.mp4", "angles": ["media/cam1.mp4"]})
+        path = os.path.join(self.tmp, "a", "short.oncemore.json")
+        with open(path, "w") as f:
+            json.dump(data, f)
+        rc, out, err = run_cli("--json", "validate", path, cwd=self.tmp)
+        self.assertNotEqual(rc, 0)
+        self.assertIn("shorter than the title", out + err)
+
+
+@unittest.skipUnless(TOOLS_OK, SKIP_REASON)
 class TestNoTranscode(unittest.TestCase):
     """A source that already is DVD video: its picture goes on the disc as
     it is (the same MPEG-2 packets), while its sound is made anew; a source

@@ -13,7 +13,9 @@ import threading
 from . import (author, bdmenu, bluray, captions, clips, encode, iso, layerbreak, lpcmfix, pgs,
                settings, slideshow, subtitles, tools, udf250, udfwriter, videots)
 from . import menu as menu_module
+from ._vendor.vtskit import VtsError
 from ._vendor.vtskit import __version__ as vtskit_version
+from ._vendor.vtskit import ps as vtskit_ps
 from .errors import OncemoreError, ProjectError
 from .project import parse_action, retime_thumbs, title_fps
 from .menu import (MenuBuilder, check_element_fonts, display_width, find_font, link_font,
@@ -155,6 +157,18 @@ def inspect(project, reporter=None, prepare=True, bd=False):
             warnings.append(f"{where}.audio.codec: DTS only: a DVD player without a DTS decoder "
                             "plays no sound unless it passes DTS on to an amplifier (DVDs "
                             "normally carry an AC-3 or LPCM track too)")
+        for j, path in enumerate(t.angles):
+            a = probe(path)
+            if bd:
+                warnings.append(f"{where}.angles: angles are for DVD and are left out here")
+                break
+            if not a.get("has_video") or not a.get("duration"):
+                issues.append({"path": f"{where}.angles[{j}]", "message": "no video stream"})
+            elif info.get("duration") and a["duration"] < info["duration"] - 0.05:
+                issues.append({"path": f"{where}.angles[{j}]",
+                               "message": f"{os.path.basename(path)} is {a['duration']:.2f}s, shorter "
+                                          f"than the title ({info['duration']:.2f}s); every angle "
+                                          "plays as long as the source"})
         for j, sub in enumerate(t.subtitles):
             cues[(t.id, j)] = subtitles.shifted(
                 subtitles.load_subtitles(sub.file, project.disc.standard), sub.offset)
@@ -341,9 +355,11 @@ def budget(project, infos, plan):
             "free": max(0, plan["capacity"] - used), "capacity": plan["capacity"]}
 
 
-def add_subtitles(project, title, mpg, plan, work, reporter):
+def add_subtitles(project, title, mpg, plan, work, reporter, cues_id=None):
     """Render the title's SRT tracks and mux them in as subpicture streams:
-    (the muxed .mpg, the title's subpicture palette)."""
+    (the muxed .mpg, the title's subpicture palette). `cues_id`: the title
+    whose cues these are (an angle's stream takes its title's)."""
+    cues_id = cues_id or title.id
     subdir = os.path.join(work, "subs", title.id)
     os.makedirs(subdir, exist_ok=True)
     renderer = subtitles.SubtitleRenderer(project.disc, subdir, link_font(plan["font"], subdir),
@@ -351,7 +367,7 @@ def add_subtitles(project, title, mpg, plan, work, reporter):
                                           project.disc.subtitle_style)
     xmls = []
     for j, sub in enumerate(title.subtitles):
-        cues = plan["_cues"][(title.id, j)]
+        cues = plan["_cues"][(cues_id, j)]
         reporter.step("subtitles", f"Rendering {len(cues)} subtitle(s) for '{title.id}' "
                       f"(stream {j + 1}{', ' + sub.lang if sub.lang else ''})", item=title.id)
         xmls.append(renderer.stream_xml(cues, sub.lang or "xx", j, sub.position, sub.color))
@@ -437,13 +453,19 @@ def _link_or_copy(src, dst):
         shutil.copyfile(src, dst)
 
 
+def picture_count(mpg):
+    """How many pictures an encoded title's program stream has."""
+    with open(mpg, "rb") as f:
+        return len(vtskit_ps.scan(vtskit_ps.drop_padding(f.read())).pictures)
+
+
 def title_cache_key(project, title, info, vbps, fast):
     disc = project.disc_for(title)
     return _cache_key("title", {
         "source": _file_sig(title.source),
         "clips": [clips.clip_key(c, _file_sig(c.source)) for c in title.clips],
         "info": {k: info.get(k) for k in (
-            "width", "height", "sar", "fps", "duration", "interlaced", "field_order")},
+            "width", "height", "sar", "fps", "duration", "interlaced", "field_order", "frames")},
         "tracks": [(_file_sig(tr.source), tr.stream) for tr in title.audio_tracks],
         "disc": [disc.standard, disc.aspect, disc.width, disc.height],
         "chapters": title.chapters, "vbps": vbps, "fast": fast, "scan": title.video_mode,
@@ -601,28 +623,47 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None, ca
         transition_files[path] = out
 
     title_files = {}
+    angle_files = {}              # title id -> the streams of its angles 2, 3, ...
     palettes = {}                 # title id -> its subtitles' colours
     os.makedirs(os.path.join(work, "titles"), exist_ok=True)
     for t in project.titles:
-        out = os.path.join(work, "titles", f"{t.id}.mpg")
-        key = title_cache_key(project, t, infos[t.id], title_bps[t.id], fast)
-        if _cache_get(cache, key, out):
-            reporter.step("encode", f"Title '{t.id}' unchanged (cached)", item=t.id)
-        else:
-            reporter.step("encode", f"Encoding title '{t.id}' ({infos[t.id]['duration']:.1f}s, "
-                          f"{title_bps[t.id] / 1e6:.2f} Mbit/s, "
-                          f"{'1-pass' if fast else '2-pass'})", item=t.id)
-            encode.encode_title(t, infos[t.id], project.disc_for(t), title_bps[t.id], out, work,
-                                two_pass=not fast,
-                                on_progress=lambda f, tid=t.id: reporter.progress("encode", f, tid),
-                                probes=plan["_probes"])
-            if t.audio_codec == "lpcm":
-                n = lpcmfix.fix_file(out)
-                reporter.debug(f"fixed {n} LPCM packet headers in {t.id}")
-            _cache_put(store, key, out)
-        if t.subtitles:
-            out, palettes[t.id] = add_subtitles(project, t, out, plan, work, reporter)
-        title_files[t.id] = out
+        # the title, then each of its angles: the same settings and sound, its
+        # own picture, cut to the title's length and to exactly as many
+        # frames (what `-t` alone cuts differs by a frame between ffmpeg
+        # versions), so that the streams have the same GOPs
+        versions = [(t, infos[t.id])]
+        for k, path in enumerate(t.angles, 2):
+            versions.append((dataclasses.replace(t, id=f"{t.id}-angle{k}", source=path),
+                             dict(plan["_probes"].get(path) or encode.probe(path),
+                                  duration=infos[t.id]["duration"])))
+        frames = None                 # pictures in the title's stream, for its angles
+        for v, info in versions:
+            out = os.path.join(work, "titles", f"{v.id}.mpg")
+            if frames is not None:
+                info = dict(info, frames=frames)
+            key = title_cache_key(project, v, info, title_bps[t.id], fast)
+            if _cache_get(cache, key, out):
+                reporter.step("encode", f"Title '{v.id}' unchanged (cached)", item=t.id)
+            else:
+                reporter.step("encode", f"Encoding title '{v.id}' ({info['duration']:.1f}s, "
+                              f"{title_bps[t.id] / 1e6:.2f} Mbit/s, "
+                              f"{'1-pass' if fast else '2-pass'})", item=t.id)
+                encode.encode_title(v, info, project.disc_for(t), title_bps[t.id], out, work,
+                                    two_pass=not fast,
+                                    on_progress=lambda f, tid=t.id: reporter.progress("encode", f, tid),
+                                    probes=plan["_probes"], frames=info.get("frames"))
+                if t.audio_codec == "lpcm":
+                    n = lpcmfix.fix_file(out)
+                    reporter.debug(f"fixed {n} LPCM packet headers in {v.id}")
+                _cache_put(store, key, out)
+            if t.subtitles:
+                out, palettes[t.id] = add_subtitles(project, v, out, plan, work, reporter, cues_id=t.id)
+            if v is t:
+                title_files[t.id] = out
+                if t.angles:
+                    frames = picture_count(out)
+            else:
+                angle_files.setdefault(t.id, []).append(out)
 
     reporter.step("author", "Writing VIDEO_TS (vtskit)")
     for sub in ("VIDEO_TS", "AUDIO_TS"):
@@ -632,7 +673,11 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None, ca
     # the navigation as dvdauthor's XML: a readable record (nothing runs it)
     with open(os.path.join(work, "navigation.xml"), "w", encoding="utf-8") as f:
         f.write(author.build_xml(project, menu_files, title_files, out_dir, transition_files))
-    videots.write(project, menu_files, title_files, out_dir, transition_files, layouts, palettes)
+    try:
+        videots.write(project, menu_files, title_files, out_dir, transition_files, layouts, palettes,
+                      angle_files)
+    except VtsError as e:
+        raise OncemoreError(f"writing VIDEO_TS: {e}")
     os.makedirs(os.path.join(out_dir, "AUDIO_TS"), exist_ok=True)
     rom = copy_rom_files(project, out_dir)
 

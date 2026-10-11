@@ -376,6 +376,7 @@ oncemore は標準ライブラリだけ・オフラインのままです。
 | `source` | ffmpeg が読める動画 | 必須（または `slideshow`／`clips`） |
 | `slideshow` | 写真から作るタイトル（下記） | なし |
 | `clips` | 複数の動画の一部をつないだタイトル（下記） | なし |
+| `angles` | 同じ場面の別アングル（DVD のみ）：リモコンのアングルキーで切り替える動画ファイル。`source` がアングル 1。8 本まで、それぞれ source 以上の長さで、タイトルの設定と音声でエンコード | `[]` |
 | `chapters` | 時刻のリスト、または `{time, name, poster}`（`name` はチャプターメニューのボタン名、`poster` はサムネイルにする時刻）。0 が無ければ自動追加 | `[0]` |
 | `audio.codec` | `ac3` \| `lpcm` \| `dts`（48kHz の DTS 素材をそのままコピー。エンコードはしない。`channels` で 2 を指定しなければ 5.1ch。DTS-HD 素材は DTS コア部分。DVD は 1536k まで） | `ac3` |
 | `audio.bitrate` | AC-3 のみ、64k〜448k | `192k`（5.1ch は `448k`） |

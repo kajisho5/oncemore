@@ -1684,3 +1684,25 @@ written that fails before the fix, and then the fix:
   when the disc is written), so the encode cache's version went to 2.
 * Still from the tools: ffmpeg/ffprobe, and an ISO tool if the built-in
   writer is not wanted. libdvdnav stays a test-only dependency.
+
+## 93. Multi-angle titles
+
+* A title's `angles` are more video files of the same scene; the source is
+  angle 1. dvdauthor could not write angle blocks; vtskit interleaves them
+  (units of about a second, each angle's VOBUs in turn) and points every
+  unit at the next unit of every angle, so a player switches without a
+  break and a jump lands in the right angle.
+* The angles must line up VOBU for VOBU, so each is encoded exactly as the
+  title is: the same bitrate, frame rate, GOP grid and chapter key frames,
+  the title's own sound tracks (so the sound does not jump when the picture
+  does), and cut to the title's length and to exactly as many pictures as
+  the title's stream has (vtskit refuses angles whose GOPs or lengths
+  differ); a shorter angle is refused at validation. (ffmpeg 8 stamps a
+  PTS on the first picture of a packet only; vtskit times the others from
+  their display order, else the last picture went uncounted and the two
+  streams seemed a frame apart.) Subtitles are muxed into every angle's stream, so they stay
+  on when the angle changes.
+* Angles are DVD only (a Blu-ray build warns and leaves them out), and a
+  title made of clips, a slideshow, or one whose picture is copied as it is
+  (`transcode: false`) cannot have them. Each angle is encoded and cached
+  as a title of its own (`<id>-angle2.mpg`, ...).

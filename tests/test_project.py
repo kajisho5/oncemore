@@ -372,3 +372,28 @@ class TestProject(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestAngles(unittest.TestCase):
+    def test_parsed(self):
+        d = sample_project()
+        d["titles"][0]["angles"] = ["media/cam2.mp4", "media/cam3.mp4"]
+        t = build(d).titles[0]
+        self.assertEqual([os.path.basename(a) for a in t.angles], ["cam2.mp4", "cam3.mp4"])
+        self.assertEqual(build(sample_project()).titles[0].angles, [])
+
+    def test_refused(self):
+        d = sample_project()
+        d["titles"][0]["angles"] = [f"media/cam{k}.mp4" for k in range(9)]
+        with self.assertRaises(ProjectError):
+            build(d)
+        d = sample_project()
+        d["titles"][0].update({"angles": ["media/cam2.mp4"], "transcode": False})
+        with self.assertRaises(ProjectError):
+            build(d)
+        d = sample_project()
+        d["titles"][0].update({"angles": ["media/cam2.mp4"],
+                               "clips": [{"source": d["titles"][0]["source"]}]})
+        d["titles"][0].pop("source")
+        with self.assertRaises(ProjectError):
+            build(d)

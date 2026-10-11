@@ -557,8 +557,9 @@ def source_video_bps(info):
 
 
 def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
-                 on_progress=None, probes=None):
-    """Encode one title to a DVD-compliant MPEG-2 program stream."""
+                 on_progress=None, probes=None, frames=None):
+    """Encode one title to a DVD-compliant MPEG-2 program stream. `frames`:
+    exactly this many pictures (an angle, as many as its title's)."""
     if not info.get("has_video"):
         raise OncemoreError(f"title {title.id!r}: {title.source} has no video stream")
     duration = info["duration"]
@@ -607,6 +608,8 @@ def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
         vin = f"{inputs.count('-i') - 1}:v:0"
     video = ["-map", vin, "-vf", fit_filter(info, disc, mode=mode, ivtc=is_ivtc(title))] + \
         _video_args(title, disc, video_bps, target, mode)
+    if frames:
+        video += ["-frames:v", str(frames)]
     passlog = os.path.join(work, f"{title.id}-pass")
     logdir = os.path.join(work, "logs")
     passes = 2 if two_pass else 1
