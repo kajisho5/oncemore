@@ -844,6 +844,12 @@
           "$ref": "#/$defs/prohibit",
           "description": "Remote keys that do nothing while this menu shows (user operations)."
         },
+        "button_offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 98,
+          "description": "Added to the buttons' numbers for the remote's number keys: with 10, the first button is selected with 11 (to match chapter numbers, say). Default 0."
+        },
         "guides": {
           "type": "object",
           "additionalProperties": false,

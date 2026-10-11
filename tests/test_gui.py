@@ -1526,6 +1526,43 @@ class TestGuiBrowser(unittest.TestCase):
             browser.close()
         self.assertEqual(errors, [])
 
+    def test_button_numbers(self):
+        """Properties > Number renumbers a button, the menu's button number
+        offset shows in the routing view, and the preview's number keys
+        (two digits) press the button with that number."""
+        self.s.call("/api/new", "POST", {"sample": True})
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click(".nav-item[data-view=menu][data-id=main]", timeout=120000)
+            ids = lambda: [b["id"] for b in self.project()["menus"][0]["buttons"]]  # noqa: E731
+            before = ids()
+            page.click(".stage .el.button[data-i='2']")
+            page.select_option("#btn-number", "0")                   # third becomes first
+            self.poll(lambda: ids() == [before[2], before[0], before[1]])
+            # the menu's offset (Properties of the menu itself)
+            page.click(".nav-item[data-view=menu][data-id=main]")
+            page.fill("#inspector input[data-k=button_offset]", "10")
+            page.press("#inspector input[data-k=button_offset]", "Tab")
+            self.poll(lambda: self.project()["menus"][0].get("button_offset") == 10)
+            page.evaluate("window.oncemoreCommand('routing')")
+            page.locator(".stage .bnum").nth(2).wait_for(timeout=60000)
+            self.assertEqual(page.locator(".stage .bnum text").all_text_contents(), ["11", "12", "13"])
+            # the preview: 1 then 3 is button 13, the old second (CHAPTERS)
+            page.locator("#stage").focus()
+            page.keyboard.press("Shift+Space")
+            page.locator("#sim-status", has_text="main").wait_for(timeout=120000)
+            page.locator("#sim-screen").focus()
+            page.keyboard.press("1")
+            page.keyboard.press("3")
+            page.locator("#sim-status", has_text="chapters").wait_for(timeout=60000)
+            self.assertTrue(self.s.app.check(self.project())["valid"])
+            browser.close()
+        self.assertEqual(errors, [])
+
     def test_remote_keys_turned_off(self):
         """Properties > Remote keys turned off, for a title and a menu."""
         self.s.call("/api/new", "POST", {"sample": True})

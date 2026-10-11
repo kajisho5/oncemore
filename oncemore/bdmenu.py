@@ -265,7 +265,8 @@ def ig_stream(menu, geoms, canvas, commands, frame_rate, follow_selection=False,
         nav = [index.get(g.nav.get(d), k) for d in ("up", "down", "left", "right")]
         cmds = commands(by_id[g.id])
         normal = ids.get(0, NO_OBJECT)
-        button = struct.pack(">HHBHH", k, NO_OBJECT, 0x80 if g.auto else 0, x0, y0)
+        # (its number for the number keys: its place among the buttons, plus the menu's offset)
+        button = struct.pack(">HHBHH", k, menu.button_offset + k + 1, 0x80 if g.auto else 0, x0, y0)
         button += struct.pack(">HHHH", *nav)
         button += struct.pack(">HHB", normal, normal, 0)
         button += struct.pack(">BHHB", 0xFF, ids[1], ids[1], 0)

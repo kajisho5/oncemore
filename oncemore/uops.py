@@ -141,3 +141,63 @@ def patch_dvd(video_ts, project):
                 buf[srpt + 8 + 12 * (n - 1)] |= 0x03     # UOP 0 and 1 for the whole title
         _patch(os.path.join(video_ts, "VIDEO_TS.IFO"), vmg)
     return changed
+
+
+# -- button numbers ----------------------------------------------------------------
+# A menu's buttons are numbered 1, 2, ... in their order; the remote's number
+# keys select them by those numbers plus the menu's offset (the button offset
+# number, BTN_OFN, of the highlight information in every navigation pack of
+# the menu). dvdauthor writes 0 there, so it is patched in the menu VOBs:
+# each navigation pack's DSI names its VOB and cell, and the menu's program
+# chains (in the IFO) name theirs.
+PCI_BTN_OFN = 0x9D                 # (pack 14 + system header 24 + PES 7 + PCI 96 + 16)
+DSI_VOB_ID, DSI_CELL_ID = 0x41F, 0x422
+
+
+def _menu_cells(buf, want):
+    """(VOB id, cell id) -> value, for the cells of the menu PGCs in `want`
+    (PGC index -> value) of an IFO with a menu PGCI_UT."""
+    cells = {}
+    if not _u32(buf, 0xD0):
+        return cells
+    for unit in _menu_pgcs(buf, _u32(buf, 0xD0) * SECTOR):
+        for k, value in want.items():
+            if k < len(unit):
+                pgc = unit[k]
+                pos = pgc + _u16(buf, pgc + 0xEA)          # cell position table
+                for c in range(buf[pgc + 3]):
+                    cells[(_u16(buf, pos + 4 * c), buf[pos + 4 * c + 3])] = value
+    return cells
+
+
+def patch_button_offsets(video_ts, project):
+    """Write the menus' button offsets into the navigation packs of the
+    menu VOB (titleset 1, where author.build_xml puts the menus). Returns
+    the number of packs changed."""
+    want = {}
+    for m in project.menus:
+        if m.button_offset:
+            for n in {m.number, m.loop_pgc or m.number}:
+                want[n - 1] = m.button_offset
+    if not want:
+        return 0
+    with open(os.path.join(video_ts, "VTS_01_0.IFO"), "rb") as f:
+        cells = _menu_cells(f.read(), want)
+    changed = 0
+    with open(os.path.join(video_ts, "VTS_01_0.VOB"), "r+b") as f:
+        while True:
+            at = f.tell()
+            pack = f.read(SECTOR)
+            if len(pack) < SECTOR:
+                break
+            if not (pack[:4] == b"\0\0\1\xba" and pack[38:42] == b"\0\0\1\xbf" and pack[44] == 0
+                    and pack[0x400:0x404] == b"\0\0\1\xbf" and pack[0x406] == 1):
+                continue                                        # (not a navigation pack)
+            value = cells.get((_u16(pack, DSI_VOB_ID), pack[DSI_CELL_ID]))
+            if value is not None and pack[PCI_BTN_OFN] != value:
+                f.seek(at + PCI_BTN_OFN)
+                f.write(bytes([value]))
+                f.seek(at + SECTOR)
+                changed += 1
+    return changed
+

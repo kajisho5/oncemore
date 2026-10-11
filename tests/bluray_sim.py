@@ -25,7 +25,8 @@ BD_EVENT_STILL = 25
 BD_EVENT_STILL_TIME = 26
 
 # remote keys (bd_vk_key_e)
-KEYS = {"popup": 11, "up": 12, "down": 13, "left": 14, "right": 15, "enter": 16}
+KEYS = {"popup": 11, "up": 12, "down": 13, "left": 14, "right": 15, "enter": 16,
+        **{str(d): d for d in range(10)}}           # (BD_VK_0 ... BD_VK_9: the number keys)
 OVERLAY_IG, OVERLAY_DRAW, OVERLAY_CLEAR, OVERLAY_WIPE = 1, 3, 2, 4
 BD_EVENT_IDLE = 28
 BD_EVENT_UO_MASK_CHANGED = 33     # param: BLURAY_UO_* bits (0x1 menu call, 0x10 skip next ...)

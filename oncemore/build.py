@@ -533,6 +533,8 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None, ca
     author.run_dvdauthor(xml_path, project, os.path.join(logs, "dvdauthor.log"))
     # (dvdauthor writes no prohibited user operations: the remote keys a title or menu turns off)
     uops.patch_dvd(os.path.join(out_dir, "VIDEO_TS"), project)
+    # (nor the menus' button offsets for the number keys)
+    uops.patch_button_offsets(os.path.join(out_dir, "VIDEO_TS"), project)
     os.makedirs(os.path.join(out_dir, "AUDIO_TS"), exist_ok=True)
     rom = copy_rom_files(project, out_dir)
 
