@@ -110,6 +110,7 @@ const I18N = {
     new_menu_with_bg: "New menu with this background",
     menu_props: "Menu", background: "Background image", background_video: "Background video",
     background_color: "Background colour", music: "Music", duration: "Loop length (s)",
+    add_music: "+ Add music…", fit_to_music: "Fit the pictures to the music (their seconds become proportions)", fitted_to: "Fitted: {d}",
     font_size: "Text size", text_color: "Text colour", highlight: "Highlight", select_color: "Activated",
     add_button: "+ Button", add_text: "+ Text", exact_preview: "Exact preview", hide_preview: "Hide preview",
     safe_area: "Safe area", button: "Button", text: "Text", action: "Action", size: "Size", color: "Colour",
@@ -299,6 +300,7 @@ const I18N = {
     new_menu_with_bg: "この背景で新しいメニュー",
     menu_props: "メニュー", background: "背景画像", background_video: "背景動画",
     background_color: "背景色", music: "BGM", duration: "ループ長（秒）",
+    add_music: "＋BGM を追加…", fit_to_music: "写真の表示時間を BGM の長さに合わせる（秒数は比率になります）", fitted_to: "調整後：{d}",
     font_size: "文字サイズ", text_color: "文字色", highlight: "選択中の色", select_color: "決定時の色",
     add_button: "＋ボタン", add_text: "＋テキスト", exact_preview: "実レンダリング確認", hide_preview: "確認を閉じる",
     safe_area: "セーフエリア", button: "ボタン", text: "テキスト", action: "リンク先", size: "サイズ", color: "色",
@@ -1375,6 +1377,7 @@ function addSlideshow() {
 }
 function renderSlideshow(m, ti) {
   const sh = ti.slideshow, slides = sh.slides || [];
+  const music = sh.audio ? (Array.isArray(sh.audio) ? sh.audio : [sh.audio]) : [];
   const total = slides.reduce((a, s) => a + (s.duration || 5), 0);
   m.innerHTML = `<div class="card">
     <div class="row"><h2 class="shrink">${esc(ti.name || ti.id)}</h2><span class="muted">${esc(t("slideshow"))} · ${slides.length} · ${total.toFixed(1)}s</span></div>
@@ -1384,14 +1387,16 @@ function renderSlideshow(m, ti) {
     <div class="transport"><button id="ss-play" class="primary">▶ ${t("render_play")}</button></div>
     <div class="slides">${slides.map((s, i) => `<div class="slide" data-slide="${i}">
         <img src="${imgUrl("file", { path: s.image })}" alt="">
-        <div class="row"><input type="number" min="0.5" max="600" step="0.5" data-f="duration" value="${s.duration || 5}" title="${esc(t("seconds"))}"> s</div>
+        <div class="row"><input type="number" min="0.5" max="600" step="0.5" data-f="duration" value="${s.duration || 5}" title="${esc(t("seconds"))}"> s <span class="muted" data-fitted></span></div>
         <div class="row">${selectHtml("sfit", [["", t("fit_own")], ["fit", t("fit_fit")], ["fill", t("fit_fill")]], s.fit || "", `data-f="fit" title="${esc(t("fit"))}"`)}</div>
         <div class="row"><button class="small" data-mv="-1" ${i ? "" : "disabled"}>◀</button><button class="small" data-mv="1" ${i + 1 < slides.length ? "" : "disabled"}>▶</button><button class="small danger" data-rm ${slides.length > 1 ? "" : "disabled"}>✕</button></div></div>`).join("")}
       <div class="slide add">${selectHtml("addimg", [["", t("add_picture")], ...mediaOf("image").map((x) => [x, x.replace(/^media\//, "")])], "", 'id="ss-add"')}</div></div>
     <div class="grid2" style="margin-top:12px">
       <label class="field"><span>${t("transition")}</span>${selectHtml("transition", [["crossfade", t("crossfade")], ["none", t("cut")]], sh.transition || "crossfade", 'id="ss-tr"')}</label>
       <label class="field"><span>${t("transition_duration")}</span><input type="number" id="ss-td" min="0.1" max="5" step="0.1" value="${sh.transition_duration || 1}"></label>
-      <label class="field"><span>${t("music")}</span>${selectHtml("audio", [["", t("none")], ...mediaOf("audio").map((x) => [x, x])], sh.audio || "", 'id="ss-audio"')}</label>
+      <div class="field"><span>${t("music")}</span><div>${music.map((x, i) => `<div class="row ss-music"><span class="mono">${esc(x.replace(/^media\//, ""))}</span><span class="spacer"></span><button class="small danger" data-rmmusic="${i}">✕</button></div>`).join("")}
+        ${selectHtml("addmusic", [["", t("add_music")], ...mediaOf("audio").map((x) => [x, x.replace(/^media\//, "")])], "", 'id="ss-audio"')}
+        <label><input type="checkbox" id="ss-fitaudio" ${sh.fit_to_audio ? "checked" : ""} ${music.length ? "" : "disabled"}> ${t("fit_to_music")}</label></div></div>
       <label class="field"><span></span><label><input type="checkbox" id="ss-pz" ${sh.pan_zoom ? "checked" : ""}> ${t("pan_zoom")}</label></label>
       <label class="field"><span>${t("fit")}</span>${selectHtml("fit", [["fit", t("fit_fit")], ["fill", t("fit_fill")]], sh.fit || "fit", 'id="ss-fit"')}</label>
     </div>
@@ -1407,7 +1412,13 @@ function renderSlideshow(m, ti) {
   $("#ss-add").onchange = (e) => { if (e.target.value) edit((x) => { x.slides.push({ image: e.target.value }); }); };
   $("#ss-tr").onchange = (e) => edit((x) => { if (e.target.value === "crossfade") delete x.transition; else x.transition = e.target.value; });
   $("#ss-td").onchange = (e) => edit((x) => { const v = Number(e.target.value); if (v && v !== 1) x.transition_duration = v; else delete x.transition_duration; });
-  $("#ss-audio").onchange = (e) => edit((x) => { if (e.target.value) x.audio = e.target.value; else delete x.audio; });
+  // one file stays a string; several are a list, played one after another
+  const setMusic = (x, list) => {
+    if (!list.length) { delete x.audio; delete x.fit_to_audio; } else x.audio = list.length === 1 ? list[0] : list;
+  };
+  $("#ss-audio").onchange = (e) => { if (e.target.value) edit((x) => setMusic(x, [...music, e.target.value])); };
+  m.querySelectorAll("[data-rmmusic]").forEach((b) => (b.onclick = () => edit((x) => setMusic(x, music.filter((_, i) => i !== Number(b.dataset.rmmusic))))));
+  $("#ss-fitaudio").onchange = (e) => edit((x) => { if (e.target.checked) x.fit_to_audio = true; else delete x.fit_to_audio; });
   $("#ss-pz").onchange = (e) => edit((x) => { if (e.target.checked) x.pan_zoom = true; else delete x.pan_zoom; });
   $("#ss-fit").onchange = (e) => edit((x) => { if (e.target.value === "fill") x.fit = "fill"; else delete x.fit; });
   $("#ss-play").onclick = async () => {
@@ -1416,6 +1427,11 @@ function renderSlideshow(m, ti) {
     try {
       await save();
       const r = await api("/api/slideshow", { method: "POST", body: { title: ti.id, project: S.project } });
+      // fitted to the music: the seconds each picture got
+      if (sh.fit_to_audio) (r.durations || []).forEach((d, i) => {
+        const el = m.querySelector(`[data-slide="${i}"] [data-fitted]`);
+        if (el) el.textContent = t("fitted_to", { d: `${d.toFixed(1)} s` });
+      });
       const format = video.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"') ? "mp4" : "webm";
       for (;;) {
         const st = await api("/api/proxy?" + new URLSearchParams({ path: r.path, format }), { method: "POST" });

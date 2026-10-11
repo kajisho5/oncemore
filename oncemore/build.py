@@ -35,6 +35,9 @@ def inspect(project, reporter=None, prepare=True, bd=False):
 
     for i, t in enumerate(project.titles):
         where = f"titles[{i}]"
+        if t.slideshow:
+            # (fitted to its music: the durations, source and chapters follow it)
+            slideshow.apply(t, project.disc_for(t), probe)
         if t.slideshow and not prepare and not os.path.isfile(t.source):
             w, h = slideshow.canvas(project.disc_for(t))
             num, den = project.disc.fps

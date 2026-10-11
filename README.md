@@ -487,7 +487,9 @@ end of its last chapter. Title, chapter and play-all buttons leave playlist mode
     "transition_duration": 1,         // seconds, shorter than every slide
     "pan_zoom": true,                 // a slow zoom in / out on every picture
     "fit": "fill",                    // fill the frame (edges cropped); default "fit"
-    "audio": "media/music.m4a",       // trimmed to the show and faded out
+    "audio": "media/music.m4a",       // trimmed to the show and faded out; or a list,
+                                      // played one after another
+    "fit_to_audio": false,            // true: durations become proportions of the music's length
     "background_color": "#000000"     // around pictures of another shape
   },
   "end_action": "menu:main"
@@ -501,7 +503,9 @@ picture, a duration or a setting changes). Slide *k* starts at the sum of the
 earlier durations and is a chapter unless `chapters` is given. `fit` decides
 what happens to pictures of another shape: `fit` shows all of each with the
 background colour around, `fill` fills the frame and crops what is outside;
-a slide can have its own `fit`.
+a slide can have its own `fit`. With `fit_to_audio` the pictures' durations
+are scaled (in proportion) so the slideshow lasts exactly as long as its
+music; the chapters move with them.
 
 ### Titles made of clips
 

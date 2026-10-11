@@ -1014,7 +1014,8 @@ class TestCacheRomPassthrough(unittest.TestCase):
 @unittest.skipUnless(TOOLS_OK, SKIP_REASON)
 class TestSlideshow(unittest.TestCase):
     """A title made from three pictures with cross-fades, pan & zoom and
-    music: one chapter per picture, and the rendered show is reused."""
+    music: one chapter per picture, and the rendered show is reused. A
+    second one fitted to two pieces of music played one after another."""
 
     @classmethod
     def setUpClass(cls):
@@ -1029,6 +1030,9 @@ class TestSlideshow(unittest.TestCase):
                             os.path.join(proj, "media", f"pic{i}.png")], check=True)
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "sine=f=330:d=4",
                         os.path.join(proj, "media", "music.wav")], check=True)
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "sine=f=660:d=2",
+                        "-ac", "2", "-ar", "44100", os.path.join(proj, "media", "music2.m4a")],
+                       check=True)
         cls.path = os.path.join(proj, "project.oncemore.json")
         with open(cls.path) as f:
             data = json.load(f)
@@ -1037,8 +1041,15 @@ class TestSlideshow(unittest.TestCase):
                                                         {"image": "media/pic1.png", "duration": 2.5},
                                                         {"image": "media/pic2.png", "duration": 2}],
                                              "pan_zoom": True, "audio": "media/music.wav"}})
+        # durations as proportions (1 : 3) of the music's 4 + 2 s
+        data["titles"].append({"id": "fitted", "end_action": "menu:main", "slideshow": {
+            "slides": [{"image": "media/pic0.png", "duration": 1},
+                       {"image": "media/pic1.png", "duration": 3}],
+            "audio": ["media/music.wav", "media/music2.m4a"], "fit_to_audio": True}})
         data["menus"][0]["buttons"].append({"id": "pics", "label": "PICTURES", "x": 100,
                                             "y": 380, "action": "title:pics"})
+        data["menus"][0]["buttons"].append({"id": "fitted", "label": "FITTED", "x": 400,
+                                            "y": 380, "action": "title:fitted"})
         with open(cls.path, "w") as f:
             json.dump(data, f)
         cls.iso = os.path.join(cls.tmp, "s.iso")
@@ -1066,6 +1077,23 @@ class TestSlideshow(unittest.TestCase):
         self.assertTrue(any(m.startswith("Rendering slideshow 'pics' (3 pictures, 7.5s)")
                             for m in steps), steps)
 
+    def test_fitted_to_its_music(self):
+        fitted = next(t for t in self.events[-1]["titles"] if t["id"] == "fitted")
+        self.assertAlmostEqual(fitted["duration"], 6.0, delta=0.1)
+        self.assertEqual(fitted["chapters"], [0.0, 1.5])
+        mpg = os.path.join(self.build_dir, ".work", "titles", "fitted.mpg")
+        # the second piece (660 Hz) plays after the first (330 Hz)
+        def tone(start):
+            out = subprocess.run(
+                [tools.find("ffmpeg"), "-v", "error", "-ss", str(start), "-t", "0.5", "-i", mpg,
+                 "-vn", "-ac", "1", "-ar", "8000", "-f", "s16le", "-"],
+                capture_output=True, check=True).stdout
+            samples = [int.from_bytes(out[i:i + 2], "little", signed=True)
+                       for i in range(0, len(out) - 1, 2)]
+            return sum(1 for a, b in zip(samples, samples[1:]) if a < 0 <= b) / 0.5
+        self.assertAlmostEqual(tone(1.0), 330, delta=30)
+        self.assertAlmostEqual(tone(4.2), 660, delta=60)
+
     def test_rendered_once(self):
         again = os.path.join(self.tmp, "again.iso")
         rc, out, err = run_cli("--json", "iso", self.path, "-o", again, "--fast", cwd=self.tmp)
@@ -1078,7 +1106,7 @@ class TestSlideshow(unittest.TestCase):
         with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
             d.wait_menu()
             n = d.button_count()
-            d.activate(n)
+            d.activate(n - 1)                               # PICTURES
             title, part = d.wait_title()
             self.assertEqual(part, 1)
             self.assertEqual(d.num_parts(title), 3)

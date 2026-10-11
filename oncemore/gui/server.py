@@ -635,10 +635,12 @@ class Handler(BaseHTTPRequestHandler):
         t = project.title(body["title"])
         if t is None or not t.slideshow:
             raise ValueError("not a slideshow title")
+        slideshow.apply(t, project.disc_for(t), encode.probe)      # (fitted to its music)
         slideshow.ensure(t, project.disc_for(t),
                          os.path.join(os.path.dirname(t.source), f"{t.id}.log"))
         self.json({"path": self.app.rel(t.source), "duration": t.slideshow.duration,
-                   "starts": t.slideshow.starts()})
+                   "starts": t.slideshow.starts(),
+                   "durations": [s.duration for s in t.slideshow.slides]})
 
     def api_post_clips(self, q):
         """A title made of clips: their lengths and where each starts, and the

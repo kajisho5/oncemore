@@ -8,7 +8,9 @@ The rendering is a single ffmpeg graph on the disc's square-pixel canvas
   picture -> fit (letterbox in the background colour) or fill (cropped)
              [-> zoompan] -> fps
   slides  -> xfade (cross-fade) or concat
-  music   -> trimmed to the slideshow, faded out, padded with silence
+  music   -> one or more files joined, trimmed to the slideshow, faded
+             out, padded with silence (fit_to_audio: the pictures' durations
+             are scaled so the show is as long as the music; see apply)
 
 With a cross-fade of d seconds, slide k (k >= 1) starts fading in at the sum
 of the previous durations, so the total length is the sum of all durations
@@ -39,10 +41,19 @@ class Slideshow:
     transition: str = "crossfade"     # "crossfade" | "none"
     transition_duration: float = 1.0
     pan_zoom: bool = False
-    audio: str = None
+    audio: object = None              # a music file, or a list of them
     background_color: str = "#000000"
     fit: str = "fit"                  # "fit" (whole picture) | "fill" (cropped to the frame)
+    fit_to_audio: bool = False        # durations scaled to the music's length
+    auto_chapters: bool = True        # the title's chapters are the slides' starts
     extra: dict = field(default_factory=dict)
+
+    @property
+    def music(self):
+        """The music files, in order."""
+        if not self.audio:
+            return []
+        return [self.audio] if isinstance(self.audio, str) else list(self.audio)
 
     @property
     def duration(self):
@@ -88,7 +99,8 @@ def output_path(base_dir, show, disc):
                                  for s in show.slides],
                       "t": [show.transition, show.transition_duration, show.pan_zoom,
                             show.background_color],
-                      "audio": _sig(show.audio) if show.audio else None,
+                      "audio": (None if not show.music else _sig(show.music[0])
+                                if len(show.music) == 1 else [_sig(a) for a in show.music]),
                       **({"fit": show.fit} if show.fit != "fit" else {}),
                       "disc": [disc.standard, disc.aspect, list(canvas(disc)), disc.fps]},
                      sort_keys=True, default=str)
@@ -149,13 +161,59 @@ def graph(show, disc):
     else:
         chains.append("".join(f"[s{k}]" for k in range(n)) + f"concat=n={n}:v=1:a=0[v]")
     total = show.duration
-    has_audio = bool(show.audio)
+    music = show.music
+    has_audio = bool(music)
     if has_audio:
-        args += ["-i", show.audio]
         f = min(2.0, total / 4)
-        chains.append(f"[{n}:a]aresample=48000,atrim=duration={total:.3f},"
-                      f"afade=t=out:st={max(0.0, total - f):.3f}:d={f:.3f},apad[a]")
+        tail = (f"atrim=duration={total:.3f},"
+                f"afade=t=out:st={max(0.0, total - f):.3f}:d={f:.3f},apad[a]")
+        if len(music) == 1:
+            args += ["-i", music[0]]
+            chains.append(f"[{n}:a]aresample=48000,{tail}")
+        else:
+            # one after another: every file in one format first, then joined
+            for k, path in enumerate(music):
+                args += ["-i", path]
+                chains.append(f"[{n + k}:a]aresample=48000,aformat=sample_fmts=fltp:"
+                              f"channel_layouts=stereo[m{k}]")
+            chains.append("".join(f"[m{k}]" for k in range(len(music))) +
+                          f"concat=n={len(music)}:v=0:a=1,{tail}")
     return args, ";".join(chains), has_audio
+
+
+def fit_to(show, seconds):
+    """Scale the pictures' durations so they add up to `seconds` (each at
+    least 0.5 s and longer than the cross-fade)."""
+    total = show.duration
+    if seconds <= 0 or total <= 0:
+        return
+    least = max(0.5, show.fade + 0.1)
+    scale = seconds / total
+    for s in show.slides:
+        s.duration = max(least, round(s.duration * scale, 3))
+    # (rounding) the last picture takes up the difference
+    last = show.slides[-1]
+    last.duration = max(least, round(last.duration + seconds - show.duration, 3))
+
+
+def apply(title, disc, probe):
+    """For a slideshow fitted to its music: scale its durations to the music
+    (probed), then point the title at the matching render and, unless the
+    title gives its own, move its chapters to the new slide starts."""
+    show = title.slideshow
+    if not (show and show.fit_to_audio and show.music):
+        return
+    seconds = sum(probe(a).get("duration") or 0.0 for a in show.music)
+    fit_to(show, seconds)
+    base = os.path.dirname(os.path.dirname(os.path.dirname(title.source)))
+    old, title.source = title.source, output_path(base, show, disc)
+    for tr in title.audio_tracks:
+        if tr.source == old:
+            tr.source = title.source
+    if show.auto_chapters:
+        title.chapters = show.starts()
+        title.chapter_names = [None] * len(title.chapters)
+        title.chapter_posters = [None] * len(title.chapters)
 
 
 def render(show, disc, out, log, on_progress=None):
