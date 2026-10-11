@@ -238,6 +238,43 @@ def parse_action(s):
     return (kind, rest, None)
 
 
+def page_id(menu_id, n):
+    """The id of page n of a menu with pages (page 1 is the menu itself)."""
+    return menu_id if n == 1 else f"{menu_id}~{n}"
+
+
+def resolve_pages(project):
+    """menu:<id>:<button> where the button is on another page of the menu
+    than the first: that page."""
+    where = {}
+    for m in project.menus:
+        if m.page_of:
+            for b in m.buttons:
+                where.setdefault((m.page_of, b.id), m.id)
+
+    def fix(action):
+        if not action or not action.startswith("menu:"):
+            return action
+        _, mid, button = parse_action(action)
+        page = where.get((mid, button))
+        return f"menu:{page}:{button}" if button and page else action
+
+    d = project.disc
+    d.first_play, d.title_key = fix(d.first_play), fix(d.title_key)
+    for t in project.titles:
+        t.end_action = fix(t.end_action)
+    for pl in project.playlists:
+        pl.end_action = fix(pl.end_action)
+    for m in project.menus:
+        m.end_action = fix(m.end_action)
+        for b in m.buttons:
+            if b.action.startswith("menu:") or (b.override or "").startswith("menu:"):
+                # (a button on every page is one object: each page gets its own)
+                i = m.buttons.index(b)
+                m.buttons[i] = dataclasses.replace(b, action=fix(b.action),
+                                                   override=fix(b.override))
+
+
 # --------------------------------------------------------------------------
 # model
 # --------------------------------------------------------------------------
@@ -387,6 +424,7 @@ class Text:
     flip: str = None           # "horizontal" | "vertical" | "both" (before the rotation)
     align: str = "left"        # lines of a paragraph: "left" | "center" | "right"
     line_spacing: int = 0      # pixels added between its lines
+    page: int = 0              # menus with pages: the page it is on (0 = every page)
 
 
 @dataclass
@@ -398,6 +436,7 @@ class Shape:
     color: str = "#00000080"
     rotate: float = 0.0
     flip: str = None
+    page: int = 0
 
 
 @dataclass
@@ -411,6 +450,7 @@ class Picture:
     opacity: float = 1.0
     rotate: float = 0.0
     flip: str = None
+    page: int = 0
 
 
 @dataclass
@@ -467,6 +507,7 @@ class Button:
     transition: str = None     # video played after the button is pressed, before its link
     rotate: float = 0.0        # its label or picture turned about its centre (degrees clockwise)
     flip: str = None           # ... and mirrored first: "horizontal" | "vertical" | "both"
+    page: int = 0              # menus with pages: the page it is on (0 = every page)
 
 
 @dataclass
@@ -496,6 +537,9 @@ class Menu:
     loop_pgc: int = 0          # menu PGC with the buttons (number + 1 when the intro is apart)
     prohibit: list = field(default_factory=list)   # remote keys the menu does not allow (uops.NAMES)
     button_offset: int = 0     # number keys: button n is selected with n + this
+    pages: int = 1             # pages of the menu as written (each page is a Menu of its own)
+    page_of: str = None        # a page: the id of the menu it is a page of
+    page: int = 0              # ... and which page (1-based)
 
 
 @dataclass
@@ -739,8 +783,8 @@ class _Builder:
 
         menus = []
         for i, m in enumerate(d.get("menus", [])):
-            menus.append(self.menu(i, m, disc))
-        user_menu_ids = [m.id for m in menus]
+            menus.extend(self.paginate(i, self.menu(i, m, disc)))
+        user_menu_ids = [m.id for m in menus if not m.page_of]
 
         # first_play / default end actions need to know the menus
         if disc.first_play is None:
@@ -796,8 +840,43 @@ class _Builder:
         playlists = [self.playlist(i, pl) for i, pl in enumerate(d.get("playlists", []))]
         self.unique([pl.id for pl in playlists], "playlists")
         project = Project(self.path, self.base, disc, titles, menus, self.warnings, playlists)
+        resolve_pages(project)
         self.check_refs(project, user_menu_ids)
         return project
+
+    def paginate(self, i, menu):
+        """A menu with pages as one Menu per page: page 1 keeps the menu's id,
+        page n is <id>~n. Each holds the objects of its page and those of
+        every page; page:next / page:prev / page:<n> become links to the
+        page (next from the last page goes to the first, prev from the first
+        to the last)."""
+        if menu.pages == 1:
+            return [menu]
+        where = f"menus[{i}]"
+        out = []
+        for n in range(1, menu.pages + 1):
+            def on(items):
+                return [x for x in items if x.page in (0, n)]
+            buttons = []
+            for b in on(menu.buttons):
+                kind, target, _ = parse_action(b.action)
+                if kind == "page":
+                    to = {"next": n % menu.pages + 1,
+                          "prev": (n - 2) % menu.pages + 1}.get(target) or int(target)
+                    if to > menu.pages:
+                        self.err(f"{where}.buttons[{menu.buttons.index(b)}].action",
+                                 f"the menu has {menu.pages} pages")
+                        to = 1
+                    b = dataclasses.replace(b, action=f"menu:{page_id(menu.id, to)}")
+                buttons.append(b)
+            if not buttons:
+                self.err(f"{where}.pages", f"page {n} has no buttons")
+            ids = {b.id for b in buttons}
+            out.append(dataclasses.replace(
+                menu, id=page_id(menu.id, n), page_of=menu.id, page=n, buttons=buttons,
+                texts=on(menu.texts), shapes=on(menu.shapes), images=on(menu.images),
+                default_button=menu.default_button if menu.default_button in ids else None))
+        return out
 
     def unique(self, ids, where):
         seen = set()
@@ -1000,14 +1079,15 @@ class _Builder:
                           override=b.get("override"), audio=b.get("audio"),
                           subtitle=b.get("subtitle"),
                           transition=self.file(f"{where}.buttons[{j}].transition",
-                                               b.get("transition")))
+                                               b.get("transition")),
+                          page=b.get("page", 0))
                    for j, b in enumerate(m["buttons"])]
         for j, (b, spec) in enumerate(zip(buttons, m["buttons"])):
             if "thumbnail" in spec:
                 b.thumb = self.thumbnail(f"{where}.buttons[{j}].thumbnail", b, spec["thumbnail"])
         texts = [Text(text=t["text"], x=t["x"], y=t["y"], size=t.get("size", size),
                       color=t.get("color", tcolor), align=t.get("align", "left"),
-                      line_spacing=t.get("line_spacing", 0),
+                      line_spacing=t.get("line_spacing", 0), page=t.get("page", 0),
                       **self.style(f"{where}.texts[{j}]", t))
                  for j, t in enumerate(m.get("texts", []))]
         for j, b in enumerate(buttons):
@@ -1018,10 +1098,14 @@ class _Builder:
                 self.err(f"{where}.texts[{j}].y", f"must be < {disc.height} for {disc.standard}")
         self.unique([b.id for b in buttons], f"{where}.buttons")
         ids = {b.id for b in buttons}
+        page_of = {b.id: b.page for b in buttons}
         for j, b in enumerate(buttons):
             for k, v in b.nav.items():
                 if v not in ids:
                     self.err(f"{where}.buttons[{j}].nav.{k}", f"no button {v!r} in this menu")
+                elif page_of[v] and page_of[v] != b.page:
+                    self.err(f"{where}.buttons[{j}].nav.{k}", f"button {v!r} is on page "
+                             f"{page_of[v]} only")
         loop = m.get("loop", "forever")
         loop = None if loop == "forever" else int(loop)
         loop_point = 0.0
@@ -1046,12 +1130,23 @@ class _Builder:
             self.err(f"{where}.buttons_at_loop", "needs a loop point (or a fade-in) to wait for")
         if m.get("default_button") and m["default_button"] not in ids:
             self.err(f"{where}.default_button", f"no button {m['default_button']!r} in this menu")
+        pages = m.get("pages", 1)
+        for kind, items in (("buttons", buttons), ("texts", texts),
+                            ("shapes", m.get("shapes", [])), ("images", m.get("images", []))):
+            for j, x in enumerate(items):
+                n = x.page if hasattr(x, "page") else x.get("page", 0)
+                if n > pages:
+                    self.err(f"{where}.{kind}[{j}].page", f"the menu has {pages} "
+                             f"page{'s' if pages > 1 else ''}")
+        # (on a menu with pages each page counts its own buttons)
+        count = max((len([b for b in buttons if b.page in (0, n)])
+                     for n in range(1, pages + 1)), default=0)
         offset = m.get("button_offset", 0)
-        if offset + len(buttons) > 99:
-            self.err(f"{where}.button_offset", f"buttons {offset + 1}-{offset + len(buttons)}: "
+        if offset + count > 99:
+            self.err(f"{where}.button_offset", f"buttons {offset + 1}-{offset + count}: "
                      "a remote's number keys go to 99")
         return Menu(
-            id=m["id"],
+            id=m["id"], pages=pages,
             loop=loop, loop_point=loop_point, fade_in=fade_in, end_action=m.get("end_action", "stop"),
             default_button=m.get("default_button"),
             remember_button=m.get("remember_button", True),
@@ -1059,10 +1154,11 @@ class _Builder:
             prohibit=self.prohibit(where, m),
             button_offset=m.get("button_offset", 0),
             shapes=[Shape(s["x"], s["y"], s["w"], s["h"], s.get("color", "#00000080"),
-                          **self.transform(s))
+                          page=s.get("page", 0), **self.transform(s))
                     for s in m.get("shapes", [])],
             images=[Picture(self.file(f"{where}.images[{j}].file", p["file"]), p["x"], p["y"],
-                            p["w"], p["h"], p.get("opacity", 1.0), **self.transform(p))
+                            p["w"], p["h"], p.get("opacity", 1.0), page=p.get("page", 0),
+                            **self.transform(p))
                     for j, p in enumerate(m.get("images", []))],
             background_video=self.file(f"{where}.background_video", m.get("background_video")),
             background=self.file(f"{where}.background", m.get("background")),
@@ -1245,7 +1341,9 @@ class _Builder:
     def check_refs(self, project, user_menu_ids):
         def check(where, action, allow_chapter=True, allow_resume=False, allow_last=False):
             kind, target, num = parse_action(action)
-            if kind == "resume" and not allow_resume:
+            if kind == "page":
+                self.err(where, "page:... is for the buttons of a menu with pages")
+            elif kind == "resume" and not allow_resume:
                 self.err(where, "resume is only for menu buttons")
             elif kind == "lastmenu" and not allow_last:
                 self.err(where, "lastmenu is only for the end of titles and playlists "
@@ -1293,7 +1391,8 @@ class _Builder:
             if t.remote_menu and project.menu(t.remote_menu) is None:
                 self.err(f"titles[{i}].remote_menu", f"no menu with id {t.remote_menu!r}")
         for m in project.menus:
-            where = f"menus[{user_menu_ids.index(m.id)}]" if m.id in user_menu_ids and not m.generated \
+            src = m.page_of or m.id
+            where = f"menus[{user_menu_ids.index(src)}]" if src in user_menu_ids and not m.generated \
                 else f"menu {m.id!r}"
             for j, b in enumerate(m.buttons):
                 check(f"{where}.buttons[{j}].action", b.action, allow_resume=True)
