@@ -43,7 +43,7 @@ class TestVendoredVtskit(unittest.TestCase):
 
 
 def load_tool():
-    spec = importlib.util.spec_from_file_location("vendor_vtskit", os.path.join(ROOT, "tools", "vendor_vtskit.py"))
+    spec = importlib.util.spec_from_file_location("vendor", os.path.join(ROOT, "tools", "vendor.py"))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -58,7 +58,7 @@ def wheel(files):
 
 
 class TestFromWheel(unittest.TestCase):
-    """tools/vendor_vtskit.py --pypi, on a wheel made here (no network)."""
+    """tools/vendor.py <library> --pypi, on wheels made here (no network)."""
 
     def setUp(self):
         self.tool = load_tool()
@@ -72,18 +72,44 @@ class TestFromWheel(unittest.TestCase):
                       "vtskit/ifo.py": "x = 1\n", "vtskit/tests/test_x.py": "",
                       "vtskit-9.8.7.dist-info/licenses/COPYING.LESSER": "LGPL\n",
                       "vtskit-9.8.7.dist-info/METADATA": "Name: vtskit\n"})
-        self.tool.from_wheel(data, "9.8.7", "vtskit-9.8.7-py3-none-any.whl", self.dir)
+        self.tool.from_wheel("vtskit", data, "9.8.7", "vtskit-9.8.7-py3-none-any.whl", self.dir)
         self.assertEqual(sorted(os.listdir(self.dir)), ["COPYING.LESSER", "UPSTREAM", "__init__.py", "ifo.py"])
         with open(os.path.join(self.dir, "UPSTREAM")) as f:
             self.assertIn(f"copied from PyPI vtskit 9.8.7 (vtskit-9.8.7-py3-none-any.whl, "
                           f"sha256 {hashlib.sha256(data).hexdigest()})", f.read())
 
+    def test_each_library_with_its_licence(self):
+        # (an Apache library brings LICENSE and NOTICE; the LGPL bdmvkit both
+        # its licence files)
+        data = wheel({"udfkit/__init__.py": '__version__ = "0.1.0"\n', "udfkit/dvd.py": "",
+                      "udfkit-0.1.0.dist-info/licenses/LICENSE": "Apache\n",
+                      "udfkit-0.1.0.dist-info/licenses/NOTICE": "udfkit\n"})
+        self.tool.from_wheel("udfkit", data, "0.1.0", "udfkit-0.1.0-py3-none-any.whl", self.dir)
+        self.assertEqual(sorted(os.listdir(self.dir)), ["LICENSE", "NOTICE", "UPSTREAM", "__init__.py", "dvd.py"])
+        with open(os.path.join(self.dir, "UPSTREAM")) as f:
+            self.assertTrue(f.read().startswith("udfkit, https://github.com/kajisho5/udfkit (Apache-2.0, "
+                                                "see LICENSE and NOTICE)\n"))
+        with self.assertRaises(SystemExit):          # COPYING missing
+            self.tool.from_wheel("bdmvkit", wheel({"bdmvkit/__init__.py": '__version__ = "0.2.0"\n',
+                                                   "bdmvkit-0.2.0.dist-info/licenses/COPYING.LESSER": ""}),
+                                 "0.2.0", "w.whl", self.dir)
+        self.assertEqual(set(self.tool.LIBRARIES), {"vtskit", "udfkit", "bdmvkit", "dvdcc"})
+
     def test_refused(self):
         good = {"vtskit/__init__.py": '__version__ = "1.0.0"\n',
                 "vtskit-1.0.0.dist-info/licenses/COPYING.LESSER": "LGPL\n"}
         with self.assertRaises(SystemExit):          # not the version asked for
-            self.tool.from_wheel(wheel(good), "1.0.1", "w.whl", self.dir)
+            self.tool.from_wheel("vtskit", wheel(good), "1.0.1", "w.whl", self.dir)
         with self.assertRaises(SystemExit):          # no licence
-            self.tool.from_wheel(wheel({"vtskit/__init__.py": '__version__ = "1.0.0"\n'}), "1.0.0", "w.whl",
-                                 self.dir)
+            self.tool.from_wheel("vtskit", wheel({"vtskit/__init__.py": '__version__ = "1.0.0"\n'}), "1.0.0",
+                                 "w.whl", self.dir)
         self.assertEqual(os.listdir(self.dir), ["old.py"])   # (nothing touched)
+
+    def test_vtskit_wrapper(self):
+        # the name vtskit's README gives still works (it prints its usage)
+        import subprocess
+        import sys
+        p = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "vendor_vtskit.py")],
+                           capture_output=True, text=True)
+        self.assertEqual(p.returncode, 2)
+        self.assertIn("tools/vendor.py udfkit --pypi", p.stderr)

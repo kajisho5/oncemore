@@ -1992,21 +1992,36 @@ plain forms only.
   off) and a Blu-ray read with libbluray (audio stream 2 before the title
   plays, no subtitles shown). The DVD check fails without the change.
 
-## 105. vtskit copied from its PyPI release
+## 105. The libraries are made in their own repositories, released, and copied in
 
-vtskit is on PyPI (0.1.0). `tools/vendor_vtskit.py --pypi <version>` (or
-`--pypi` alone for the latest) now updates `oncemore/_vendor/vtskit` from the
-release's wheel, without a checkout of vtskit: the wheel's SHA-256 must be
-the one PyPI publishes, `__version__` inside it must be the version asked
-for, and only `vtskit/*.py` and `COPYING.LESSER` are taken. `UPSTREAM` then
-names the version, the wheel and its digest instead of a commit. Copying
-from a checkout stays for work not yet released.
+The disc formats live in four libraries, each in its own repository and on
+PyPI: vtskit (DVD-Video IFO/VOB), udfkit (UDF / ISO 9660 images), bdmvkit
+(Blu-ray BDMV) and dvdcc (line-21 captions). oncemore itself is not put on
+PyPI; it ships as the Mac app and GitHub releases.
 
-oncemore keeps a copy rather than depending on the package: it installs
-with no dependencies, the Mac app carries one Python tree, and a disc
-built today is built by the same vtskit tomorrow.
-
-The copy was refreshed from PyPI 0.1.0; its modules and licence are
-byte-for-byte those of commit f2098cd, which it replaced, so only
-`UPSTREAM` changed. `tests/test_vendor.py` reads either form of `UPSTREAM`
-and checks `--pypi` on a wheel made in the test (no network).
+* **Where work happens**: a change to a disc format is made, tested and
+  released in the library's repository (a version bump on its `main`
+  publishes it: `.github/workflows/release.yml`, trusted publishing).
+  oncemore then takes the release. A fix is not made in oncemore's copy.
+* **How oncemore takes it**: `tools/vendor.py <library> --pypi <version>`
+  (or `--pypi` alone for the latest) copies the release's wheel into
+  `oncemore/_vendor/<library>`. The wheel's SHA-256 must be the one PyPI
+  publishes and `__version__` inside it the version asked for; only the
+  package's `*.py` and its licence files are taken (vtskit: COPYING.LESSER;
+  udfkit and dvdcc: LICENSE and NOTICE; bdmvkit: COPYING and
+  COPYING.LESSER). `UPSTREAM` names the version, the wheel and its digest.
+  `tools/vendor.py <library> <checkout>` copies a clean, pushed checkout
+  instead, for work not released yet; `UPSTREAM` then names the commit.
+  `tools/vendor_vtskit.py` stays as the name vtskit's README gives.
+* **Why a copy, not a dependency**: oncemore installs with no dependencies,
+  the Mac app carries one Python tree, and a disc built today is built by
+  the same library code tomorrow.
+* vtskit's copy was refreshed from PyPI 0.1.0; its modules and licence are
+  byte-for-byte those of commit f2098cd, which it replaced, so only
+  `UPSTREAM` changed. udfkit, bdmvkit and dvdcc are still oncemore's own
+  modules (`udfwriter.py`, `udf250.py`, the Blu-ray writer, `captions.py`);
+  each is replaced by its library's copy in a change of its own, with the
+  output checked to be the same.
+* `tests/test_vendor.py` reads either form of `UPSTREAM` and runs the PyPI
+  path on wheels made in the test (no network), each library with its
+  licence files.
