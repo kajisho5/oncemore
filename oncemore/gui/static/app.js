@@ -697,6 +697,8 @@ function bindClipEditor(m, ti, seek) {
     const go = row.querySelector("[data-cseek]");
     if (go && seek) go.onclick = () => seek(Number(go.dataset.cseek));
   });
+  dragReorder([...m.querySelectorAll("tr[data-clip]")].map((el) => ({ el, at: Number(el.dataset.clip) })),
+    (a, b) => edit((x) => spliceMove(x.clips, a, b)));
 }
 const chaptersOf = (title) => chapterEntries(title).map((e) => e.time);
 function setChapters(title, entries) {
@@ -1753,6 +1755,8 @@ function renderSlideshow(m, ti) {
     card.querySelectorAll("[data-mv]").forEach((b) => (b.onclick = () => edit((x) => { const j = i + Number(b.dataset.mv); [x.slides[i], x.slides[j]] = [x.slides[j], x.slides[i]]; })));
     card.querySelector("[data-rm]").onclick = () => edit((x) => { x.slides.splice(i, 1); });
   });
+  dragReorder([...m.querySelectorAll("[data-slide]")].map((el) => ({ el, at: Number(el.dataset.slide) })),
+    (a, b) => edit((x) => spliceMove(x.slides, a, b)));
   $("#ss-add").onchange = (e) => { if (e.target.value) edit((x) => { x.slides.push({ image: e.target.value }); }); };
   $("#ss-tr").onchange = (e) => edit((x) => { if (e.target.value === "crossfade") delete x.transition; else x.transition = e.target.value; });
   $("#ss-td").onchange = (e) => edit((x) => { const v = Number(e.target.value); if (v && v !== 1) x.transition_duration = v; else delete x.transition_duration; });
@@ -2367,6 +2371,8 @@ function renderPlaylist(m) {
     })));
     row.querySelector("[data-item-del]").onclick = () => commit((p) => { find(p).items.splice(i, 1); });
   });
+  dragReorder([...m.querySelectorAll("[data-item]")].map((el) => ({ el, at: Number(el.dataset.item) })),
+    (a, b) => commit((p) => spliceMove(find(p).items, a, b)));
   $("#add-item").onclick = () => commit((p) => { find(p).items.push(titles[0].id); });
   $("#del-playlist").onclick = () => deleteItem("playlist", pl.id);
 }
@@ -2628,26 +2634,28 @@ function renderMenu(m) {
       node.addEventListener("pointermove", move); node.addEventListener("pointerup", up);
     });
   });
-  // a single selected rectangle or picture gets handles: drag one to resize it, with Shift
-  // keeping its proportions and Alt (⌥) from its centre, as in the classic apps
+  // a single selected object gets handles: drag one to resize it, with Shift keeping its
+  // proportions and Alt (⌥) from its centre, as in the classic apps. A text or a button is
+  // scaled by its corners only: its type size (a picture button: its width) follows
   const one = S.sels.length === 1 ? els.find((e) => e.kind === S.sels[0].kind && e.i === S.sels[0].i) : null;
-  if (one && (one.kind === "shape" || one.kind === "image") && !one.rot && tool === "select") {
-    const node = nodeOf(one), rz = document.createElement("div");
+  if (one && !one.rot && tool === "select" && nodeOf(one)) {
+    const node = nodeOf(one), rz = document.createElement("div"), sized = one.kind === "shape" || one.kind === "image";
+    const bx = box(one);
     rz.className = "rz";
-    Object.assign(rz.style, { left: one.x * sx * scale + "px", top: one.y * scale + "px", width: one.w * sx * scale + "px", height: one.h * scale + "px" });
-    rz.innerHTML = ["nw", "n", "ne", "e", "se", "s", "sw", "w"].map((h) => `<span class="rz-h" data-h="${h}"></span>`).join("");
+    Object.assign(rz.style, { left: bx.x * sx * scale + "px", top: bx.y * scale + "px", width: bx.w * sx * scale + "px", height: bx.h * scale + "px" });
+    rz.innerHTML = (sized ? ["nw", "n", "ne", "e", "se", "s", "sw", "w"] : ["nw", "ne", "se", "sw"]).map((h) => `<span class="rz-h" data-h="${h}"></span>`).join("");
     stage.appendChild(rz);
     rz.querySelectorAll(".rz-h").forEach((hd) => hd.addEventListener("pointerdown", (ev) => {
       if (secondaryClick(ev)) return;
       ev.preventDefault(); ev.stopPropagation();
-      const h = hd.dataset.h, b0 = { x: one.x, y: one.y, w: one.w, h: one.h }, x0 = ev.clientX, y0 = ev.clientY;
+      const h = hd.dataset.h, b0 = { ...bx }, x0 = ev.clientX, y0 = ev.clientY;
       const sxDir = h.includes("w") ? -1 : h.includes("e") ? 1 : 0, syDir = h.includes("n") ? -1 : h.includes("s") ? 1 : 0;
       let b = b0;
       hd.setPointerCapture(ev.pointerId);
       hd.onpointermove = (e2) => {
         const dx = (e2.clientX - x0) / scale / sx, dy = (e2.clientY - y0) / scale, k = e2.altKey ? 2 : 1;
         let w = b0.w + sxDir * dx * k, hh = b0.h + syDir * dy * k;
-        if (e2.shiftKey) {                    // keep the proportions (from the side dragged most)
+        if (e2.shiftKey || !sized) {          // keep the proportions (from the side dragged most)
           const f = !sxDir ? hh / b0.h : !syDir ? w / b0.w : Math.max(w / b0.w, hh / b0.h);
           w = b0.w * f; hh = b0.h * f;
         }
@@ -2656,11 +2664,21 @@ function renderMenu(m) {
         const x = e2.altKey || (!sxDir && e2.shiftKey) ? b0.x + (b0.w - w) / 2 : sxDir < 0 ? b0.x + b0.w - w : b0.x;
         const y = e2.altKey || (!syDir && e2.shiftKey) ? b0.y + (b0.h - hh) / 2 : syDir < 0 ? b0.y + b0.h - hh : b0.y;
         b = { x: Math.round(x), y: Math.round(y), w, h: hh };
-        for (const el of [node, rz]) Object.assign(el.style, { left: b.x * sx * scale + "px", top: b.y * scale + "px", width: b.w * sx * scale + "px", height: b.h * scale + "px" });
+        Object.assign(rz.style, { left: b.x * sx * scale + "px", top: b.y * scale + "px", width: b.w * sx * scale + "px", height: b.h * scale + "px" });
+        if (sized) Object.assign(node.style, { left: b.x * sx * scale + "px", top: b.y * scale + "px", width: b.w * sx * scale + "px", height: b.h * scale + "px" });
+        else Object.assign(node.style, { left: b.x * sx * scale + "px", top: b.y * scale + "px", transformOrigin: "0 0", transform: `scale(${b.w / b0.w})` });
       };
       hd.onpointerup = () => {
         hd.onpointermove = hd.onpointerup = null;
-        if (b !== b0) commit((p) => Object.assign(listOf(p.menus.find((x) => x.id === menu.id), one.kind)[one.i], b));
+        if (b === b0) return;
+        commit((p) => {
+          const it = listOf(p.menus.find((x) => x.id === menu.id), one.kind)[one.i];
+          if (sized) return Object.assign(it, b);
+          const f = b.w / b0.w;
+          it.x = b.x; it.y = b.y;
+          if (one.kind === "button" && (one.image || one.hl)) it.width = Math.max(8, Math.round((one.width || 160) * f));
+          else it.size = Math.max(8, Math.round(one.size * f));
+        });
       };
     }));
   }
@@ -3853,6 +3871,13 @@ function renderLayers() {
     ${count(ss) ? `<div class="layer-group">${t("shapes")} (${count(ss)})</div>${rows(ss, (x, i) => row("shape", i, "■", `${t("rectangle")} ${i + 1}` + every(x), "", ss.length))}` : ""}
     <div class="layer-group">${t("background")}</div><div class="layer-row"><span class="ico">▤</span><span class="nm">${esc(menu.background_video || menu.background || menu.background_color || "#000")}</span></div>`;
   const list = elementList;
+  // drag a layer up or down among its kind (its place in front of or behind the others)
+  for (const kind of ["button", "text", "image", "shape"]) {
+    dragReorder([...body.querySelectorAll(`.layer-row[data-lk="${kind}"]`)].map((el) => ({ el, at: Number(el.dataset.li) })), (a, b) => {
+      commit((p) => spliceMove(list(p.menus.find((x) => x.id === menu.id), kind), a, b));
+      S.element = { kind, i: b }; S.sels = [S.element]; S.preview = null; renderMain(); renderInspector();
+    });
+  }
   body.querySelectorAll(".layer-row[data-lk]").forEach((r) => {
     const k = r.dataset.lk, i = Number(r.dataset.li);
     r.onclick = (e) => {
@@ -4153,6 +4178,40 @@ async function checkOverlaps(stage, menu, scale, sx) {
 }
 // The pick whip: drag from the ◎ next to a link in Properties to a title, menu
 // or playlist (project panel or flowchart) to set that link.
+// Drag a row (by a part that is not a field or a button) to another row's place to move it
+// there, as in the classic apps' panels; ▲ / ▼ stay for the keyboard. rows: [{el, at}] in
+// order (at: its index in the list); move(from, to) with list indices
+function dragReorder(rows, move) {
+  const moveBy = (from, to) => { const l = rows.map((r) => r.at); return [l[from], l[to]]; };
+  rows.forEach((r, k) => r.el.addEventListener("pointerdown", (ev) => {
+    if (secondaryClick(ev) || ev.target.closest("button, input, select, textarea, a, [contenteditable=true]")) return;
+    const x0 = ev.clientX, y0 = ev.clientY, boxes = rows.map((x) => x.el.getBoundingClientRect());
+    let to = k, started = false;
+    const near = (e) => {
+      let best = k, d0 = Infinity;
+      boxes.forEach((b, j) => { const d = Math.hypot(e.clientX - (b.left + b.width / 2), e.clientY - (b.top + b.height / 2)); if (d < d0) { d0 = d; best = j; } });
+      return best;
+    };
+    const mv = (e) => {
+      if (!started && Math.hypot(e.clientX - x0, e.clientY - y0) < 6) return;
+      if (!started) { started = true; r.el.classList.add("reordering"); r.el.setPointerCapture?.(ev.pointerId); }
+      e.preventDefault();
+      rows[to]?.el.classList.remove("reorder-to");
+      to = near(e);
+      if (to !== k) rows[to].el.classList.add("reorder-to");
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up);
+      r.el.classList.remove("reordering"); rows[to]?.el.classList.remove("reorder-to");
+      if (!started) return;
+      // (the click that ends a drag does not also choose the row)
+      r.el.addEventListener("click", (e) => { e.stopImmediatePropagation(); e.preventDefault(); }, { capture: true, once: true });
+      if (to !== k) move(...moveBy(k, to));
+    };
+    window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up);
+  }));
+}
+const spliceMove = (l, from, to) => { const [x] = l.splice(from, 1); l.splice(to, 0, x); };
 function startWhip(ev, apply, origin) {
   ev.preventDefault();
   const from = origin.getBoundingClientRect();

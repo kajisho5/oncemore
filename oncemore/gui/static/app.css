@@ -794,3 +794,7 @@ fieldset.group legend { padding: 0 var(--sp-1); color: var(--c-text); }
 /* the brand banner on New Project: the logo on its own ground in every skin and theme */
 .np-brand { background: var(--brand-ink); padding: var(--sp-4) var(--sp-5); display: flex; }
 .np-brand img { height: 36px; width: auto; display: block; }
+
+/* a row dragged to a new place (slides, clips, playlist items, layers) */
+.reordering { opacity: .55; }
+.reorder-to { box-shadow: 0 0 0 2px var(--focus); }
