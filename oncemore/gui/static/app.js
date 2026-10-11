@@ -1885,6 +1885,7 @@ async function renderFlow(m) {
   // click opens an item; dragging from it to another item links them
   m.querySelectorAll("#flow g.node[data-node]").forEach((g) => {
     g.onpointerdown = (ev) => {
+      if (secondaryClick(ev)) return;
       ev.preventDefault();                        // (no text selection while dragging)
       const x0 = ev.clientX, y0 = ev.clientY, src = g.dataset.node;
       const move = (e) => {
@@ -2444,6 +2445,7 @@ function renderMenu(m) {
   const stage = $("#stage");
   // the selected button's drawn highlight: drag it to move it, its corner to resize it
   stage.querySelectorAll(".hl-area.on").forEach((node) => node.addEventListener("pointerdown", (ev) => {
+    if (secondaryClick(ev)) return;
     ev.preventDefault(); ev.stopPropagation();
     const i = Number(node.dataset.hl), a0 = { ...menu.buttons[i].highlight_area };
     const grip = ev.target.classList.contains("hl-grip"), x0 = ev.clientX, y0 = ev.clientY;
@@ -2475,7 +2477,8 @@ function renderMenu(m) {
       ev.preventDefault();
       stage.focus();
       const k = { kind: node.dataset.kind, i: Number(node.dataset.i) };
-      if (ev.shiftKey || ev.metaKey || ev.ctrlKey) {
+      if (secondaryClick(ev)) return;          // (its shortcut menu selects it)
+      if (addsToSelection(ev)) {
         const on = isSel(k);
         S.sels = on ? S.sels.filter((x) => !(x.kind === k.kind && x.i === k.i)) : [...S.sels, k];
         S.element = S.sels[S.sels.length - 1] || null;
@@ -2541,6 +2544,7 @@ function renderMenu(m) {
     });
   });
   stage.addEventListener("pointerdown", (ev) => {
+    if (secondaryClick(ev)) return;
     const empty = ev.target === stage || ev.target.classList.contains("bg");
     const r = stage.getBoundingClientRect();
     const px = Math.round((ev.clientX - r.left) / scale / sx), py = Math.round((ev.clientY - r.top) / scale);
@@ -2699,7 +2703,7 @@ function setGuides(p, id, fn) {
 function bindGuides(stage, menu, scale, sx) {
   const H = discH();
   stage.querySelectorAll(".uguide").forEach((node) => node.addEventListener("pointerdown", (ev) => {
-    if (S.lockGuides || (S.tool || "select") !== "select") return;
+    if (secondaryClick(ev) || S.lockGuides || (S.tool || "select") !== "select") return;
     ev.preventDefault(); ev.stopPropagation();
     const kind = node.dataset.g, i = Number(node.dataset.gi), r = stage.getBoundingClientRect();
     const line = stage.querySelector(`.uline[data-g="${kind}"][data-gi="${i}"]`), both = [node, line].filter(Boolean);
@@ -2859,7 +2863,7 @@ function stageKeys(ev) {
   if (S.sel.view !== "menu" || !S.sels?.length || ev.target.closest?.("input, textarea, select")) return;
   const menu = curMenu();
   if (!menu) return;
-  const mod = ev.metaKey || ev.ctrlKey, H = discH();
+  const mod = modKey(ev), H = discH();
   const arrows = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
   if (arrows[ev.key] && !mod) {
     ev.preventDefault();
@@ -3685,7 +3689,7 @@ function renderLayers() {
     r.onclick = (e) => {
       if (e.target.closest("button")) return;
       const key = { kind: k, i };
-      if (e.shiftKey || e.metaKey || e.ctrlKey) S.sels = [...(S.sels || []).filter((x) => !(x.kind === k && x.i === i)), key];
+      if (addsToSelection(e)) S.sels = [...(S.sels || []).filter((x) => !(x.kind === k && x.i === i)), key];
       else S.sels = [key];
       S.element = key; S.selectedMedia = null;
       renderMain(); renderInspector();
@@ -3772,8 +3776,8 @@ async function renderTimeline() {
   tlPlayhead(S.playhead[ti.id] || 0);
   const at = (ev, el) => Math.max(0, Math.min(dur, (ev.clientX - el.getBoundingClientRect().left) / pps));
   const seek = (time) => (S.titleSeek ? S.titleSeek(time) : (S.playhead[ti.id] = time, tlPlayhead(time)));
-  $("#tl-ruler").onpointerdown = (ev) => seek(at(ev, $("#tl-ruler")));
-  box.querySelector(".tl-lane.video").onpointerdown = (ev) => seek(at(ev, ev.currentTarget));
+  $("#tl-ruler").onpointerdown = (ev) => secondaryClick(ev) || seek(at(ev, $("#tl-ruler")));
+  box.querySelector(".tl-lane.video").onpointerdown = (ev) => secondaryClick(ev) || seek(at(ev, ev.currentTarget));
   box.querySelectorAll(".tl-clip.clip").forEach((c) => (c.onclick = () => seek(Number(c.dataset.cstart))));
   box.querySelectorAll(".tl-wave").forEach((img) => (img.onerror = () => img.remove()));     // no sound
   // drag a chapter mark (not the first) to move it, frame-accurately
@@ -3782,6 +3786,7 @@ async function renderTimeline() {
     const i = Number(mk.dataset.tlch);
     mk.onpointerdown = (ev) => {
       ev.stopPropagation();
+      if (secondaryClick(ev)) return;
       const track = mk.parentElement;
       if (!i) { seek(entries[0].time); return; }
       mk.setPointerCapture(ev.pointerId);
@@ -3818,6 +3823,7 @@ function initSplitters() {
   }
   document.querySelectorAll(".splitter").forEach((sp) => {
     sp.onpointerdown = (ev) => {
+      if (secondaryClick(ev)) return;
       ev.preventDefault();
       sp.setPointerCapture(ev.pointerId); sp.classList.add("dragging");
       const which = sp.dataset.split;
@@ -4130,6 +4136,14 @@ function bindLinkDrop(stage, menu, scale, sx) {
 // Mac app's own menu bar (it calls window.oncemoreCommand), right-click menus
 // and keyboard shortcuts all run these. "mod" is ⌘ on a Mac and Ctrl elsewhere.
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+// a right click: the second button, or Control-click on a Mac (a one-button
+// mouse; a trackpad's two-finger click comes as the second button). It opens
+// the shortcut menu and never starts a drag or changes a selection it is in.
+function secondaryClick(ev) { return ev.button === 2 || (IS_MAC && ev.ctrlKey && ev.button === 0); }
+// the key that adds to (or takes from) a selection: Shift, and ⌘ on a Mac or Ctrl elsewhere
+function addsToSelection(ev) { return ev.shiftKey || (IS_MAC ? ev.metaKey : ev.ctrlKey); }
+// the command key of shortcuts: ⌘ on a Mac (Control there is its own key), Ctrl elsewhere
+function modKey(ev) { return IS_MAC ? ev.metaKey : ev.ctrlKey || ev.metaKey; }
 const IN_APP = /OncemoreApp/.test(navigator.userAgent);
 const LISTS = { title: "titles", menu: "menus", playlist: "playlists" };
 const hasProject = () => !!P();
@@ -5181,7 +5195,8 @@ function keyMatches(spec, e) {
   const parts = keyParts(spec), key = parts[parts.length - 1];
   const want = { mod: parts.includes("mod"), shift: parts.includes("shift"), alt: parts.includes("alt") };
   if (["?", "*", "+", "-"].includes(key)) return e.key === key && !(e.metaKey || e.ctrlKey || e.altKey);
-  if (want.mod !== (e.metaKey || e.ctrlKey) || want.shift !== e.shiftKey || want.alt !== e.altKey) return false;
+  if (want.mod !== modKey(e) || want.shift !== e.shiftKey || want.alt !== e.altKey) return false;
+  if (IS_MAC && parts.includes("ctrl") !== e.ctrlKey) return false;        // (⌃ is a key of its own there)
   if (key === "delete") return e.key === "Delete" || e.key === "Backspace";
   if (key === "space") return e.code === "Space";
   if (key === "pageup" || key === "pagedown") return e.key === { pageup: "PageUp", pagedown: "PageDown" }[key];
@@ -5305,7 +5320,10 @@ document.addEventListener("contextmenu", (ev) => {
   if (!P() || ev.target.closest("input, textarea, select")) return;
   const nav = ev.target.closest(".nav-item[data-view]"), media = ev.target.closest(".media-item[data-media]"), el = ev.target.closest(".stage .el[data-kind]");
   const items = nav && LISTS[nav.dataset.view] ? itemMenu(nav.dataset.view, nav.dataset.id) : media ? mediaMenu(media.dataset.media) : el ? stageMenu(el) : null;
-  if (!items) return;
+  if (!items) {
+    if (IN_APP) ev.preventDefault();      // (not the web view's Reload / Back menu in a Mac app)
+    return;
+  }
   ev.preventDefault();
   openPopup(ev.clientX, ev.clientY, items);
 });
@@ -5313,7 +5331,7 @@ document.addEventListener("click", (ev) => { if (!ev.target.closest(".popup")) c
 // pick whips in Properties (button link, title end action, first play)
 document.addEventListener("pointerdown", (ev) => {
   const w = ev.target.closest?.("[data-whip]");
-  if (!w || !P()) return;
+  if (!w || !P() || secondaryClick(ev)) return;
   const key = w.dataset.whip, view = S.sel.view, id = S.sel.id, el = S.element;
   startWhip(ev, (action) => commit((p) => {
     if (key === "first_play") p.disc.first_play = action;

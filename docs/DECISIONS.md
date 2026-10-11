@@ -1724,3 +1724,24 @@ written that fails before the fix, and then the fix:
   an NTSC frame) of its flash, with no drift from the first to the last. A
   copy made the naive way (every frame at a fixed 1/29.97 s) is already
   110 ms off 6 s in, so the test would see it.
+
+## 95. Right click and modifier keys on a Mac
+
+* A right click is the second button, or Control-click on a Mac (a
+  one-button mouse; a trackpad's two-finger click already comes as the
+  second button). It opens the shortcut menu of what is under it and
+  selects that unless it is already in the selection. It never adds to a
+  selection, takes from it, starts a drag, seeks the timeline or moves a
+  guide, a splitter or a chapter mark. Before, Control-click on a Mac was
+  read as a click to add to the selection, and the menu that followed
+  acted on that changed selection.
+* Adding to a selection is Shift-click, and ⌘-click on a Mac or Ctrl-click
+  elsewhere, as in the classic apps and the Finder. The "mod" of shortcuts
+  is ⌘ on a Mac and Ctrl elsewhere. On a Mac, Control is a key of its own,
+  so Control+D does not duplicate.
+* In the Mac app, a right click where oncemore has no menu shows nothing,
+  not the web view's Reload / Back menu. Text fields keep their own menu
+  (Copy, Paste). A browser keeps its menu everywhere oncemore has none.
+* `tests/test_rightclick.py` plays a Mac by giving the page a Mac platform
+  and the events a Mac sends for Control-click (pointerdown with Control
+  and the first button, then contextmenu).
