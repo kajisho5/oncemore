@@ -4,7 +4,7 @@
 
 *The DVD authoring app Mac forgot. Menus, chapters, ISO — once more.*
 
-[日本語版 README](README.ja.md)
+**Website: [kajisho5.github.io/oncemore](https://kajisho5.github.io/oncemore/)** · [日本語版 README](README.ja.md)
 
 oncemore turns your video files into a **DVD-Video disc image with real menus**:
 a still menu with buttons, an auto-generated chapter menu with thumbnails,
