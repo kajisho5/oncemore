@@ -8,9 +8,16 @@ as RGBA and reduced to the 4 colours a DVD subpicture can hold:
 
 The bitmaps are cropped to their bounding box and handed to spumux with an
 offset, one spumux pass per subtitle stream.
+
+An image script's subtitles are pictures instead (Cue.image): read in their
+own colours (a picture without transparency has its corner colour keyed
+out), fitted to the frame and reduced to the colours the disc allows.
 """
 
+import collections
 import concurrent.futures
+import dataclasses
+import json
 import os
 import re
 import subprocess
@@ -32,6 +39,7 @@ class Cue:
     position: str = None   # "top" | "bottom" | None (the track's / default)
     color: str = None      # "#RRGGBB" fill colour from the cue itself, or None
     style_color: str = None  # the subtitle file's style colour (after the track's)
+    image: str = None      # an image script's picture (absolute path): no text
 
 
 _AN = re.compile(r"\\an?(\d)")
@@ -166,6 +174,9 @@ def parse_ass(text):
 # hh:mm:ss,mmm (or .mmm) is read too.
 _TC = TIMECODE = re.compile(r"^(\d{1,2})([:;])(\d{1,2})([:;])(\d{1,2})([:;.,])(\d{1,3})$")
 _SCRIPT_LINE = re.compile(r"^\s*(\d+)[ \t]+(\S+)[ \t]+(\S+)(?:[ \t]+(.*))?$")
+# an image script: the same lines with a picture file instead of the text
+#   1 00;00;02;02 00;00;03;15 sub0001.png
+IMAGE_FILE = re.compile(r"\.(png|bmp|tiff?|jpe?g|webp)$", re.I)
 
 
 def timecode_seconds(tc, standard="NTSC"):
@@ -205,7 +216,10 @@ def seconds_timecode(t, standard="NTSC"):
     return f"{s // 3600:02d};{s // 60 % 60:02d};{s % 60:02d};{f:02d}"
 
 
-def parse_text_script(text, standard="NTSC"):
+def parse_text_script(text, standard="NTSC", base=None):
+    """Cues of a text script. With `base` (the script's folder), a subtitle
+    whose text is just a picture file's name (relative to it) is that
+    picture: an image script."""
     cues, cur = [], None
     for n, raw in enumerate(text.splitlines(), 1):
         line = raw.strip()
@@ -225,14 +239,23 @@ def parse_text_script(text, standard="NTSC"):
             raise ValueError(f"line {n}: expected \"number start end text\", got {line[:40]!r}")
     if not cues:
         raise ValueError("no subtitles (lines of number, start and end timecode, text)")
-    return _tidy([c for c in cues if c.lines])
+    if base is not None:
+        for n, c in enumerate(cues, 1):
+            if len(c.lines) == 1 and IMAGE_FILE.search(c.lines[0]):
+                path = os.path.normpath(os.path.join(base, c.lines[0]))
+                if not os.path.isfile(path):
+                    raise ValueError(f"subtitle {n}: picture {c.lines[0]!r} not found next to "
+                                     "the script")
+                c.image, c.lines = path, []
+    return _tidy([c for c in cues if c.lines or c.image])
 
 
 def to_text_script(cues, standard="NTSC"):
     """Cues -> a text script (no positions or colours: a script has none)."""
     out = []
     for n, c in enumerate(cues, 1):
-        lines = list(c.lines) or [""]
+        # (a picture: its file name, as an image script has it)
+        lines = [os.path.basename(c.image)] if c.image else list(c.lines) or [""]
         out.append(f"{n}\t{seconds_timecode(c.start, standard)}\t"
                    f"{seconds_timecode(c.end, standard)}\t{lines[0]}")
         out += lines[1:]
@@ -247,8 +270,8 @@ def shifted(cues, offset):
     out = []
     for c in cues:
         if c.end - offset > 0:
-            out.append(Cue(max(0.0, c.start - offset), c.end - offset, c.lines, c.position,
-                           c.color, c.style_color))
+            out.append(dataclasses.replace(c, start=max(0.0, c.start - offset),
+                                           end=c.end - offset))
     return out
 
 
@@ -262,7 +285,8 @@ def load_subtitles(path, standard="NTSC"):
     ext = os.path.splitext(path)[1].lower()
     parse = PARSERS.get(ext, parse_srt)
     if ext == ".txt":
-        parse = lambda text: parse_text_script(text, standard)     # noqa: E731
+        base = os.path.dirname(os.path.abspath(path))
+        parse = lambda text: parse_text_script(text, standard, base)     # noqa: E731
     with open(path, "rb") as f:
         raw = f.read()
     for enc in ("utf-8-sig", "cp932", "latin-1"):
@@ -287,7 +311,8 @@ def to_srt(cues):
         sec, ms = divmod(rem, 1000)
         return f"{h:02d}:{m:02d}:{sec:02d},{ms:03d}"
     out = []
-    for n, c in enumerate(cues, 1):
+    # (an image script's pictures have no text for SubRip)
+    for n, c in enumerate([c for c in cues if c.lines], 1):
         lines = list(c.lines)
         if c.position == "top":
             lines[0] = "{\\an8}" + lines[0]
@@ -313,6 +338,7 @@ class SubtitleRenderer:
         self.dw = display_width
         self.style = style
         self.ffmpeg = tools.find("ffmpeg")
+        self.colours = set()      # every visible subpicture colour drawn (DVD: 15 at most)
 
     def _filter(self, cue, base, position="bottom"):
         st = self.style
@@ -342,6 +368,17 @@ class SubtitleRenderer:
         return quantise(self.render_rgba(cue, base, position), self.disc.width,
                         self.disc.height)
 
+    def render_picture(self, cue, base, position="bottom"):
+        """An image script's picture as (canvas, x, y, palette): its own
+        colours, at most three besides transparent (a DVD subpicture's)."""
+        idx, w, h, x, y, colours = reduce_colours(self.image_rgba(cue, position),
+                                                  self.disc.width, self.disc.height, 3, even=True)
+        if idx is None:
+            return None, 0, 0, None
+        c = png4.Canvas(w, h)
+        c.pixels[:] = idx
+        return c, x, y, [(0, 0, 0, 0)] + colours + [(0, 0, 0, 0)] * (3 - len(colours))
+
     def render_rgba(self, cue, base, position="bottom"):
         """The cue drawn white with a black outline on a transparent frame
         (RGBA bytes, disc width x height)."""
@@ -356,6 +393,41 @@ class SubtitleRenderer:
                                   details={"output": tools.tail(p.stderr.decode("utf-8", "replace"))})
         return p.stdout[:W * H * 4]
 
+    def image_rgba(self, cue, position="bottom"):
+        """An image script's picture on a transparent frame (RGBA bytes, disc
+        width x height): a picture the size of a video frame (480, 576, 720
+        or 1080 lines, at least as wide as high) fills the frame; a smaller
+        one keeps its size (in square pixels) and is centred at the bottom
+        (or top) margin. One with no transparency has the colour of its top
+        left corner keyed out, as subtitle pictures usually do."""
+        W, H = self.disc.width, self.disc.height
+        w, h, rgba = read_picture(cue.image)
+        alpha = rgba[3::4]
+        key = rgba[:3] if alpha.count(255) == len(alpha) else None
+        chain = ["format=rgba"]
+        if key:
+            chain.append(f"colorkey=0x{key.hex()}:0.01:0")
+        if h in (480, 576, 720, 1080) and w >= h:
+            chain.append(f"scale={W}:{H}:flags=bicubic")
+        else:
+            # square pixels to the frame's (DVD pixels are not square)
+            sw = max(2, round(w * W / self.dw))
+            k = min(1.0, (W - 8) / sw, (H - 8) / h)
+            sw, sh = max(2, round(sw * k)), max(2, round(h * k))
+            margin = self.style["margin"]
+            top = (cue.position or position) == "top"
+            y = min(margin, H - sh) if top else max(0, H - margin - sh)
+            chain += [f"scale={sw}:{sh}:flags=bicubic",
+                      f"pad={W}:{H}:{(W - sw) // 2}:{y}:color=black@0.0"]
+        cmd = [self.ffmpeg, "-hide_banner", "-nostdin", "-v", "error", "-i", cue.image,
+               "-vf", ",".join(chain), "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgba",
+               "pipe:1"]
+        p = subprocess.run(cmd, capture_output=True, timeout=300)
+        if p.returncode != 0 or len(p.stdout) < W * H * 4:
+            raise ToolFailedError(f"ffmpeg could not read {os.path.basename(cue.image)}",
+                                  details={"output": tools.tail(p.stderr.decode("utf-8", "replace"))})
+        return p.stdout[:W * H * 4]
+
     def stream_xml(self, cues, lang, index, position="bottom", color=None):
         """Render every cue and write the spumux XML for one stream. `position`
         and `color` are the track's defaults; cues may override them."""
@@ -364,7 +436,8 @@ class SubtitleRenderer:
         workers = min(8, os.cpu_count() or 2)
         with concurrent.futures.ThreadPoolExecutor(workers) as pool:
             for n, cue in enumerate(cues):
-                jobs[n] = pool.submit(self.render, cue, f"{base}_{n:05d}", position)
+                jobs[n] = pool.submit(self.render_picture if cue.image else self.render, cue,
+                                      f"{base}_{n:05d}", position)
             results = {n: f.result() for n, f in jobs.items()}
 
         def palette(fill):
@@ -372,13 +445,14 @@ class SubtitleRenderer:
                     _mix(fill, self.style["outline"])]
         lines = [f'<subpictures format="{self.disc.standard}">', "  <stream>"]
         for n, cue in enumerate(cues):
-            canvas, x, y = results[n]
+            canvas, x, y, *own = results[n]
             if canvas is None:
                 continue
             name = f"{base}_{n:05d}.png"
-            png4.write_indexed_png(os.path.join(self.work, name), canvas,
-                                   palette(cue.color or color or cue.style_color
-                                           or self.style["color"]))
+            colours = own[0] if own else palette(cue.color or color or cue.style_color
+                                                 or self.style["color"])
+            self.colours.update(c for c in colours if c[3])
+            png4.write_indexed_png(os.path.join(self.work, name), canvas, colours)
             lines.append(f'    <spu start="{_ts(cue.start)}" end="{_ts(cue.end)}" '
                          f'image={quoteattr(name)} xoffset="{x}" yoffset="{y}"/>')
         lines += ["  </stream>", "</subpictures>", ""]
@@ -388,12 +462,80 @@ class SubtitleRenderer:
         return path
 
 
+def read_picture(path):
+    """(width, height, RGBA bytes) of a picture file, at its own size."""
+    ffprobe = tools.find("ffprobe")
+    p = subprocess.run([ffprobe, "-v", "error", "-select_streams", "v:0", "-show_entries",
+                        "stream=width,height", "-of", "json", path],
+                       capture_output=True, text=True, timeout=120)
+    try:
+        s = json.loads(p.stdout)["streams"][0]
+        w, h = int(s["width"]), int(s["height"])
+    except (ValueError, KeyError, IndexError):
+        raise ProjectError(f"{path}: not a picture ffmpeg can read")
+    q = subprocess.run([tools.find("ffmpeg"), "-hide_banner", "-nostdin", "-v", "error", "-i",
+                        path, "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgba", "pipe:1"],
+                       capture_output=True, timeout=300)
+    if q.returncode != 0 or len(q.stdout) < w * h * 4:
+        raise ProjectError(f"{path}: not a picture ffmpeg can read")
+    return w, h, q.stdout[:w * h * 4]
+
+
+def reduce_colours(rgba, W, H, most, even=False, alpha_steps=None):
+    """A picture (RGBA bytes, W x H) cropped to what is visible and reduced
+    to at most `most` colours: (index bytes, w, h, x, y, [(r, g, b, a)]),
+    index 0 transparent and k the k-th colour; (None, ...) when nothing
+    shows. The commonest colours are kept and every other pixel takes the
+    nearest of them. Opacity is all or nothing, or with `alpha_steps` kept
+    in that many steps; `even` starts the crop on even lines and columns
+    (a DVD subpicture's)."""
+    alpha = rgba[3::4]
+    vis = alpha.translate(_OPAQUE if alpha_steps is None else _SEEN)
+    first, last = vis.find(1), vis.rfind(1)
+    if first < 0:
+        return None, 0, 0, 0, 0, []
+    y0, y1 = first // W, last // W
+    x0, x1 = W, -1
+    for yy in range(y0, y1 + 1):
+        row = vis[yy * W:(yy + 1) * W]
+        a, b = row.find(1), row.rfind(1)
+        if a >= 0:
+            x0, x1 = min(x0, a), max(x1, b)
+    if even:
+        x0, y0 = x0 - x0 % 2, y0 - y0 % 2
+    w, h = x1 - x0 + 1, y1 - y0 + 1
+    if even:
+        w, h = min(w + w % 2, W - x0), min(h + h % 2, H - y0)
+    pixels = []
+    for yy in range(y0, y0 + h):
+        for xx in range(x0, x0 + w):
+            i = yy * W + xx
+            if not vis[i]:
+                pixels.append(None)
+                continue
+            j = 4 * i
+            a = 255 if alpha_steps is None else \
+                min(255, round(round(alpha[i] * (alpha_steps - 1) / 255) * 255 / (alpha_steps - 1)))
+            pixels.append((rgba[j], rgba[j + 1], rgba[j + 2], a))
+    counts = collections.Counter(p for p in pixels if p)
+    keep = [c for c, _ in counts.most_common(most)]
+    index = {c: k for k, c in enumerate(keep, 1)}
+
+    def nearest(c):
+        k = min(range(len(keep)), key=lambda k: sum((u - v) ** 2 for u, v in zip(c, keep[k])))
+        index[c] = k + 1
+        return k + 1
+    idx = bytes(0 if p is None else index.get(p) or nearest(p) for p in pixels)
+    return idx, w, h, x0, y0, keep
+
+
 def _mix(a, b):
     ca, cb = png4.parse_color(a), png4.parse_color(b)
     return tuple((x + y) // 2 for x, y in zip(ca[:3], cb[:3])) + (255,)
 
 
 _OPAQUE = bytes(1 if a >= 96 else 0 for a in range(256))
+_SEEN = bytes(1 if a >= 16 else 0 for a in range(256))
 
 
 def quantise(rgba, W, H):

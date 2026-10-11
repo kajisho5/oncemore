@@ -1329,3 +1329,27 @@ written that fails before the fix, and then the fix:
 * Chapters land on the copied key frames (at most a second off, as on a
   DVD), and the plan keeps the copied picture's rate so the encoded titles
   share what is left.
+
+## 78. Image scripts
+
+* Authoring tools take subtitles as pictures too: the same numbered script
+  with a picture file in place of the text. oncemore reads it as a text
+  script whose text is just a picture's name (relative to the script); a
+  name with more text, or a second line, stays text, so a script can mix
+  both.
+* Pictures for subtitles are usually made with a flat background colour
+  instead of transparency; one without any transparency has its top-left
+  colour keyed out (ffmpeg's colorkey), one with transparency is used as
+  it is.
+* A frame-sized picture (480, 576, 720 or 1080 lines) is the whole frame,
+  scaled to the disc's; a smaller one keeps its size in square pixels (on
+  a DVD squeezed to its pixels, as the text is) and sits where text
+  would, centred at the margin.
+* Colours are the picture's own, reduced by keeping the commonest and
+  giving every other pixel the nearest of them: three per picture on a DVD
+  (the fourth is transparent), 255 with eight opacity steps on a Blu-ray.
+  A DVD title's subpictures share 16 colours; text colours are checked
+  before the build, pictures' only once they are drawn, so a title over
+  the limit stops the build with the count.
+* The app imports a script and its pictures together (several files): they
+  land side by side in media/, which is what the script's names need.

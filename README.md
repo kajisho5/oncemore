@@ -643,6 +643,14 @@ differs from the frame; `fill` fills the frame and crops the edges.
   against a source's own timecode. Each cue is drawn with the menu font (white with an
   outline, see `disc.subtitle_style`), reduced to a 4-colour DVD subpicture and
   muxed with spumux; overlapping cues are shortened.
+* Image scripts: a text script whose subtitle text is a picture file next to
+  the script (`.png`, `.bmp`, `.tif`, `.jpg`, `.webp`) shows that picture in
+  its own colours. A picture without transparency has its top-left colour
+  keyed out; a frame-sized one (480, 576, 720 or 1080 lines) fills the
+  frame, a smaller one is centred at the bottom (or top) margin. A DVD keeps
+  each picture's three commonest colours (a title's subpictures share 16),
+  a Blu-ray up to 255 with their opacity. Import the script and its pictures
+  together (Timeline > Import subtitles).
 * Placement and colour: a track's `"position": "top"` and `"color": "#FFFF00"`,
   overridden per cue by `{\an8}` (SRT / ASS), `line:0` (WebVTT), an ASS style's
   alignment, `{\c&HBBGGRR&}` or `<font color="#RRGGBB">`. A title can use 16

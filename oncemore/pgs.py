@@ -51,6 +51,18 @@ def palette(fill, outline):
     return out
 
 
+def picture_palette(colours):
+    """Entries for a picture's own colours [(r, g, b, a)]: index k for the
+    k-th (0 transparent)."""
+    return [(0, 16, 128, 128, 0)] + [(k, *_ycrcb(c[:3]), c[3])
+                                     for k, c in enumerate(colours, 1)]
+
+
+def _ycrcb(rgb):
+    y, cb, cr = ycbcr(rgb)
+    return y, cr, cb
+
+
 def indexed(rgba, W, H):
     """RGBA (white text, black outline) -> (index bytes, w, h, x, y) cropped
     to what is visible, or None for an empty picture. Runs at C speed: the

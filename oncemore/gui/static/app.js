@@ -241,7 +241,7 @@ const I18N = {
     chapter_playlist_hint: "A playlist that plays the title's chapters one after another (each is an item you can reorder or remove).",
     export_subs_hint: "Which track? It is saved in exports/.",
     fmt_srt: "SubRip (.srt)", fmt_script: "Text script (.txt)", script_import: "Import subtitles (text script)",
-    script_hint: "A text script has a number, the start and end timecode and the text for each subtitle; its look comes from the subtitle style. Timecode hh;mm;ss;ff is NTSC drop frame.",
+    script_hint: "A text script has a number, the start and end timecode and the text for each subtitle; its look comes from the subtitle style. Timecode hh;mm;ss;ff is NTSC drop frame. In an image script the text is a picture file next to the script (import them together); the pictures keep their own colours.",
     tc_absolute: "Absolute: the timecode is the title's", tc_relative: "Relative to", sub_offset: "Offset",
     sub_offset_hint: "Taken off every subtitle's time: the start of the source's own timecode (e.g. 01;00;00;00)",
     cmd_chapter_names: "Show chapter names", chapter_label: "Chapter {n}",
@@ -492,7 +492,7 @@ const I18N = {
     chapter_playlist_hint: "タイトルのチャプターを順に再生するプレイリストです（各チャプターが項目になり、並べ替えや削除ができます）。",
     export_subs_hint: "どのトラックを書き出しますか？ exports/ に保存します。",
     fmt_srt: "SubRip（.srt）", fmt_script: "テキストスクリプト（.txt）", script_import: "字幕を読み込み（テキストスクリプト）",
-    script_hint: "テキストスクリプトは字幕ごとに番号・開始と終了のタイムコード・テキストを並べたファイルです。見た目は字幕スタイルに従います。タイムコード hh;mm;ss;ff は NTSC のドロップフレームです。",
+    script_hint: "テキストスクリプトは字幕ごとに番号・開始と終了のタイムコード・テキストを並べたファイルです。見た目は字幕スタイルに従います。タイムコード hh;mm;ss;ff は NTSC のドロップフレームです。画像スクリプトではテキストの代わりにスクリプトと同じ場所の画像ファイル名を書きます（スクリプトと一緒に読み込んでください）。画像は自分の色のまま使われます。",
     tc_absolute: "絶対：タイムコードがそのままタイトルの時間", tc_relative: "相対：基準", sub_offset: "オフセット",
     sub_offset_hint: "各字幕の時間から引く値：素材自身のタイムコードの開始（例 01;00;00;00）",
     cmd_chapter_names: "チャプター名を表示", chapter_label: "チャプター {n}",
@@ -1469,7 +1469,7 @@ async function renderSubEditor(ti, playhead, seek) {
     `<table class="cues"><tbody>${cues.map((c, i) => `<tr data-cue="${i}">
       <td><input class="mono" data-f="start" value="${fmtTime(c.start)}" ${data.editable ? "" : "disabled"}></td>
       <td><input class="mono" data-f="end" value="${fmtTime(c.end)}" ${data.editable ? "" : "disabled"}></td>
-      <td style="width:100%"><textarea data-f="text" rows="${Math.max(1, c.text.split("\n").length)}" ${data.editable ? "" : "disabled"}>${esc(c.text)}</textarea></td>
+      <td style="width:100%"><textarea data-f="text" rows="${Math.max(1, c.text.split("\n").length)}" ${data.editable ? "" : "disabled"}>${esc(c.image ? "▣ " + c.image.split("/").pop() : c.text)}</textarea></td>
       <td>${selectHtml("pos", [["", t("sub_track_pos")], ["top", t("sub_top")], ["bottom", t("sub_bottom")]], c.position || "", `data-f="position" ${data.editable ? "" : "disabled"}`)}</td>
       <td><button class="small" data-go="${i}" title="${esc(t("playhead"))}">▶</button>${data.editable ? `<button class="small danger" data-delcue="${i}">✕</button>` : ""}</td></tr>`).join("")}</tbody></table>
     ${data.editable ? `<button class="small" id="sub-add">${t("add_cue")}</button>` : ""}`;
@@ -3370,7 +3370,7 @@ async function renderTimeline() {
     try { data = await api("/api/subtitles?" + new URLSearchParams({ path: s.file, offset: s.offset ?? "" })); } catch (e) { return; }
     const host = box.querySelector(`[data-subk="${k}"]`);
     if (!host) return;
-    host.outerHTML = data.cues.map((c) => `<div class="tl-clip sub" data-cue="${c.start}" style="left:${c.start * pps}px;width:${Math.max(3, (c.end - c.start) * pps)}px" title="${esc(c.text)}">${esc(c.text.split("\n")[0])}</div>`).join("");
+    host.outerHTML = data.cues.map((c) => `<div class="tl-clip sub" data-cue="${c.start}" style="left:${c.start * pps}px;width:${Math.max(3, (c.end - c.start) * pps)}px" title="${esc(c.image || c.text)}">${c.image ? "▣ " + esc(c.image.split("/").pop()) : esc(c.text.split("\n")[0])}</div>`).join("");
     box.querySelectorAll(".tl-clip.sub").forEach((c) => (c.onclick = () => seek(Number(c.dataset.cue))));
   });
 }
@@ -3864,7 +3864,11 @@ const COMMANDS = {
   chapter_playlist: { run: chapterPlaylistBox, when: () => hasProject() && (P().titles || []).some((x) => chaptersOf(x).length > 1) },
   add_audio_track: { run: addAudioTrackBox, when: () => inTitle() && !curTitle().clips && !curTitle().slideshow },
   add_subtitle_track: { run: addSubtitleTrackBox, when: () => inTitle() && mediaOf("subtitle").length > 0 },
-  import_subtitles: { run: () => pickUpload(".srt,.vtt,.ass,.ssa,.txt", false, ([path]) => (/\.txt$/i.test(path) ? textScriptBox(curTitle().id, path) : addSubtitleTrack(curTitle().id, path))), when: inTitle },
+  // (an image script comes with its pictures: choose them together)
+  import_subtitles: { run: () => pickUpload(".srt,.vtt,.ass,.ssa,.txt,.png,.bmp,.tif,.tiff,.jpg,.jpeg,.webp", true, (paths) => {
+    const path = paths.find((x) => /\.(srt|vtt|ass|ssa|txt)$/i.test(x));
+    if (path) /\.txt$/i.test(path) ? textScriptBox(curTitle().id, path) : addSubtitleTrack(curTitle().id, path);
+  }), when: inTitle },
   export_subtitles: { run: () => exportSubtitlesBox("srt"), when: () => inTitle() && (curTitle().subtitles || []).length > 0 },
   export_subtitles_script: { run: () => exportSubtitlesBox("script"), when: () => inTitle() && (curTitle().subtitles || []).length > 0 },
   add_chapter: { key: "*", run: () => $("#add-ch")?.click(), when: () => S.sel.view === "title" && !!$("#add-ch") },

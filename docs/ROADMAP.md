@@ -245,6 +245,13 @@ browser) and lands only with green CI.
   its link (menu, title, chapter, playlist, play all), on DVD and Blu-ray;
   drawn in the flowchart, played in the simulator
 
+**P57 — Image scripts** (done)
+- [x] Subtitles that are pictures: a text script whose text is a picture
+  file (keyed or with transparency, frame-sized or smaller), in its own
+  colours on DVD (three per picture, 16 per title, checked) and Blu-ray
+  (255 with opacity); imported with its pictures, shown on the timeline,
+  written back as an image script
+
 **P56 — Blu-ray: H.264 used as it is** (done)
 - [x] `transcode: false` on a Blu-ray copies an H.264 picture that already
   is Blu-ray video (profile, level, frame, rate, 1080i field coding read

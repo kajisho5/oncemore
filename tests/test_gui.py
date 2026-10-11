@@ -1548,6 +1548,41 @@ class TestGuiBrowser(unittest.TestCase):
             browser.close()
         self.assertEqual(errors, [])
 
+    def test_image_script(self):
+        """Timeline > Import subtitles with an image script and its pictures
+        chosen together: a track whose subtitles show as their pictures."""
+        self.s.call("/api/new", "POST", {"sample": True})
+        src = tempfile.mkdtemp(prefix="oncemore-isub-gui-")
+        self.addCleanup(shutil.rmtree, src, True)
+        for name in ("one.png", "two.png"):
+            subprocess.run(["ffmpeg", "-hide_banner", "-v", "error", "-y", "-f", "lavfi", "-i",
+                            "color=c=yellow:s=120x30", "-frames:v", "1", os.path.join(src, name)],
+                           check=True)
+        with open(os.path.join(src, "pics.txt"), "w") as f:
+            f.write("1 00;00;01;00 00;00;02;00 one.png\n2 00;00;03;00 00;00;04;00 two.png\n")
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click(".nav-item[data-view=title][data-id=t1]", timeout=120000)
+            with page.expect_file_chooser() as fc:
+                page.evaluate("window.oncemoreCommand('import_subtitles')")
+            fc.value.set_files([os.path.join(src, n) for n in ("pics.txt", "one.png", "two.png")])
+            page.locator("#ts-ok").wait_for(timeout=60000)
+            page.select_option("#ts-lang", "en")
+            page.click("#ts-ok")
+            self.poll(lambda: self.project()["titles"][0].get("subtitles") == [
+                {"file": "media/pics.txt", "lang": "en"}])
+            clips = page.locator("#tl .tl-clip.sub")
+            clips.nth(1).wait_for(timeout=60000)
+            self.assertEqual(clips.first.get_attribute("title"), "media/one.png")
+            self.assertEqual(clips.first.inner_text(), "▣ one.png")
+            self.assertTrue(self.s.app.check(self.project())["valid"])
+            browser.close()
+        self.assertEqual(errors, [])
+
     def test_button_numbers(self):
         """Properties > Number renumbers a button, the menu's button number
         offset shows in the routing view, and the preview's number keys

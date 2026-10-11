@@ -711,7 +711,10 @@ class Handler(BaseHTTPRequestHandler):
         # (only SubRip files are written, and only as they are timed)
         self.json({"editable": full.lower().endswith(".srt") and not shifted,
                    "cues": [{"start": c.start, "end": c.end, "text": "\n".join(c.lines),
-                             "position": c.position, "color": c.color} for c in cues]})
+                             "position": c.position, "color": c.color,
+                             # (an image script's picture: shown by its file name)
+                             **({"image": self.app.rel(c.image)} if c.image else {})}
+                            for c in cues]})
 
     def api_put_subtitles(self, q):
         """Save cues as SubRip (the editor only writes .srt files)."""
