@@ -1706,3 +1706,21 @@ written that fails before the fix, and then the fix:
   title made of clips, a slideshow, or one whose picture is copied as it is
   (`transcode: false`) cannot have them. Each angle is encoded and cached
   as a title of its own (`<id>-angle2.mpg`, ...).
+
+## 94. Sources with a variable frame rate
+
+* Phones and screen recorders write video whose frames come at uneven
+  intervals. A tool that lays such frames end to end at the disc's fixed
+  rate puts the picture out of step with the sound, more and more as the
+  title goes on; it is a long-standing complaint about the classic apps
+  (forum threads on Blu-ray builds that lose sync, with workarounds and no
+  fix).
+* oncemore needs nothing special for it: ffmpeg encodes to the disc's rate
+  (`-r`) from each frame's own time, repeating or dropping frames where the
+  intervals are uneven, and the sound is taken from the same source in the
+  same run. `tests/test_vfr.py` holds it to that: a source whose frames come
+  every 1/60, 1/30 and 1/20 s, with flashes and beeps together, built for
+  DVD (NTSC and PAL) and Blu-ray; each beep must be within 40 ms (just over
+  an NTSC frame) of its flash, with no drift from the first to the last. A
+  copy made the naive way (every frame at a fixed 1/29.97 s) is already
+  110 ms off 6 s in, so the test would see it.
