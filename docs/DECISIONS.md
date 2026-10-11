@@ -1889,3 +1889,43 @@ routing", and the keyboard tables):
   selects all the text.
 * `tests/test_encore_reorder.py` and `test_encore_drag.test_type_handles`
   check these in a browser.
+
+## 104. Subtitle scripts as subtitling houses deliver them
+
+The classic app's manual (pp. 136–138) names three script forms besides the
+plain text script: the image script with a `Display_Area` and a `Directory`
+line, the FAB image script, and scripts saved as UTF-16. oncemore read the
+plain forms only.
+
+* **Image script headers**: `Display_Area (left top right bottom)` before
+  the first subtitle sets where every picture of the script is drawn;
+  `Directory <path>` names the pictures' folder. The manual's path is
+  absolute and written on the computer that made the script (a Windows
+  `C:\...` path in its example), so it is tried first and the script's own
+  folder after it; the GUI imports the pictures next to the script.
+* **FAB image scripts**: one line a picture, `name start end left top right
+  bottom`. Encore asks for the pictures' folder on import; oncemore takes
+  them from the script's folder (the project keeps them together). A file
+  name may hold spaces: the line is read from its end. A `.txt` script is
+  a FAB script when its first line is in that form.
+* **The place**: the numbers are frame pixels, 720 × 480 for NTSC and 720 ×
+  576 for PAL in the manual; the picture is scaled into that rectangle (a
+  delivered picture is usually that size already). On a Blu-ray the frame
+  is the HD frame and the rectangle is scaled with it, as a frame-sized
+  picture already was. A script whose numbers go past the DVD frame is read
+  as 1920 × 1080. A picture without a place is drawn as before (frame-sized:
+  the whole frame; smaller: centred at the margin).
+* **UTF-16**: a byte order mark, or a NUL in nearly every other byte (UTF-16
+  without one), selects UTF-16; other files are tried as UTF-8, Shift_JIS
+  and Latin-1 as before.
+* Written back (the subtitle editor's Export as text script), pictures that
+  each have a place are written as a FAB script, so the places survive.
+* **Map Colors** (eyedroppers choosing a picture's background, fill and
+  outline for the colour set) is not taken over: oncemore keeps a picture's
+  own colours (§78), keying out the corner colour of a picture without
+  transparency.
+* `tests/test_subtitle_deliveries.py` reads the manual's examples (headers
+  with a Windows folder that is not there, FAB lines with a space in a
+  name, UTF-16 with and without a byte order mark) and builds a DVD with a
+  UTF-16 FAB track and a Display_Area track, checking the picture's colour
+  inside its rectangle and nothing at the bottom centre.
