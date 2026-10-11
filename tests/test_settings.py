@@ -24,6 +24,16 @@ except ImportError:  # pragma: no cover
     PLAYWRIGHT = False
 
 
+def until(page, expr, seconds=60):
+    """Wait for a condition on the page (evaluated, not eval'd: the page's
+    content security policy has no unsafe-eval)."""
+    for _ in range(seconds * 10):
+        if page.evaluate(f"() => !!({expr})"):
+            return
+        page.wait_for_timeout(100)
+    raise AssertionError(f"timed out: {expr}")
+
+
 class Temp(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp(prefix="oncemore-settings-")
@@ -140,13 +150,13 @@ class TestApi(Temp):
             page.locator(".nav-item[data-view=menu][data-id=main]").wait_for(timeout=120000)
             page.evaluate("window.oncemoreCommand('preferences')")
             page.locator("#pref-cache").wait_for()
-            page.wait_for_function("document.querySelector('#pref-cache-hint').textContent.includes('.oncemore-cache')")
+            until(page, "document.querySelector('#pref-cache-hint').textContent.includes('.oncemore-cache')")
             page.fill("#pref-cache", cache)
             page.click("#pref-cache-set")
-            page.wait_for_function(f"document.querySelector('#pref-cache-hint').textContent.includes({json.dumps(cache)})")
+            until(page, f"document.querySelector('#pref-cache-hint').textContent.includes({json.dumps(cache)})")
             self.assertEqual(settings.load()["cache_dir"], cache)
             page.click("#pref-cache-def")
-            page.wait_for_function("document.querySelector('#pref-cache').value === ''")
+            until(page, "document.querySelector('#pref-cache').value === ''")
             self.assertNotIn("cache_dir", settings.load())
             browser.close()
         self.assertEqual(errors, [])
