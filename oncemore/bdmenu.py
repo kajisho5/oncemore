@@ -86,7 +86,8 @@ def scale_menu(menu, disc, probe):
         return dataclasses.replace(
             el, size=max(4, round(el.size * ky)),
             outline_width=max(1, round(el.outline_width * ky)) if el.outline else el.outline_width,
-            shadow_offset=max(1, round(el.shadow_offset * ky)), **kw)
+            shadow_offset=max(1, round(el.shadow_offset * ky)),
+            letter_spacing=round(el.letter_spacing * ky), **kw)
 
     buttons = []
     for b in menu.buttons:

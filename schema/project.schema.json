@@ -662,6 +662,28 @@
           "minimum": 1,
           "maximum": 20,
           "default": 3
+        },
+        "bold": {
+          "type": "boolean",
+          "default": false,
+          "description": "Drawn with the bold face of its font's family (the family must have one)."
+        },
+        "italic": {
+          "type": "boolean",
+          "default": false,
+          "description": "Drawn with the italic face of its font's family (the family must have one)."
+        },
+        "letter_spacing": {
+          "type": "integer",
+          "minimum": -20,
+          "maximum": 100,
+          "default": 0,
+          "description": "Pixels added between its characters (tracking)."
+        },
+        "kerning": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use the font's kerning pairs (false: every character at its own advance)."
         }
       }
     },
@@ -812,6 +834,28 @@
           "minimum": 1,
           "maximum": 20,
           "default": 3
+        },
+        "bold": {
+          "type": "boolean",
+          "default": false,
+          "description": "Drawn with the bold face of its font's family (the family must have one)."
+        },
+        "italic": {
+          "type": "boolean",
+          "default": false,
+          "description": "Drawn with the italic face of its font's family (the family must have one)."
+        },
+        "letter_spacing": {
+          "type": "integer",
+          "minimum": -20,
+          "maximum": 100,
+          "default": 0,
+          "description": "Pixels added between its characters (tracking)."
+        },
+        "kerning": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use the font's kerning pairs (false: every character at its own advance)."
         },
         "highlight_image": {
           "type": "string",

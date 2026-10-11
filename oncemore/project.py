@@ -420,6 +420,10 @@ class Text:
     outline_width: int = 2
     shadow: str = None
     shadow_offset: int = 3
+    bold: bool = False         # the bold face of its font's family
+    italic: bool = False       # the italic face of its font's family
+    letter_spacing: int = 0    # pixels added between its characters
+    kerning: bool = True       # the font's kerning pairs (False: plain advances)
     rotate: float = 0.0        # degrees clockwise about its centre
     flip: str = None           # "horizontal" | "vertical" | "both" (before the rotation)
     align: str = "left"        # lines of a paragraph: "left" | "center" | "right"
@@ -499,6 +503,10 @@ class Button:
     outline_width: int = 2
     shadow: str = None
     shadow_offset: int = 3
+    bold: bool = False
+    italic: bool = False
+    letter_spacing: int = 0
+    kerning: bool = True
     highlight_image: str = None  # picture whose opaque pixels are the highlight
     width: int = None          # its width on the 720-wide grid (None = natural)
     highlight: str = "frame"   # image buttons: "frame" | "shape"
@@ -1234,6 +1242,9 @@ class _Builder:
         return {"font": self.file(f"{where}.font", spec.get("font")),
                 "outline": spec.get("outline"), "outline_width": spec.get("outline_width", 2),
                 "shadow": spec.get("shadow"), "shadow_offset": spec.get("shadow_offset", 3),
+                "bold": bool(spec.get("bold", False)), "italic": bool(spec.get("italic", False)),
+                "letter_spacing": int(spec.get("letter_spacing", 0) or 0),
+                "kerning": spec.get("kerning", True) is not False,
                 **self.transform(spec)}
 
     def subtitle_offset(self, where, value):

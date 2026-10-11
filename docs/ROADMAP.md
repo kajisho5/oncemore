@@ -406,8 +406,8 @@ against their published help, not from memory)
   the web version (DVD keeps the order, as the classic apps did) (P65)
 - [x] Slideshows of more than 99 pictures (the rest in the last chapter on
   DVD; up to 999 on Blu-ray) (P66)
-- [ ] Text: letter spacing, kerning, bold and italic (of fonts that have
-  those faces)
+- [x] Text: letter spacing, kerning, bold and italic (of fonts that have
+  those faces) (P70)
 - [ ] Highlights: make a button's highlight layer from its own pixels or a
   shape in the editor, and replace it with another picture
 - [ ] Replace a menu's background and layout with a template, keeping its
