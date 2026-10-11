@@ -385,6 +385,8 @@ class Text:
     shadow_offset: int = 3
     rotate: float = 0.0        # degrees clockwise about its centre
     flip: str = None           # "horizontal" | "vertical" | "both" (before the rotation)
+    align: str = "left"        # lines of a paragraph: "left" | "center" | "right"
+    line_spacing: int = 0      # pixels added between its lines
 
 
 @dataclass
@@ -1004,7 +1006,9 @@ class _Builder:
             if "thumbnail" in spec:
                 b.thumb = self.thumbnail(f"{where}.buttons[{j}].thumbnail", b, spec["thumbnail"])
         texts = [Text(text=t["text"], x=t["x"], y=t["y"], size=t.get("size", size),
-                      color=t.get("color", tcolor), **self.style(f"{where}.texts[{j}]", t))
+                      color=t.get("color", tcolor), align=t.get("align", "left"),
+                      line_spacing=t.get("line_spacing", 0),
+                      **self.style(f"{where}.texts[{j}]", t))
                  for j, t in enumerate(m.get("texts", []))]
         for j, b in enumerate(buttons):
             if b.y >= disc.height:
