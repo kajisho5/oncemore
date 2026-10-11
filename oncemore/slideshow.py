@@ -7,7 +7,7 @@ The rendering is a single ffmpeg graph on the disc's square-pixel canvas
 
   picture -> fit (letterbox in the background colour) or fill (cropped)
              [-> zoompan] -> fps
-  slides  -> xfade (cross-fade) or concat
+  slides  -> xfade (cross-fade, wipe, slide ...) or concat (cut), per change
   music   -> one or more files joined, trimmed to the slideshow, faded
              out, padded with silence (fit_to_audio: the pictures' durations
              are scaled so the show is as long as the music; see apply)
@@ -20,6 +20,7 @@ and chapter k begins there.
 import hashlib
 import json
 import os
+import random
 from dataclasses import dataclass, field
 
 from . import tools
@@ -27,18 +28,27 @@ from .errors import OncemoreError
 
 CACHE_VERSION = 1
 
+# transition name -> ffmpeg xfade transition (all in ffmpeg 4.4 and later)
+TRANSITIONS = {"crossfade": "fade", "dissolve": "dissolve", "fadeblack": "fadeblack",
+               "fadewhite": "fadewhite", "wipeleft": "wipeleft", "wiperight": "wiperight",
+               "wipeup": "wipeup", "wipedown": "wipedown", "slideleft": "slideleft",
+               "slideright": "slideright", "slideup": "slideup", "slidedown": "slidedown",
+               "circleopen": "circleopen", "circleclose": "circleclose", "radial": "radial",
+               "pixelize": "pixelize"}
+
 
 @dataclass
 class Slide:
     image: str
     duration: float = 5.0
     fit: str = None          # "fit" | "fill" (None = the slideshow's)
+    transition: str = None   # to the next picture (None = the slideshow's)
 
 
 @dataclass
 class Slideshow:
     slides: list
-    transition: str = "crossfade"     # "crossfade" | "none"
+    transition: str = "crossfade"     # a TRANSITIONS name | "random" | "none"
     transition_duration: float = 1.0
     pan_zoom: bool = False
     audio: object = None              # a music file, or a list of them
@@ -67,10 +77,25 @@ class Slideshow:
             t += s.duration
         return out
 
+    def changes(self):
+        """The xfade transition from each picture to the next (None: a cut);
+        random ones are drawn the same way every time (seeded by place)."""
+        out = []
+        for k, s in enumerate(self.slides[:-1]):
+            name = s.transition or self.transition
+            if name == "random":
+                name = random.Random(f"{len(self.slides)}:{k}").choice(sorted(TRANSITIONS))
+            out.append(TRANSITIONS.get(name))
+        return out
+
+    def fades(self):
+        """Seconds each picture runs on into the next one's transition."""
+        return [self.transition_duration if c else 0.0 for c in self.changes()] + [0.0]
+
     @property
     def fade(self):
-        return self.transition_duration if self.transition == "crossfade" and \
-            len(self.slides) > 1 else 0.0
+        """The longest transition (0: only cuts)."""
+        return max(self.fades()) if self.slides else 0.0
 
 
 def _sig(path):
@@ -95,7 +120,8 @@ def canvas(disc):
 def output_path(base_dir, show, disc):
     """Where the rendered slideshow lives (keyed by everything it depends on)."""
     key = json.dumps({"v": CACHE_VERSION, "code": _code(),
-                      "slides": [[_sig(s.image), s.duration] + ([s.fit] if s.fit else [])
+                      "slides": [[_sig(s.image), s.duration] + ([s.fit] if s.fit else []) +
+                                 ([s.transition] if s.transition else [])
                                  for s in show.slides],
                       "t": [show.transition, show.transition_duration, show.pan_zoom,
                             show.background_color],
@@ -127,12 +153,12 @@ def graph(show, disc):
     W, H = canvas(disc)
     num, den = disc.fps
     fps = num / den
-    fade = show.fade
+    fades, changes = show.fades(), show.changes()
     bg = _hex(show.background_color)
     args, chains = [], []
     n = len(show.slides)
     for k, s in enumerate(show.slides):
-        length = s.duration + (fade if k < n - 1 else 0.0)
+        length = s.duration + fades[k]          # running on under the next transition
         frames = max(1, int(round(length * fps)))
         if show.pan_zoom:
             # one picture in, `frames` pictures out; drawn at twice the size so
@@ -150,13 +176,19 @@ def graph(show, disc):
                               f"setpts=PTS-STARTPTS,trim=duration={length:.3f}[s{k}]")
     if n == 1:
         chains.append("[s0]null[v]")
-    elif fade:
+    elif any(changes):
+        # one change at a time: a transition overlaps the next picture, a cut
+        # appends it
         cur, offset = "s0", 0.0
         for k in range(1, n):
             offset += show.slides[k - 1].duration
             out = "v" if k == n - 1 else f"x{k}"
-            chains.append(f"[{cur}][s{k}]xfade=transition=fade:duration={fade:.3f}:"
-                          f"offset={offset:.3f}[{out}]")
+            kind = changes[k - 1]
+            if kind:
+                chains.append(f"[{cur}][s{k}]xfade=transition={kind}:"
+                              f"duration={fades[k - 1]:.3f}:offset={offset:.3f}[{out}]")
+            else:
+                chains.append(f"[{cur}][s{k}]concat=n=2:v=1:a=0[{out}]")
             cur = out
     else:
         chains.append("".join(f"[s{k}]" for k in range(n)) + f"concat=n={n}:v=1:a=0[v]")

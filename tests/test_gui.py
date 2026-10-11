@@ -1056,6 +1056,10 @@ class TestGuiBrowser(unittest.TestCase):
             self.wait_saved(page)
             page.select_option("#ss-fit", "fill")
             self.wait_saved(page)
+            page.select_option("[data-slide='0'] [data-f=transition]", "wipeleft")
+            self.poll(lambda: self.project()["titles"][-1]["slideshow"]["slides"][0].get("transition"))
+            self.wait_saved(page)
+            self.assertEqual(page.locator("[data-slide='1'] [data-f=transition]").count(), 0)  # last
             page.select_option("[data-slide='1'] [data-f=fit]", "fit")
             self.poll(lambda: self.project()["titles"][-1]["slideshow"]["slides"][1].get("fit"))
             self.wait_saved(page)
@@ -1069,7 +1073,8 @@ class TestGuiBrowser(unittest.TestCase):
             page.check("#ss-fitaudio")
             self.wait_saved(page)
             sh = self.project()["titles"][-1]["slideshow"]
-            self.assertEqual(sh, {"slides": [{"image": "media/menu_bg.png", "duration": 3},
+            self.assertEqual(sh, {"slides": [{"image": "media/menu_bg.png", "duration": 3,
+                                              "transition": "wipeleft"},
                                              {"image": "media/menu_bg.png", "fit": "fit"}],
                                   "pan_zoom": True, "transition": "none", "fit": "fill",
                                   "audio": ["media/song1.wav", "media/song2.wav"],

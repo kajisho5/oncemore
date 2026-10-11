@@ -484,7 +484,10 @@ end of its last chapter. Title, chapter and play-all buttons leave playlist mode
   "slideshow": {
     "slides": [{ "image": "media/beach.jpg", "duration": 6 },   // seconds, default 5
                { "image": "media/hills.png" }],
-    "transition": "crossfade",        // or "none" (cuts)
+    "transition": "crossfade",        // dissolve, fadeblack, fadewhite, wipeleft/right/up/down,
+                                      // slideleft/right/up/down, circleopen/close, radial,
+                                      // pixelize, random, or "none" (cuts); a slide's own
+                                      // "transition" sets the change to the next one
     "transition_duration": 1,         // seconds, shorter than every slide
     "pan_zoom": true,                 // a slow zoom in / out on every picture
     "fit": "fill",                    // fill the frame (edges cropped); default "fit"
