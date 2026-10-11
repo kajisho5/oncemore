@@ -98,8 +98,10 @@ def scale_menu(menu, disc, probe):
             width = max(8, round(info["width"] / sx_dvd))
         thumb = b.thumb and dataclasses.replace(b.thumb, x=X(b.thumb.x), y=Y(b.thumb.y),
                                                 w=W(b.thumb.w), h=Y(b.thumb.h))
+        area = b.area and dataclasses.replace(b.area, x=X(b.area.x), y=Y(b.area.y),
+                                              w=W(b.area.w), h=Y(b.area.h))
         buttons.append(styled(b, x=X(b.x), y=Y(b.y), width=W(width) if width else None,
-                              thumb=thumb))
+                              thumb=thumb, area=area))
     return dataclasses.replace(
         menu, buttons=buttons,
         texts=[styled(t, x=X(t.x), y=Y(t.y), line_spacing=round(t.line_spacing * ky))

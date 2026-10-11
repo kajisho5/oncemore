@@ -408,8 +408,8 @@ against their published help, not from memory)
   DVD; up to 999 on Blu-ray) (P66)
 - [x] Text: letter spacing, kerning, bold and italic (of fonts that have
   those faces) (P70)
-- [ ] Highlights: make a button's highlight layer from its own pixels or a
-  shape in the editor, and replace it with another picture
+- [x] Highlights: make a button's highlight layer from its own pixels or a
+  shape in the editor, and replace it with another picture (P71)
 - [ ] Replace a menu's background and layout with a template, keeping its
   buttons' links
 - [x] Media cache in a folder of your choosing (Preferences) (P68)

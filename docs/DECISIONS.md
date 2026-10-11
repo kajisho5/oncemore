@@ -1627,3 +1627,23 @@ written that fails before the fix, and then the fix:
   font-kerning. Font names in the stage's style attributes are now in single
   quotes: in double quotes they cut the attribute short, and a text with its
   own font lost its font, alignment and outline on the stage.
+
+## 91. Button highlights: own pixels, frame, line or a drawn shape
+
+* A button's highlight is one of four styles, for text and image buttons
+  alike: `shape` (its own pixels: the letters, or a picture's opaque
+  pixels), `frame`, `underline` (text buttons) or `drawn`. Text buttons kept
+  their look (letters and a line under them) as the default, image buttons
+  theirs (a frame), so no project changes.
+* `drawn` is a rectangle or an ellipse on the 720-wide grid
+  (`highlight_area`), filled or a 3-pixel outline like the frames. It is the
+  whole highlight and the button's area (what the remote's arrows and a
+  pointer go by), the way a highlight layer drawn in an image editor is. An
+  ellipse is made as rows of runs, not by ffmpeg, so DVD, Blu-ray (scaled
+  with the menu) and the web version get the same shape. A turned button's
+  drawn highlight stays as drawn: the person drew it where it is.
+* A highlight picture (`highlight_image`) and a drawn highlight are one or
+  the other; the editor clears one when the other is chosen. Moving the
+  button (drag, arrows, align, duplicate, X/Y) moves its drawn highlight
+  with it; dragging the dashed shape itself, or its corner, moves or sizes
+  only the highlight.

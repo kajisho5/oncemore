@@ -105,7 +105,8 @@ const I18N = {
     subtitle_editor: "Subtitle cues", no_sub_tracks: "No subtitle track yet.", new_srt: "+ New subtitle file",
     sub_readonly: "WebVTT / ASS files are shown read-only.", convert_srt: "Convert to .srt to edit",
     sub_track_pos: "Track", add_cue: "+ Cue at the playhead", new_cue_text: "New subtitle",
-    image: "Image", width: "Width", highlight_style: "Highlight", hl_frame: "Frame around it", hl_shape: "Its shape",
+    image: "Image", width: "Width", highlight_style: "Highlight", hl_frame: "Frame around it", hl_shape: "Its own pixels", hl_underline: "Line under it", hl_drawn: "A shape I draw",
+    hl_form: "Shape", hl_rect: "Rectangle", hl_ellipse: "Ellipse", hl_filled: "Filled", hl_drawn_hint: "Drag the dashed shape on the menu to move it, its corner to resize it. It is the button's whole highlight and the area it takes up.",
     image_hint: "An image button shows the picture instead of the text (PNG with transparency works best).",
     chapter_name: "Name on the chapter menu", poster: "Poster", poster_hint: "Use the frame at the playhead as this chapter's thumbnail (click again to reset)",
     playlists: "Playlists", playlist: "Playlist", playlist_item: "Playlist: {p}", items: "Items", add_item: "+ Item",
@@ -377,7 +378,8 @@ const I18N = {
     subtitle_editor: "字幕の編集", no_sub_tracks: "字幕トラックはまだありません。", new_srt: "＋新しい字幕ファイル",
     sub_readonly: "WebVTT / ASS は表示のみです。", convert_srt: ".srt に変換して編集",
     sub_track_pos: "トラック設定", add_cue: "＋再生位置に字幕を追加", new_cue_text: "新しい字幕",
-    image: "画像", width: "幅", highlight_style: "ハイライト", hl_frame: "周りに枠", hl_shape: "画像の形",
+    image: "画像", width: "幅", highlight_style: "ハイライト", hl_frame: "周りに枠", hl_shape: "ボタン自身の形", hl_underline: "下線", hl_drawn: "描いた図形",
+    hl_form: "図形", hl_rect: "四角形", hl_ellipse: "楕円", hl_filled: "塗りつぶし", hl_drawn_hint: "メニュー上の点線の図形をドラッグで移動、角のつまみで大きさを変えます。これがボタンのハイライト全体で、ボタンの範囲にもなります。",
     image_hint: "画像ボタンは文字の代わりに画像を表示します（透過 PNG がおすすめ）。",
     chapter_name: "チャプターメニューに出す名前", poster: "サムネイル", poster_hint: "再生位置のフレームをこのチャプターのサムネイルにする（もう一度押すと解除）",
     playlists: "プレイリスト", playlist: "プレイリスト", playlist_item: "プレイリスト：{p}", items: "再生する内容", add_item: "＋追加",
@@ -766,6 +768,54 @@ function streamsHtml(b) {
     ${ns ? `<label class="field"><span>${t("set_subtitle")}</span>${selectHtml("subtitle", [["__none__", t("no_change")], ["0", t("subtitle_off")], ...range(ns)], b.subtitle != null ? String(b.subtitle) : "__none__")}</label>` : ""}
   </div>`;
 }
+
+// -- button highlights: the button's own pixels, a frame or a line, or a
+// shape drawn on the menu (highlight "drawn" + highlight_area)
+function highlightOf(b) {
+  return b.highlight || (b.highlight_area ? "drawn" : b.image ? "frame" : "underline");
+}
+
+function highlightHtml(b) {
+  const kinds = b.image ? ["frame", "shape", "drawn"] : ["underline", "shape", "frame", "drawn"];
+  const a = b.highlight_area, H = discH();
+  return `<label class="field"><span>${t("highlight_style")}</span>${selectHtml("highlight", kinds.map((k) => [k, t("hl_" + k)]), highlightOf(b))}</label>
+    ${a ? `<div data-nobind><div class="grid2">
+      <label class="field"><span>${t("hl_form")}</span>${selectHtml("hla-form", [["rectangle", t("hl_rect")], ["ellipse", t("hl_ellipse")]], a.form || "rectangle", 'data-hla="form"')}</label>
+      <label class="field"><span></span><label><input type="checkbox" data-hla="filled" ${a.filled === false ? "" : "checked"}> ${t("hl_filled")}</label></label>
+      ${["x", "y", "w", "h"].map((k) => `<label class="field"><span>${k === "w" ? t("width") : k === "h" ? t("height") : k.toUpperCase()}</span><input type="number" data-hla="${k}" min="${k === "w" || k === "h" ? 4 : 0}" max="${k === "y" || k === "h" ? H : 720}" value="${a[k]}"></label>`).join("")}
+    </div><div class="hint">${esc(t("hl_drawn_hint"))}</div></div>` : ""}`;
+}
+
+// a button moved from (x0, y0): its drawn highlight goes with it
+function moveArea(o, x0, y0) {
+  const a = o.highlight_area;
+  if (!a || (o.x === x0 && o.y === y0)) return;
+  a.x = Math.max(0, Math.min(720 - a.w, a.x + o.x - x0));
+  a.y = Math.max(0, Math.min(discH() - a.h, a.y + o.y - y0));
+}
+
+// `o` (a button of the project) gets highlight `kind`; a drawn one starts
+// as a rectangle around the button as the stage shows it
+function setHighlight(o, kind, i) {
+  if (kind !== "drawn") {
+    delete o.highlight_area;
+    if (kind === (o.image ? "frame" : "underline")) delete o.highlight; else o.highlight = kind;
+    return;
+  }
+  delete o.highlight;
+  delete o.highlight_image;
+  if (o.highlight_area) return;
+  const H = discH(), stage = $("#stage"), node = stage?.querySelector(`.el[data-kind="button"][data-i="${i}"]`);
+  let x = o.x, y = o.y, w = 160, h = 40;
+  if (stage && node) {
+    const s = stage.getBoundingClientRect(), r = node.getBoundingClientRect();
+    const kx = s.width / 720, ky = s.height / H;
+    x = (r.left - s.left) / kx; y = (r.top - s.top) / ky; w = r.width / kx; h = r.height / ky;
+  }
+  const x0 = Math.max(0, Math.round(x - 8)), y0 = Math.max(0, Math.round(y - 6));
+  o.highlight_area = { x: x0, y: y0, w: Math.max(4, Math.min(720 - x0, Math.round(w + 16))), h: Math.max(4, Math.min(H - y0, Math.round(h + 12))) };
+}
+
 function selectHtml(name, opts, value, attrs = "") {
   const has = opts.some(([v]) => v === value);
   const extra = !has && value ? `<option value="${esc(value)}" selected>${esc(value)}</option>` : "";
@@ -2313,6 +2363,12 @@ function renderMenu(m) {
         const th = b.thumbnail, src = thumbSrc(b);
         return `<div class="thumb-pv" style="left:${th.x * sx * scale}px;top:${th.y * scale}px;width:${th.w * sx * scale}px;height:${th.h * scale}px">${src ? `<img src="${src}" alt="" draggable="false">` : ""}</div>`;
       }).join("")}
+      ${els.filter((e) => e.kind === "button" && menu.buttons[e.i].highlight_area).map((e) => {
+        const a = menu.buttons[e.i].highlight_area, on = isSel(e) && S.sels.length === 1, hc = cssColor(menu.highlight_color || "#FFD400");
+        const lit = e.i === firstBtn ? (a.filled === false ? `border-color:${hc};border-style:solid;border-width:${Math.max(1, 3 * scale)}px;` : `background:${hc};opacity:.45;`) : "";
+        return `<div class="hl-area ${a.form === "ellipse" ? "ellipse" : ""} ${on ? "on" : ""}" data-hl="${e.i}" title="${esc(t("hl_drawn"))}"
+          style="left:${a.x * sx * scale}px;top:${a.y * scale}px;width:${a.w * sx * scale}px;height:${a.h * scale}px;${lit}">${on ? `<span class="hl-grip"></span>` : ""}</div>`;
+      }).join("")}
       ${els.map((e) => `<div class="el ${e.kind} ${isSel(e) ? "selected" : ""} ${e.kind === "button" && e.i === firstBtn ? "highlight" : ""}"
           data-kind="${e.kind}" data-i="${e.i}" style="${css(e)}">${e.kind === "shape" ? "" : e.kind === "image"
             ? `<img src="${imgUrl("file", { path: e.file })}" alt="" draggable="false" style="display:block;width:100%;height:100%">`
@@ -2343,6 +2399,25 @@ function renderMenu(m) {
   m.querySelectorAll("[data-page]").forEach((b) => (b.onclick = () => showPage(menu, Number(b.dataset.page))));
   $("#add-page").onclick = addPage;
   const stage = $("#stage");
+  // the selected button's drawn highlight: drag it to move it, its corner to resize it
+  stage.querySelectorAll(".hl-area.on").forEach((node) => node.addEventListener("pointerdown", (ev) => {
+    ev.preventDefault(); ev.stopPropagation();
+    const i = Number(node.dataset.hl), a0 = { ...menu.buttons[i].highlight_area };
+    const grip = ev.target.classList.contains("hl-grip"), x0 = ev.clientX, y0 = ev.clientY;
+    let a = a0;
+    node.setPointerCapture(ev.pointerId);
+    const move = (e2) => {
+      const dx = Math.round((e2.clientX - x0) / scale / sx), dy = Math.round((e2.clientY - y0) / scale);
+      a = grip ? { ...a0, w: Math.max(4, Math.min(720 - a0.x, a0.w + dx)), h: Math.max(4, Math.min(H - a0.y, a0.h + dy)) }
+        : { ...a0, x: Math.max(0, Math.min(720 - a0.w, a0.x + dx)), y: Math.max(0, Math.min(H - a0.h, a0.y + dy)) };
+      Object.assign(node.style, { left: a.x * sx * scale + "px", top: a.y * scale + "px", width: a.w * sx * scale + "px", height: a.h * scale + "px" });
+    };
+    const up = () => {
+      node.removeEventListener("pointermove", move); node.removeEventListener("pointerup", up);
+      if (a !== a0) commit((p) => Object.assign(p.menus.find((x) => x.id === menu.id).buttons[i].highlight_area, { x: a.x, y: a.y, w: a.w, h: a.h }));
+    };
+    node.addEventListener("pointermove", move); node.addEventListener("pointerup", up);
+  }));
   const nodeOf = (k) => stage.querySelector(`.el[data-kind="${k.kind}"][data-i="${k.i}"]`);
   // element boxes on the 720-wide grid (texts measured from the page)
   const box = (k) => {
@@ -2413,7 +2488,9 @@ function renderMenu(m) {
           const mm = p.menus.find((x) => x.id === menu.id);
           for (const g of group) {
             const it = listOf(mm, g.k.kind)[g.k.i];
+            const ox = it.x, oy = it.y;
             it.x = Math.max(0, Math.min(719, Math.round(g.b.x + dx))); it.y = Math.max(0, Math.min(H - 1, Math.round(g.b.y + dy)));
+            moveArea(it, ox, oy);
           }
         });
       };
@@ -2446,8 +2523,9 @@ function renderMenu(m) {
   const arrange = (fn) => commit((p) => {
     const mm = p.menus.find((x) => x.id === menu.id);
     const items = S.sels.map((k) => ({ k, b: box(k), it: listOf(mm, k.kind)[k.i] }));
+    const was = items.map((x) => [x.it.x, x.it.y]);
     fn(items);
-    for (const x of items) { x.it.x = Math.max(0, Math.min(719, Math.round(x.it.x))); x.it.y = Math.max(0, Math.min(H - 1, Math.round(x.it.y))); }
+    items.forEach((x, j) => { x.it.x = Math.max(0, Math.min(719, Math.round(x.it.x))); x.it.y = Math.max(0, Math.min(H - 1, Math.round(x.it.y))); moveArea(x.it, ...was[j]); });
   });
   S.stageOps = {
     menu: menu.id,
@@ -2745,7 +2823,11 @@ function stageKeys(ev) {
     const [ax, ay] = arrows[ev.key], n = ev.shiftKey ? 10 : 1;
     commit((p) => {
       const mm = p.menus.find((x) => x.id === menu.id);
-      for (const k of S.sels) { const it = elementList(mm, k.kind)[k.i]; it.x = Math.max(0, Math.min(719, it.x + ax * n)); it.y = Math.max(0, Math.min(H - 1, it.y + ay * n)); }
+      for (const k of S.sels) {
+        const it = elementList(mm, k.kind)[k.i], ox = it.x, oy = it.y;
+        it.x = Math.max(0, Math.min(719, it.x + ax * n)); it.y = Math.max(0, Math.min(H - 1, it.y + ay * n));
+        moveArea(it, ox, oy);
+      }
     });
   } else if ((ev.key === "Delete" || ev.key === "Backspace") && !mod) {
     ev.preventDefault();
@@ -2793,7 +2875,9 @@ function duplicateElements(fromClipboard) {
     const mm = p.menus.find((x) => x.id === menu.id), added = [];
     for (const { kind, it } of src) {
       const c = JSON.parse(JSON.stringify(it));
+      const ox = c.x, oy = c.y;
       c.x = Math.min(719, c.x + 12); c.y = Math.min(H - 1, c.y + 12);
+      moveArea(c, ox, oy);
       if (kind === "button") { c.id = uniqueId(c.id.replace(/\d+$/, "") || "button", mm.buttons.map((b) => b.id)); delete c.nav; }
       if (pagesOf(mm) < 2) delete c.page; else if (c.page) c.page = curPage(menu);   // (pasted on the page shown)
       const l = elementList(mm, kind); l.push(c); added.push({ kind, i: l.length - 1 });
@@ -2952,8 +3036,7 @@ function renderMenuInspector(el) {
       <div class="grid2">
         <label class="field"><span>X</span><input type="number" data-k="x" min="0" max="719" value="${it.x}"></label>
         <label class="field"><span>Y</span><input type="number" data-k="y" min="0" max="${discH() - 1}" value="${it.y}"></label>
-        ${isImage ? `<label class="field"><span>${t("width")}</span><input type="number" data-k="width" min="8" max="720" value="${it.width || ""}" placeholder="${t("auto")}"></label>
-        <label class="field"><span>${t("highlight_style")}</span>${selectHtml("highlight", [["frame", t("hl_frame")], ["shape", t("hl_shape")]], it.highlight || "frame")}</label>`
+        ${isImage ? `<label class="field"><span>${t("width")}</span><input type="number" data-k="width" min="8" max="720" value="${it.width || ""}" placeholder="${t("auto")}"></label>`
         : `<label class="field"><span>${t("size")}</span><input type="number" data-k="size" min="8" max="200" value="${it.size || ""}" placeholder="${menu.font_size || 32}"></label>
         <label class="field"><span>${t("color")}</span><input type="color" data-k="color" value="${esc(it.color || menu.text_color || "#ffffff")}"></label>`}
       </div>
@@ -2983,6 +3066,7 @@ function renderMenuInspector(el) {
           `<label class="field"><span>${k === "w" ? t("width") : k === "h" ? t("height") : k.toUpperCase()}</span><input type="number" data-th="${k}" min="${k === "w" || k === "h" ? 8 : 0}" max="${k === "y" || k === "h" ? discH() : 720}" value="${it.thumbnail[k]}"></label>`).join("")}
           <label class="field"><span>${t("thumb_time")}</span><input type="number" data-th="time" min="0" step="0.1" value="${it.thumbnail.time ?? ""}" placeholder="1"></label></div>
           <label class="field"><span></span><label><input type="checkbox" id="th-anim" ${it.thumbnail.animated ? "checked" : ""} ${menu.background_video ? "" : "disabled"}> ${t("thumb_anim")}</label></label>` : ""}</div>` : ""}
+      ${sel.kind === "button" ? highlightHtml(it) : ""}
       ${sel.kind === "button" ? `<label class="field"><span>${t("highlight_image")}</span>${selectHtml("highlight_image", [["__none__", t("auto")], ...mediaOf("image").map((x) => [x, x])], it.highlight_image || "__none__")}<div class="hint">${esc(t("highlight_image_hint"))}</div></label>` : ""}
       ${sel.kind === "button" ? `<label class="field" data-nobind><span>${t("button_number")}</span>${selectHtml("number", numbered.map(([, i], k) => [String(i), menu.button_offset ? t("number_on_remote", { n: k + 1, k: k + 1 + menu.button_offset }) : String(k + 1)]), String(sel.i), 'id="btn-number"')}<div class="hint">${esc(t("button_number_hint"))}</div></label>
         <h3>${t("nav")}</h3><div class="grid2">${["up", "down", "left", "right"].map((d) =>
@@ -2998,6 +3082,7 @@ function renderMenuInspector(el) {
       S.element = { kind: "button", i: to }; S.sels = [S.element];
       renderMain(); renderInspector();
     };
+    const at = { x: it.x, y: it.y };       // (where it was: a drawn highlight moves with it)
     bindFields(el, (p) => (sel.kind === "button" ? find(p).buttons : find(p).texts)[sel.i], {
       numeric: ["x", "y", "size", "width", "audio", "subtitle", "line_spacing"],
       onAfter: (p, key) => {
@@ -3005,13 +3090,23 @@ function renderMenuInspector(el) {
         if (key === "align" && o.align === "left") delete o.align;
         if (key === "line_spacing" && !o.line_spacing) delete o.line_spacing;
         if (o.nav && !Object.keys(o.nav).length) delete o.nav;
-        if (key === "highlight" && o.highlight === "frame") delete o.highlight;
+        if (key === "x" || key === "y") moveArea(o, at.x, at.y);
+        if (key === "highlight") setHighlight(o, o.highlight, sel.i);
+        if (key === "highlight_image" && o.highlight_image) { delete o.highlight_area; if (o.highlight === "drawn") delete o.highlight; }
         if (key === "auto_activate" && !o.auto_activate) delete o.auto_activate;
         if (key === "action" && !/^(title|chapter):/.test(o.action)) { delete o.thumbnail; delete o.override; }   // need a title / chapter
         if (key === "action" && /^(audio|subtitle):/.test(o.action)) { delete o.audio; delete o.subtitle; }      // already a switch
         if (key === "action" && !TRANSITION_RE.test(o.action)) delete o.transition;                           // nothing to lead into
       },
     });
+    // a drawn highlight: its form, filled or not, where it is
+    el.querySelectorAll("[data-hla]").forEach((inp) => (inp.onchange = () => commit((p) => {
+      const a = find(p).buttons[sel.i].highlight_area, k = inp.dataset.hla;
+      if (!a) return;
+      if (k === "form") { if (inp.value === "ellipse") a.form = "ellipse"; else delete a.form; }
+      else if (k === "filled") { if (inp.checked) delete a.filled; else a.filled = false; }
+      else if (inp.value !== "") a[k] = Math.max(k === "w" || k === "h" ? 4 : 0, Math.round(Number(inp.value)));
+    })));
     const thSet = (fn) => commit((p) => { const o = find(p).buttons[sel.i]; fn(o); });
     if ($("#th-on")) $("#th-on").onchange = (e) => thSet((o) => {
       if (!e.target.checked) { delete o.thumbnail; return; }

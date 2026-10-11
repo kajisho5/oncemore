@@ -174,6 +174,10 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   Properties): bold and italic use those faces of the font's family (offered
   when the family has them); letter spacing spreads the characters out or
   closes them up, and kerning can be switched off.
+* **Button highlights** (a button's Properties > Highlight): its own pixels
+  (the letters, or a picture's opaque pixels), a frame, a line under it, or a
+  rectangle or ellipse drawn on the menu (drag it, and its corner to resize;
+  filled or just its outline). The highlight picture can still replace it.
 * **Menus with pages** (Menu > Add new page): a menu's buttons spread over
   pages, turned with buttons to the next, previous or a given page; a
   heading or background shape can be on every page. Each page is a menu of
@@ -500,6 +504,12 @@ family: its file next to the font, or installed), `letter_spacing` (pixels
 added between the characters) and `kerning` (`false`: no kerning pairs).
 A button's `highlight_image` is a picture whose opaque pixels
 light up when it is selected, instead of the automatic highlight.
+A button's `highlight` says how it lights up: `shape` (its own pixels: an image
+button's opaque pixels, a text button's letters), `frame` (a frame around it),
+`underline` (text buttons: the letters and a line under them; the default for
+them, `frame` for image buttons) or `drawn`: the rectangle or ellipse in
+`highlight_area` (`{x, y, w, h, form: "rectangle" | "ellipse", filled}`, on the
+720-wide grid), which is then the whole highlight and the button's area.
 A text can be a paragraph: its `text` holds several lines (newlines), `align`
 lines them up (`left`, `center`, `right`; `x` is the paragraph's left edge)
 and `line_spacing` adds pixels between them.
@@ -544,8 +554,8 @@ share one copy.
 **Image buttons**: `image` (a picture, transparent PNG works best) replaces the
 label (then optional), drawn with its top-left at `x`/`y`; `width` on the
 720-wide grid (default: the picture's own width; the height follows its
-aspect), and `highlight`: `frame` (default, a frame around it) or `shape` (its
-opaque pixels in the highlight colour).
+aspect), and `highlight`: `frame` (default, a frame around it), `shape` (its
+opaque pixels in the highlight colour) or `drawn` (a drawn shape, above).
 
 ### Menus from Photoshop
 
