@@ -105,7 +105,9 @@ Pushing a tag `v<version>` runs `.github/workflows/release.yml`, which builds
 both architectures, launches each on a sample project and attaches the zips to a
 release (signed and notarised when the signing secrets listed in that file are
 set): 0.x versions are published as pre-releases right away, 1.0 and later as
-drafts; the notes come from `docs/release-notes/<tag>.md`.
+drafts; the notes come from `docs/release-notes/<tag>.md`. Running the
+workflow by hand (Actions > Release > Run workflow) with `tag` set does the
+same and makes the tag on the commit it ran on.
 
 ## Quick start: the app in a browser
 
