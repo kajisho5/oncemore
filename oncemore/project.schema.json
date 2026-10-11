@@ -209,6 +209,11 @@
           },
           "description": "Files or folders copied to the root of the disc next to VIDEO_TS (DVD-ROM content for computers)."
         },
+        "subtitles_off": {
+          "type": "boolean",
+          "default": false,
+          "description": "Subtitles off from the start instead of leaving it to the player's language setting (a subtitle track marked default still wins). Set once at first play."
+        },
         "bluray": {
           "type": "object",
           "additionalProperties": false,
@@ -466,6 +471,10 @@
               },
               "lang": {
                 "$ref": "#/$defs/lang"
+              },
+              "default": {
+                "type": "boolean",
+                "description": "The disc starts with this audio track (its number in every title; at most one per title). Set once at first play, so a viewer's later choice stays (DECISIONS §18, §101). Default: the player's own choice."
               }
             }
           }

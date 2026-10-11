@@ -81,6 +81,9 @@ class Simulator:
         sub = author.default_subtitle(self.p)
         if sub is not None:
             s["subtitle"] = sub + 1
+        aud = author.default_audio(self.p)
+        if aud is not None:
+            s["audio"] = aud + 1
         kind, target, num = parse_action(self.p.disc.first_play)
         self.note(s, f"first play: {self.p.disc.first_play}")
         if kind == "menu":
