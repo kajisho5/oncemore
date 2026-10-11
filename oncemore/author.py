@@ -45,6 +45,12 @@ nobody else uses (`resume_reg`) as a flag: 1 while a title is playing (its
 Menu / Title key left (the player's resume information) when the flag is
 1, and otherwise plays the first title from the start, since a player has
 nothing to resume at the start of the disc or after a title ended.
+A link to a particular button of a menu (`menu:<id>:<button>`) puts that
+button (k * 1024) in the next free register (`entry_reg`) before it jumps;
+the menus such links reach check it in their <pre> after their usual
+default / remembered button, highlight it and clear it. A menu whose
+buttons wait for the loop point checks it in the intro and again, then
+clears it, in the PGC with the buttons.
 The VMGM title menu is what the Title / Top Menu key opens: g1 == 0 there
 means the key was pressed (routes always set g1), so `disc.title_key` applies.
 
@@ -116,6 +122,24 @@ def last_menu_reg(project):
         return None
     free = _free_regs(project)[int(project.uses_resume) + int(bool(project.overrides)):]
     return free[0] if free else None
+
+
+def entry_reg(project):
+    """Register carrying the button a link highlights in the menu it opens
+    (0 = the menu's own choice), or None."""
+    if not project.entry_buttons:
+        return None
+    k = int(project.uses_resume) + int(bool(project.overrides)) + int(project.uses_last_menu)
+    free = _free_regs(project)[k:]
+    return free[0] if free else None
+
+
+def _entry(project, mid, button):
+    """Commands before a jump to menu `mid` that highlight `button` there."""
+    if not button:
+        return ""
+    ids = [b.id for b in project.menu(mid).buttons]
+    return f"{entry_reg(project)} = {(ids.index(button) + 1) * 1024}; "
 
 
 def _single(project):
@@ -228,7 +252,7 @@ def _menu_domain_command(project, action):
     kind, target, num = parse_action(action)
     single = _single(project)
     if kind == "menu":
-        return f"jump menu {_menu_number(project, target)};"
+        return f"{_entry(project, target, num)}jump menu {_menu_number(project, target)};"
     if kind == "playlist":
         return playlist_start(project, target, "menu")
     if kind == "playall":
@@ -296,9 +320,9 @@ def _post_rest(project, action, title):
 
 
 def _end_command(project, action, ts):
-    kind, target, _ = parse_action(action)
+    kind, target, num = parse_action(action)
     if kind == "menu":
-        reg = f"{NAV_REG} = {_menu_number(project, target)};"
+        reg = f"{_entry(project, target, num)}{NAV_REG} = {_menu_number(project, target)};"
         if ts == 1:
             return f"{reg} call menu entry root;"
         return f"{reg} call vmgm menu entry title;"
@@ -313,12 +337,12 @@ def _end_command(project, action, ts):
 
 
 def first_play_command(project):
-    kind, target, _ = parse_action(project.disc.first_play)
+    kind, target, num = parse_action(project.disc.first_play)
     sub = default_subtitle(project)
     pre = f"subtitle = {64 + sub}; " if sub is not None else ""
     if kind == "menu":
         n = _menu_number(project, target)
-        return f"{pre}{NAV_REG} = {n}; jump titleset 1 menu entry root;"
+        return f"{pre}{_entry(project, target, num)}{NAV_REG} = {n}; jump titleset 1 menu entry root;"
     if kind == "playlist":
         return pre + playlist_start(project, target, "vmgm")
     if kind == "playall":
@@ -356,9 +380,10 @@ def vmgm_title_command(project):
     if tk and parse_action(tk)[0] == "playlist":
         cmds.append(f"if ({NAV_REG} == 0) {{ {playlist_start(project, parse_action(tk)[1], 'vmgm')} }}")
     elif tk:
-        kind, target, _ = parse_action(tk)
-        if kind == "menu" and _menu_number(project, target) != 1:
-            cmds.append(f"if ({NAV_REG} == 0) {{ {NAV_REG} = {_menu_number(project, target)}; }}")
+        kind, target, num = parse_action(tk)
+        if kind == "menu" and (_menu_number(project, target) != 1 or num):
+            cmds.append(f"if ({NAV_REG} == 0) {{ {_entry(project, target, num)}"
+                        f"{NAV_REG} = {_menu_number(project, target)}; }}")
         elif kind in ("title", "playall"):
             t = project.titles[0] if kind == "playall" else project.title(target)
             flag = (f"{PLAYALL_REG} = {1 if kind == 'playall' else 0}; "
@@ -384,7 +409,7 @@ def first_button_on_entry(project, menu):
     """Whether entering `menu` always highlights button 1: dvdauthor sets it
     in a menu without pre commands of its own."""
     if menu.buttons_at_loop:
-        return not _button_pre(menu)       # the buttons' own PGC
+        return not _button_pre(project, menu)       # the buttons' own PGC
     own = [c for c in _menu_pre(project, menu)
            if not c.startswith(f"{last_menu_reg(project)} = ")]
     return not own
@@ -403,19 +428,29 @@ def _menu_pre(project, menu):
         cmds.append(f"{last_menu_reg(project)} = {menu.number};")
     if menu.loop is not None:
         cmds.append(f"{LOOP_REG} = 0;")
-    return cmds + _button_pre(menu)
+    # (with the buttons in a PGC of their own, that one takes the link's button)
+    return cmds + _button_pre(project, menu, clear=not menu.buttons_at_loop)
 
 
-def _button_pre(menu):
-    """The commands choosing the button highlighted as the menu starts."""
+def _button_pre(project, menu, clear=True):
+    """The commands choosing the button highlighted as the menu starts: the
+    default or remembered one, or the one a link asks for (then cleared)."""
     ids = [b.id for b in menu.buttons]
     default = (ids.index(menu.default_button) + 1) if menu.default_button else 1
     reg = button_reg(menu)
     if reg:
-        return [f"if ({reg} != 0) {{ button = {reg}; }} else {{ button = {default * 1024}; }}"]
-    if menu.default_button:
-        return [f"button = {default * 1024};"]
-    return []
+        cmds = [f"if ({reg} != 0) {{ button = {reg}; }} else {{ button = {default * 1024}; }}"]
+    elif menu.default_button:
+        cmds = [f"button = {default * 1024};"]
+    else:
+        cmds = []
+    if menu.id in project.entry_buttons:
+        e = entry_reg(project)
+        # (a pre without a button of its own would keep whatever SPRM 8 held)
+        cmds = (cmds or [f"button = {default * 1024};"]) + [f"if ({e} != 0) {{ button = {e}; }}"]
+        if clear:
+            cmds.append(f"{e} = 0;")
+    return cmds
 
 
 def menu_post(project, menu):
@@ -507,7 +542,7 @@ def build_xml(project, menu_files, title_files, dest):
                 x.append(f"        <post>jump menu {m.loop_pgc};</post>")
                 x.append("      </pgc>")
                 x.append("      <pgc>")
-                again = _button_pre(m)
+                again = _button_pre(project, m)
                 if again:
                     # (a menu PGC without <pre> would get button 1 from dvdauthor)
                     x.append(f"        <pre>{' '.join(again)}</pre>")

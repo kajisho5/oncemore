@@ -192,7 +192,8 @@ def normalize_label(label):
 
 
 def parse_action(s):
-    """'menu:x' -> ('menu', 'x', None); 'chapter:t:2' -> ('chapter', 't', 2); 'stop';
+    """'menu:x' -> ('menu', 'x', None); 'menu:x:b' -> ('menu', 'x', 'b') (button b
+    highlighted); 'chapter:t:2' -> ('chapter', 't', 2); 'stop';
     'audio:2' -> ('audio', None, 2); 'subtitle:off' -> ('subtitle', None, 0);
     'playall' -> ('playall', None, None); 'playlist:p' -> ('playlist', 'p', None);
     'resume' -> ('resume', None, None); 'lastmenu' -> ('lastmenu', None, None)."""
@@ -204,6 +205,9 @@ def parse_action(s):
         return ("chapter", tid, int(n))
     if kind in ("audio", "subtitle"):
         return (kind, None, 0 if rest == "off" else int(rest))
+    if kind == "menu":
+        mid, _, button = rest.partition(":")
+        return ("menu", mid, button or None)
     return (kind, rest, None)
 
 
@@ -497,6 +501,27 @@ class Project:
         ends = [t.end_action for t in self.titles] + [p.end_action for p in self.playlists] + \
             [b.override for m in self.menus for b in m.buttons if b.override]
         return "lastmenu" in ends and bool(self.menus)
+
+    def actions(self):
+        """Every action of the disc: first play, Title key, buttons and their
+        overrides, menu, title and playlist end actions."""
+        out = [self.disc.first_play, self.disc.title_key]
+        for m in self.menus:
+            out += [b.action for b in m.buttons] + [b.override for b in m.buttons]
+            if m.loop is not None:
+                out.append(m.end_action)
+        out += [t.end_action for t in self.titles] + [p.end_action for p in self.playlists]
+        return [a for a in out if a]
+
+    @property
+    def entry_buttons(self):
+        """{menu id: {button ids}} that links open with that button highlighted."""
+        out = {}
+        for a in self.actions():
+            kind, mid, button = parse_action(a)
+            if kind == "menu" and button:
+                out.setdefault(mid, set()).add(button)
+        return out
 
     @property
     def uses_resume(self):
@@ -1061,6 +1086,8 @@ class _Builder:
                 self.err(where, "lastmenu needs a menu")
             elif kind == "menu" and project.menu(target) is None:
                 self.err(where, f"no menu with id {target!r}")
+            elif kind == "menu" and num and num not in [b.id for b in project.menu(target).buttons]:
+                self.err(where, f"menu {target!r} has no button {num!r}")
             elif kind == "audio" and num > len(project.audio_langs):
                 self.err(where, f"no audio stream {num} (titles have "
                                 f"{len(project.audio_langs)})")
@@ -1131,6 +1158,10 @@ class _Builder:
             if project.uses_resume and author.resume_reg(project) is None:
                 self.err("menus", "a resume button needs one free player register, and "
                                   "this disc uses them all (fewer menus that remember "
+                                  "their last button would free one)")
+            if project.entry_buttons and author.entry_reg(project) is None:
+                self.err("menus", "links to a menu button need one free player register, "
+                                  "and this disc uses them all (fewer menus that remember "
                                   "their last button would free one)")
             if project.uses_last_menu and author.last_menu_reg(project) is None:
                 self.err("menus", "returning to the last menu needs one free player register, "

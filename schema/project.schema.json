@@ -83,8 +83,8 @@
     },
     "action": {
       "type": "string",
-      "description": "menu:<id> | title:<id> | chapter:<title id>:<n> (1-based) | playall | playlist:<id> | audio:<n> | subtitle:<n> | subtitle:off | resume | stop. playall plays every title in project order, then follows the last title's end_action. resume (menu buttons only) continues the title the remote's Menu / Title key interrupted, or plays the first title when there is nothing to resume.",
-      "pattern": "^(menu:[A-Za-z0-9_-]{1,40}|title:[A-Za-z0-9_-]{1,40}|chapter:[A-Za-z0-9_-]{1,40}:[1-9][0-9]*|playall|playlist:[A-Za-z0-9_-]{1,40}|audio:[1-8]|subtitle:([1-9]|[12][0-9]|3[0-2]|off)|resume|stop)$"
+      "description": "menu:<id> | menu:<id>:<button id> (that menu with the button highlighted) | title:<id> | chapter:<title id>:<n> (1-based) | playall | playlist:<id> | audio:<n> | subtitle:<n> | subtitle:off | resume | stop. playall plays every title in project order, then follows the last title's end_action. resume (menu buttons only) continues the title the remote's Menu / Title key interrupted, or plays the first title when there is nothing to resume.",
+      "pattern": "^(menu:[A-Za-z0-9_-]{1,40}(:[A-Za-z0-9_-]{1,40})?|title:[A-Za-z0-9_-]{1,40}|chapter:[A-Za-z0-9_-]{1,40}:[1-9][0-9]*|playall|playlist:[A-Za-z0-9_-]{1,40}|audio:[1-8]|subtitle:([1-9]|[12][0-9]|3[0-2]|off)|resume|stop)$"
     },
     "disc": {
       "type": "object",
@@ -382,7 +382,7 @@
         },
         "end_action": {
           "type": "string",
-          "pattern": "^(menu:[A-Za-z0-9_-]{1,40}|title:[A-Za-z0-9_-]{1,40}|lastmenu|stop)$",
+          "pattern": "^(menu:[A-Za-z0-9_-]{1,40}(:[A-Za-z0-9_-]{1,40})?|title:[A-Za-z0-9_-]{1,40}|lastmenu|stop)$",
           "description": "menu:<id> | title:<id> | lastmenu | stop. lastmenu returns to the menu shown last. Default: first menu, or stop."
         },
         "remote_menu": {
@@ -649,7 +649,7 @@
         },
         "override": {
           "type": "string",
-          "pattern": "^(menu:[A-Za-z0-9_-]{1,40}|title:[A-Za-z0-9_-]{1,40}|lastmenu|stop)$",
+          "pattern": "^(menu:[A-Za-z0-9_-]{1,40}(:[A-Za-z0-9_-]{1,40})?|title:[A-Za-z0-9_-]{1,40}|lastmenu|stop)$",
           "description": "End action override: when the title this button plays (title:... / chapter:... action) ends, go here instead of the title's own end_action. Only for plays started from this button."
         },
         "size": {
@@ -791,7 +791,7 @@
         },
         "end_action": {
           "type": "string",
-          "pattern": "^(menu:[A-Za-z0-9_-]{1,40}|title:[A-Za-z0-9_-]{1,40}|chapter:[A-Za-z0-9_-]{1,40}:[1-9][0-9]*|playall|playlist:[A-Za-z0-9_-]{1,40}|stop)$",
+          "pattern": "^(menu:[A-Za-z0-9_-]{1,40}(:[A-Za-z0-9_-]{1,40})?|title:[A-Za-z0-9_-]{1,40}|chapter:[A-Za-z0-9_-]{1,40}:[1-9][0-9]*|playall|playlist:[A-Za-z0-9_-]{1,40}|stop)$",
           "description": "What happens after the last loop (only with a loop count). Default: stop."
         },
         "default_button": {
@@ -890,7 +890,7 @@
         },
         "end_action": {
           "type": "string",
-          "pattern": "^(menu:[A-Za-z0-9_-]{1,40}|title:[A-Za-z0-9_-]{1,40}|lastmenu|stop)$",
+          "pattern": "^(menu:[A-Za-z0-9_-]{1,40}(:[A-Za-z0-9_-]{1,40})?|title:[A-Za-z0-9_-]{1,40}|lastmenu|stop)$",
           "description": "After the last item: menu:<id> | title:<id> | lastmenu (the menu shown last) | stop. Default: stop."
         }
       }

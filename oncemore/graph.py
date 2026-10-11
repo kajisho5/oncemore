@@ -36,6 +36,8 @@ def _target(action, project=None):
         return "lastmenu", None
     if kind == "chapter":
         return node_id("title", target), f"ch {num}"
+    if kind == "menu" and num:
+        return node_id("menu", target), num          # opens on that button
     return node_id(kind, target), None
 
 

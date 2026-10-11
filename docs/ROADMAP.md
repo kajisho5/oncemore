@@ -203,6 +203,10 @@ browser) and lands only with green CI.
 - [x] Scaling of pictures of another shape: fit (bars) or fill (cropped), for
   clips, slideshows and single slides
 
+**P36 — Links to a menu button** (done)
+- [x] `menu:<id>:<button id>`: any link opens the menu with that button
+  highlighted, on DVD and Blu-ray, in the simulator, flowchart and link menus
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 

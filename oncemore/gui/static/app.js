@@ -127,7 +127,7 @@ const I18N = {
     step_probe: "Checking sources", step_menu: "Rendering menu “{i}”", step_encode: "Encoding title “{i}”",
     step_subtitles: "Subtitles for “{i}”", step_author: "Authoring VIDEO_TS", step_iso: "Writing the disc image",
     check_ok: "Ready to build", estimated: "Estimated size", of: "of", video_avg: "Average video bitrate",
-    menu_item: "Menu: {m}", title_item: "Title: {t}", chapter_item: "{t} › Chapter {n}",
+    menu_item: "Menu: {m}", menu_button_item: "Menu: {m} › {b}", title_item: "Title: {t}", chapter_item: "{t} › Chapter {n}",
     audio_item: "Audio stream {n}", subtitle_item: "Subtitles {n}", subtitle_off: "Subtitles off",
     nothing_selected: "Select a button or text on the menu, or edit the menu settings below.",
     rename_hint: "Changing an ID also updates everything that points to it.",
@@ -316,7 +316,7 @@ const I18N = {
     step_probe: "素材をチェック", step_menu: "メニュー「{i}」を作成", step_encode: "タイトル「{i}」をエンコード",
     step_subtitles: "「{i}」の字幕を作成", step_author: "VIDEO_TS を構成", step_iso: "ディスクイメージを書き出し",
     check_ok: "書き出しできます", estimated: "推定サイズ", of: "／", video_avg: "平均映像ビットレート",
-    menu_item: "メニュー：{m}", title_item: "タイトル：{t}", chapter_item: "{t} › チャプター {n}",
+    menu_item: "メニュー：{m}", menu_button_item: "メニュー：{m} › {b}", title_item: "タイトル：{t}", chapter_item: "{t} › チャプター {n}",
     audio_item: "音声 {n}", subtitle_item: "字幕 {n}", subtitle_off: "字幕オフ",
     nothing_selected: "メニュー上のボタンやテキストを選択するか、下のメニュー設定を編集してください。",
     rename_hint: "ID を変えると、それを参照している箇所もまとめて更新されます。",
@@ -556,7 +556,12 @@ function uniqueId(prefix, existing) {
 function actionOptions({ forButton = true, allowStop = true, includeChapters = forButton, allowPlayAll = forButton, allowLast = false } = {}) {
   const p = P(), opts = [];
   if (allowLast && (p.menus || []).length) opts.push(["lastmenu", t("last_menu")]);
-  for (const id of allMenuIds()) opts.push([`menu:${id}`, t("menu_item", { m: id })]);
+  for (const id of allMenuIds()) {
+    opts.push([`menu:${id}`, t("menu_item", { m: id })]);
+    // the menu opened with one of its buttons highlighted
+    for (const b of (p.menus || []).find((m) => m.id === id)?.buttons || [])
+      opts.push([`menu:${id}:${b.id}`, t("menu_button_item", { m: id, b: b.label || b.id })]);
+  }
   if (allowPlayAll && (p.titles || []).length) opts.push(["playall", t("playall")]);
   if (allowPlayAll) for (const pl of p.playlists || []) opts.push([`playlist:${pl.id}`, t("playlist_item", { p: pl.name || pl.id })]);
   for (const ti of p.titles || []) {
@@ -597,6 +602,7 @@ function renameRefs(p, kind, oldId, newId) {
   const fix = (a) => {
     if (!a) return a;
     if (kind === "menu" && a === `menu:${oldId}`) return `menu:${newId}`;
+    if (kind === "menu" && a.startsWith(`menu:${oldId}:`)) return `menu:${newId}:` + a.split(":")[2];
     if (kind === "title") {
       if (a === `title:${oldId}`) return `title:${newId}`;
       if (a.startsWith(`chapter:${oldId}:`)) return `chapter:${newId}:` + a.split(":")[2];
@@ -637,9 +643,27 @@ function commit(fn, { render = true } = {}) {
   if (S.undo.length > 200) S.undo.shift();
   S.redo = [];
   fn(S.project);
+  dropLostButtonLinks(S.project);
   S.preview = null;
   scheduleSave();
   if (render) renderAll();
+}
+// a link to a button that is gone (deleted, made text) opens its menu as usual
+function dropLostButtonLinks(p) {
+  const has = (mid, bid) => ((p.menus || []).find((m) => m.id === mid)?.buttons || []).some((b) => b.id === bid);
+  const fix = (a) => {
+    const m = /^menu:([^:]+):(.+)$/.exec(a || "");
+    return m && !has(m[1], m[2]) ? `menu:${m[1]}` : a;
+  };
+  if (!p.disc) return;
+  p.disc.first_play = fix(p.disc.first_play);
+  if (p.disc.title_key) p.disc.title_key = fix(p.disc.title_key);
+  for (const ti of p.titles || []) if (ti.end_action) ti.end_action = fix(ti.end_action);
+  for (const pl of p.playlists || []) if (pl.end_action) pl.end_action = fix(pl.end_action);
+  for (const m of p.menus || []) {
+    if (m.end_action) m.end_action = fix(m.end_action);
+    for (const b of m.buttons || []) { b.action = fix(b.action); if (b.override) b.override = fix(b.override); }
+  }
 }
 function undo() {
   if (!S.undo.length) return;
@@ -928,7 +952,7 @@ const linkName = (a) => {
   const [k, id, n] = a.split(":");
   if (k === "title") return "▶ " + id;
   if (k === "chapter") return `▶ ${id} ◆${n}`;
-  if (k === "menu") return "▦ " + id;
+  if (k === "menu") return "▦ " + id + (n ? ` › ${n}` : "");
   if (k === "playlist") return "≡ " + id;
   return a;
 };

@@ -48,6 +48,12 @@ def commands(obj):
     out = []
     for c in obj:
         dst, src = struct.unpack(">II", c[4:12])
+        if c[0] == 0x51 and c[3] == 0x03:          # Set Button Page
+            out.append(f"set_button {'reg ' if c[1] == 0x40 else ''}{dst & 0xFFFF}")
+            continue
+        if c[0] == 0x48:                           # compare: the next command runs if true
+            out.append(f"if_{ {2: 'eq', 3: 'ne'}[c[2]]} {dst} {src}")
+            continue
         name = names[(c[0], c[1])]
         if name in ("play_pl_mark", "move"):
             out.append(f"{name} {dst} {src}")
@@ -110,6 +116,32 @@ class TestNavigationFiles(unittest.TestCase):
         # a motion menu plays again from its loop point (mark 1)
         self.assertEqual(commands(nav.objects({"m": (False, 1)})[2]),
                          ["move 1 3", "play_pl 3", "play_pl_mark 3 1", "goto 2"])
+
+    def test_links_to_a_button(self):
+        p = project(menus=[
+            {"id": "m", "default_button": "c", "buttons": [
+                {"id": "b", "label": "Play", "x": 100, "y": 100, "action": "title:two"},
+                {"id": "c", "label": "More", "x": 100, "y": 160, "action": "menu:n:back"}]},
+            {"id": "n", "buttons": [
+                {"id": "x", "label": "Two", "x": 100, "y": 100, "action": "title:two"},
+                {"id": "back", "label": "Back", "x": 100, "y": 160, "action": "menu:m:b"}]}],
+            titles=[{"id": "one", "source": "a.mp4", "end_action": "menu:n:x"},
+                    {"id": "two", "source": "b.mp4", "end_action": "menu:m"}])
+        nav = bluray.Nav(p)
+        self.assertEqual(p.entry_buttons, {"m": {"b"}, "n": {"back", "x"}})
+        objects = nav.objects({"m": (True, 0), "n": (False, 1)})
+        # the link puts the button (its id: the index) in GPR 2, then opens the menu
+        self.assertEqual(commands(objects[0])[-2:], ["move 2 0", "jump_title 4"])
+        self.assertEqual(commands(nav.button(p.menu("n").buttons[1])), ["move 2 0", "jump_title 3"])
+        self.assertEqual(commands(nav.button(p.menu("m").buttons[1])), ["move 2 1", "jump_title 4"])
+        # the menu selects that button, or else its default one, and clears it
+        self.assertEqual(commands(objects[2]), [
+            "if_ne 2 0", "set_button reg 2", "if_eq 2 0", "set_button 1", "move 2 0",
+            "move 1 3", "play_pl 3"])
+        # (a motion menu's loop goes back to its loop point, after those)
+        self.assertEqual(commands(objects[3])[-2:], ["play_pl_mark 4 1", "goto 7"])
+        # without links: a fixed default button, as before
+        self.assertEqual(commands(objects[1]), ["play_pl 2", "jump_title 3"])
 
     def test_movie_object_file(self):
         data = bluray.movie_objects([[bluray.play_pl(1)], [bluray.jump_title(1)]])
@@ -378,7 +410,8 @@ class TestBlurayMenus(unittest.TestCase):
                      {"id": "two", "label": "SECOND", "x": 100, "y": 290, "action": "title:two"},
                      {"id": "more", "label": "MORE", "x": 400, "y": 290, "action": "menu:more"}]},
                 {"id": "more", "select_color": "#00FF00", "buttons": [
-                    {"id": "back", "label": "BACK", "x": 100, "y": 200, "action": "menu:main"},
+                    # back to the main menu with MORE highlighted
+                    {"id": "back", "label": "BACK", "x": 100, "y": 200, "action": "menu:main:more"},
                     {"id": "two", "label": "SECOND", "x": 100, "y": 260, "action": "title:two"}]},
                 # buttons only after the fade
                 {"id": "faded", "fade_in": 1, "buttons_at_loop": True, "duration": 3, "buttons": [
@@ -458,6 +491,20 @@ class TestBlurayMenus(unittest.TestCase):
                                   ("key", "right"), ("key", "enter"), ("title", 4),
                                   ("key", "down"), ("key", "enter"), ("title", 2),
                                   ("title", 4)])
+
+    def test_link_to_a_button(self):
+        events = self.press("down", "down", "right", "enter", "enter", "enter")
+        titles = [e for e in events if e[0] in ("title", "key")]
+        # MORE, then BACK: the main menu again, on MORE (not PLAY), so the
+        # next OK opens the second menu once more
+        self.assertEqual(titles, [("title", 3), ("key", "down"), ("key", "down"),
+                                  ("key", "right"), ("key", "enter"), ("title", 4),
+                                  ("key", "enter"), ("title", 3), ("key", "enter"),
+                                  ("title", 4)])
+        back = events.index(("key", "enter"), events.index(("title", 4)))
+        drawn = next(e for e in events[back:] if e[0] == "menu")[1]
+        # MORE at (400, 290) on the 720 x 480 menu: x about 1067 on the HD frame
+        self.assertTrue(any(1000 < d[1] < 1100 for d in drawn), drawn)
 
     def test_top_menu_key(self):
         events = self.press("enter", "topmenu")
