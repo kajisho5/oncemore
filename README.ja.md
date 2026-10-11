@@ -691,6 +691,13 @@ DVD ナビゲーションライブラリ）でメニューのボタンを実際�
   BD メディア対応を明記していますが、BD ドライブでの `hdiutil burn` は未確認です。
 * コピーガードなし（設計方針として今後も入れません）。
 
+## oncemore を支援する
+
+oncemore は無料で、これからも無料です。役に立ったら [GitHub Sponsors](https://github.com/sponsors/kajisho5)（このリポジトリ上部の
+**Sponsor** ボタン）から開発を支援できます。いただいた支援は開発を続けるために使います。不具合の報告や、
+お手持ちのプレーヤーで再生できた／できなかったディスクの報告も同じくらい助かります：
+[Issues](https://github.com/kajisho5/oncemore/issues)。
+
 ## ライセンス
 
 GPL-3.0-or-later（[LICENSE](LICENSE)）。dvdauthor が GPL のため揃えています。

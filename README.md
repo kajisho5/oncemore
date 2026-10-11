@@ -800,6 +800,14 @@ all made again by the next build).
   documents BD media, `hdiutil burn` with a BD writer has not been tried.
 * No copy protection (by design, permanently).
 
+## Support oncemore
+
+oncemore is free and stays free. If it saves you time, you can support its
+development through [GitHub Sponsors](https://github.com/sponsors/kajisho5) (the **Sponsor** button at the top
+of this repository); every sponsorship goes to keeping it going. Bug reports
+and discs that do or do not play on your player help just as much:
+[Issues](https://github.com/kajisho5/oncemore/issues).
+
 ## License
 
 GPL-3.0-or-later (see [LICENSE](LICENSE)), matching dvdauthor's GPL.
