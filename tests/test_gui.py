@@ -1636,6 +1636,30 @@ class TestGuiBrowser(unittest.TestCase):
             browser.close()
         self.assertEqual(errors, [])
 
+    def test_layer_break(self):
+        """Disc > Layer break: offered for a DVD-9, a chapter or auto."""
+        self.s.call("/api/new", "POST", {"sample": True})
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.click(".nav-item[data-view=disc]", timeout=120000)
+            self.assertEqual(page.locator("select[data-k=layer_break]").count(), 0)
+            page.select_option("select[data-k=target]", "DVD9")
+            self.poll(lambda: self.project()["disc"].get("target") == "DVD9")
+            options = page.eval_on_selector_all("select[data-k=layer_break] option",
+                                                "os => os.map(o => o.value)")
+            self.assertEqual(options, ["__none__", "t1:1", "t1:2", "t1:3", "t2:1"])
+            page.select_option("select[data-k=layer_break]", "t2:1")
+            self.poll(lambda: self.project()["disc"].get("layer_break") == "t2:1")
+            self.assertTrue(self.s.app.check(self.project())["valid"])
+            page.select_option("select[data-k=layer_break]", "__none__")
+            self.poll(lambda: "layer_break" not in self.project()["disc"])
+            browser.close()
+        self.assertEqual(errors, [])
+
     def test_button_numbers(self):
         """Properties > Number renumbers a button, the menu's button number
         offset shows in the routing view, and the preview's number keys

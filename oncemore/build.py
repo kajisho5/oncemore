@@ -10,8 +10,8 @@ import shutil
 import tempfile
 import threading
 
-from . import (author, bdmenu, bluray, captions, clips, encode, iso, lpcmfix, pgs, slideshow, subtitles,
-               tools, udf250, uops)
+from . import (author, bdmenu, bluray, captions, clips, encode, iso, layerbreak, lpcmfix, pgs,
+               slideshow, subtitles, tools, udf250, udfwriter, uops)
 from . import menu as menu_module
 from .errors import OncemoreError, ProjectError
 from .project import parse_action, retime_thumbs, title_fps
@@ -820,6 +820,58 @@ def copy_rom_files(project, out_dir):
     return total
 
 
+def _layer_break_want(project):
+    """disc.layer_break as (titleset, title number, chapter), or None (auto)."""
+    if not project.disc.layer_break:
+        return None
+    tid, ch = project.disc.layer_break
+    t = project.title(tid)
+    return t.titleset, t.number, ch
+
+
+def _layer_break_shift(project, disc_dir, iso_tool):
+    """Sectors the built-in writer moves VIDEO_TS by so the layer break
+    chapter starts on an ECC block (0 for the other ISO tools, or when the
+    disc fits on one layer or no chapter would do: layer_break says so)."""
+    if tools.iso_tool(iso_tool)[0] != "builtin":
+        return 0
+    plan = udfwriter.plan_image(disc_dir)
+    if not layerbreak.needed(plan["total"]):
+        return 0
+    found = layerbreak.chapters(layerbreak.read_folder(os.path.join(disc_dir, "VIDEO_TS")))
+    chapters = [(v, t, c, plan["video_ts"] + s) for v, t, c, s in found]
+    try:
+        return layerbreak.pick(chapters, plan["total"], _layer_break_want(project),
+                               shift_ok=True)[2]
+    except OncemoreError:
+        return 0
+
+
+def layer_break(project, image, reporter, warnings):
+    """The layer break of a dual-layer image: {"sector", "title", "chapter",
+    "layer0_sectors", "layer1_sectors"}, or None when it fits on one layer.
+    A chosen chapter that cannot be the break is an error; with "auto" and
+    no chapter that works, a warning (the disc writer then picks the middle)."""
+    chapters, total = layerbreak.iso_chapters(image)
+    if not layerbreak.needed(total):
+        return None
+    want = _layer_break_want(project)
+    try:
+        c, sector, _ = layerbreak.pick(chapters, total, want)
+    except OncemoreError as e:
+        if want:
+            raise OncemoreError(e.message, hint="Choose a chapter nearer the middle of the disc "
+                                "(Disc > Layer break), or \"auto\". The built-in ISO writer "
+                                "puts any chapter on an ECC block; other ISO tools may not.")
+        msg = f"{e.message}; the disc writer will put the layer break in the middle of the disc"
+        warnings.append(msg)
+        reporter.warn(msg)
+        return None
+    title = next(t for t in project.titles if (t.titleset, t.number) == c[:2])
+    return {"sector": sector, "title": title.id, "chapter": c[2],
+            "layer0_sectors": sector, "layer1_sectors": total - sector}
+
+
 def build_iso(project, out_iso, reporter, fast=False, keep_work=False, iso_tool="auto",
               build_dir=None, cache=True):
     tools.require([], need_iso=True, iso_preference=iso_tool)
@@ -832,11 +884,15 @@ def build_iso(project, out_iso, reporter, fast=False, keep_work=False, iso_tool=
     work = os.path.join(build_dir, ".work")
     result = build(project, disc_dir, reporter, fast=fast, keep_work=True, work=work, cache=cache)
     reporter.step("iso", f"Writing {os.path.basename(out_iso)}")
+    dual = project.disc.target == "DVD9"
+    shift = _layer_break_shift(project, disc_dir, iso_tool) if dual else 0
     info = iso.make_iso(disc_dir, out_iso, project.disc.label, iso_tool,
-                        log=os.path.join(work, "logs", "iso.log"), reporter=reporter)
+                        log=os.path.join(work, "logs", "iso.log"), reporter=reporter, shift=shift)
     result.update({"iso": info["path"], "iso_bytes": info["bytes"], "iso_tool": info["tool"],
                    "iso_udf": info["udf"], "volume_names": info["volume_names"]})
     result["warnings"] = result["warnings"] + info["warnings"]
+    if dual:
+        result["layer_break"] = layer_break(project, out_iso, reporter, result["warnings"])
     result.pop("work_dir", None)
     if info["bytes"] > project.disc.capacity:
         raise OncemoreError(f"ISO is {info['bytes'] / 2**30:.2f} GiB, larger than "

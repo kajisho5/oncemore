@@ -141,6 +141,7 @@ oncemore gui my-disc          # ブラウザで http://127.0.0.1:…/ が開き�
   プレビューとシミュレータでもプレーヤーと同じように表示します。
 * **ファイルのチャプターマーカー**：チャプターマーカー付きの動画（MP4・MOV・MKV など）は、タイトルにすると名前ごとチャプターになります。タイムライン > ソースのチャプターマーカーを読み込む で読み直せます（クリップをつないだタイトルでは各クリップ内のマーカー）。
 * **マイスタイル**（ライブラリ）：テキスト・ボタン・図形の見た目（フォント・サイズ・色・縁取り・影）を名前を付けて保存し、どのプロジェクトのオブジェクトにも適用できます。フォントもスタイルと一緒に保存します。
+* **レイヤーブレーク**（ディスクパネル、DVD-9）：2 層ディスクが 2 層目へ移るチャプターを選べます（自動ではディスクの中ほどより後の最初のチャプター）。内蔵の ISO 書き出しが ECC ブロック境界に合わせ、`oncemore iso` がそのセクタを表示し、書き込み時に growisofs へ渡します。
 * **一定間隔でチャプター**（タイムラインメニュー）：*n* 分／秒ごとにチャプターを置きます（今のチャプターを置き換えるか、追加するか）。
 * **アセットを置き換え**（ファイルメニュー、またはファイルを右クリック）：プロジェクト内で使われているファイルを別のファイルに
   まとめて差し替えます。見つからなくなったファイルの付け直しもこれで行います（見つからないファイルが先頭に並び、問題一覧からも開けます）。
@@ -232,7 +233,7 @@ oncemore simulate <project> --keys down,enter,menu   # リモコン操作を再�
 oncemore import-psd <project> design.psd --menu main [--first-play]   # Photoshop からメニューを作成
 oncemore gui [<dir>] [--port N] [--no-browser] # オーサリングアプリ
 oncemore transcode <project> [--title ID] [--fast] [--status]  # 書き出し前にタイトルをエンコード
-oncemore burn out.iso [--device DEV]           # イメージを空の DVD に書き込み（macOS は hdiutil、他は growisofs）
+oncemore burn out.iso [--device DEV] [--layer-break auto|none|SECTOR]   # イメージを空の DVD に書き込み（macOS は hdiutil、他は growisofs）
 oncemore clean <プロジェクト>                   # エンコードキャッシュを削除（次のビルドで作り直し）
 oncemore doctor                                # 外部ツールの有無・バージョン・ISO バックエンド
 oncemore mcp [--root DIR]                      # AI アシスタント向けのツール（MCP、下記）
@@ -332,6 +333,7 @@ Claude Desktop（`claude_desktop_config.json`）などの MCP クライアント
 | `standard` | `NTSC` \| `PAL` | 必須 |
 | `aspect` | `4:3` \| `16:9` | 必須 |
 | `target` | `DVD5` \| `DVD9` | `DVD5` |
+| `layer_break` | DVD9：2 層目が始まる位置：`auto` \| `<タイトル id>:<チャプター>` | `auto`（中ほどより後の最初のチャプター） |
 | `first_play` | `menu:<id>` \| `title:<id>` \| `playall` | 最初のメニュー、無ければ最初のタイトル |
 | `title_key` | リモコンのタイトル／トップメニューキーで開くもの：`menu:<id>` \| `title:<id>` \| `playall` | 最初のメニュー |
 | `font` | パス または `null` | 自動：ヒラギノ（macOS）→ Noto Sans CJK → DejaVu Sans |
@@ -680,6 +682,7 @@ DVD ナビゲーションライブラリ）でメニューのボタンを実際�
   oncemore の出力での動作は **まだ未確認** です。報告を歓迎します。
 * **書き込み** — `oncemore burn demo.iso`（またはビルド > 出力：DVD ディスク）で、macOS は `hdiutil burn`、
   Linux は `growisofs -dvd-compat` を使って書き込みます。ISO は他の書き込みツールでも焼けます。
+  2 層のイメージにはレイヤーブレーク（`-use-the-force-luke=break:N`）を指定します。`hdiutil burn` にはこの指定が無く、位置は hdiutil が決めます。
 
 ## 再ビルドは速い
 

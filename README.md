@@ -165,6 +165,10 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
 * **My styles** (Library): save the look of a text, button or shape (font,
   size, colour, outline, shadow) under a name, and give it to other objects
   in any project; the font is kept with the style.
+* **Layer break** (Disc panel, DVD-9): the chapter where a dual-layer disc
+  goes on to its second layer, or the first one past the middle of the disc.
+  The built-in ISO writer puts it on an ECC block, `oncemore iso` reports its
+  sector, and burning passes it to growisofs.
 * **Chapters at intervals** (Timeline menu): a chapter every *n* minutes or
   seconds, replacing the chapters there are or adding to them.
 * **Replace asset** (File menu, or right-click a file): every use of one file
@@ -287,7 +291,7 @@ oncemore simulate <project> --keys down,enter,menu   # press remote keys, no enc
 oncemore import-psd <project> design.psd --menu main [--first-play]   # a menu from Photoshop
 oncemore gui [<dir>] [--port N] [--no-browser] # the authoring app
 oncemore transcode <project> [--title ID] [--fast] [--status]  # encode titles ahead of the build
-oncemore burn out.iso [--device DEV]           # write the image to a blank DVD (macOS: hdiutil, else growisofs)
+oncemore burn out.iso [--device DEV] [--layer-break auto|none|SECTOR]   # write the image to a blank DVD (macOS: hdiutil, else growisofs)
 oncemore clean <project>                       # delete the encode cache (made again by the next build)
 oncemore doctor                                # external tools, versions, ISO backend
 oncemore mcp [--root DIR]                      # tools for AI assistants (MCP, below)
@@ -394,6 +398,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `standard` | `NTSC` \| `PAL` | required |
 | `aspect` | `4:3` \| `16:9` | required |
 | `target` | `DVD5` \| `DVD9` | `DVD5` |
+| `layer_break` | DVD9: where the second layer starts: `auto` \| `<title id>:<chapter>` | `auto` (the first chapter past the middle) |
 | `first_play` | `menu:<id>` \| `title:<id>` \| `playall` | first menu, else first title |
 | `title_key` | what the remote's Title / Top Menu key opens: `menu:<id>` \| `title:<id>` \| `playall` | first menu |
 | `font` | path or `null` | auto: Hiragino (macOS) → Noto Sans CJK → DejaVu Sans |
@@ -791,7 +796,9 @@ By hand:
   Not yet verified by the authors with oncemore output — reports welcome.
 * **Burning** — `oncemore burn demo.iso` (or Build > Output: DVD disc) runs
   `hdiutil burn` on macOS and `growisofs -dvd-compat` on Linux; any other
-  burning tool works on the ISO as well.
+  burning tool works on the ISO as well. A dual-layer image gets its layer
+  break (`-use-the-force-luke=break:N`); `hdiutil burn` has no such option
+  and chooses the place itself.
 
 ## Rebuilding is fast
 

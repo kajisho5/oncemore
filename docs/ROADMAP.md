@@ -245,6 +245,14 @@ browser) and lands only with green CI.
   its link (menu, title, chapter, playlist, play all), on DVD and Blu-ray;
   drawn in the flowchart, played in the simulator
 
+**P61 — Layer break** (done)
+- [x] `disc.layer_break` for a DVD-9: a chapter, or auto (the first one
+  past the middle of the disc); checked against the disc's rules (an ECC
+  block, the first layer the larger, a layer's size)
+- [x] The built-in ISO writer moves VIDEO_TS so the chapter is on an ECC
+  block; `oncemore iso` reports the sector; burning passes it to growisofs
+- [x] Disc panel > Layer break
+
 **P60 — My styles** (done)
 - [x] Library > My styles: the look of a text, button or shape (font,
   size, colour, outline, shadow) saved under a name with its font, for

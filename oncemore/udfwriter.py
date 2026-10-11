@@ -780,15 +780,17 @@ def video_ts_layout(video_ts):
 # the writer
 # ==============================================================================
 
-def write_image(src_dir, out_path, label, *, date=None, on_progress=None):
+def write_image(src_dir, out_path, label, *, date=None, on_progress=None, shift=0):
     """Write a UDF 1.02 + ISO 9660 DVD-Video image of `src_dir` to `out_path`.
 
     `src_dir` holds VIDEO_TS (required), AUDIO_TS (created empty in the image
     if missing) and optionally DVD-ROM files and folders. `date` (a datetime)
     stamps every structure; it defaults to now (UTC). `on_progress(fraction)`
-    is called as data is written. Returns statistics: sectors, bytes, files,
-    directories, the UDF volume name, whether the IFOs placed the VIDEO_TS
-    files, and {"/path": (first sector, bytes)} for every file.
+    is called as data is written. `shift` empty sectors go before VIDEO_TS
+    (to put a dual-layer disc's layer break on an ECC block). Returns
+    statistics: sectors, bytes, files, directories, the UDF volume name,
+    whether the IFOs placed the VIDEO_TS files, and {"/path": (first sector,
+    bytes)} for every file.
     """
     validate_label(label)
     if date is None:
@@ -797,7 +799,7 @@ def write_image(src_dir, out_path, label, *, date=None, on_progress=None):
         raise OncemoreError(f"date {date} is out of range for ISO 9660 (1970-2155)")
     out_path = os.path.abspath(out_path)
     root = scan_tree(src_dir, skip=os.path.realpath(out_path))
-    layout = _plan(root, date)
+    layout = _plan(root, date, shift)
     try:
         _write(root, layout, out_path, label, date, on_progress)
     except BaseException:
@@ -823,6 +825,14 @@ def write_image(src_dir, out_path, label, *, date=None, on_progress=None):
     }
 
 
+def plan_image(src_dir):
+    """Where an image of `src_dir` would put VIDEO_TS: {"video_ts": sector of
+    VIDEO_TS.IFO, "total": sectors} (nothing is written)."""
+    root = scan_tree(src_dir)
+    layout = _plan(root, datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc))
+    return {"video_ts": layout["data_start"], "total": layout["total"]}
+
+
 def dstring_text(raw):
     """Decode a dstring back to text (for reporting)."""
     length = raw[-1]
@@ -840,7 +850,7 @@ def _iso_path(node):
     return "/" + "/".join(reversed(parts))
 
 
-def _plan(root, date):
+def _plan(root, date, shift=0):
     """Assign every structure its place. Returns a dict with the sector map."""
     dirs = [n for n in root.walk() if n.is_dir]
     files = [n for n in root.walk() if not n.is_dir]
@@ -890,8 +900,8 @@ def _plan(root, date):
     data_start = sector
     video_ts = root.children[0]
     placed, vts_len, ifo_layout = video_ts_layout(video_ts)
-    data = [(n, data_start + off) for n, off in placed]
-    sector = data_start + vts_len
+    data = [(n, data_start + shift + off) for n, off in placed]
+    sector = data_start + shift + vts_len
     for f in files:
         if f.parent is video_ts:
             continue

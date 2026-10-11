@@ -264,6 +264,7 @@ class Disc:
     title_key: str = None      # target of the remote's Title key (None = first menu)
     rom_files: list = field(default_factory=list)   # DVD-ROM content next to VIDEO_TS
     bluray_target: str = "BD25"   # disc size when building a Blu-ray
+    layer_break: tuple = None     # DVD9: (title id, chapter); None = the first that works
 
     @property
     def width(self):
@@ -712,6 +713,10 @@ class _Builder:
             video_bitrate=None if vb == "auto" else parse_bitrate(vb),
             bluray_target=dd.get("bluray", {}).get("target", "BD25"),
         )
+        lb = dd.get("layer_break", "auto")
+        if lb != "auto":
+            tid, _, ch = lb.rpartition(":")
+            disc.layer_break = (tid, int(ch))
         for j, r in enumerate(disc.rom_files):
             if os.path.basename(r.rstrip(os.sep)).upper() in ("VIDEO_TS", "AUDIO_TS"):
                 self.err(f"disc.rom_files[{j}]", "VIDEO_TS / AUDIO_TS are made by oncemore")
@@ -1266,6 +1271,15 @@ class _Builder:
                         self.err(where, f"title {target!r} has only {len(t.chapters)} chapters")
 
         check("disc.first_play", project.disc.first_play)
+        if project.disc.layer_break:
+            tid, ch = project.disc.layer_break
+            t = project.title(tid)
+            if project.disc.target != "DVD9":
+                self.warnings.append("disc.layer_break is for a dual-layer disc (DVD9); ignored")
+            elif t is None:
+                self.err("disc.layer_break", f"no title with id {tid!r}")
+            elif not 1 <= ch <= len(t.chapters):
+                self.err("disc.layer_break", f"title {tid!r} has {len(t.chapters)} chapters")
         if project.disc.title_key:
             check("disc.title_key", project.disc.title_key)
             if not project.menus and project.disc.title_key:
