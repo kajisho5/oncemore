@@ -245,6 +245,15 @@ browser) and lands only with green CI.
   its link (menu, title, chapter, playlist, play all), on DVD and Blu-ray;
   drawn in the flowchart, played in the simulator
 
+**P52 — Guides, rotate and flip** (done)
+- [x] Guides on a menu: View > Show / Lock / Clear guides, New guide…, Snap
+  to guides; dragged to move, off the menu to remove; kept with the menu and
+  brought from a Photoshop file's guides
+- [x] Object > Rotate (180°, 90° CW, 90° CCW), Flip horizontal / vertical, the
+  Rotate tool (Shift: 45° steps) and the angle in Properties, for texts,
+  buttons, rectangles and pictures; drawn turned on DVD and Blu-ray menus,
+  with button highlights turned with them
+
 **P50 — Hardening from a code review** (done)
 - [x] Blu-ray: a menu link that picks audio / subtitles and plays a title
   keeps them (the title's default subtitles no longer replace them);

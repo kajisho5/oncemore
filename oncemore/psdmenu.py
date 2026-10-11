@@ -316,5 +316,15 @@ def import_psd(psd_path, project, menu_id, out_dir, rel_base):
         menu.pop(k, None)              # the artwork is in the background now
     if menu.get("default_button") not in {x["id"] for x in buttons}:
         menu.pop("default_button", None)
+    # the file's guides come along (in menu pixels); a file without any
+    # keeps the menu's own
+    guides = {"horizontal": set(), "vertical": set()}
+    for kind, pos in doc.guides():
+        if kind == "vertical" and 0 <= pos * sx <= W:
+            guides[kind].add(round(pos * sx))
+        elif kind == "horizontal" and 0 <= pos * sy <= H:
+            guides[kind].add(round(pos * sy))
+    if guides["horizontal"] or guides["vertical"]:
+        menu["guides"] = {k: sorted(v) for k, v in guides.items() if v}
     menu["psd"] = rel(os.path.abspath(psd_path))
     return menu, notes

@@ -200,7 +200,7 @@ const I18N = {
     skin: "Skin", skin_modern: "Modern", skin_classic: "Classic", skin_hint: "Classic: the look of the classic disc authoring apps (mid-grey panels, light fields, amber timecode). The layout is the same.",
     // P48: the full menu bar
     m_open_recent: "Open recent project", m_import_as: "Import as", m_transcode: "Transcode", m_render: "Render", m_build: "Build",
-    m_align: "Align", m_distribute: "Distribute", m_arrange: "Arrange", m_tools: "Tools", m_highlights: "Show highlights", m_workspace: "Workspace",
+    m_align: "Align", m_distribute: "Distribute", m_arrange: "Arrange", m_rotate: "Rotate", m_tools: "Tools", m_highlights: "Show highlights", m_workspace: "Workspace",
     cmd_new_project: "New project…", cmd_open_project: "Open project…", cmd_save: "Save", cmd_save_as: "Save as…",
     cmd_import_menu: "Menu…", cmd_import_timeline: "Timeline…", cmd_import_slideshow: "Slideshow…", cmd_import_popup: "Pop-up menu…",
     cmd_locate_asset: "Locate asset…", cmd_interpret_footage: "Interpret footage…", cmd_transcode_settings: "Transcode settings…",
@@ -218,6 +218,14 @@ const I18N = {
     cmd_import_subtitles: "Import subtitles…", cmd_export_subtitles: "Export subtitles as SubRip…", cmd_clear_chapters: "Clear all chapter points",
     cmd_set_poster: "Set poster frame at playhead", cmd_save_frame: "Save frame as file",
     cmd_zoom_fit: "Fit in window", cmd_zoom_actual: "Actual size", cmd_snap: "Snap to objects and safe area",
+    cmd_show_guides: "Show guides", cmd_lock_guides: "Lock guides", cmd_clear_guides: "Clear guides", cmd_new_guide: "New guide…",
+    cmd_snap_guides: "Snap to guides", cmd_rotate_180: "180°", cmd_rotate_cw: "90° CW", cmd_rotate_ccw: "90° CCW",
+    cmd_flip_h: "Flip horizontal", cmd_flip_v: "Flip vertical", cmd_tool_rotate: "Rotate tool",
+    tool_rotate: "Rotate: drag an object around its centre (Shift: 45° steps)", guides: "Guides", new_guide: "New guide",
+    guide_horizontal: "Horizontal guide", guide_vertical: "Vertical guide", guide_position: "Position (pixels)",
+    guide_hint: "Guides help place objects in this menu; they are kept with it and never appear on the disc. Drag a guide to move it, off the menu to remove it.",
+    transform: "Rotate and flip", rotation: "Rotation (° clockwise)", flip: "Flip", flip_none: "None", flip_horizontal: "Horizontal",
+    flip_vertical: "Vertical", flip_both: "Both", transform_thumb_hint: "The label or picture turns with its highlight; the thumbnail stays as it is.",
     cmd_view_normal: "Normal", cmd_view_selected: "Selected", cmd_view_activated: "Activated", cmd_exact_preview: "Exact preview",
     cmd_reset_workspace: "Reset workspace", cmd_reload: "Reload", cmd_full_screen: "Enter full screen", cmd_minimize: "Minimise", cmd_zoom_window: "Zoom",
     cmd_help: "oncemore help",
@@ -433,7 +441,7 @@ const I18N = {
     skin: "スキン", skin_modern: "モダン", skin_classic: "クラシック", skin_hint: "クラシック：昔ながらのディスクオーサリングアプリの見た目（中間グレーのパネル、明るい入力欄、琥珀色のタイムコード）。配置は同じです。",
     // P48: メニューバー
     m_open_recent: "最近使用したプロジェクトを開く", m_import_as: "読み込み", m_transcode: "トランスコード", m_render: "レンダリング", m_build: "ビルド",
-    m_align: "整列", m_distribute: "分布", m_arrange: "重ね順", m_tools: "ツール", m_highlights: "ハイライトを表示", m_workspace: "ワークスペース",
+    m_align: "整列", m_distribute: "分布", m_arrange: "重ね順", m_rotate: "回転", m_tools: "ツール", m_highlights: "ハイライトを表示", m_workspace: "ワークスペース",
     cmd_new_project: "新規プロジェクト…", cmd_open_project: "プロジェクトを開く…", cmd_save: "保存", cmd_save_as: "別名で保存…",
     cmd_import_menu: "メニュー…", cmd_import_timeline: "タイムライン…", cmd_import_slideshow: "スライドショー…", cmd_import_popup: "ポップアップメニュー…",
     cmd_locate_asset: "アセットを探す…", cmd_interpret_footage: "フッテージを変換…", cmd_transcode_settings: "トランスコード設定…",
@@ -451,6 +459,14 @@ const I18N = {
     cmd_import_subtitles: "字幕を読み込み…", cmd_export_subtitles: "字幕を SubRip で書き出し…", cmd_clear_chapters: "すべてのチャプターポイントを消去",
     cmd_set_poster: "再生ヘッドの位置をポスターフレームに設定", cmd_save_frame: "フレームをファイルとして保存",
     cmd_zoom_fit: "ウインドウに合わせる", cmd_zoom_actual: "実際のサイズ", cmd_snap: "オブジェクトとセーフエリアにスナップ",
+    cmd_show_guides: "ガイドを表示", cmd_lock_guides: "ガイドをロック", cmd_clear_guides: "ガイドを消去", cmd_new_guide: "新規ガイド…",
+    cmd_snap_guides: "ガイドにスナップ", cmd_rotate_180: "180°", cmd_rotate_cw: "90°（時計回り）", cmd_rotate_ccw: "90°（反時計回り）",
+    cmd_flip_h: "水平方向に反転", cmd_flip_v: "垂直方向に反転", cmd_tool_rotate: "回転ツール",
+    tool_rotate: "回転：オブジェクトを中心のまわりにドラッグ（Shift：45° ずつ）", guides: "ガイド", new_guide: "新規ガイド",
+    guide_horizontal: "水平ガイド", guide_vertical: "垂直ガイド", guide_position: "位置（ピクセル）",
+    guide_hint: "ガイドはこのメニューでオブジェクトを配置するための線です。メニューと一緒に保存され、ディスクには出ません。ドラッグで移動、メニューの外へドラッグで削除します。",
+    transform: "回転と反転", rotation: "回転（時計回りの角度）", flip: "反転", flip_none: "なし", flip_horizontal: "水平",
+    flip_vertical: "垂直", flip_both: "両方", transform_thumb_hint: "ラベルや画像はハイライトと一緒に回ります。サムネイルはそのままです。",
     cmd_view_normal: "通常", cmd_view_selected: "選択", cmd_view_activated: "決定", cmd_exact_preview: "正確なプレビュー",
     cmd_reset_workspace: "ワークスペースをリセット", cmd_reload: "再読み込み", cmd_full_screen: "フルスクリーンにする", cmd_minimize: "しまう", cmd_zoom_window: "拡大／縮小",
     cmd_help: "oncemore ヘルプ",
@@ -858,6 +874,7 @@ function renderToolbar() {
   const b = (attrs, title, icon, on = false, enabled = true) => `<button ${attrs} class="tool ${on ? "on" : ""}" title="${esc(title)}" ${enabled ? "" : "disabled"}>${icon}</button>`;
   bar.innerHTML = !P() ? "" : [
     b('data-tool="select"', `${t("tool_select")} (V)`, ICONS.select, tool === "select", onMenu),
+    b('data-tool="rotate"', `${t("tool_rotate")} (R)`, ICONS.rotate, tool === "rotate", onMenu),
     b('data-tool="text" id="add-text"', `${t("tool_text")} (T)`, ICONS.text, tool === "text", onMenu),
     b('data-tool="zoom"', `${t("tool_zoom")} (Z)`, ICONS.zoom, tool === "zoom", onMenu),
     `<span class="sep"></span>`,
@@ -882,6 +899,7 @@ const ICONS = {
   select: svg('<path d="M3 1.5v11.5l3-3 2 4.5 1.8-.8-2-4.4H12z" fill="currentColor"/>'),
   text: svg('<path d="M2.5 2.5h11v2.5h-1.3l-.4-1.2H9v8.7l1.4.4V14H5.6v-1.1l1.4-.4V3.8H4.2l-.4 1.2H2.5z" fill="currentColor"/>'),
   zoom: svg('<circle cx="6.5" cy="6.5" r="4.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9.6 9.6l4.6 4.6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>'),
+  rotate: svg('<path d="M12.6 8.6A4.8 4.8 0 1 1 10.8 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M9.2 1.6l3.6 1.9-2.6 3.1z" fill="currentColor"/>'),
   button: svg('<rect x="1.5" y="4" width="13" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5 8h6" stroke="currentColor" stroke-width="1.4"/>'),
   rect: svg('<rect x="2" y="3" width="12" height="10" fill="currentColor"/>'),
   picture: svg('<rect x="2" y="3" width="12" height="10" rx="1"/><path d="M3 12l3.5-4 2.5 3 1.5-1.5L13 12"/><circle cx="10.5" cy="6" r="1"/>'),
@@ -2052,10 +2070,10 @@ function renderMenu(m) {
   const defSize = menu.font_size || 32, defColor = menu.text_color || "#FFFFFF";
   const styleOf = (x) => ({ font: x.font, outline: x.outline, outline_width: x.outline_width || 2, shadow: x.shadow, shadow_offset: x.shadow_offset || 3 });
   const els = [
-    ...(menu.shapes || []).map((x, i) => ({ kind: "shape", i, x: x.x, y: x.y, w: x.w, h: x.h, color: x.color || "#00000080" })),
-    ...(menu.images || []).map((x, i) => ({ kind: "image", i, x: x.x, y: x.y, w: x.w, h: x.h, file: x.file, opacity: x.opacity ?? 1 })),
-    ...(menu.texts || []).map((x, i) => ({ kind: "text", i, x: x.x, y: x.y, size: x.size || defSize, color: x.color || defColor, label: x.text, ...styleOf(x) })),
-    ...(menu.buttons || []).map((b, i) => ({ kind: "button", i, x: b.x, y: b.y, size: b.size || defSize, color: b.color || defColor, label: b.label || "", image: b.image, width: b.width, hl: !b.label && !b.image ? b.highlight_image : null, ...styleOf(b) })),
+    ...(menu.shapes || []).map((x, i) => ({ kind: "shape", i, x: x.x, y: x.y, w: x.w, h: x.h, color: x.color || "#00000080", ...turnOf(x) })),
+    ...(menu.images || []).map((x, i) => ({ kind: "image", i, x: x.x, y: x.y, w: x.w, h: x.h, file: x.file, opacity: x.opacity ?? 1, ...turnOf(x) })),
+    ...(menu.texts || []).map((x, i) => ({ kind: "text", i, x: x.x, y: x.y, size: x.size || defSize, color: x.color || defColor, label: x.text, ...styleOf(x), ...turnOf(x) })),
+    ...(menu.buttons || []).map((b, i) => ({ kind: "button", i, x: b.x, y: b.y, size: b.size || defSize, color: b.color || defColor, label: b.label || "", image: b.image, width: b.width, hl: !b.label && !b.image ? b.highlight_image : null, ...styleOf(b), ...turnOf(b) })),
   ].filter((e) => !menu[KIND_LIST[e.kind]][e.i].hidden);   // (switched off in Layers)
   // selection: S.sels (all selected), S.element (the one the inspector shows)
   if (!S.element) S.sels = [];
@@ -2064,7 +2082,7 @@ function renderMenu(m) {
   const firstBtn = Math.max(0, (menu.buttons || []).findIndex((b) => b.id === menu.default_button));
   for (const e of els) if (e.font) loadFont(e.font);
   const css = (e) => {
-    let st = `left:${e.x * sx * scale}px;top:${e.y * scale}px;`;
+    let st = `left:${e.x * sx * scale}px;top:${e.y * scale}px;${turnCss(e.rot, e.flip)}`;
     if (e.kind === "shape") return st + `width:${e.w * sx * scale}px;height:${e.h * scale}px;background:${cssColor(e.color)}`;
     if (e.kind === "image") return st + `width:${e.w * sx * scale}px;height:${e.h * scale}px;opacity:${e.opacity}`;
     st += `font-size:${e.size * scale}px;color:${esc(e.kind === "button" && e.i === firstBtn ? (menu.highlight_color || "#FFD400") : e.color)};`;
@@ -2086,6 +2104,7 @@ function renderMenu(m) {
       <span class="hint">${esc(t("n_selected", { n: S.sels.length }))}</span></div>` : ""}
     <div class="stage-wrap"><div class="stage" id="stage" tabindex="0" style="width:${w}px;height:${h}px;background:${esc(menu.background_color || "#000")}">
       ${bg}
+      ${S.showGuides === false ? "" : guidesHtml(menu, scale, sx, "uguide")}
       ${S.showSafe ? `<div class="safe" style="left:${w * 0.05}px;top:${h * 0.05}px;width:${w * 0.9}px;height:${h * 0.9}px"></div>` : ""}
       ${(menu.buttons || []).filter((b) => b.thumbnail && !b.hidden).map((b) => {
         const th = b.thumbnail, src = thumbSrc(b);
@@ -2100,12 +2119,15 @@ function renderMenu(m) {
             ? `<img src="${imgUrl("file", { path: e.image })}" alt="${esc(e.label)}" draggable="false" style="display:block;width:${(e.width || 160) * sx * scale}px${e.i === firstBtn ? `;outline:2px solid ${esc(menu.highlight_color || "#FFD400")}` : ""}">`
             : esc(e.label)}</div>`).join("")}
       <div class="guide gx" hidden></div><div class="guide gy" hidden></div>
+      ${S.showGuides === false ? "" : guidesHtml(menu, scale, sx, "uline")}
     </div></div>
     <div class="viewer-bar">
       ${zoomSel}
       <label title="${esc(t("safe_hint"))}"><input type="checkbox" id="safe" ${S.showSafe ? "checked" : ""}> ${t("safe_area")}</label>
       <label title="${esc(t("routing_hint"))}"><input type="checkbox" id="routing" ${S.showRouting ? "checked" : ""}> ${t("routing")}</label>
       <label><input type="checkbox" id="snap" ${S.snap === false ? "" : "checked"}> ${t("snap")}</label>
+      <label title="${esc(t("guide_hint"))}"><input type="checkbox" id="show-guides" ${S.showGuides === false ? "" : "checked"}> ${t("guides")}</label>
+      <button class="small" id="new-guide" title="${esc(t("cmd_new_guide"))}">${t("new_guide")}</button>
       <span class="seg" title="${esc(t("subpictures_hint"))}"><span class="seg-label">${t("subpictures")}</span>${[["normal", "sp_normal"], ["highlight", "sp_selected"], ["select", "sp_activated"]].map(([k, l]) => `<button class="small ${S.spView === k ? "on" : ""}" data-sp="${k}">${t(l)}</button>`).join("")}</span>
       <span class="spacer"></span>
       <button id="exact" class="small ${S.preview && !S.spView ? "" : "primary"}">${S.preview && !S.spView ? t("hide_preview") : t("exact_preview")}</button>
@@ -2142,12 +2164,15 @@ function renderMenu(m) {
       stage.querySelectorAll(".el.selected").forEach((n) => n.classList.remove("selected"));
       S.sels.forEach((x) => nodeOf(x)?.classList.add("selected"));
       renderInspector();
+      if (tool === "rotate") return rotateDrag(ev, node, menu, S.sels.map((x) => ({ k: x, node: nodeOf(x) })));
       // drag every selected element; snap the grabbed one to the others' edges / centres
       const group = S.sels.map((x) => ({ k: x, b: box(x), node: nodeOf(x) }));
       const me = group.find((g) => g.k.kind === k.kind && g.k.i === k.i).b;
       const others = els.filter((e) => !isSel(e)).map((e) => box(e));
-      const vx = [0, 360, 720, 36, 684, ...others.flatMap((o) => [o.x, o.x + o.w / 2, o.x + o.w])];
-      const vy = [0, H / 2, H, H * 0.05, H * 0.95, ...others.flatMap((o) => [o.y, o.y + o.h / 2, o.y + o.h])];
+      // snap lines: the other objects and the safe area (Snap), the guides (Snap to guides)
+      const objs = S.snap !== false, gd = S.snapGuides !== false ? (menu.guides || {}) : {};
+      const vx = [...(objs ? [0, 360, 720, 36, 684, ...others.flatMap((o) => [o.x, o.x + o.w / 2, o.x + o.w])] : []), ...(gd.vertical || [])];
+      const vy = [...(objs ? [0, H / 2, H, H * 0.05, H * 0.95, ...others.flatMap((o) => [o.y, o.y + o.h / 2, o.y + o.h])] : []), ...(gd.horizontal || [])];
       const gx = stage.querySelector(".gx"), gy = stage.querySelector(".gy");
       const startX = ev.clientX, startY = ev.clientY;
       let dx = 0, dy = 0;
@@ -2163,7 +2188,7 @@ function renderMenu(m) {
       const move = (e2) => {
         dx = Math.round((e2.clientX - startX) / scale / sx); dy = Math.round((e2.clientY - startY) / scale);
         gx.hidden = gy.hidden = true;
-        if (S.snap !== false && !e2.altKey) {
+        if (!e2.altKey) {
           const sxp = snapTo(me.x + dx, me.w, vx), syp = snapTo(me.y + dy, me.h, vy);
           if (sxp) { dx += Math.round(sxp.d); gx.hidden = false; gx.style.left = sxp.l * sx * scale + "px"; }
           if (syp) { dy += Math.round(syp.d); gy.hidden = false; gy.style.top = syp.l * scale + "px"; }
@@ -2227,6 +2252,9 @@ function renderMenu(m) {
   m.querySelectorAll("[data-distribute]").forEach((b) => (b.onclick = () => S.stageOps.distribute(b.dataset.distribute)));
   $("#safe").onchange = (e) => { S.showSafe = e.target.checked; renderMain(); };
   $("#snap").onchange = (e) => { S.snap = e.target.checked; };
+  $("#show-guides").onchange = (e) => { S.showGuides = e.target.checked; renderMain(); };
+  $("#new-guide").onclick = newGuideBox;
+  bindGuides(stage, menu, scale, sx);
   $("#routing").onchange = (e) => { S.showRouting = e.target.checked; renderMain(); };
   if (S.showRouting) drawRouting(stage, menu, scale, sx);
   bindLinkDrop(stage, menu, scale, sx);
@@ -2241,7 +2269,155 @@ function renderMenu(m) {
   if (S.preview && S.previewFor === menu.id) drawPreview();
   stage.classList.toggle("tool-text", tool === "text");
   stage.classList.toggle("tool-zoom", tool === "zoom");
+  stage.classList.toggle("tool-rotate", tool === "rotate");
   checkOverlaps(stage, menu, scale, sx);
+}
+// -- rotate and flip --------------------------------------------------------------
+// An object's rotation (degrees clockwise about its centre) and flip (made
+// first) as the project keeps them; the stage shows them with a CSS
+// transform, the disc renderer draws them the same way.
+const turnOf = (x) => ({ rot: Number(x.rotate) || 0, flip: x.flip || null });
+const flipBits = (f) => ({ h: f === "horizontal" || f === "both", v: f === "vertical" || f === "both" });
+const flipName = (h, v) => (h && v ? "both" : h ? "horizontal" : v ? "vertical" : null);
+function turnCss(rot, flip) {
+  if (!rot && !flip) return "";
+  const b = flipBits(flip);
+  return `transform:rotate(${rot}deg) scale(${b.h ? -1 : 1},${b.v ? -1 : 1});transform-origin:50% 50%;`;
+}
+function setTurn(o, rot, flip) {
+  const r = Math.round(((Number(rot) % 360) + 360) % 360 * 10) / 10;
+  if (r) o.rotate = r; else delete o.rotate;
+  if (flip) o.flip = flip; else delete o.flip;
+}
+// Object > Rotate: turn every selected object by `deg`
+function turnElements(deg) {
+  const ks = selElements(), id = S.sel.id;
+  commit((p) => {
+    const mm = p.menus.find((x) => x.id === id);
+    for (const k of ks) { const o = elementList(mm, k.kind)[k.i]; setTurn(o, (Number(o.rotate) || 0) + deg, o.flip); }
+  });
+}
+// Object > Flip: mirrored on the screen's axis; as the flip is made before
+// the turn, a turned object flipped this way also turns the other way
+function flipElements(axis) {
+  const ks = selElements(), id = S.sel.id;
+  commit((p) => {
+    const mm = p.menus.find((x) => x.id === id);
+    for (const k of ks) {
+      const o = elementList(mm, k.kind)[k.i], b = flipBits(o.flip);
+      b[axis] = !b[axis];
+      setTurn(o, -(Number(o.rotate) || 0), flipName(b.h, b.v));
+    }
+  });
+}
+// the Rotate tool: drag around the objects' centres (Shift: 45° steps)
+function rotateDrag(ev, node, menu, group) {
+  const r = node.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  const angle = (e) => Math.atan2(e.clientY - cy, e.clientX - cx) * 180 / Math.PI;
+  const start = angle(ev), list = (k) => elementList(menu, k.kind)[k.i];
+  const base = group.map((g) => ({ ...g, rot: Number(list(g.k).rotate) || 0, flip: list(g.k).flip }));
+  let delta = 0;
+  node.setPointerCapture(ev.pointerId);
+  const move = (e) => {
+    delta = angle(e) - start;
+    for (const g of base) {
+      let a = g.rot + delta;
+      if (e.shiftKey) a = Math.round(a / 45) * 45;
+      g.now = a;
+      const keep = g.node.style.cssText.replace(/transform[^;]*;/g, "");
+      g.node.style.cssText = keep + turnCss(a, g.flip);
+    }
+  };
+  const up = () => {
+    node.removeEventListener("pointermove", move); node.removeEventListener("pointerup", up);
+    if (!delta) return;
+    commit((p) => {
+      const mm = p.menus.find((x) => x.id === menu.id);
+      for (const g of base) { const o = elementList(mm, g.k.kind)[g.k.i]; setTurn(o, g.now ?? g.rot, o.flip); }
+    });
+  };
+  node.addEventListener("pointermove", move); node.addEventListener("pointerup", up);
+}
+function transformHtml(it, kind) {
+  return `<h3>${t("transform")}</h3><div class="grid2" data-nobind>
+    <label class="field"><span>${t("rotation")}</span><input type="number" id="tf-rot" min="-360" max="360" step="1" value="${Number(it.rotate) || 0}"></label>
+    <label class="field"><span>${t("flip")}</span>${selectHtml("tf-flip", [["__none__", t("flip_none")], ["horizontal", t("flip_horizontal")], ["vertical", t("flip_vertical")], ["both", t("flip_both")]], it.flip || "__none__", 'id="tf-flip"')}</label>
+  </div>${kind === "button" && it.thumbnail ? `<div class="hint">${esc(t("transform_thumb_hint"))}</div>` : ""}`;
+}
+function bindTransform(el, get) {
+  const set = () => commit((p) => { const f = $("#tf-flip").value; setTurn(get(p), $("#tf-rot").value, f === "__none__" ? null : f); });
+  if ($("#tf-rot")) { $("#tf-rot").onchange = set; $("#tf-flip").onchange = set; }
+}
+// -- guides --------------------------------------------------------------------
+// Lines at pixel positions of the menu (on its 720-wide grid) for placing
+// objects: kept with the menu (menus[].guides), never on the disc.
+const guideCount = (m) => ((m?.guides?.horizontal || []).length + (m?.guides?.vertical || []).length);
+// Each guide is drawn twice: the line over everything (it takes no clicks),
+// and a band to grab it under the objects, so an object on a guide is still
+// picked where it covers it, and the guide wherever it shows.
+function guidesHtml(menu, scale, sx, part) {
+  const g = menu.guides || {}, lock = S.lockGuides ? " locked" : "";
+  const tip = (k, v) => (part === "uguide" ? ` title="${esc(t(k === "horizontal" ? "guide_horizontal" : "guide_vertical"))} ${v}"` : "");
+  return [...(g.horizontal || []).map((y, i) => `<div class="${part} h${lock}" data-g="horizontal" data-gi="${i}" style="top:${y * scale}px"${tip("horizontal", y)}></div>`),
+    ...(g.vertical || []).map((x, i) => `<div class="${part} v${lock}" data-g="vertical" data-gi="${i}" style="left:${x * sx * scale}px"${tip("vertical", x)}></div>`)].join("");
+}
+function setGuides(p, id, fn) {
+  const mm = p.menus.find((x) => x.id === id), g = mm.guides || {};
+  const out = { horizontal: [...(g.horizontal || [])], vertical: [...(g.vertical || [])] };
+  fn(out);
+  for (const k of ["horizontal", "vertical"]) { out[k] = [...new Set(out[k])].sort((a, b) => a - b); if (!out[k].length) delete out[k]; }
+  if (Object.keys(out).length) mm.guides = out; else delete mm.guides;
+}
+// drag a guide to move it, off the menu to remove it (not while locked)
+function bindGuides(stage, menu, scale, sx) {
+  const H = discH();
+  stage.querySelectorAll(".uguide").forEach((node) => node.addEventListener("pointerdown", (ev) => {
+    if (S.lockGuides || (S.tool || "select") !== "select") return;
+    ev.preventDefault(); ev.stopPropagation();
+    const kind = node.dataset.g, i = Number(node.dataset.gi), r = stage.getBoundingClientRect();
+    const line = stage.querySelector(`.uline[data-g="${kind}"][data-gi="${i}"]`), both = [node, line].filter(Boolean);
+    const pos = (e) => (kind === "horizontal" ? (e.clientY - r.top) / scale : (e.clientX - r.left) / scale / sx);
+    const max = kind === "horizontal" ? H : 720, from = menu.guides[kind][i], grab = pos(ev);
+    let now = null;
+    node.setPointerCapture(ev.pointerId);
+    const move = (e) => {
+      now = Math.round(from + pos(e) - grab);
+      const off = now < 0 || now > max;
+      for (const n of both) {
+        n.classList.toggle("leaving", off);
+        if (kind === "horizontal") n.style.top = Math.max(0, Math.min(H, now)) * scale + "px";
+        else n.style.left = Math.max(0, Math.min(720, now)) * sx * scale + "px";
+      }
+    };
+    const up = () => {
+      node.removeEventListener("pointermove", move); node.removeEventListener("pointerup", up);
+      if (now === null) return;
+      commit((p) => setGuides(p, menu.id, (g) => { g[kind].splice(i, 1); if (now >= 0 && now <= max) g[kind].push(now); }));
+    };
+    node.addEventListener("pointermove", move); node.addEventListener("pointerup", up);
+  }));
+}
+function clearGuides() {
+  const id = S.sel.id;
+  commit((p) => setGuides(p, id, (g) => { g.horizontal = []; g.vertical = []; }));
+}
+// View > New Guide: its direction and its position in pixels
+function newGuideBox() {
+  const id = S.sel.id, H = discH();
+  openModal(`<h2>${t("new_guide")}</h2><div class="hint">${esc(t("guide_hint"))}</div>
+    <label class="field"><span></span><label><input type="radio" name="gdir" value="horizontal" checked> ${t("guide_horizontal")}</label>
+      <label><input type="radio" name="gdir" value="vertical"> ${t("guide_vertical")}</label></label>
+    <label class="field"><span>${t("guide_position")}</span><input type="number" id="g-pos" min="0" max="720" value="${Math.round(H / 2)}"></label>
+    <div class="actions"><button id="m-cancel">${t("cancel")}</button><button class="primary" id="m-ok">${t("ok")}</button></div>`);
+  $("#m-cancel").onclick = closeModal;
+  $("#m-ok").onclick = () => {
+    const kind = $("input[name=gdir]:checked").value, max = kind === "horizontal" ? H : 720;
+    const v = Math.max(0, Math.min(max, Math.round(Number($("#g-pos").value) || 0)));
+    closeModal();
+    S.showGuides = true;
+    commit((p) => setGuides(p, id, (g) => g[kind].push(v)));
+  };
+  setTimeout(() => $("#g-pos")?.select(), 0);
 }
 // The menu's colour set: the buttons' subpicture colours in the three states
 // a player shows (Normal = not selected, optional; Selected; Activated), each
@@ -2478,8 +2654,10 @@ function renderMenuInspector(el) {
       </div>
       <label class="field" data-nobind><span></span><label><input type="checkbox" id="pic-ratio" ${S.picFree ? "" : "checked"}> ${t("keep_ratio")}</label></label>
       <label class="field" data-nobind><span>${t("opacity")}</span><input type="range" id="pic-a" min="0" max="100" value="${Math.round((it.opacity ?? 1) * 100)}"></label>
+      ${transformHtml(it, "image")}
       <button class="danger" id="del-el">${t("delete")}</button>`;
     bindFields(el, (p) => find(p).images[sel.i], { numeric: ["x", "y"] });
+    bindTransform(el, (p) => find(p).images[sel.i]);
     const resize = (which) => commit((p) => {
       const x = find(p).images[sel.i], ratio = x.h / x.w;
       const v = Math.max(1, Math.round(Number($(which === "w" ? "#pic-w" : "#pic-h").value) || 1));
@@ -2507,8 +2685,10 @@ function renderMenuInspector(el) {
         <label class="field"><span>${t("fill")}</span><input type="color" id="shape-rgb" value="${esc(c.slice(0, 7))}"></label>
         <label class="field"><span>${t("opacity")}</span><input type="range" id="shape-a" min="0" max="255" value="${c.length > 7 ? parseInt(c.slice(7), 16) : 255}"></label>
       </div>
+      ${transformHtml(it, "shape")}
       <button class="danger" id="del-el">${t("delete")}</button>`;
     bindFields(el, (p) => find(p).shapes[sel.i], { numeric: ["x", "y", "w", "h"] });
+    bindTransform(el, (p) => find(p).shapes[sel.i]);
     const setColor = () => commit((p) => {
       const a = Number($("#shape-a").value);
       find(p).shapes[sel.i].color = $("#shape-rgb").value.toUpperCase() + (a >= 255 ? "" : a.toString(16).padStart(2, "0").toUpperCase());
@@ -2559,7 +2739,9 @@ function renderMenuInspector(el) {
       ${sel.kind === "button" ? `<label class="field"><span>${t("highlight_image")}</span>${selectHtml("highlight_image", [["__none__", t("auto")], ...mediaOf("image").map((x) => [x, x])], it.highlight_image || "__none__")}<div class="hint">${esc(t("highlight_image_hint"))}</div></label>` : ""}
       ${sel.kind === "button" ? `<h3>${t("nav")}</h3><div class="grid2">${["up", "down", "left", "right"].map((d) =>
         `<label class="field"><span>${d}</span>${selectHtml("nav." + d, btnIds, (it.nav || {})[d] || "__none__")}</label>`).join("")}</div>` : ""}
+      ${transformHtml(it, sel.kind)}
       <button class="danger" id="del-el">${t("delete")}</button>`;
+    bindTransform(el, (p) => (sel.kind === "button" ? find(p).buttons : find(p).texts)[sel.i]);
     bindFields(el, (p) => (sel.kind === "button" ? find(p).buttons : find(p).texts)[sel.i], {
       numeric: ["x", "y", "size", "width", "audio", "subtitle"],
       onAfter: (p, key) => {
@@ -3601,6 +3783,11 @@ const COMMANDS = {
   convert_object: { run: convertElement, when: () => oneElement() && S.element?.kind === "button" && curMenu().buttons.length > 1 && !!curMenu().buttons[S.element.i]?.label },
   convert: { run: convertElement, when: () => oneElement() && (S.element?.kind === "text" || S.element?.kind === "button") },
   drop_shadow: { run: dropShadowBox, when: () => hasElements() && selElements().some((k) => k.kind === "text" || k.kind === "button") },
+  rotate_180: { run: () => turnElements(180), when: hasElements },
+  rotate_cw: { run: () => turnElements(90), when: hasElements },
+  rotate_ccw: { run: () => turnElements(-90), when: hasElements },
+  flip_h: { run: () => flipElements("h"), when: hasElements },
+  flip_v: { run: () => flipElements("v"), when: hasElements },
   // -- Menu
   new_menu: { run: () => addMenu(), when: hasProject },
   chapter_index: { run: chapterIndexBox, when: () => hasProject() && (P().titles || []).length > 0 },
@@ -3616,6 +3803,7 @@ const COMMANDS = {
   tool_select: { key: "v", run: () => setTool("select"), when: inMenu },
   tool_text: { key: "t", run: () => setTool("text"), when: inMenu },
   tool_zoom: { key: "z", run: () => setTool("zoom"), when: inMenu },
+  tool_rotate: { key: "r", run: () => setTool("rotate"), when: inMenu },
   set_first_play: { run: () => setFirstPlay(S.sel.view, S.sel.id), when: () => !!curItem() && P().disc.first_play !== `${S.sel.view}:${S.sel.id}` },
   // -- Timeline
   new_timeline: { run: () => newTitleFromMedia(), when: () => hasProject() && mediaOf("video").length > 0 },
@@ -3643,6 +3831,11 @@ const COMMANDS = {
   safe_area: { run: toggle("showSafe"), when: () => inMenu() || (S.sel.view === "title" && !!$("#mon-safe")), on: () => !!S.showSafe },
   routing: { run: toggle("showRouting"), when: inMenu, on: () => !!S.showRouting },
   snap: { run: () => { S.snap = S.snap === false; renderMain(); }, when: inMenu, on: () => S.snap !== false },
+  show_guides: { key: "mod+;", run: () => { S.showGuides = S.showGuides === false; renderMain(); }, when: inMenu, on: () => S.showGuides !== false },
+  lock_guides: { key: "mod+alt+;", run: () => { S.lockGuides = !S.lockGuides; renderMain(); }, when: inMenu, on: () => !!S.lockGuides },
+  clear_guides: { run: clearGuides, when: () => inMenu() && guideCount(curMenu()) > 0 },
+  new_guide: { run: newGuideBox, when: inMenu },
+  snap_guides: { key: "mod+shift+;", run: () => { S.snapGuides = S.snapGuides === false; renderMain(); }, when: inMenu, on: () => S.snapGuides !== false },
   view_normal: spCmd("normal"), view_selected: spCmd("highlight"), view_activated: spCmd("select"),
   exact_preview: { run: () => $("#exact")?.click(), when: () => inMenu() && !!$("#exact"), on: () => !!S.preview && !S.spView && S.previewFor === S.sel.id },
   // -- Window
@@ -3687,13 +3880,15 @@ const MENUBAR = [
     "rename", "edit_original", "edit_psd", "-", "preferences"]],
   ["m_object", [["m_align", ["align_left", "align_hcenter", "align_right", "-", "align_top", "align_vcenter", "align_bottom"]],
     ["m_distribute", ["distribute_h", "distribute_v"]], ["m_arrange", ["bring_front", "bring_forward", "send_backward", "send_back"]], "-",
+    ["m_rotate", ["rotate_180", "rotate_cw", "rotate_ccw"]], "flip_h", "flip_v", "-",
     "convert_button", "convert_object", "-", "drop_shadow"]],
   ["m_menu", ["new_menu", "chapter_index", "-", "add_button", "add_text", "add_rectangle", "add_picture", "-", "set_link", "default_button",
-    "set_first_play", "-", "colour_set", "save_template", "save_menu_file", "-", ["m_tools", ["tool_select", "tool_text", "tool_zoom"]]]],
+    "set_first_play", "-", "colour_set", "save_template", "save_menu_file", "-", ["m_tools", ["tool_select", "tool_rotate", "tool_text", "tool_zoom"]]]],
   ["m_timeline", ["new_timeline", "new_slideshow", "new_playlist", "chapter_playlist", "-", "add_audio_track", "add_subtitle_track",
     "import_subtitles", "export_subtitles", "-", "add_chapter", "chapters_interval", "chapters_from_source", "clear_chapters", "set_poster", "-",
     "save_frame", "-", "prev_chapter", "next_chapter", "play"]],
   ["m_view", ["zoom_in", "zoom_out", "zoom_fit", "zoom_actual", "-", "safe_area", "routing", "snap", "-",
+    "show_guides", "lock_guides", "clear_guides", "new_guide", "snap_guides", "-",
     ["m_highlights", ["view_normal", "view_selected", "view_activated"]], "exact_preview"]],
   ["m_window", [["m_workspace", ["ws_author", "ws_flow", "ws_sim", "ws_build", "-", "reset_workspace"]], "-",
     "win_project", "win_menus", "win_timelines", "win_build", "win_monitor", "win_flowchart", "win_properties", "win_layers", "win_library", "-",
@@ -4399,6 +4594,7 @@ function keyMatches(spec, e) {
   if (key === "pageup" || key === "pagedown") return e.key === { pageup: "PageUp", pagedown: "PageDown" }[key];
   if (key === "[" || key === "]") return e.code === (key === "[" ? "BracketLeft" : "BracketRight");
   if (key === ",") return e.code === "Comma";
+  if (key === ";") return e.code === "Semicolon";
   if (/^[0-9]$/.test(key)) return e.code === "Digit" + key;
   return e.code === "Key" + key.toUpperCase();
 }

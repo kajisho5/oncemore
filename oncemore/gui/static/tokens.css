@@ -76,6 +76,7 @@
   --c-picture: #000000;
   --c-on-picture: #ffffff;
   --c-guide: #ff3dbb;       /* snapping guides */
+  --c-menu-guide: #00a8ff;  /* guides placed on a menu (View > New Guide) */
   --c-hit: #00e5ff;         /* button hit areas */
 
   /* -- type */

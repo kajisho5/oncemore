@@ -46,6 +46,16 @@
     }
   },
   "$defs": {
+    "rotate": {
+      "type": "number",
+      "minimum": -360,
+      "maximum": 360,
+      "description": "Degrees the object is turned clockwise about its centre (Object > Rotate, the Rotate tool). Default 0. On a button: its label or picture and its highlight, not its thumbnail."
+    },
+    "flip": {
+      "enum": ["horizontal", "vertical", "both"],
+      "description": "The object mirrored left-right, top-bottom or both (Object > Flip), before it is rotated."
+    },
     "id": {
       "type": "string",
       "pattern": "^[A-Za-z0-9_-]{1,40}$",
@@ -530,6 +540,12 @@
           "type": "boolean",
           "description": "Switched off in the Layers panel: not on the disc."
         },
+        "rotate": {
+          "$ref": "#/$defs/rotate"
+        },
+        "flip": {
+          "$ref": "#/$defs/flip"
+        },
         "text": {
           "type": "string",
           "minLength": 1
@@ -609,6 +625,12 @@
         "hidden": {
           "type": "boolean",
           "description": "Switched off in the Layers panel: not on the disc."
+        },
+        "rotate": {
+          "$ref": "#/$defs/rotate"
+        },
+        "flip": {
+          "$ref": "#/$defs/flip"
         },
         "id": {
           "$ref": "#/$defs/id"
@@ -815,6 +837,23 @@
           "$ref": "#/$defs/prohibit",
           "description": "Remote keys that do nothing while this menu shows (user operations)."
         },
+        "guides": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "horizontal": {
+              "type": "array",
+              "items": {"type": "integer", "minimum": 0, "maximum": 576},
+              "description": "Y positions (pixels from the top)."
+            },
+            "vertical": {
+              "type": "array",
+              "items": {"type": "integer", "minimum": 0, "maximum": 720},
+              "description": "X positions (pixels from the left, on the 720-wide grid)."
+            }
+          },
+          "description": "Guides for placing objects in the menu editor (View > New Guide). Kept with the menu, never on the disc."
+        },
         "fade_in": {
           "$ref": "#/$defs/time",
           "description": "Seconds the menu fades in from black (picture and sound) when it starts, at most 10. It plays once: repeats start at the end of the fade, or at loop_point if that is later. Default 0 (none)."
@@ -939,6 +978,12 @@
           "type": "boolean",
           "description": "Switched off in the Layers panel: not on the disc."
         },
+        "rotate": {
+          "$ref": "#/$defs/rotate"
+        },
+        "flip": {
+          "$ref": "#/$defs/flip"
+        },
         "x": {
           "type": "integer",
           "minimum": 0,
@@ -979,6 +1024,12 @@
         "hidden": {
           "type": "boolean",
           "description": "Switched off in the Layers panel: not on the disc."
+        },
+        "rotate": {
+          "$ref": "#/$defs/rotate"
+        },
+        "flip": {
+          "$ref": "#/$defs/flip"
         },
         "file": {
           "type": "string",
