@@ -639,6 +639,16 @@ class MenuBuilder:
         W, H = self.disc.width, self.disc.height
         geoms = []
         for b in menu.buttons:
+            if b.highlight == "drawn":
+                a = b.area
+                shape = self.area_shape(a)
+                x0, y0 = max(0, a.x - 2), max(0, a.y - 2)
+                x1, y1 = min(W - 1, a.x + a.w + 1), min(H - 2, a.y + a.h + 1)
+                y0 -= y0 % 2
+                y1 += y1 % 2
+                geoms.append(ButtonGeom(b.id, (x0, y0, x1, y1), [shape], b.action,
+                                        auto=b.auto_activate))
+                continue
             if b.highlight_image:
                 hl = self.image_mask(menu.id, b, b.highlight_image)
                 hb = hl.bbox()
@@ -682,14 +692,20 @@ class MenuBuilder:
                 continue
             mask = self.measure(menu.id, b)
             x0, y0, x1, y1 = mask.bbox()
-            shapes = [mask]
+            # the letters ("shape"), with a line under them ("underline"), or
+            # a frame around them ("frame")
+            shapes = [mask] if b.highlight != "frame" else []
+            if b.highlight == "frame":
+                x0, y0, x1, y1 = x0 - 4, y0 - 4, x1 + 4, y1 + 4
+                shapes.append(("frame", (x0, y0, x1, y1)))
             if b.thumb:
                 t = b.thumb
                 frame = (t.x - 4, t.y - 4, t.x + t.w + 4, t.y + t.h + 4)
-                shapes.append(("frame", frame))
+                if b.highlight != "shape":
+                    shapes.append(("frame", frame))
                 x0, y0 = min(x0, frame[0]), min(y0, frame[1])
                 x1, y1 = max(x1, frame[2]), max(y1, frame[3])
-            else:
+            elif b.highlight == "underline":
                 ul = (x0, y1 + 3, x1, y1 + 6)
                 shapes.append(("fill", ul))
                 y1 = ul[3]
@@ -700,7 +716,7 @@ class MenuBuilder:
             geoms.append(ButtonGeom(b.id, (x0, y0, x1, y1), shapes, b.action,
                                     auto=b.auto_activate))
         for g, b in zip(geoms, menu.buttons):
-            if self.turned(b):
+            if self.turned(b) and b.highlight != "drawn":     # (a drawn one stays as drawn)
                 self._turn_geom(menu, g, b)
         for i, a in enumerate(geoms):
             for b in geoms[i + 1:]:
@@ -716,6 +732,34 @@ class MenuBuilder:
         for g in geoms:
             g.nav = nav[g.id]
         return geoms
+
+    @staticmethod
+    def area_shape(a):
+        """The shape of a drawn highlight (storage pixels): a rectangle, or an
+        ellipse as a mask; filled, or its outline 3 pixels thick."""
+        if a.form == "rectangle":
+            return ("fill" if a.filled else "frame", (a.x, a.y, a.x + a.w, a.y + a.h))
+        cx, cy = a.x + a.w / 2, a.y + a.h / 2
+
+        def span(rx, ry, y):
+            d = (y + 0.5 - cy) / ry if ry > 0 else 2
+            if abs(d) > 1:
+                return None
+            half = rx * math.sqrt(1 - d * d)
+            x0, x1 = round(cx - half), round(cx + half)
+            return (x0, x1) if x1 > x0 else None
+
+        runs = []
+        for y in range(a.y, a.y + a.h):
+            outer = span(a.w / 2, a.h / 2, y)
+            if outer is None:
+                continue
+            inner = None if a.filled else span(a.w / 2 - 3, a.h / 2 - 3, y)
+            if inner is None:
+                runs.append((y, *outer))
+            else:
+                runs += [(y, outer[0], inner[0]), (y, inner[1], outer[1])]
+        return png4.Mask(a.x + a.w, a.y + a.h, [r for r in runs if r[2] > r[1]])
 
     def _turn_geom(self, menu, g, b):
         """A turned button: its highlight turned with it (not its thumbnail's

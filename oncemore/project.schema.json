@@ -752,10 +752,25 @@
         "highlight": {
           "enum": [
             "frame",
-            "shape"
+            "shape",
+            "underline",
+            "drawn"
           ],
-          "default": "frame",
-          "description": "Image buttons: a frame around the picture, or its shape (opaque pixels) in the highlight colour."
+          "description": "How the button lights up, in the highlight colour. \"shape\": its own pixels (an image button's opaque pixels, a text button's letters). \"frame\": a frame around the picture or the label. \"underline\": the letters and a line under them (text buttons). \"drawn\": the shape in highlight_area, wherever it is. Default: \"frame\" for image buttons, \"underline\" for text buttons (\"drawn\" when highlight_area is given)."
+        },
+        "highlight_area": {
+          "type": "object",
+          "required": ["x", "y", "w", "h"],
+          "additionalProperties": false,
+          "description": "A highlight drawn in the editor (highlight \"drawn\"): a rectangle or an ellipse on the 720-wide grid. It is the button's whole highlight and the area the button takes up; it stays where it is drawn when the button is turned.",
+          "properties": {
+            "x": {"type": "integer", "minimum": 0, "maximum": 719},
+            "y": {"type": "integer", "minimum": 0, "maximum": 575},
+            "w": {"type": "integer", "minimum": 4, "maximum": 720},
+            "h": {"type": "integer", "minimum": 4, "maximum": 576},
+            "form": {"enum": ["rectangle", "ellipse"], "default": "rectangle"},
+            "filled": {"type": "boolean", "default": true, "description": "Filled, or only its outline (3 pixels)."}
+          }
         },
         "x": {
           "type": "integer",

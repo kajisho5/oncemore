@@ -486,6 +486,18 @@ class Thumb:
 
 
 @dataclass
+class HighlightArea:
+    """A highlight drawn in the editor: a rectangle or an ellipse on the
+    720-wide grid, filled or just its outline."""
+    x: int
+    y: int
+    w: int
+    h: int
+    form: str = "rectangle"    # "rectangle" | "ellipse"
+    filled: bool = True
+
+
+@dataclass
 class Button:
     id: str
     label: str
@@ -509,7 +521,9 @@ class Button:
     kerning: bool = True
     highlight_image: str = None  # picture whose opaque pixels are the highlight
     width: int = None          # its width on the 720-wide grid (None = natural)
-    highlight: str = "frame"   # image buttons: "frame" | "shape"
+    highlight: str = "frame"   # image buttons: "frame" | "shape" | "drawn";
+    #                            text buttons: "underline" | "shape" | "frame" | "drawn"
+    area: HighlightArea = None  # the drawn highlight ("drawn")
     override: str = None       # end action of the title this button plays, instead of its own
     audio: int = None          # audio stream (1-based) to switch to with the action
     subtitle: int = None       # subtitle stream (1-based, 0 = off) to switch to with the action
@@ -1084,7 +1098,11 @@ class _Builder:
                           highlight_image=self.file(f"{where}.buttons[{j}].highlight_image",
                                                     b.get("highlight_image")),
                           **self.style(f"{where}.buttons[{j}]", b),
-                          width=b.get("width"), highlight=b.get("highlight", "frame"),
+                          width=b.get("width"),
+                          highlight=b.get("highlight") or (
+                              "drawn" if "highlight_area" in b
+                              else "frame" if b.get("image") else "underline"),
+                          area=self.highlight_area(f"{where}.buttons[{j}]", b, disc),
                           override=b.get("override"), audio=b.get("audio"),
                           subtitle=b.get("subtitle"),
                           transition=self.file(f"{where}.buttons[{j}].transition",
@@ -1179,6 +1197,34 @@ class _Builder:
             normal_color=m.get("normal_color"),
             texts=texts, buttons=buttons,
         )
+
+    def highlight_area(self, where, spec, disc):
+        """A button's drawn highlight, and the highlight styles its kind of
+        button can have."""
+        kind = spec.get("highlight")
+        area = spec.get("highlight_area")
+        if kind == "underline" and spec.get("image"):
+            self.err(f"{where}.highlight", "\"underline\" is for text buttons; an image "
+                     "button has \"frame\", \"shape\" or \"drawn\"")
+        if area is None:
+            if kind == "drawn":
+                self.err(f"{where}.highlight_area", "a \"drawn\" highlight needs its "
+                         "highlight_area (x, y, w, h)")
+            return None
+        if kind not in (None, "drawn"):
+            self.err(f"{where}.highlight_area", f"only for a \"drawn\" highlight (this "
+                     f"button's is {kind!r})")
+            return None
+        if spec.get("highlight_image"):
+            self.err(f"{where}.highlight_area", "a button has a highlight picture or a "
+                     "drawn highlight, not both")
+            return None
+        a = HighlightArea(area["x"], area["y"], area["w"], area["h"],
+                          form=area.get("form", "rectangle"), filled=area.get("filled", True))
+        if a.x + a.w > disc.width or a.y + a.h > disc.height:
+            self.err(f"{where}.highlight_area", f"({a.w}x{a.h} at {a.x},{a.y}) runs off the "
+                     f"{disc.width}x{disc.height} menu")
+        return a
 
     def thumbnail(self, where, button, spec):
         """A button's own thumbnail: a frame of the title / chapter it plays."""
