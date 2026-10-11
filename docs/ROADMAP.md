@@ -252,6 +252,14 @@ browser) and lands only with green CI.
   listed (a warning)
 - [x] Playlist panel > Order
 
+**P64 — Menus with pages** (done)
+- [x] `pages` on a menu and `page` on its objects (none: every page);
+  `page:next`, `page:prev`, `page:<n>` links; each page a menu of its own
+  on DVD, Blu-ray and the web version, played back by libdvdnav and
+  libbluray in the tests
+- [x] Menu > Add new page / Delete page, a page strip in the viewer,
+  Properties > Page, page links among a button's links
+
 **P62 — Paragraphs** (done)
 - [x] Menu texts of several lines: `align` (left, centre, right) and
   `line_spacing`, drawn the same way on DVD and Blu-ray menus and the web
@@ -386,10 +394,13 @@ pull request with tests) when it is started.
 **Parity: what the classic apps did that oncemore does not yet** (checked
 against their published help, not from memory)
 
-- [ ] Multi-page menus: one menu with several pages of buttons (a layer
-  group per page in a Photoshop file, or Menu > Add New Page), previous /
-  next page, a chapter index spread over pages. Pages of one menu on
-  Blu-ray and the web version; separate menus linked to each other on DVD
+- [x] Multi-page menus (P64): one menu with several pages of buttons
+  (Menu > Add new page), objects on one page or on every page, buttons to
+  the next, previous or a given page; each page a menu of its own on the
+  disc (DVD, Blu-ray and the web version). The chapter index was already
+  spread over pages
+- [ ] Multi-page menus from a Photoshop file, a layer group per page (each
+  page with its own artwork)
 - [ ] DTS-HD kept as it is on Blu-ray (today DTS is cut down to its core)
 - [x] Chapter playlists played in random order or shuffled, on Blu-ray and
   the web version (DVD keeps the order, as the classic apps did) (P65)
