@@ -472,6 +472,11 @@
           "$ref": "#/$defs/bitrate",
           "description": "This title's own average video bitrate (1-8 Mbit/s); the other titles share what is left on the disc."
         },
+        "transcode": {
+          "type": "boolean",
+          "default": true,
+          "description": "false: the source is already DVD video (MPEG-2 at the disc's frame size and rate, at most 9.8 Mbit/s) and its picture is used as it is, not encoded again (DVD only; the sound is still made to the title's audio settings)."
+        },
         "scan": {
           "enum": ["auto", "progressive", "interlaced", "pulldown", "ivtc"],
           "default": "auto",
