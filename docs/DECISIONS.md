@@ -1697,7 +1697,10 @@ written that fails before the fix, and then the fix:
   the title's own sound tracks (so the sound does not jump when the picture
   does), and cut to the title's length and to exactly as many pictures as
   the title's stream has (vtskit refuses angles whose GOPs or lengths
-  differ); a shorter angle is refused at validation. Subtitles are muxed into every angle's stream, so they stay
+  differ); a shorter angle is refused at validation. (ffmpeg 8 stamps a
+  PTS on the first picture of a packet only; vtskit times the others from
+  their display order, else the last picture went uncounted and the two
+  streams seemed a frame apart.) Subtitles are muxed into every angle's stream, so they stay
   on when the angle changes.
 * Angles are DVD only (a Blu-ray build warns and leaves them out), and a
   title made of clips, a slideshow, or one whose picture is copied as it is
