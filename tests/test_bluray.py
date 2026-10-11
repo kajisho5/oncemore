@@ -52,7 +52,10 @@ def commands(obj):
             out.append(f"set_button {'reg ' if c[1] == 0x40 else ''}{dst & 0xFFFF}")
             continue
         if c[0] == 0x48:                           # compare: the next command runs if true
-            out.append(f"if_{ {2: 'eq', 3: 'ne'}[c[2]]} {dst} {src}")
+            out.append(f"if_{ {2: 'eq', 3: 'ne', 4: 'ge'}[c[2]]} {dst} {src}")
+            continue
+        if c[0] == 0x50 and c[3] == 0x03:
+            out.append(f"add {dst} {src}")
             continue
         name = names[(c[0], c[1])]
         if name in ("play_pl_mark", "move"):
@@ -132,6 +135,40 @@ class TestNavigationFiles(unittest.TestCase):
         self.assertEqual(commands(objects[1]), ["play_pl 2", f"jump_object {obj}"])
         self.assertEqual(commands(objects[obj]), ["play_pl_mark 1 2", "jump_title 3"])
         self.assertEqual(commands(objects[2]), ["play_pl 3", "jump_title 4"])
+
+    def test_menu_loop_count_and_overrides(self):
+        p = project(menus=[
+            {"id": "m", "loop": 2, "end_action": "title:two", "buttons": [
+                {"id": "b", "label": "Play", "x": 100, "y": 100, "action": "title:one",
+                 "override": "title:two"},
+                {"id": "c", "label": "Ch 2", "x": 100, "y": 160, "action": "chapter:one:2"}]}],
+            titles=[{"id": "one", "source": "a.mp4", "chapters": [0, 2]},
+                    {"id": "two", "source": "b.mp4", "end_action": "menu:m"}])
+        nav = bluray.Nav(p)
+        objects = nav.objects({"m": (False, 1)})
+        # played twice (from its loop point the second time), then its end action
+        self.assertEqual(commands(objects[2]), [
+            "move 1 3", "move 3 1", "play_pl 3", "if_ge 3 2", "goto 8", "add 3 1",
+            "play_pl_mark 3 1", "goto 3", "jump_title 2"])
+        # PLAY sets override 1; CH 2 clears it
+        b, c = p.menu("m").buttons
+        self.assertEqual(commands(nav.button(b)), ["move 4 1", "jump_title 1"])
+        chapter = nav.chapter_objects[("one", 2)]
+        self.assertEqual(commands(nav.button(c)), ["move 4 0", f"jump_object {chapter}"])
+        # title one (and its chapter object) ends in the override's object if set
+        override = len(objects) - 1
+        self.assertEqual(commands(objects[0]), ["play_pl 1", "if_eq 4 1",
+                                                f"jump_object {override}", "jump_title 3"])
+        self.assertEqual(commands(objects[chapter])[-3:], ["if_eq 4 1", f"jump_object {override}",
+                                                           "jump_title 3"])
+        self.assertEqual(commands(objects[override]), ["move 4 0", "jump_title 2"])
+        # a still menu with a loop count is held for its length each time
+        items, _ = bluray.playlist_items(p, "menu", "m", {"menu:m": bluray.Piece(
+            "00003", 6, 1, [], [], [0], 90000, ig=True, still=(1, 5))})
+        data = bluray.mpls(items, [])
+        self.assertIn(b"00003M2TS", data)
+        at = data.index(b"00003M2TS") + 9 + 2 + 1 + 8 + 8 + 1
+        self.assertEqual(data[at:at + 3], bytes([1, 0, 5]))      # still mode 1, 5 s
 
     def test_links_to_a_button(self):
         p = project(menus=[
@@ -539,6 +576,69 @@ class TestBlurayMenus(unittest.TestCase):
             disc.info()
             events = disc.play(keys=("enter",))
         self.assertIn(("title", 1), events)
+
+
+@unittest.skipUnless(ffmpeg_has_x264() and LIBBLURAY, "needs ffmpeg with libx264 and libbluray")
+class TestBlurayLoopsAndOverrides(unittest.TestCase):
+    """An intro menu shown twice that then times out to the main menu, and
+    a button whose title ends somewhere else than its own end action."""
+
+    @classmethod
+    def setUpClass(cls):
+        from oncemore.tools import has_drawtext
+        if not has_drawtext():
+            raise unittest.SkipTest("ffmpeg without drawtext")
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-bdloop-")
+        d = cls.tmp
+        for name, seconds in (("a.mp4", 2), ("b.mp4", 2)):
+            subprocess.run(["ffmpeg", "-hide_banner", "-v", "error", "-y",
+                            "-f", "lavfi", "-i", f"testsrc2=size=640x360:rate=30000/1001:duration={seconds}",
+                            "-f", "lavfi", "-i", f"sine=frequency=440:sample_rate=48000:duration={seconds}",
+                            "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", "-shortest",
+                            os.path.join(d, name)], check=True)
+        project = {
+            "version": 1,
+            "disc": {"label": "BD_LOOPS", "standard": "NTSC", "aspect": "16:9",
+                     "first_play": "menu:intro"},
+            "titles": [{"id": "one", "source": "a.mp4", "end_action": "menu:main"},
+                       {"id": "two", "source": "b.mp4", "end_action": "menu:main"}],
+            "menus": [
+                {"id": "intro", "duration": 1, "loop": 2, "end_action": "menu:main",
+                 "buttons": [{"id": "skip", "label": "SKIP", "x": 100, "y": 150,
+                              "action": "menu:main"}]},
+                {"id": "main", "buttons": [
+                    {"id": "play", "label": "ONE THEN TWO", "x": 100, "y": 150,
+                     "action": "title:one", "override": "title:two"},
+                    {"id": "one", "label": "ONE", "x": 100, "y": 220, "action": "title:one"}]}],
+        }
+        with open(os.path.join(d, "project.oncemore.json"), "w") as f:
+            json.dump(project, f)
+        cls.out = os.path.join(d, "out")
+        cls.rc, cls.stdout, cls.stderr = run_cli("--json", "build", d, "-o", cls.out,
+                                                 "--format", "bluray", "--fast")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def test_no_dvd_only_warnings(self):
+        self.assertEqual(self.rc, 0, self.stderr + self.stdout)
+        self.assertNotIn("DVD-only", self.stdout)
+        self.assertNotIn("no loop count", self.stdout)
+
+    def test_intro_times_out_and_override(self):
+        self.assertEqual(self.rc, 0, self.stderr + self.stdout)
+        with bluray_sim.Disc(LIBBLURAY, self.out) as disc:
+            disc.info()
+            events = [e for e in disc.play(keys=("enter", "down", "enter"))
+                      if e[0] in ("title", "key", "still") and e[1] != 0xFFFF]
+        # the intro (title 3) holds its picture 1 s, twice, then the main menu
+        # (title 4); ONE THEN TWO plays one, then two (the override), then
+        # two's end action; ONE alone plays one and returns to the menu
+        self.assertEqual(events, [("title", 3), ("still", 1), ("still", 1), ("title", 4),
+                                  ("key", "enter"), ("title", 1), ("title", 2), ("title", 4),
+                                  ("key", "down"), ("key", "enter"), ("title", 1),
+                                  ("title", 4)])
 
 
 if __name__ == "__main__":

@@ -211,6 +211,11 @@ browser) and lands only with green CI.
 - [x] Titles, playlists and overrides can end in a chapter, a playlist or
   play all (DVD across titlesets too, and Blu-ray)
 
+**P38 — Blu-ray menu loops and overrides** (done)
+- [x] Menu loop counts and the end action after them on Blu-ray (still
+  menus held for their length)
+- [x] End-action overrides on Blu-ray
+
 Not planned: copy protection of any kind (never); DDP masters. Multi-angle
 titles are left for later.
 
@@ -270,8 +275,8 @@ below.
 ## Phase 5 — Blu-ray
 
 Menu-less BDMV with titles, chapters and playlists (P28) and its UDF 2.50
-image (P29), PGS subtitles (P30) and menus (P33): done. Next: pop-up menus
-(a menu over the playing title), menu loop counts and end actions.
+image (P29), PGS subtitles (P30) and menus (P33), menu loop counts and
+overrides (P38): done. Next: pop-up menus (a menu over the playing title).
 
 ## Later
 

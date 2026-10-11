@@ -958,3 +958,16 @@ Verified with libdvdnav: a playlist "t1:2, t2:2-3, t1:1" plays exactly
 * On Blu-ray every chapter any action names (not only buttons') gets its
   own movie object; that also covers a menu's end action to a chapter.
 
+## 61. Blu-ray menu loops and end-action overrides
+
+* A menu with a loop count counts its plays in GPR 3 inside its movie
+  object: play, then while the count is below the loop count add one and
+  play again from the loop point mark; then its end action (or nothing:
+  the object ends, playback stops). A still menu then cannot hold its
+  picture forever: its PlayItem uses still mode 1 with the menu's length
+  as still time, after which the object goes on.
+* Overrides work as on DVD with GPR 4: a button with an override sets it
+  to k before it jumps, other buttons that start a title clear it, and a
+  title's (and a chapter's) object checks it after playing: for k it jumps
+  to override object k, which clears it and goes where the override says.
+
