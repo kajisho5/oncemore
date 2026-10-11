@@ -1466,6 +1466,42 @@ written that fails before the fix, and then the fix:
   one's pixels are for each alignment, and that the spacing moves the
   second line down by as much.
 
+## 84. Menus with pages
+
+* A menu of many buttons (a long list of extras, a scene index) is spread
+  over pages that the viewer turns with a button. A menu gets `pages`, and
+  each of its buttons, texts, rectangles and pictures a `page`, or none:
+  then it is on every page (a heading, a background shape, the buttons that
+  turn the pages). Buttons go to another page with `page:next`,
+  `page:prev` or `page:<n>`; next from the last page goes to the first,
+  and prev from the first to the last, so one NEXT / PREV pair on every
+  page is enough.
+* On the disc each page is a menu of its own, `<id>~<n>` after the first
+  (the menu's id is page 1, so every link to the menu still opens it
+  there). The pages are expanded when the project is read, so the DVD,
+  the Blu-ray, the web version, the simulator, the flowchart and the
+  checks all see ordinary menus and need nothing of their own. `~` cannot
+  be in an id a project gives, so a page never clashes with a menu.
+  `menu:<id>:<button>` opens the page that holds the button.
+* Blu-ray menus could hold the pages in one interactive composition
+  (pages of one IG stream). The menus are separate titles here, as on the
+  DVD: turning a page restarts the menu's background, which a menu whose
+  pages share a still picture does not show. One page per title keeps the
+  Blu-ray writer as it is; pages within one composition can come later
+  if a menu needs them (a moving background that should not restart).
+* A page's buttons are numbered on their own (the remote's number keys,
+  `button_offset`), the default button is used on the page that has it,
+  and a button may only route to buttons of its page or of every page.
+* In the editor the viewer shows one page at a time, with a page strip in
+  its bar; Menu > Add new page makes the next page with a BACK button (and
+  a NEXT where the page before has none; the first time, the menu's
+  buttons become page 1's); Delete page removes the page shown and what
+  is on it alone. New objects go on the page shown; Properties > Page
+  moves one to another page or to every page.
+* Menus from a Photoshop file with a layer group per page are not done
+  yet: each page there has its own artwork, which needs a background per
+  page.
+
 ## 88. The media cache folder
 
 * The media cache was always `<project>/.oncemore-cache`. Encodes of long
