@@ -416,8 +416,8 @@ against their published help, not from memory)
 - [x] Bit budget: per title and menu, the bitrate and the space it takes
   on the disc, as a bar of the whole disc, before anything is encoded (P67)
 
-- [ ] Angles in the app's editor: add, order and remove a title's angle
-  videos in its Properties (today only in the project file and through MCP)
+- [x] Angles in the app's editor: add, order and remove a title's angle
+  videos in its Properties
 - [ ] Buttons over a title's video (DVD): buttons shown for a stretch of the
   title and pressed while it plays; an invisible one leads to a hidden extra
 - [ ] Jacket picture: the still a DVD player shows when Stop is pressed
