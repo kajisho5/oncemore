@@ -96,8 +96,9 @@ brew install ffmpeg-full dvdauthor
 自分でビルドする場合は `macos/build_app.sh`（Xcode コマンドラインツールと `gh` が必要）。Developer ID があれば
 `CODESIGN_IDENTITY` と `NOTARIZE=1` で署名・公証済みのアプリを作れます。
 タグ `v<version>` を push すると `.github/workflows/release.yml` が両アーキテクチャをビルドし、
-それぞれサンプルプロジェクトで起動確認したうえで zip を下書きリリースに添付します
-（ファイル冒頭に書いた署名用 secrets を設定すれば署名・公証済みになります）。
+それぞれサンプルプロジェクトで起動確認したうえで zip をリリースに添付します
+（ファイル冒頭に書いた署名用 secrets を設定すれば署名・公証済みになります）。0.x のバージョンはその場で
+プレリリースとして公開、1.0 以降は下書きになります。リリースノートは `docs/release-notes/<タグ>.md` です。
 
 ## クイックスタート：ブラウザでアプリ
 

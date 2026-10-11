@@ -103,8 +103,9 @@ with `macos/build_app.sh` (Xcode command line tools + `gh`); with a Developer ID
 set `CODESIGN_IDENTITY` and `NOTARIZE=1` to produce a signed, notarised app.
 Pushing a tag `v<version>` runs `.github/workflows/release.yml`, which builds
 both architectures, launches each on a sample project and attaches the zips to a
-draft release (signed and notarised when the signing secrets listed in that file
-are set).
+release (signed and notarised when the signing secrets listed in that file are
+set): 0.x versions are published as pre-releases right away, 1.0 and later as
+drafts; the notes come from `docs/release-notes/<tag>.md`.
 
 ## Quick start: the app in a browser
 
