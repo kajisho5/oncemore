@@ -404,8 +404,8 @@ against their published help, not from memory)
 - [ ] DTS-HD kept as it is on Blu-ray (today DTS is cut down to its core)
 - [x] Chapter playlists played in random order or shuffled, on Blu-ray and
   the web version (DVD keeps the order, as the classic apps did) (P65)
-- [ ] Slideshows of more than 99 pictures (the rest in the last chapter on
-  DVD; up to 999 on Blu-ray)
+- [x] Slideshows of more than 99 pictures (the rest in the last chapter on
+  DVD; up to 999 on Blu-ray) (P66)
 - [ ] Text: letter spacing, kerning, bold and italic (of fonts that have
   those faces)
 - [ ] Highlights: make a button's highlight layer from its own pixels or a

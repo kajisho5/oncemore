@@ -607,7 +607,10 @@ The pictures are fitted on the disc's square-pixel canvas (854 × 480 for NTSC
 16:9) and rendered once into a lossless video in `.oncemore-cache/slideshow`;
 that video is then encoded like any other title (and re-rendered only when a
 picture, a duration or a setting changes). Slide *k* starts at the sum of the
-earlier durations and is a chapter unless `chapters` is given. `fit` decides
+earlier durations and is a chapter unless `chapters` is given. A slideshow
+can have up to 999 pictures; a DVD title has at most 99 chapters, so on a DVD
+the pictures after the 98th are part of chapter 99 (one advanced by hand has
+at most 99 pictures there), while a Blu-ray keeps a chapter for each. `fit` decides
 what happens to pictures of another shape: `fit` shows all of each with the
 background colour around, `fill` fills the frame and crops what is outside;
 a slide can have its own `fit`. With `fit_to_audio` the pictures' durations
