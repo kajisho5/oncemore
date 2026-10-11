@@ -1,0 +1,91 @@
+/* oncemore's site. The brand's colours (docs/DESIGN.md, Brand): the DVD
+   highlight yellow on the brand ink; one dark look, like the app. */
+:root {
+  --ink: #181b22;          /* brand-ink: the ground */
+  --ink-2: #20242d;        /* raised surfaces */
+  --ink-3: #2c313c;        /* lines */
+  --paper: #f2f2f2;        /* brand-paper: text */
+  --muted: #a9afbb;        /* secondary text (7.4:1 on --ink) */
+  --highlight: #ffd400;    /* brand-highlight */
+  --activated: #ff5a00;    /* brand-activated */
+  --on-highlight: #111111;
+  --font-display: "Outfit", "Avenir Next", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --measure: 64ch;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0; background: var(--ink); color: var(--paper);
+  font: 16px/1.6 var(--font-body);
+}
+img { max-width: 100%; height: auto; display: block; }
+a { color: var(--highlight); }
+a:focus-visible, .button:focus-visible { outline: 3px solid var(--highlight); outline-offset: 3px; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 24px; }
+
+/* header */
+.top { display: flex; align-items: center; gap: 24px; padding-block: 20px; flex-wrap: wrap; }
+.top .logo img { height: 40px; width: auto; }
+.top nav { display: flex; gap: 20px; margin-left: auto; flex-wrap: wrap; }
+.top nav a { color: var(--muted); text-decoration: none; font-size: 15px; }
+.top nav a:hover { color: var(--paper); }
+
+/* hero */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: center;
+        padding-block: 56px 72px; }
+.hero h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(38px, 5.4vw, 64px);
+           line-height: 1.04; letter-spacing: -0.01em; margin: 0 0 20px; text-wrap: balance; }
+.hero h1 em { font-style: normal; color: var(--highlight); }
+.nb { white-space: nowrap; }
+.hero h1.ja { font-size: clamp(30px, 4vw, 48px); line-height: 1.25; }
+.hero p.lead { color: var(--muted); font-size: 18px; max-width: var(--measure); margin: 0 0 28px; }
+.actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.button { display: inline-block; padding: 12px 22px; border-radius: 999px; font-weight: 600;
+          text-decoration: none; border: 2px solid var(--highlight); color: var(--highlight); }
+.button.primary { background: var(--highlight); color: var(--on-highlight); }
+.button:hover { border-color: var(--paper); }
+/* the screenshot sits inside a yellow frame: a disc menu's highlight */
+.frame { border: 5px solid var(--highlight); border-radius: 18px; padding: 10px; }
+.frame img { border-radius: 9px; }
+
+/* sections */
+section { padding-block: 64px; border-top: 1px solid var(--ink-3); }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: clamp(28px, 3.4vw, 40px);
+     line-height: 1.1; margin: 0 0 12px; text-wrap: balance; }
+.intro { color: var(--muted); max-width: var(--measure); margin: 0 0 36px; }
+.features { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 28px 32px; }
+.features h3 { font-size: 17px; margin: 0 0 6px; display: flex; align-items: center; gap: 10px; }
+/* the dot is the remote's selection: the item a viewer would press */
+.features h3::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--activated);
+                       flex: none; }
+.features p { margin: 0; color: var(--muted); font-size: 15px; }
+.screens { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; }
+.screens figure { margin: 0; }
+.screens img { border-radius: 10px; border: 1px solid var(--ink-3); }
+.screens figcaption { color: var(--muted); font-size: 14px; margin-top: 10px; }
+.promises { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; padding: 0;
+            list-style: none; margin: 0; }
+.promises li { background: var(--ink-2); border-radius: 12px; padding: 18px 20px; }
+.promises strong { display: block; font-family: var(--font-display); font-weight: 600; font-size: 19px; }
+.promises span { color: var(--muted); font-size: 15px; }
+.install { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; }
+.install h3 { margin: 0 0 8px; font-size: 17px; }
+pre { background: var(--ink-2); border: 1px solid var(--ink-3); border-radius: 10px; padding: 14px 16px;
+      overflow-x: auto; font: 14px/1.6 var(--font-mono); margin: 0 0 12px; }
+.note { color: var(--muted); font-size: 15px; max-width: var(--measure); }
+code { font-family: var(--font-mono); font-size: .92em; }
+
+footer { border-top: 1px solid var(--ink-3); padding-block: 32px 48px; color: var(--muted); font-size: 14px; }
+footer .wrap { display: flex; gap: 24px; flex-wrap: wrap; align-items: center; }
+footer nav { display: flex; gap: 18px; margin-left: auto; flex-wrap: wrap; }
+
+@media (max-width: 860px) {
+  .hero, .screens, .install { grid-template-columns: minmax(0, 1fr); }
+  .hero { padding-block: 32px 48px; gap: 32px; }
+  .top nav { margin-left: 0; }
+}
