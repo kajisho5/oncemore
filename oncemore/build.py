@@ -625,7 +625,8 @@ def menu_cache_key(project, menu, font):
         [b.image for b in menu.buttons] + [b.highlight_image for b in menu.buttons] + \
         [p.file for p in menu.images] + \
         [el.font for el in list(menu.texts) + list(menu.buttons)] + \
-        [project.title(b.thumb.title_id).source for b in menu.buttons if b.thumb]
+        [project.title(b.thumb.title_id).source for b in menu.buttons if b.thumb] + \
+        [b.thumb.mask_image for b in menu.buttons if b.thumb and b.thumb.mask_image]
     # a thumbnail shows the clip playing at its time, or a sound title's picture
     thumbs = [[[clips.clip_key(c, _file_sig(c.source)) for c in t.clips],
                _file_sig(t.picture) if t.picture else None]

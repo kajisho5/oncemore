@@ -646,6 +646,14 @@ main menu dissolving into the scene menu (render the dissolve as a short
 clip in a video editor). On a DVD it plays as a menu program of its own,
 on a Blu-ray as a title of its own; buttons with the same video and link
 share one copy.
+`thumbnail` `{x, y, w, h, time, animated, mask, mask_image}` on a `title:` /
+`chapter:` button draws a frame of what it plays into that rectangle (`time`
+seconds into it, default 1; `animated` plays it in a motion menu). `mask`
+cuts it to a shape: `rounded` (corners of 15 % of the shorter side) or
+`ellipse`; `mask_image` is a picture whose opaque pixels show it (a frame
+shape, a heart), stretched to the rectangle, for a still thumbnail. The rest
+shows the menu; the button's highlight is still drawn as the button says
+(a drawn ellipse area matches an ellipse).
 **Image buttons**: `image` (a picture, transparent PNG works best) replaces the
 label (then optional), drawn with its top-left at `x`/`y`; `width` on the
 720-wide grid (default: the picture's own width; the height follows its

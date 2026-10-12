@@ -49,6 +49,8 @@ const I18N = {
     transition: "Link transition", transition_hint: "A short video played when the button is pressed, before its link: for example this menu dissolving into the next one.",
     thumb_section: "Thumbnail", thumb_on: "Show a picture of the linked title / chapter",
     thumb_time: "Frame at (s)", thumb_anim: "Play it (motion menus)",
+    thumb_mask: "Shape", mask_rect: "Rectangle", mask_rounded: "Rounded corners", mask_ellipse: "Ellipse", mask_picture: "Picture…",
+    thumb_mask_image: "Shape picture", thumb_mask_hint: "The thumbnail shows where the picture is opaque (a frame shape, a heart), stretched to its rectangle. Still thumbnails only.",
     sub_style: "Subtitle look (all tracks)", sub_margin: "Bottom margin", outline_w: "Outline width",
     cm_heading: "Heading", cm_label_format: "Labels ({n} = number)", cm_back_label: "BACK button",
     cm_prev_label: "PREV button", cm_next_label: "NEXT button",
@@ -330,6 +332,8 @@ const I18N = {
     transition: "リンクトランジション", transition_hint: "ボタンを押したとき、リンク先の前に再生する短いビデオ。たとえばこのメニューが次のメニューへ溶けていく映像。",
     thumb_section: "サムネイル", thumb_on: "リンク先のタイトル／チャプターの絵を表示",
     thumb_time: "フレーム位置（秒）", thumb_anim: "再生する（モーションメニュー）",
+    thumb_mask: "形", mask_rect: "長方形", mask_rounded: "角丸", mask_ellipse: "楕円", mask_picture: "画像…",
+    thumb_mask_image: "形の画像", thumb_mask_hint: "画像の不透明な部分にだけサムネイルを表示します（額縁の形、ハートなど）。サムネイルの長方形に合わせて伸ばします。静止したサムネイルのみ。",
     sub_style: "字幕の見た目（全トラック）", sub_margin: "下の余白", outline_w: "縁取りの太さ",
     cm_heading: "見出し", cm_label_format: "ラベル（{n} = 番号）", cm_back_label: "BACK ボタン",
     cm_prev_label: "PREV ボタン", cm_next_label: "NEXT ボタン",
@@ -2693,7 +2697,11 @@ function renderMenu(m) {
       ${S.showSafe ? `<div class="safe" style="left:${w * 0.05}px;top:${h * 0.05}px;width:${w * 0.9}px;height:${h * 0.9}px"></div>` : ""}
       ${(menu.buttons || []).filter((b) => b.thumbnail && !b.hidden && onPage(menu, b)).map((b) => {
         const th = b.thumbnail, src = thumbSrc(b);
-        return `<div class="thumb-pv" style="left:${th.x * sx * scale}px;top:${th.y * scale}px;width:${th.w * sx * scale}px;height:${th.h * scale}px">${src ? `<img src="${src}" alt="" draggable="false">` : ""}</div>`;
+        // (its shape: CSS rounds or cuts it as the disc does)
+        const mi = th.mask_image ? `url('${imgUrl("file", { path: th.mask_image })}')` : "";
+        const shape = th.mask_image ? `-webkit-mask:${mi} 0 0/100% 100% no-repeat;mask:${mi} 0 0/100% 100% no-repeat;`
+          : th.mask === "ellipse" ? "border-radius:50%;" : th.mask === "rounded" ? `border-radius:${Math.round(Math.min(th.w * sx, th.h) * 0.15 * scale)}px;` : "";
+        return `<div class="thumb-pv" style="left:${th.x * sx * scale}px;top:${th.y * scale}px;width:${th.w * sx * scale}px;height:${th.h * scale}px;${shape}">${src ? `<img src="${src}" alt="" draggable="false">` : ""}</div>`;
       }).join("")}
       ${els.filter((e) => e.kind === "button" && menu.buttons[e.i].highlight_area).map((e) => {
         const a = menu.buttons[e.i].highlight_area, on = isSel(e) && S.sels.length === 1, hc = cssColor(menu.highlight_color || "#FFD400");
@@ -3525,7 +3533,9 @@ function renderMenuInspector(el) {
         ${it.thumbnail ? `<div class="grid2">${["x", "y", "w", "h"].map((k) =>
           `<label class="field"><span>${k === "w" ? t("width") : k === "h" ? t("height") : k.toUpperCase()}</span><input type="number" data-th="${k}" min="${k === "w" || k === "h" ? 8 : 0}" max="${k === "y" || k === "h" ? discH() : 720}" value="${it.thumbnail[k]}"></label>`).join("")}
           <label class="field"><span>${t("thumb_time")}</span><input type="number" data-th="time" min="0" step="0.1" value="${it.thumbnail.time ?? ""}" placeholder="1"></label></div>
-          <label class="field"><span></span><label><input type="checkbox" id="th-anim" ${it.thumbnail.animated ? "checked" : ""} ${menu.background_video ? "" : "disabled"}> ${t("thumb_anim")}</label></label>` : ""}</div>` : ""}
+          <label class="field"><span></span><label><input type="checkbox" id="th-anim" ${it.thumbnail.animated ? "checked" : ""} ${menu.background_video ? "" : "disabled"}> ${t("thumb_anim")}</label></label>
+          <label class="field"><span>${t("thumb_mask")}</span>${selectHtml("th-mask", [["rectangle", t("mask_rect")], ["rounded", t("mask_rounded")], ["ellipse", t("mask_ellipse")], ...(it.thumbnail.animated || !mediaOf("image").length ? [] : [["picture", t("mask_picture")]])], it.thumbnail.mask_image ? "picture" : it.thumbnail.mask || "rectangle", 'id="th-mask"')}</label>
+          ${it.thumbnail.mask_image !== undefined ? `<label class="field"><span>${t("thumb_mask_image")}</span>${selectHtml("th-mask-image", [["__none__", t("none")], ...mediaOf("image").map((x) => [x, x.replace(/^media\//, "")])], it.thumbnail.mask_image || "__none__", 'id="th-mask-image"')}<div class="hint">${esc(t("thumb_mask_hint"))}</div></label>` : ""}` : ""}</div>` : ""}
       ${sel.kind === "button" ? highlightHtml(it) : ""}
       ${sel.kind === "button" ? `<label class="field"><span>${t("highlight_image")}</span>${selectHtml("highlight_image", [["__none__", t("auto")], ...mediaOf("image").map((x) => [x, x])], it.highlight_image || "__none__")}<div class="hint">${esc(t("highlight_image_hint"))}</div></label>` : ""}
       ${sel.kind === "button" ? `<label class="field" data-nobind><span>${t("button_number")}</span>${selectHtml("number", numbered.map(([, i], k) => [String(i), menu.button_offset ? t("number_on_remote", { n: k + 1, k: k + 1 + menu.button_offset }) : String(k + 1)]), String(sel.i), 'id="btn-number"')}<div class="hint">${esc(t("button_number_hint"))}</div></label>
@@ -3579,7 +3589,18 @@ function renderMenuInspector(el) {
       const k = inp.dataset.th, v = inp.value === "" ? undefined : Number(inp.value);
       if (v === undefined && k === "time") delete o.thumbnail.time; else if (v !== undefined) o.thumbnail[k] = v;
     })));
-    if ($("#th-anim")) $("#th-anim").onchange = (e) => thSet((o) => { if (e.target.checked) o.thumbnail.animated = true; else delete o.thumbnail.animated; });
+    if ($("#th-anim")) $("#th-anim").onchange = (e) => thSet((o) => {
+      if (e.target.checked) { o.thumbnail.animated = true; delete o.thumbnail.mask_image; } else delete o.thumbnail.animated;
+    });
+    if ($("#th-mask")) $("#th-mask").onchange = (e) => thSet((o) => {
+      const v = e.target.value, th = o.thumbnail;
+      delete th.mask; delete th.mask_image;
+      if (v === "rounded" || v === "ellipse") th.mask = v;
+      if (v === "picture") th.mask_image = mediaOf("image")[0];
+    });
+    if ($("#th-mask-image")) $("#th-mask-image").onchange = (e) => thSet((o) => {
+      if (e.target.value === "__none__") delete o.thumbnail.mask_image; else o.thumbnail.mask_image = e.target.value;
+    });
     // outline / shadow: checkbox + colour + size
     const style = () => commit((p) => {
       const o = (sel.kind === "button" ? find(p).buttons : find(p).texts)[sel.i];

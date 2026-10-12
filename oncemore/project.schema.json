@@ -985,7 +985,9 @@
             "w": {"type": "integer", "minimum": 8, "maximum": 720},
             "h": {"type": "integer", "minimum": 8, "maximum": 576},
             "time": {"$ref": "#/$defs/time", "description": "Frame to show (default: one second into the chapter)."},
-            "animated": {"type": "boolean", "default": false, "description": "Play the chapter in a motion menu."}
+            "animated": {"type": "boolean", "default": false, "description": "Play the chapter in a motion menu."},
+            "mask": {"enum": ["rectangle", "rounded", "ellipse"], "default": "rectangle", "description": "The shape the picture is cut to: its rectangle, the rectangle with rounded corners, or the ellipse in it; the rest shows the menu."},
+            "mask_image": {"type": "string", "description": "A picture whose opaque pixels show the thumbnail (a frame shape, a heart); stretched to the thumbnail's rectangle. Still thumbnails only."}
           }
         }
       },

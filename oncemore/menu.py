@@ -283,6 +283,21 @@ def display_width(disc):
     return int(round(disc.height * disc.dar / 2.0)) * 2
 
 
+def mask_filter(mask, w, h):
+    """ffmpeg filters cutting a w x h picture to a shape: "rounded" (corners
+    of 15 % of its shorter side) or "ellipse" (the ellipse in its box); the
+    rest becomes transparent. "" for none or "rectangle"."""
+    if mask == "ellipse":
+        inside = "lte(pow((X-W/2+0.5)/(W/2),2)+pow((Y-H/2+0.5)/(H/2),2),1)"
+    elif mask == "rounded":
+        r = max(1, round(min(w, h) * 0.15))
+        inside = (f"lte(hypot(max(abs(X-W/2+0.5)-(W/2-{r}),0),"
+                  f"max(abs(Y-H/2+0.5)-(H/2-{r}),0)),{r})")
+    else:
+        return ""
+    return f"format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if({inside},alpha(X,Y),0)'"
+
+
 def adjust_filter(a, sep=""):
     """ffmpeg filters for a project.Adjust (crop, then brightness, contrast
     and saturation with eq, which keeps a picture's transparency), followed
@@ -991,7 +1006,7 @@ class MenuBuilder:
                                              os.path.join(self.logs, f"thumb-{menu.id}-{b.id}.log"))
                 else:
                     png4.write_indexed_png(path, png4.Canvas(*size), [(0, 0, 0, 255)])
-                out.append((path, round(t.x * self.sx), t.y))
+                out.append(self._masked(menu, b, path, size))
                 continue
             if t.animated and menu.background_video:
                 # a moving thumbnail: the chapter itself, fitted like the title
@@ -1005,14 +1020,36 @@ class MenuBuilder:
                       + f",scale=iw*sar:ih,setsar=1,scale={w}:{h}:force_original_aspect_ratio="
                         f"decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={num}/{den},"
                         f"tpad=stop_mode=clone:stop_duration={dur:.3f}")
+                if t.mask in ("rounded", "ellipse"):
+                    vf += "," + mask_filter(t.mask, w, h)
                 out.append((source, round(t.x * self.sx), t.y, vf,
                             ["-ss", f"{start:.3f}", "-t", f"{dur:.3f}"]))
                 continue
             encode.extract_thumbnail(source, info, self.project.disc_for(title), at,
                                      size, path,
                                      os.path.join(self.logs, f"thumb-{menu.id}-{b.id}.log"))
-            out.append((path, round(t.x * self.sx), t.y))
+            out.append(self._masked(menu, b, path, size))
         return out
+
+    def _masked(self, menu, b, path, size):
+        """A still thumbnail's overlay entry, cut to its mask: a shape
+        (filtered as it is placed), or a picture whose opaque pixels show it
+        (made into a PNG with that alpha)."""
+        t = b.thumb
+        x, y = round(t.x * self.sx), t.y
+        if t.mask_image:
+            out = os.path.join(self.work, f"{menu.id}.{b.id}.thumb-masked.png")
+            w, h = size
+            tools.run([self.ffmpeg, "-hide_banner", "-nostdin", "-y", "-i", path, "-i", t.mask_image,
+                       "-filter_complex", f"[1:v]scale={w}:{h},format=rgba,alphaextract[m];"
+                                          f"[0:v]scale={w}:{h},format=rgba[t];[t][m]alphamerge[o]",
+                       "-map", "[o]", "-frames:v", "1", "-update", "1", out],
+                      log=os.path.join(self.logs, f"thumb-{menu.id}-{b.id}-mask.log"),
+                      what="ffmpeg (thumbnail mask)")
+            return (out, x, y)
+        if t.mask in ("rounded", "ellipse"):
+            return (path, x, y, mask_filter(t.mask, *size))
+        return (path, x, y)
 
     def compose(self, menu, transparent=False):
         """ffmpeg inputs + filter_complex drawing the menu, ending in [out].
