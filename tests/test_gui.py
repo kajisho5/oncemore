@@ -2403,6 +2403,39 @@ class TestGuiBrowser(unittest.TestCase):
             browser.close()
         self.assertEqual(errors, [])
 
+    def test_simulator_keys_in_order(self):
+        """A key pressed before the last one's answer is back waits for it:
+        ▼ then OK at once opens CHAPTERS (OK sent with ▼'s state), even with
+        ▼'s answer held back."""
+        from unittest import mock
+        from oncemore.gui import server as gui_server
+        self.s.call("/api/new", "POST", {"sample": True})
+        sim = gui_server.Handler.api_post_sim
+
+        def slow_down(handler, q):
+            body = handler.body_json()
+            handler.body_json = lambda: body
+            if body.get("key") == "down":
+                time.sleep(2)
+            return sim(handler, q)
+        with mock.patch.object(gui_server.Handler, "api_post_sim", slow_down), \
+                sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.locator(".nav-item[data-view=menu]").first.wait_for(timeout=60000)
+            page.select_option("#workspaces", "sim")
+            page.locator("#sim-status", has_text="main · play").wait_for(timeout=120000)
+            page.locator("#sim-screen").press("ArrowDown")
+            page.locator("#sim-screen").press("Enter")
+            page.locator("#sim-status", has_text="chapters").wait_for(timeout=120000)
+            page.wait_for_timeout(2500)                  # (both answers are back)
+            page.locator("#sim-status", has_text="chapters").wait_for(timeout=1000)
+            browser.close()
+        self.assertEqual(errors, [])
+
     def test_photoshop_import(self):
         from .test_psdmenu import design
         self.s.call("/api/new", "POST", {"sample": True})
