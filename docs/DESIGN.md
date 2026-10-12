@@ -89,7 +89,11 @@ the underline is not what tells them apart).
 * **Files**: `docs/images/logo/` (mark, app icon, lockup, wordmarks, and
   `make_logo.py` that draws them), `oncemore/gui/static/favicon.svg` and
   `brand-lockup.svg` (served by the app; the New Project dialog shows the
-  lockup on `--brand-ink`), `macos/AppIcon.png` (`appicon.svg` at 1024 px).
+  lockup on `--brand-ink`), `macos/AppIcon.png` (`appicon.svg` at 1024 px,
+  the Mac app's icon on macOS 15 and earlier) and `macos/AppIcon.icon` (the
+  layered icon of macOS 26 and later, after Apple's Human Interface
+  Guidelines: a square `--brand-ink` background the system masks, and the
+  mark as its one foreground layer; `make_logo.py --icon`).
 * **Rules**: clear space of at least the height of the "o" around the logo;
   the mark at 16 px or more, the lockup at 96 px wide or more; only the four
   brand colours, no gradients, shadows or outlines; the mark is not rotated
