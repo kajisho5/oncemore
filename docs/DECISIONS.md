@@ -2151,6 +2151,51 @@ change was made there first, §105), so oncemore carries it
 * `test_captions` now tests the copy oncemore carries, and checks that a
   file dvdcc refuses reaches the project check as a `ProjectError`.
 
+## 108. Blu-ray navigation, its files and the subtitles written by bdmvkit
+
+bdmvkit 0.2.0 was cut from oncemore's Blu-ray code: the writers of the
+navigation files were the same source, but not the navigation itself. For
+0.3.0 oncemore's navigation (`Nav`, `Piece`, `write_bdmv`: the Blu-ray
+titles and their order, the movie objects, the general registers, random
+and shuffled playlists, loop counts, overrides, entry buttons, stream
+choices, link transitions, user operations, 720p codes) moved into
+bdmvkit as it was (`program.py`, `nav.py`, `uops.py`), in bdmvkit's
+repository and released there (§105). oncemore carries 0.3.0
+(`oncemore/_vendor/bdmvkit`) and takes from it:
+
+* the navigation: `bluray.program` turns the project into a bdmvkit
+  `Program` (titles with their clips, sound and subtitle streams, end
+  actions, prohibited keys; playlists; menus with their clips; transitions)
+  and `bluray.write_bdmv` hands it to `nav.write_program`. `bluray.Nav`,
+  `navigation`, `disc_titles` and `playlist_items` are bdmvkit's
+  `Navigation` on that program; a project's buttons are given to it as
+  they are (they have the fields its buttons have);
+* everything under it: `index.bdmv`, `MovieObject.bdmv` and the HDMV
+  commands, the playlists, the clip information, the clip scan (its
+  `BdmvError` raised as `OncemoreError`), the chapter marks, the
+  Interactive Graphics segments and stream-type patch (`igs`), and all of
+  PGS (`pgs`; `oncemore/pgs.py` is gone).
+
+Kept in oncemore: the encoding (`bluray.encode_title`, the bitrate plan,
+720p and copied H.264, DTS), the sound streams a title declares
+(`audio_streams`), and the menu and pop-up compositions (`bdmenu`: its
+`ig_stream` draws oncemore's highlight shapes and colours; bdmvkit's takes
+pictures). They move to bdmvkit release by release, each checked the same
+way.
+
+* Checked by building four Blu-ray projects with oncemore before and after
+  (two audio tracks, two subtitle tracks, a playlist, play all as the Title
+  key and prohibited keys; four menus with chapter links, entry buttons, a
+  fade-in and a last-menu end; a 720p disc with a pop-up menu and
+  subtitles; sequential, random and shuffled playlists of chapter ranges,
+  end-action overrides, stream buttons, resume, a link transition, menus
+  opened on a button, a menu with a loop count and prohibited keys on a
+  menu): every file of the four BDMV folders, 113 in all with the clips,
+  is byte for byte the same.
+* The tests of the navigation (`test_bluray`, `test_shuffle`,
+  `test_default_streams`, `test_uops` ...) stay and now test bdmvkit's
+  through oncemore's names.
+
 ## 109. New library releases are taken by a pull request opened every day
 
 The libraries are released on their own (§105), so oncemore can fall behind

@@ -1,0 +1,3 @@
+bdmvkit, https://github.com/kajisho5/bdmvkit (LGPL-3.0-or-later, see COPYING and COPYING.LESSER)
+copied from PyPI bdmvkit 0.3.0 (bdmvkit-0.3.0-py3-none-any.whl, sha256 f82ce3f922db0e69a256fea757868ce46889be48329f28f4efc3d4d8c157c6ca)
+the package bdmvkit/ only; its tests stay upstream

@@ -1,10 +1,11 @@
 """Blu-ray subtitles: cues -> a PGS (Presentation Graphics) stream (.sup).
 
-Each cue is drawn like a DVD subtitle (subtitles.SubtitleRenderer, white text
-with a black outline on a transparent HD frame), but instead of the 4
-colours of a DVD subpicture it keeps 64: 8 steps from the outline to the
-fill colour, each at 8 levels of opacity, so edges stay smooth. The palette
-is in BT.709 YCbCr, as Blu-ray HD pictures are.
+A text cue is a picture of white text with a black outline on a
+transparent HD frame (RGBA, drawn by the caller); indexed() keeps 64
+colours of it: 8 steps from the outline to the fill colour, each at 8
+levels of opacity, so edges stay smooth, and palette() gives them in the
+cue's own fill and outline colours. A picture cue keeps its own colours
+(picture_palette). Palettes are BT.709 YCbCr, as Blu-ray HD pictures are.
 
 A cue becomes a display set at its start (presentation composition, window,
 palette and the run-length coded object) and an empty composition at its
@@ -15,7 +16,6 @@ so that ffmpeg, which starts every input at 0, keeps the cue times.
 import re
 import struct
 
-from . import png4
 
 PCS, WDS, PDS, ODS, END = 0x16, 0x17, 0x14, 0x15, 0x80
 EPOCH_START, NORMAL = 0x80, 0x00
@@ -26,6 +26,12 @@ MIN_GAP = 0.2                   # seconds between two cues the decoder needs (ab
 # per byte value: the step (0-7) of a lightness or an opacity
 _STEP = bytes(min(STEPS - 1, v * STEPS // 256) for v in range(256))
 _VISIBLE = bytes(1 if a >= 16 else 0 for a in range(256))
+
+
+def _rgb(value):
+    """'#RRGGBB' -> (r, g, b)."""
+    s = value.lstrip("#")
+    return int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16)
 
 
 def ycbcr(rgb):
@@ -39,7 +45,7 @@ def ycbcr(rgb):
 def palette(fill, outline):
     """Entries (index, Y, Cr, Cb, alpha): 0 transparent, then 1 + 8 * mix +
     opacity, mix 0 = outline .. 7 = fill."""
-    f, o = png4.parse_color(fill)[:3], png4.parse_color(outline)[:3]
+    f, o = _rgb(fill), _rgb(outline)
     out = [(0, 16, 128, 128, 0)]
     for m in range(STEPS):
         t = m / (STEPS - 1)

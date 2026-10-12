@@ -3,7 +3,8 @@
 import struct
 import unittest
 
-from oncemore import bluray, pgs
+from oncemore import bluray
+from oncemore._vendor.bdmvkit import pgs
 from oncemore.subtitles import Cue
 
 

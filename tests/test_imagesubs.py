@@ -15,7 +15,8 @@ import subprocess
 import tempfile
 import unittest
 
-from oncemore import pgs, subtitles, tools
+from oncemore import subtitles, tools
+from oncemore._vendor.bdmvkit import pgs
 from oncemore.errors import ProjectError
 
 from .helpers import have, run_cli

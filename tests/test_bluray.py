@@ -9,7 +9,8 @@ import subprocess
 import tempfile
 import unittest
 
-from oncemore import bluray, pgs
+from oncemore import bluray
+from oncemore._vendor.bdmvkit import clip as bd_clip, m2ts as bd_m2ts, pgs
 from oncemore.errors import OncemoreError, ProjectError
 from oncemore.project import build_project
 
@@ -308,7 +309,7 @@ class TestNavigationFiles(unittest.TestCase):
         # three key frames; the third crosses a 2^17 packet boundary
         entries = [(126000, 10, 50000), (126000 + 45045, 60000, 300000),
                    (126000 + 90090, 0x20000 + 5, 2_000_000)]
-        data = bluray.ep_map(entries)
+        data = bd_clip.ep_map(entries)
         self.assertEqual(data[:2], b"\x00\x01")
         pid, bits, start = struct.unpack(">H6sI", data[2:14])
         bits = int.from_bytes(bits, "big")
@@ -634,7 +635,7 @@ class TestBlurayMenus(unittest.TestCase):
             pid = (data[p + 1] & 0x1F) << 8 | data[p + 2]
             q = p + 4 + (1 + data[p + 4] if data[p + 3] & 0x20 else 0)
             if data[q:q + 3] == b"\0\0\1" and data[q + 7] & 0x80:
-                first.setdefault(pid, bluray._pts(data, q + 9))
+                first.setdefault(pid, bd_m2ts._pts(data, q + 9))
         # the buttons' composition comes at the loop point, 1 s in
         self.assertAlmostEqual((first[bluray.IG_PID] - first[bluray.VIDEO_PID]) / 90000, 1.0,
                                delta=0.05)

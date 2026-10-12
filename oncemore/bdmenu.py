@@ -18,19 +18,23 @@ menu drawn without its background on a transparent picture, each button's
 area of it (normal) and the same with the highlight shapes painted over
 (selected, activated) as the objects of a pop-up interactive composition,
 muxed into the title's clip (popup_stream).
+
+The segments, the object coding and the stream-type patch are bdmvkit's
+(igs, DECISIONS §108); the composition is made here.
 """
 
 import dataclasses
 import os
 import struct
 
-from . import bluray, encode, pgs, png4, tools
+from . import bluray, encode, png4, tools
+from ._vendor.bdmvkit import pgs
+from ._vendor.bdmvkit.igs import NO_OBJECT, _objects, _segment, patch_ig_stream_type
 from .errors import OncemoreError
 from .menu import MenuBuilder
 from .project import Disc
 
 ICS, PDS, ODS, END = 0x18, 0x14, 0x15, 0x80
-NO_OBJECT = 0xFFFF
 STILL_SECONDS = 1.0            # a still menu's clip; the playlist holds its last picture
 
 
@@ -128,23 +132,6 @@ def _colour(index, color):
     r, g, b, a = png4.parse_color(color)
     y, cb, cr = pgs.ycbcr((r, g, b))
     return (index, y, cr, cb, a)
-
-
-def _segment(kind, data):
-    return b"PG" + struct.pack(">IIBH", 0, 0, kind, len(data)) + data
-
-
-def _objects(oid, w, h, pixels):
-    """ODS segment(s) of one object (split when longer than a segment)."""
-    coded = pgs.rle(pixels, w, h)
-    data = (len(coded) + 4).to_bytes(3, "big") + struct.pack(">HH", w, h) + coded
-    size = pgs.MAX_SEGMENT - 4
-    chunks = [data[i:i + size] for i in range(0, len(data), size)]
-    out = b""
-    for k, chunk in enumerate(chunks):
-        flags = (0x80 if k == 0 else 0) | (0x40 if k == len(chunks) - 1 else 0)
-        out += _segment(ODS, struct.pack(">HBB", oid, 0, flags) + chunk)
-    return out
 
 
 def quantize(images):
@@ -301,43 +288,6 @@ def ig_stream(menu, geoms, canvas, commands, frame_rate, follow_selection=False,
 # --------------------------------------------------------------------------
 # the menu clip
 # --------------------------------------------------------------------------
-
-def patch_ig_stream_type(path, pmt_pid=bluray.PMT_PID, pid=bluray.IG_PID):
-    """ffmpeg muxes the IG stream as a PGS stream (stream type 0x90): mark it
-    0x91 in every PMT of the clip (and fix the section CRC)."""
-    with open(path, "r+b") as f:
-        data = bytearray(f.read())
-        for off in range(0, len(data), 192):
-            p = off + 4
-            if (data[p + 1] & 0x1F) << 8 | data[p + 2] != pmt_pid or not data[p + 1] & 0x40:
-                continue
-            q = p + 4
-            if data[p + 3] & 0x20:
-                q += 1 + data[q]
-            q += 1 + data[q]                                # pointer field
-            length = (data[q + 1] & 0x0F) << 8 | data[q + 2]
-            end = q + 3 + length - 4
-            info = (data[q + 10] & 0x0F) << 8 | data[q + 11]
-            e = q + 12 + info
-            while e < end:
-                es_pid = (data[e + 1] & 0x1F) << 8 | data[e + 2]
-                if es_pid == pid:
-                    data[e] = bluray.CODING_IG
-                e += 5 + ((data[e + 3] & 0x0F) << 8 | data[e + 4])
-            data[end:end + 4] = _crc32(bytes(data[q:end])).to_bytes(4, "big")
-        f.seek(0)
-        f.write(data)
-
-
-def _crc32(data):
-    """MPEG-2 section CRC (polynomial 0x04C11DB7, no reflection)."""
-    crc = 0xFFFFFFFF
-    for b in data:
-        crc ^= b << 24
-        for _ in range(8):
-            crc = ((crc << 1) ^ 0x04C11DB7) & 0xFFFFFFFF if crc & 0x80000000 else \
-                (crc << 1) & 0xFFFFFFFF
-    return crc
 
 
 def popup_stream(project, menu, work, font, commands, frame_rate):
