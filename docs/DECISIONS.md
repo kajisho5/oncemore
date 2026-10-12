@@ -2381,3 +2381,33 @@ with the buttons shown then; the flowchart shows their links.
   simulator and the flowchart; a disc built with two buttons from 2 s to
   6 s, which libdvdnav offers in those seconds alone, the first selected,
   and whose links play title A and open the main menu.
+
+## 115. Buttons over a title in the app
+
+A title's Properties have a *Buttons over the title* section (§114): each
+button's id, link, start and end (⏱ sets either to the playhead; an empty
+end is the title's end) and its area as numbers; **+ Button** adds one at
+the playhead (5 s long, 200 × 60 near the bottom), and the selected and
+pressed colours are set there. The links offered are a menu button's but
+Resume and pages. With subtitles in the title the section says why there
+are none and adds none.
+
+On the picture, the buttons shown at the playhead are boxes over the
+frame (the disc's pixels mapped to the frame), redrawn as the playhead
+moves or the title plays; a box drags to move and its corner to resize,
+kept inside the picture. A bar under the picture marks when each button
+shows, and clicking it goes to its start.
+
+Preview has a *Time in the title* slider under the picture in a title
+with buttons (the simulator's `seek:`): the buttons shown then are drawn
+over the frame, the selected one in its colour, and answer the arrows, OK,
+the number keys and clicks. The server's simulator call returns the frame
+at that time and the buttons shown.
+
+The manual has a *Buttons over a title* section (en/ja), and Preview's
+and the limits' sections say how they behave.
+
+* `tests/test_titlebuttons_gui.py`: adding one at the playhead, its link,
+  end, colour and removal; its box dragged and resized; no box past its
+  end; none with subtitles; in Preview, moving into its time brings the
+  two buttons up and the arrow and OK keys run the second's link.

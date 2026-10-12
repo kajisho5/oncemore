@@ -151,6 +151,29 @@ seconds you set, whole (*Fit*, with bars around) or filling the frame (*Fill*, t
 starts a chapter unless you set chapters yourself. Clips, like slides and
 playlist items, are put in another order by dragging them.
 
+### Buttons over a title {#title-buttons}
+
+A title can have buttons over its picture (DVD): areas the viewer selects
+with the arrow keys and presses with OK while the title plays, each from a
+start to an end, such as a "skip intro" over the opening or "next episode"
+over the credits. Draw what they look like into the video; the disc lights
+the area in the highlight colour when one is selected and the select colour
+when it is pressed.
+
+* In **Properties > Buttons over the title**, **+ Button** adds one at the
+  playhead. Set its link (a menu, a title or chapter, play all, a playlist,
+  the last menu, stop, or a sound or subtitle track, which switches and the
+  title plays on), when it appears and goes (⏱ takes the playhead; an
+  empty *To* is the end of the title), and where it is.
+* On the picture, the buttons shown at the playhead are boxes: drag one to
+  move it, its corner to resize it. Under the picture, a bar marks when
+  each button shows.
+* The arrow keys go to the nearest button that way, as on a menu. A link
+  to a menu can be come back from with Resume, as from the Menu key.
+* The times buttons appear or go are at least a second apart, and from
+  chapters. A title with buttons over it cannot have subtitles yet; a
+  Blu-ray build and the web version leave the buttons out.
+
 ### Slideshows {#slideshows}
 
 **Timeline > New slideshow** (or *+ Slideshow* in the Project panel, or
@@ -313,6 +336,10 @@ exactly as on the disc with their real highlights; titles show their
 chapters' first frames. It follows the same navigation rules as the built
 disc.
 
+In a title with buttons over it, *Time in the title* under the picture
+moves through the title: the buttons shown then answer the arrows, OK and
+the number keys.
+
 Keys: the arrow keys and Enter; 1–9 press that button; Home is the Title
 key, Insert the Menu key; End plays to the end; Space plays; ⌘← / ⌘→ go to
 the previous or next chapter. *Insert disc again* starts over; ✕ closes the
@@ -386,4 +413,5 @@ Every command of the menu bar, with its shortcut:
   selected, activated); a Blu-ray has full colour with smooth edges.
 * Subtitles use one font and size for the whole disc; emoji are not drawn.
 * Sound track *n* and subtitle track *n* have one language on the whole disc.
+* Buttons over a title are for DVD, and not yet in a title with subtitles.
 * There is no copy protection, by design.

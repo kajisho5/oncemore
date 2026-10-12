@@ -941,11 +941,25 @@ class Handler(BaseHTTPRequestHandler):
             t = project.title(state["title"])
             # a picture from the chapter: the file playing then, and where in it
             k = state["chapter"]
-            at = (t.chapters[k - 1] if 0 < k <= len(t.chapters) else 0.0) + 0.5
-            path, at = source_at(t, at)
+            start = t.chapters[k - 1] if 0 < k <= len(t.chapters) else 0.0
+            # (where seek: put it; else half a second into the chapter)
+            now = state.get("time", start)
+            path, at = source_at(t, now + 0.5 if abs(now - start) < 1e-6 else now)
             out["title"] = {"id": t.id, "name": t.name, "source": self.app.rel(t.source),
                             "chapters": t.chapters, "chapter": k, "names": t.chapter_names,
-                            "frame": {"path": self.app.rel(path), "t": round(at, 3)}}
+                            "frame": {"path": self.app.rel(path), "t": round(at, 3)},
+                            "time": now}
+            if t.buttons:
+                # the buttons over the title shown then, on the disc's pixels
+                duration = None
+                if not t.clips and os.path.isfile(t.source):
+                    duration = self.app.probe(t.source).get("duration")
+                out["title"].update(
+                    buttons=sim.title_buttons(t, now), duration=duration,
+                    size=[project.disc.width, project.disc.height],
+                    colors=[t.button_highlight, t.button_select],
+                    times=sorted({0.0, *(b.start for b in t.buttons),
+                                  *(b.end for b in t.buttons if b.end is not None)}))
         self.json(out)
 
     def api_post_routing(self, q):

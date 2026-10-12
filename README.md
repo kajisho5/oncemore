@@ -192,14 +192,16 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   of the same scene, switched with the remote's Angle key without a break
   (the new angle from the next interleaved unit, about a second); add,
   pick, order and remove them there (the title's own video is angle 1).
-* **Buttons over a title** (project file `buttons` of a title, DVD): areas
-  of the picture the viewer selects and presses while the title plays, each
-  from a start to an end (a "skip intro" over the opening, links to the
-  next episode over the credits). The video shows them; the disc lights the
-  area. The arrow keys go between the buttons shown at the time; a link
-  plays a title or chapter, opens a menu (Resume comes back, as from the
-  Menu key) or switches the sound or subtitles. The disc simulator plays
-  them (`seek:<seconds>`); the web version leaves them out.
+* **Buttons over a title** (a title's Properties > Buttons over the title,
+  DVD): areas of the picture the viewer selects and presses while the title
+  plays, each from a start to an end (a "skip intro" over the opening, links
+  to the next episode over the credits). The video shows them; the disc
+  lights the area. Add them at the playhead, set their link and times there,
+  and drag their boxes on the picture to place and size them. The arrow
+  keys go between the buttons shown at the time; a link plays a title or
+  chapter, opens a menu (Resume comes back, as from the Menu key) or
+  switches the sound or subtitles. Preview plays them (*Time in the title*;
+  `seek:<seconds>` for `oncemore simulate`); the web version leaves them out.
 * **Menus with pages** (Menu > Add new page): a menu's buttons spread over
   pages, turned with buttons to the next, previous or a given page; a
   heading or background shape can be on every page. Each page is a menu of
