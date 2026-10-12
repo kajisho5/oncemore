@@ -11,8 +11,9 @@ import tempfile
 import threading
 
 from . import (author, bdmenu, bluray, captions, clips, discimage, encode, iso, layerbreak,
-               lpcmfix, pgs, settings, slideshow, subtitles, tools, videots)
+               lpcmfix, settings, slideshow, subtitles, tools, videots)
 from . import menu as menu_module
+from ._vendor.bdmvkit import pgs
 from ._vendor.vtskit import VtsError
 from ._vendor.vtskit import __version__ as vtskit_version
 from ._vendor.vtskit import ps as vtskit_ps

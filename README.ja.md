@@ -39,7 +39,7 @@ Intel ビルドのままです。一方、DVD-Video の必須コーデックは�
 
 ## インストール
 
-oncemore 本体は Python 3.11+ の標準ライブラリのみで動きます。DVD-Video の構造（IFO、ナビゲーションパック、ボタンと字幕のサブピクチャ）は同梱の [vtskit](https://github.com/kajisho5/vtskit) が、ディスクイメージは同梱の [udfkit](https://github.com/kajisho5/udfkit) が、クローズドキャプションは同梱の [dvdcc](https://github.com/kajisho5/dvdcc) が書きます。外部プログラムを呼び出します：
+oncemore 本体は Python 3.11+ の標準ライブラリのみで動きます。DVD-Video の構造（IFO、ナビゲーションパック、ボタンと字幕のサブピクチャ）は同梱の [vtskit](https://github.com/kajisho5/vtskit) が、ディスクイメージは同梱の [udfkit](https://github.com/kajisho5/udfkit) が、クローズドキャプションは同梱の [dvdcc](https://github.com/kajisho5/dvdcc) が、Blu-ray のナビゲーションファイルと字幕は同梱の [bdmvkit](https://github.com/kajisho5/bdmvkit) が書きます。外部プログラムを呼び出します：
 
 | プログラム | 用途 |
 |---|---|
@@ -793,11 +793,11 @@ oncemore の一部は、他のツールからも使えるよう単体のライ�
 | ライブラリ | 内容 | ライセンス |
 |---|---|---|
 | [udfkit](https://github.com/kajisho5/udfkit) | DVD-Video（UDF 1.02 + ISO 9660）と Blu-ray（UDF 2.50）のディスクイメージ | Apache-2.0 |
-| [bdmvkit](https://github.com/kajisho5/bdmvkit) | Blu-ray（BDMV）のオーサリング：プレイリスト、クリップ情報、HDMV ナビゲーション、PGS 字幕 | LGPL-3.0 以降 |
+| [bdmvkit](https://github.com/kajisho5/bdmvkit) | Blu-ray（BDMV）のオーサリング：タイトル・プレイリスト・メニューとその間のナビゲーション、クリップ情報、PGS 字幕 | LGPL-3.0 以降 |
 | [dvdcc](https://github.com/kajisho5/dvdcc) | DVD の MPEG-2 映像へのライン 21 クローズドキャプション（CEA-608） | Apache-2.0 |
 | [vtskit](https://github.com/kajisho5/vtskit) | DVD-Video のオーサリング：IFO、ナビゲーションパック、メニュー、字幕、アングルブロック、dvdauthor の命令言語 | LGPL-3.0 以降 |
 
-変更はそれぞれのリポジトリで行ってリリースし、oncemore はリリースの写しを持ちます（`oncemore/_vendor`、`tools/vendor.py` で更新）。そのため oncemore は依存ライブラリ無しでインストールできます。vtskit・udfkit・dvdcc はすでに写しを使っており、bdmvkit も oncemore 自身の Blu-ray モジュールと置き換えます。
+変更はそれぞれのリポジトリで行ってリリースし、oncemore はリリースの写しを持ちます（`oncemore/_vendor`、`tools/vendor.py` で更新）。そのため oncemore は依存ライブラリ無しでインストールできます。4つとも写しを使っています。Blu-ray では、ナビゲーション（タイトル、プレイリスト、メニューの命令、ムービーオブジェクト）とそのファイル、PGS 字幕を bdmvkit が書きます。クリップのエンコードと、メニュー・ポップアップメニューの描画は、bdmvkit でリリースされるまで oncemore が行います。
 
 ## oncemore を支援する
 

@@ -30,11 +30,13 @@ Homepage = "https://github.com/kajisho5/oncemore"
 
 [tool.setuptools]
 packages = ["oncemore", "oncemore.gui", "oncemore._vendor", "oncemore._vendor.vtskit",
-            "oncemore._vendor.udfkit", "oncemore._vendor.dvdcc"]
+            "oncemore._vendor.udfkit", "oncemore._vendor.dvdcc",
+            "oncemore._vendor.bdmvkit"]
 
 [tool.setuptools.package-data]
 oncemore = ["project.schema.json", "webplayer/*"]
 "oncemore._vendor.vtskit" = ["UPSTREAM", "COPYING.LESSER"]
 "oncemore._vendor.udfkit" = ["UPSTREAM", "LICENSE", "NOTICE"]
 "oncemore._vendor.dvdcc" = ["UPSTREAM", "LICENSE", "NOTICE"]
+"oncemore._vendor.bdmvkit" = ["UPSTREAM", "COPYING", "COPYING.LESSER"]
 "oncemore.gui" = ["static/*"]

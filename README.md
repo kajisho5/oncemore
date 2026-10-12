@@ -46,8 +46,9 @@ oncemore itself is pure Python (3.11+, standard library only); the DVD-Video
 structure (IFO files, navigation packs, button and subtitle subpictures) is
 written by its own copy of [vtskit](https://github.com/kajisho5/vtskit), and
 the disc images by its copy of [udfkit](https://github.com/kajisho5/udfkit) and
-the closed captions by its copy of [dvdcc](https://github.com/kajisho5/dvdcc). It
-drives these programs:
+the closed captions by its copy of [dvdcc](https://github.com/kajisho5/dvdcc);
+the Blu-ray navigation files and subtitles by its copy of
+[bdmvkit](https://github.com/kajisho5/bdmvkit). It drives these programs:
 
 | Program | Used for |
 |---|---|
@@ -984,15 +985,17 @@ use. They are pure Python with no dependencies, like oncemore:
 | Library | What it does | License |
 |---|---|---|
 | [udfkit](https://github.com/kajisho5/udfkit) | DVD-Video (UDF 1.02 + ISO 9660) and Blu-ray (UDF 2.50) disc images | Apache-2.0 |
-| [bdmvkit](https://github.com/kajisho5/bdmvkit) | Blu-ray (BDMV) authoring: playlists, clip information, HDMV navigation, PGS subtitles | LGPL-3.0-or-later |
+| [bdmvkit](https://github.com/kajisho5/bdmvkit) | Blu-ray (BDMV) authoring: titles, playlists and menus and the navigation between them, clip information, PGS subtitles | LGPL-3.0-or-later |
 | [dvdcc](https://github.com/kajisho5/dvdcc) | Line-21 closed captions (CEA-608) into a DVD's MPEG-2 video | Apache-2.0 |
 | [vtskit](https://github.com/kajisho5/vtskit) | DVD-Video authoring: IFO files, navigation packs, menus, subtitles, angle blocks, dvdauthor's command language | LGPL-3.0-or-later |
 
 Changes to them are made and released in their own repositories, and
 oncemore carries a copy of each release (`oncemore/_vendor`, updated with
-`tools/vendor.py`), so it still installs with no dependencies. vtskit,
-udfkit and dvdcc are carried so already; bdmvkit takes the place of
-oncemore's own Blu-ray modules next.
+`tools/vendor.py`), so it still installs with no dependencies. All four are
+carried so. On Blu-ray, bdmvkit writes the navigation (titles, playlists,
+menus' commands, movie objects) and its files and the PGS subtitles;
+oncemore still encodes the clips and draws the menus and pop-up menus
+itself, until bdmvkit releases those.
 
 ## Support oncemore
 
