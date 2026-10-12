@@ -997,6 +997,11 @@ menus' commands, movie objects) and its files and the PGS subtitles;
 oncemore still encodes the clips and draws the menus and pop-up menus
 itself, until bdmvkit releases those.
 
+Every day `.github/workflows/library-updates.yml` looks on PyPI for a newer
+release of each library oncemore carries and opens a draft pull request that
+takes it, with CI run on it; merging it is still a person's call
+(`python tools/vendor.py --outdated` shows the same list).
+
 ## Support oncemore
 
 oncemore is free and stays free. If it saves you time, you can support its

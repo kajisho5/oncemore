@@ -799,6 +799,8 @@ oncemore の一部は、他のツールからも使えるよう単体のライ�
 
 変更はそれぞれのリポジトリで行ってリリースし、oncemore はリリースの写しを持ちます（`oncemore/_vendor`、`tools/vendor.py` で更新）。そのため oncemore は依存ライブラリ無しでインストールできます。4つとも写しを使っています。Blu-ray では、ナビゲーション（タイトル、プレイリスト、メニューの命令、ムービーオブジェクト）とそのファイル、PGS 字幕を bdmvkit が書きます。クリップのエンコードと、メニュー・ポップアップメニューの描画は、bdmvkit でリリースされるまで oncemore が行います。
 
+`.github/workflows/library-updates.yml` が毎日 PyPI を見て、oncemore が持つライブラリに新しいリリースがあれば、それを取り込むドラフトの PR を作り、CI を走らせます。マージするかどうかは人が決めます（同じ一覧は `python tools/vendor.py --outdated` で見られます）。
+
 ## oncemore を支援する
 
 oncemore は無料で、これからも無料です。役に立ったら [GitHub Sponsors](https://github.com/sponsors/kajisho5)（このリポジトリ上部の
