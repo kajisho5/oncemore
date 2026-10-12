@@ -579,9 +579,10 @@ when there are more.
 | `rotate`, `flip` (buttons, texts, shapes, images) | degrees turned clockwise about the object's centre, and `horizontal` / `vertical` / `both` to mirror it first (Object > Rotate / Flip, the Rotate tool). A button's label or picture turns with its highlight; its thumbnail stays as it is | `0`, none |
 | `guides` | `{horizontal: [y…], vertical: [x…]}` guides for placing objects (View > New Guide; dragged in the editor; read from a Photoshop file's guides). Kept with the menu, never on the disc | none |
 | `normal_color` | colour of the buttons' highlight shapes while not selected (the colour set's Normal state); none when absent | — |
-| `texts[]` | `{text, x, y, size?, color?}` decorative text, plus the text style keys below | `[]` |
+| `texts[]` | `{text, x, y, size?, color?, animate?}` decorative text, plus the text style keys below | `[]` |
 | `shapes[]` | `{x, y, w, h, color}` filled rectangles (bars, panels; `#RRGGBBAA` for translucent) drawn under texts and buttons | `[]` |
 | `images[]` | `{file, x, y, w, h, opacity, adjust}` pictures that are not buttons (logos, photos; PNG keeps its transparency), drawn over the rectangles and under texts and buttons; `adjust` as `background_adjust`, the cropped part filling `w` × `h`. In the app: Tools > Picture, or right-click an image > Place on the menu | `[]` |
+| `animate` (texts, images) | `{start, duration, dx, dy, scale, fade}`: the object **comes in** once, `start` seconds into the menu over `duration` (default 0 and 1): from `dx`, `dy` pixels away, growing from `scale` (pictures, 0.05–1) and fading in (`fade`), to where and as it is. The menu becomes a motion menu (DVD, Blu-ray and the web version); set its `loop_point` after the animation to play it once (the project check reminds you). Previews show the objects at rest. In the app: the text's or picture's Properties > Comes in | none |
 
 Text style (texts and text buttons): `font` (a font file for this element; it
 must contain all its characters), `outline` + `outline_width`, `shadow` +

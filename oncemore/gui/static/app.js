@@ -181,6 +181,9 @@ const I18N = {
     tools: "Tools", ok: "OK", missing: "missing", tracks_hint: "Leave empty to use the video's own sound.",
     stream: "Stream", file: "File", add_track: "+ Track", add_sub: "+ Subtitle file",
     tbtn: "Buttons over the title", tbtn_add: "+ Button", tbtn_hint: "Areas of the picture the viewer selects with the arrow keys and presses with OK while the title plays (DVD only; a Blu-ray build and the web version leave them out). Draw what they look like into the video; the disc lights the area. On the picture, drag a box to move it and its corner to resize it.", tbtn_from: "From", tbtn_to: "To", tbtn_to_end: "the end", tbtn_here: "Set to the playhead", tbtn_subs: "A title with subtitles cannot have buttons over it yet: the player lights the buttons in the subtitle stream it shows.", tbtn_hl: "Selected", tbtn_sel: "Pressed", tbtn_link: "Link", sim_time: "Time in the title",
+    animate: "Comes in", anim_on: "Comes in on a motion of its own", anim_start: "From (s)", anim_duration: "Over (s)",
+    anim_dx: "From x away", anim_dy: "From y away", anim_scale: "Grows from %", anim_fade: "Fades in",
+    anim_hint: "Once, from that time into the menu: it moves from that far away (and grows, a picture) to where and as it is on the menu. The menu becomes a motion menu; set its loop point after it to play it once.",
     adjust: "Adjust", adj_left: "Crop left %", adj_top: "Crop top %", adj_width: "Crop width %", adj_height: "Crop height %",
     adj_brightness: "Brightness", adj_contrast: "Contrast %", adj_saturation: "Saturation %", adj_reset: "Reset",
     adj_hint: "Made to the picture before it is placed (crop, then brightness, contrast and saturation), as the disc gets it.",
@@ -464,6 +467,9 @@ const I18N = {
     tools: "ツール", ok: "OK", missing: "不足", tracks_hint: "空なら動画自体の音声を使います。",
     stream: "ストリーム", file: "ファイル", add_track: "＋トラック", add_sub: "＋字幕ファイル",
     tbtn: "タイトル上のボタン", tbtn_add: "＋ボタン", tbtn_hint: "タイトルの再生中に、矢印キーで選び OK で押せる映像上の領域です（DVD のみ。Blu-ray のビルドと Web 版では省きます）。見た目は映像に描いておき、ディスクはその領域を光らせます。映像上の枠はドラッグで移動、角のドラッグで大きさを変えられます。", tbtn_from: "開始", tbtn_to: "終了", tbtn_to_end: "最後まで", tbtn_here: "再生位置にする", tbtn_subs: "字幕のあるタイトルには、まだボタンを置けません（プレーヤーは表示中の字幕ストリームの上でボタンを光らせるため）。", tbtn_hl: "選択時", tbtn_sel: "決定時", tbtn_link: "リンク", sim_time: "タイトル内の時刻",
+    animate: "登場", anim_on: "動いて登場する", anim_start: "開始（秒）", anim_duration: "長さ（秒）",
+    anim_dx: "開始時の横のずれ", anim_dy: "開始時の縦のずれ", anim_scale: "開始時の大きさ %", anim_fade: "フェードイン",
+    anim_hint: "メニュー開始からその時刻に一度だけ、ずらした位置から（画像は小さい大きさから）メニュー上の位置と大きさへ動きます。メニューはモーションメニューになります。一度だけ再生するには、ループポイントをその後に置いてください。",
     adjust: "調整", adj_left: "切り抜き 左 %", adj_top: "切り抜き 上 %", adj_width: "切り抜き 幅 %", adj_height: "切り抜き 高さ %",
     adj_brightness: "明るさ", adj_contrast: "コントラスト %", adj_saturation: "彩度 %", adj_reset: "リセット",
     adj_hint: "配置する前の画像に対して行います（切り抜き、続いて明るさ・コントラスト・彩度）。ディスクにもこのとおり入ります。",
@@ -3080,6 +3086,36 @@ function rotateDrag(ev, node, menu, group) {
   };
   node.addEventListener("pointermove", move); node.addEventListener("pointerup", up);
 }
+// an object coming in (animate): pictures move, grow and fade in; texts move and fade in
+function animateHtml(it, kind) {
+  const a = it.animate;
+  return `<h3>${t("animate")}</h3><div data-nobind data-animate>
+    <label class="field"><span></span><label><input type="checkbox" data-anim-on ${a ? "checked" : ""}> ${t("anim_on")}</label></label>
+    ${a ? `<div class="grid2">
+      <label class="field"><span>${t("anim_start")}</span><input type="number" data-anim="start" min="0" max="600" step="0.1" value="${a.start ?? 0}"></label>
+      <label class="field"><span>${t("anim_duration")}</span><input type="number" data-anim="duration" min="0.1" max="60" step="0.1" value="${a.duration ?? 1}"></label>
+      <label class="field"><span>${t("anim_dx")}</span><input type="number" data-anim="dx" min="-1920" max="1920" value="${a.dx ?? 0}"></label>
+      <label class="field"><span>${t("anim_dy")}</span><input type="number" data-anim="dy" min="-1080" max="1080" value="${a.dy ?? 0}"></label>
+      ${kind === "image" ? `<label class="field"><span>${t("anim_scale")}</span><input type="number" data-anim="scale" min="5" max="100" value="${Math.round((a.scale ?? 1) * 100)}"></label>` : ""}
+      <label class="field"><span></span><label><input type="checkbox" data-anim="fade" ${a.fade ? "checked" : ""}> ${t("anim_fade")}</label></label>
+    </div><div class="hint">${esc(t("anim_hint"))}</div>` : ""}</div>`;
+}
+function bindAnimate(el, find) {
+  const box = el.querySelector("[data-animate]");
+  if (!box) return;
+  box.querySelector("[data-anim-on]").onchange = (e) => commit((p) => {
+    const o = find(p);
+    if (e.target.checked) o.animate = { start: 0, duration: 1, dy: 40, fade: true }; else delete o.animate;
+  });
+  box.querySelectorAll("[data-anim]").forEach((inp) => (inp.onchange = () => commit((p) => {
+    const a = find(p).animate, k = inp.dataset.anim;
+    if (k === "fade") { if (inp.checked) a.fade = true; else delete a.fade; return; }
+    const v = Number(inp.value);
+    if (inp.value === "" || Number.isNaN(v)) return;
+    if (k === "scale") { if (v >= 100) delete a.scale; else a.scale = Math.max(5, v) / 100; return; }
+    if ((k === "dx" || k === "dy") && !v) delete a[k]; else a[k] = k === "dx" || k === "dy" ? Math.round(v) : v;
+  })));
+}
 function transformHtml(it, kind) {
   return `<h3>${t("transform")}</h3><div class="grid2" data-nobind>
     <label class="field"><span>${t("rotation")}</span><input type="number" id="tf-rot" min="-360" max="360" step="1" value="${Number(it.rotate) || 0}"></label>
@@ -3430,10 +3466,12 @@ function renderMenuInspector(el) {
       <label class="field" data-nobind><span></span><label><input type="checkbox" id="pic-ratio" ${S.picFree ? "" : "checked"}> ${t("keep_ratio")}</label></label>
       <label class="field" data-nobind><span>${t("opacity")}</span><input type="range" id="pic-a" min="0" max="100" value="${Math.round((it.opacity ?? 1) * 100)}"></label>
       ${adjustHtml(it.adjust)}
+      ${animateHtml(it, "image")}
       ${pageHtml(menu, it)}${transformHtml(it, "image")}
       <button class="danger" id="del-el">${t("delete")}</button>`;
     bindFields(el, (p) => find(p).images[sel.i], { numeric: ["x", "y"] });
     bindTransform(el, (p) => find(p).images[sel.i]);
+    bindAnimate(el, (p) => find(p).images[sel.i]);
     bindAdjust(el, (p) => find(p).images[sel.i], "adjust");
     bindPage(el, (p) => find(p).images[sel.i]);
     const resize = (which) => commit((p) => {
@@ -3541,9 +3579,11 @@ function renderMenuInspector(el) {
       ${sel.kind === "button" ? `<label class="field" data-nobind><span>${t("button_number")}</span>${selectHtml("number", numbered.map(([, i], k) => [String(i), menu.button_offset ? t("number_on_remote", { n: k + 1, k: k + 1 + menu.button_offset }) : String(k + 1)]), String(sel.i), 'id="btn-number"')}<div class="hint">${esc(t("button_number_hint"))}</div></label>
         <h3>${t("nav")}</h3><div class="grid2">${["up", "down", "left", "right"].map((d) =>
         `<label class="field"><span>${d}</span>${selectHtml("nav." + d, btnIds, (it.nav || {})[d] || "__none__")}</label>`).join("")}</div>` : ""}
+      ${sel.kind === "text" ? animateHtml(it, "text") : ""}
       ${pageHtml(menu, it)}${transformHtml(it, sel.kind)}
       <button class="danger" id="del-el">${t("delete")}</button>`;
     bindTransform(el, (p) => (sel.kind === "button" ? find(p).buttons : find(p).texts)[sel.i]);
+    if (sel.kind === "text") bindAnimate(el, (p) => find(p).texts[sel.i]);
     bindPage(el, (p) => (sel.kind === "button" ? find(p).buttons : find(p).texts)[sel.i]);
     // Number: the button moves to that place; the others close up
     if ($("#btn-number")) $("#btn-number").onchange = (e) => {

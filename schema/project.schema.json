@@ -655,6 +655,9 @@
       ],
       "additionalProperties": false,
       "properties": {
+        "animate": {
+          "$ref": "#/$defs/animate"
+        },
         "hidden": {
           "type": "boolean",
           "description": "Switched off in the Layers panel: not on the disc."
@@ -1278,6 +1281,45 @@
         }
       }
     },
+    "animate": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The object comes in once: from start seconds into the menu, over duration, it moves from dx, dy pixels away (and grows from scale, pictures only, and fades in from clear) to where and as it is. The menu becomes a motion menu; set its loop point after the animation to play it once.",
+      "properties": {
+        "start": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 600,
+          "default": 0
+        },
+        "duration": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 60,
+          "default": 1
+        },
+        "dx": {
+          "type": "integer",
+          "minimum": -1920,
+          "maximum": 1920
+        },
+        "dy": {
+          "type": "integer",
+          "minimum": -1080,
+          "maximum": 1080
+        },
+        "scale": {
+          "type": "number",
+          "minimum": 0.05,
+          "maximum": 1,
+          "description": "Pictures: its size at the start, as a fraction of its own (it grows to it about its centre)."
+        },
+        "fade": {
+          "type": "boolean",
+          "description": "Fades in from clear."
+        }
+      }
+    },
     "adjust": {
       "type": "object",
       "additionalProperties": false,
@@ -1394,6 +1436,9 @@
         },
         "adjust": {
           "$ref": "#/$defs/adjust"
+        },
+        "animate": {
+          "$ref": "#/$defs/animate"
         }
       }
     },

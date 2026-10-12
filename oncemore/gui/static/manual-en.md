@@ -235,6 +235,11 @@ Viewer**.
 * A title or chapter button's **thumbnail** (its Properties > Thumbnail)
   can be cut to a **Shape**: rounded corners, an ellipse, or a picture whose
   opaque part shows it (still thumbnails), as the menu shows.
+* **Comes in** (a text's or picture's Properties): the object comes in once,
+  from a time into the menu over a time, moving from a distance away (a
+  picture also growing from smaller) and fading in, to where it is on the
+  menu. The menu becomes a motion menu; put its loop point after the
+  animation to play it once. The menu editor shows the objects at rest.
 * **Adjust** (a picture's Properties, and the menu's for its background
   picture or video): crop a part of it (left, top, width and height in
   percent), and set its brightness, contrast and saturation. The menu shows

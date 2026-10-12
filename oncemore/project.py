@@ -455,6 +455,23 @@ class Title:
 
 
 @dataclass
+class Animate:
+    """An object coming in once, from `start` seconds into the menu over
+    `duration`: from (dx, dy) away, at `scale` (pictures), faded in from
+    clear (`fade`), to where and as it is."""
+    start: float = 0.0
+    duration: float = 1.0
+    dx: int = 0
+    dy: int = 0
+    scale: float = 1.0
+    fade: bool = False
+
+    @property
+    def end(self):
+        return self.start + self.duration
+
+
+@dataclass
 class Text:
     text: str
     x: int
@@ -480,6 +497,7 @@ class Text:
     vertical: bool = False     # lines are columns, right to left
     underline: bool = False
     strikethrough: bool = False
+    animate: Animate = None    # comes in on a motion of its own (the menu is then motion)
 
 
 @dataclass
@@ -518,6 +536,7 @@ class Picture:
     flip: str = None
     page: int = 0
     adjust: Adjust = None
+    animate: Animate = None
 
 
 @dataclass
@@ -910,6 +929,12 @@ class _Builder:
                 menus.extend(self.chapter_menus(i, titles[i], {} if spec is True else spec,
                                                 disc, default_menu))
         self.unique([m.id for m in menus], "menus")
+        for m in menus:
+            ends = [x.animate.end for x in list(m.images) + list(m.texts) if x.animate]
+            if ends and not m.page_of and m.loop_point < max(ends):
+                self.warnings.append(
+                    f"menu {m.id!r}: what comes in comes in again each time the menu loops; "
+                    f"set its loop point to {max(ends):g} s or later to play it once")
 
         # Menu order: the first-play menu (or first menu) becomes PGC 1, the
         # titleset "root" menu. The rest keep their order.
@@ -1258,6 +1283,7 @@ class _Builder:
                       width=t.get("width"), height=t.get("height"),
                       vertical=bool(t.get("vertical")), underline=bool(t.get("underline")),
                       strikethrough=bool(t.get("strikethrough")),
+                      animate=self.animate(f"{where}.texts[{j}].animate", t.get("animate"), False),
                       **self.style(f"{where}.texts[{j}]", t))
                  for j, t in enumerate(m.get("texts", []))]
         for j, b in enumerate(buttons):
@@ -1329,6 +1355,7 @@ class _Builder:
             images=[Picture(self.file(f"{where}.images[{j}].file", p["file"]), p["x"], p["y"],
                             p["w"], p["h"], p.get("opacity", 1.0), page=p.get("page", 0),
                             adjust=self.adjust(f"{where}.images[{j}].adjust", p.get("adjust")),
+                            animate=self.animate(f"{where}.images[{j}].animate", p.get("animate")),
                             **self.transform(p))
                     for j, p in enumerate(m.get("images", []))],
             background_adjust=self.adjust(f"{where}.background_adjust", m.get("background_adjust")),
@@ -1454,6 +1481,21 @@ class _Builder:
         except ValueError as e:
             self.err(where, str(e))
             return 0.0
+
+    def animate(self, where, spec, scales=True):
+        """An Animate from the project's `animate` object, None without one;
+        `scales`: the object can grow (pictures)."""
+        if not spec:
+            return None
+        if "scale" in spec and not scales:
+            self.err(f"{where}.scale", "a text moves and fades in; only a picture grows")
+        a = Animate(float(spec.get("start", 0)), float(spec.get("duration", 1)),
+                    int(spec.get("dx", 0)), int(spec.get("dy", 0)),
+                    float(spec.get("scale", 1)), bool(spec.get("fade")))
+        if (a.dx, a.dy, a.scale, a.fade) == (0, 0, 1.0, False):
+            self.warnings.append(f"{where}: it neither moves, grows nor fades in")
+            return None
+        return a
 
     def adjust(self, where, spec):
         """An Adjust from the project's `adjust` object, None when it leaves

@@ -2632,3 +2632,41 @@ layers inside it still follow their own visibility).
   project paginating it with NEXT and PREV between the pages, and a
   re-import without pages; the Next / Prev names only with pages.
 
+## 123. Objects coming in on a menu
+
+A menu's texts and pictures take `animate` {start, duration, dx, dy,
+scale, fade}: the object comes in once, from `start` seconds into the menu
+over `duration`, from (dx, dy) away (and, a picture, from `scale` of its
+size, growing about its centre), fading in from clear, to where and as it
+is. That is the common case of animated menu objects (a title sliding
+in, a logo growing) as one setting rather than key frames; the end state
+is the object as placed, so the editor and every preview show it there.
+
+* A menu with one is a motion menu: `compose(menu, animate=True)` draws
+  it over the menu's length, the still background (or colour) looped to
+  that length, a moving picture looped too. Without `animate` (the first
+  frame for previews, the menu's base picture) every object is at rest.
+  DVD, Blu-ray (`bdmenu`, distances scaled to the HD frame) and the web
+  version use the same composition.
+* Position: overlay x / y expressions of t (`clip((t-start)/duration,0,1)`,
+  linear). Fade: `fade=t=in:alpha=1` on the object's own stream.
+* A text is drawn on a clear layer of the menu's size, which moves and
+  fades (a text is a drawtext chain on the menu, so it has no stream of
+  its own to move); a turned text is turned on that layer first. A text
+  does not grow (`scale` is refused).
+* Growing: ffmpeg's `scale` cannot change a frame's size as it goes
+  (with `eval=frame` the size stayed the first one here, ffmpeg 6.1), so
+  the picture keeps its box and `geq` draws it smaller in it, clear
+  around. It grows from smaller only (`scale` up to 1), so it always
+  fits its box, turned pictures included.
+* A menu loops from its loop point (or its start), so an animation after
+  the loop point plays again each loop: the project check says so and
+  names the loop point that plays it once.
+
+* `tests/test_menuanimate.py`: the model, the refusals and the loop-point
+  warning; a picture's frames over two seconds (not there and clear
+  before, half way and half clear in the middle, at rest at the end, and
+  at rest in the base picture); a picture growing about its centre; a
+  text coming down and fading in; a DVD menu encoded with one (dark
+  before, white after); the app's Comes in for a text and a picture.
+
