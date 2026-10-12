@@ -66,6 +66,46 @@ def wordmark(font_path, size, x0, baseline, track=-0.01):
     return " ".join(parts), x - track * size - x0
 
 
+def mark_outlined():
+    """The mark as filled outlines of cubic curves alone (no arcs, no
+    strokes): the same shapes as mark(), as Icon Composer reads them (its
+    SVG import draws arcs and strokes as straight pieces)."""
+    cx = cy = 50
+    r, sw = 33, 13
+    outer, inner = r + sw / 2, r - sw / 2
+    a0, a1 = math.radians(340), math.radians(630)       # clockwise, as mark() draws it
+
+    def pt(radius, a):
+        return cx + radius * math.cos(a), cy + radius * math.sin(a)
+
+    def arc(radius, start, end, parts=4):
+        """Cubic pieces from `start` to `end` (radians) on a circle."""
+        out = []
+        step = (end - start) / parts
+        k = 4 / 3 * math.tan(step / 4)
+        for i in range(parts):
+            s, e = start + i * step, start + (i + 1) * step
+            p0, p3_ = pt(radius, s), pt(radius, e)
+            c1 = (p0[0] - k * radius * math.sin(s), p0[1] + k * radius * math.cos(s))
+            c2 = (p3_[0] + k * radius * math.sin(e), p3_[1] - k * radius * math.cos(e))
+            out.append(f"C{c1[0]:.3f} {c1[1]:.3f} {c2[0]:.3f} {c2[1]:.3f} {p3_[0]:.3f} {p3_[1]:.3f}")
+        return " ".join(out)
+    o0, i1 = pt(outer, a0), pt(inner, a1)
+    ring = (f"M{o0[0]:.3f} {o0[1]:.3f} {arc(outer, a0, a1)} L{i1[0]:.3f} {i1[1]:.3f} "
+            f"{arc(inner, a1, a0)} Z")
+    c0 = pt(9, 0)
+    dot = f"M{c0[0]:.3f} {c0[1]:.3f} {arc(9, 0, 2 * math.pi)} Z"
+    # the arrowhead, as mark() places it
+    p1 = pt(r, a1)
+    tx, ty = -math.sin(a1), math.cos(a1)
+    nx, ny = -ty, tx
+    tip = (p1[0] + tx * 17, p1[1] + ty * 17)
+    b1 = (p1[0] + nx * 15 - tx, p1[1] + ny * 15 - ty)
+    b2 = (p1[0] - nx * 15 - tx, p1[1] - ny * 15 - ty)
+    head = f"M{tip[0]:.3f} {tip[1]:.3f} L{b1[0]:.3f} {b1[1]:.3f} L{b2[0]:.3f} {b2[1]:.3f} Z"
+    return f'<path d="{ring} {dot} {head}" fill="{HIGHLIGHT}"/>'
+
+
 def p3(hex_colour):
     """An sRGB colour as Icon Composer writes colours: "display-p3:r,g,b,a"."""
     def lin(c):
@@ -86,12 +126,14 @@ def icon_bundle(folder):
     Human Interface Guidelines, App icons): a square, unmasked design the
     system masks and lights itself. The background is a solid ink fill; the
     mark, the one foreground layer, is centred at the size it has on the
-    legacy icon's tile. Older macOS take AppIcon.png (macos/build_app.sh)."""
+    legacy icon's tile, drawn in filled curves (mark_outlined). Older macOS
+    take AppIcon.png (macos/build_app.sh)."""
     assets = os.path.join(folder, "Assets")
     os.makedirs(assets, exist_ok=True)
     k = 600 / 824 * 1024 / 100                     # the mark's share of the tile, as before
     off = (1024 - 100 * k) / 2
-    layer = svg(1024, 1024, f'<g transform="translate({off:g} {off:g}) scale({k:g})">{mark()}</g>',
+    layer = svg(1024, 1024,
+                f'<g transform="translate({off:g} {off:g}) scale({k:g})">{mark_outlined()}</g>',
                 "oncemore")
     with open(os.path.join(assets, "mark.svg"), "w") as f:
         f.write(layer)
@@ -102,7 +144,8 @@ def icon_bundle(folder):
                         "position": {"scale": 1, "translation-in-points": [0, 0]}}],
             "shadow": {"kind": "neutral", "opacity": 0.5},
             "specular": True,
-            "translucency": {"enabled": True, "value": 0.5},
+            # (opaque: the mark keeps the brand yellow; the light is the system's)
+            "translucency": {"enabled": False, "value": 0.5},
         }],
         "supported-platforms": {"squares": "shared"},
     }

@@ -2351,8 +2351,12 @@ Mac at hand).
   `Assets/mark.svg`) is drawn by `make_logo.py --icon`: the background a
   solid `--brand-ink` fill (in Display P3, as Icon Composer writes
   colours), the mark the one foreground layer, centred at the share of the
-  icon it had on the old tile. The look of each appearance is left to the
-  system (none provided).
+  icon it had on the old tile, opaque (the brand yellow, not tinted by the
+  ink through glass). The look of each appearance is left to the system
+  (none provided). The layer's mark is the same shapes in filled cubic
+  outlines (`mark_outlined`): Icon Composer's renderer drew the stroked
+  arc of the other files as straight pieces, with a stray line at the
+  arrow, in the first previews.
 * `build_app.sh` compiles it with `actool` (Xcode 26 or later) into
   `Assets.car`, and `Info.plist` names it (`CFBundleIconName`); macOS 15
   and earlier still take `AppIcon.icns` (`CFBundleIconFile`), made from
