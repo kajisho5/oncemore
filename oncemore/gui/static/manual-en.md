@@ -277,7 +277,10 @@ window) makes a menu from a layered design. Layer groups named `(+) Name`
 are buttons; inside them `(=1)` layers are their highlights and `(%)`
 layers where a title or chapter thumbnail goes; everything else is the
 background. Buttons named like *Play*, *Play all*, *Scene 3* or a title's
-name are linked by themselves; check the rest.
+name are linked by themselves; check the rest. Top-level groups named
+`(page) Name` are the menu's pages (from the top of the Layers panel, shown
+or hidden): their artwork and buttons are on that page, buttons named
+*Next* and *Prev* turn the page, and the rest is on every page.
 
 **Edit > Edit menu in Photoshop** opens the menu's file; when it is saved
 there, the Menu Viewer offers to import it again, keeping every button's link.

@@ -671,6 +671,7 @@ layer names use the prefixes long common for DVD menus:
 | `(+) Play Movie` | a **group** that is a button; the name becomes its id and suggests its target |
 | `(=1) …` inside a button | its highlight (also `(=2)`, `(=3)`; merged, a DVD highlight here has one colour) |
 | `(%) …` inside a button | where the title / chapter thumbnail goes |
+| `(page) Scenes 1–6` | a top-level **group** that is a **page** of the menu: its artwork and buttons are on that page only |
 | anything else visible | artwork, flattened into the background |
 
 * The background is the file's own flattened image when the `(=n)` and `(%)`
@@ -683,6 +684,11 @@ layer names use the prefixes long common for DVD menus:
   one as square pixels: both land where they were drawn.
 * **Import again** after editing the file updates the pictures and keeps every
   button's target and the menu's settings.
+* **Pages**: each top-level `(page) …` group is a page, in the order of the
+  Layers panel from the top, shown or hidden in the file alike. Its artwork
+  becomes a picture on that page and its `(+)` buttons are on it; what is
+  outside the pages is the background of every page (rebuilt from those
+  layers). Buttons named *Next* or *Prev* turn the page.
 
 Imported buttons are ordinary buttons with only a `highlight_image` (and a
 `thumbnail` rectangle, which any title / chapter button can have).
