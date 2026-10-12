@@ -179,6 +179,7 @@ const I18N = {
     tools: "Tools", ok: "OK", missing: "missing", tracks_hint: "Leave empty to use the video's own sound.",
     stream: "Stream", file: "File", add_track: "+ Track", add_sub: "+ Subtitle file",
     tbtn: "Buttons over the title", tbtn_add: "+ Button", tbtn_hint: "Areas of the picture the viewer selects with the arrow keys and presses with OK while the title plays (DVD only; a Blu-ray build and the web version leave them out). Draw what they look like into the video; the disc lights the area. On the picture, drag a box to move it and its corner to resize it.", tbtn_from: "From", tbtn_to: "To", tbtn_to_end: "the end", tbtn_here: "Set to the playhead", tbtn_subs: "A title with subtitles cannot have buttons over it yet: the player lights the buttons in the subtitle stream it shows.", tbtn_hl: "Selected", tbtn_sel: "Pressed", tbtn_link: "Link", sim_time: "Time in the title",
+    scripts: "Navigation scripts", scripts_hint: "A few lines of navigation for what a link cannot do: count, remember, choose at random. A menu's or a title's button, a menu's time-out or the end of a title or playlist runs one when its link is “Script: …”. $name is a variable (0 when the disc starts); play <link>; goes somewhere, e.g. play menu:main; or play title:t1;. DVD only.", add_script: "+ Script", script_item: "Script: {s}", script_ok: "Variables: {v} · goes to: {a}", script_none: "none", sim_vars: "Variables",
     angles: "Angles", add_angle: "+ Angle", angle_n: "Angle {n}", angles_hint: "Other views of the same scene, switched with the remote's Angle key (DVD only; a Blu-ray build leaves them out). Each video must be at least as long as the title's; it is encoded with the title's settings and sound.", angles_none: "Angles need a single video file as the title's source.",
     frame_err: "Cannot show this frame", preview_err: "Preview failed",
     confirm_delete: "Delete “{x}”?", chapter_at: "Chapter {n}", playhead: "Playhead",
@@ -456,6 +457,7 @@ const I18N = {
     tools: "ツール", ok: "OK", missing: "不足", tracks_hint: "空なら動画自体の音声を使います。",
     stream: "ストリーム", file: "ファイル", add_track: "＋トラック", add_sub: "＋字幕ファイル",
     tbtn: "タイトル上のボタン", tbtn_add: "＋ボタン", tbtn_hint: "タイトルの再生中に、矢印キーで選び OK で押せる映像上の領域です（DVD のみ。Blu-ray のビルドと Web 版では省きます）。見た目は映像に描いておき、ディスクはその領域を光らせます。映像上の枠はドラッグで移動、角のドラッグで大きさを変えられます。", tbtn_from: "開始", tbtn_to: "終了", tbtn_to_end: "最後まで", tbtn_here: "再生位置にする", tbtn_subs: "字幕のあるタイトルには、まだボタンを置けません（プレーヤーは表示中の字幕ストリームの上でボタンを光らせるため）。", tbtn_hl: "選択時", tbtn_sel: "決定時", tbtn_link: "リンク", sim_time: "タイトル内の時刻",
+    scripts: "ナビゲーションスクリプト", scripts_hint: "リンクだけではできないこと（回数を数える、覚えておく、ランダムに選ぶ）を数行のナビゲーションで書けます。メニューやタイトルのボタン、メニューのタイムアウト、タイトル・プレイリストの終了時のリンクを「スクリプト：…」にすると実行されます。$name は変数（ディスク開始時は 0）、play <リンク>; で移動します（例：play menu:main; play title:t1;）。DVD のみ。", add_script: "＋スクリプト", script_item: "スクリプト：{s}", script_ok: "変数：{v} · 行き先：{a}", script_none: "なし", sim_vars: "変数",
     angles: "アングル", add_angle: "＋アングル", angle_n: "アングル {n}", angles_hint: "同じ場面の別の映像で、リモコンのアングルキーで切り替えます（DVD のみ。Blu-ray のビルドでは省きます）。各動画はタイトルの長さ以上が必要で、タイトルと同じ設定・音声でエンコードします。", angles_none: "アングルを使うには、タイトルのソースが 1 本の動画ファイルである必要があります。",
     frame_err: "このフレームを表示できません", preview_err: "プレビューに失敗",
     confirm_delete: "「{x}」を削除しますか？", chapter_at: "チャプター {n}", playhead: "再生位置",
@@ -734,7 +736,7 @@ function uniqueId(prefix, existing) {
   while (existing.includes(`${prefix}${n}`)) n++;
   return `${prefix}${n}`;
 }
-function actionOptions({ forButton = true, allowStop = true, includeChapters = forButton, allowPlayAll = forButton, allowLast = false } = {}) {
+function actionOptions({ forButton = true, allowStop = true, includeChapters = forButton, allowPlayAll = forButton, allowLast = false, allowScripts = true } = {}) {
   const p = P(), opts = [];
   const here = forButton && S.sel.view === "menu" ? curMenu() : null;
   if (here && pagesOf(here) > 1) {
@@ -763,6 +765,8 @@ function actionOptions({ forButton = true, allowStop = true, includeChapters = f
     for (let i = 1; i <= ns; i++) opts.push([`subtitle:${i}`, t("subtitle_item", { n: i })]);
     if (ns) opts.push(["subtitle:off", t("subtitle_off")]);
   }
+  // (navigation scripts: DVD, buttons and end actions)
+  if (allowScripts) for (const id of Object.keys(p.scripts || {})) opts.push([`commands:${id}`, t("script_item", { s: id })]);
   if (allowStop) opts.push(["stop", t("stop")]);
   return opts;
 }
@@ -842,8 +846,12 @@ function renameRefs(p, kind, oldId, newId) {
       if (a.startsWith(`chapter:${oldId}:`)) return `chapter:${newId}:` + a.split(":")[2];
     }
     if (kind === "playlist" && a === `playlist:${oldId}`) return `playlist:${newId}`;
+    if (kind === "script" && a === `commands:${oldId}`) return `commands:${newId}`;
     return a;
   };
+  // (the links inside the scripts: play menu:<id>; ...)
+  for (const id of Object.keys(p.scripts || {}))
+    p.scripts[id] = p.scripts[id].replace(/\b(?:menu|title|chapter|playlist):[A-Za-z0-9_:-]+/g, fix);
   p.disc.first_play = fix(p.disc.first_play);
   for (const ti of p.titles || []) {
     ti.end_action = fix(ti.end_action);
@@ -1444,7 +1452,7 @@ function thumbSrc(b) {
 
 function renderDisc(m) {
   const d = P().disc, ss = d.subtitle_style || {}, pal = d.standard === "PAL";
-  const fp = actionOptions({ forButton: false, allowStop: false, includeChapters: false, allowPlayAll: true });
+  const fp = actionOptions({ forButton: false, allowStop: false, includeChapters: false, allowPlayAll: true, allowScripts: false });
   m.innerHTML = `<h2>${t("prop_disc")}</h2><div class="card">
     <label class="field"><span>${t("label")}</span><input data-k="label" value="${esc(d.label)}"></label>
     <div class="grid2">
@@ -1466,8 +1474,10 @@ function renderDisc(m) {
       <label class="field"><span>${t("outline")}</span><input type="color" data-k="subtitle_style.outline" value="${esc((ss.outline || "#000000").slice(0, 7))}"></label>
       <label class="field"><span>${t("outline_w")}</span><input type="number" data-k="subtitle_style.outline_width" min="0" max="8" value="${ss.outline_width ?? ""}" placeholder="3"></label>
     </div>
-  </div>`;
+  </div>
+  ${scriptsHtml()}`;
   renderToolsInfo(m);
+  bindScripts(m);
   bindFields(m, (p) => p.disc, {
     numeric: ["subtitle_style.size", "subtitle_style.margin", "subtitle_style.outline_width"],
     onAfter: (p, key, val) => {
@@ -1480,6 +1490,57 @@ function renderDisc(m) {
   $("#rom-files").onchange = (e) => commit((p) => {
     const list = e.target.value.split("\n").map((x) => x.trim()).filter(Boolean);
     if (list.length) p.disc.rom_files = list; else delete p.disc.rom_files;
+  });
+}
+
+// -- navigation scripts (DVD): {id: text}, run by links commands:<id>
+function scriptsHtml() {
+  const sc = P().scripts || {};
+  return `<h2>${t("scripts")}</h2><div class="card" id="scripts" data-nobind>
+    <div class="hint">${esc(t("scripts_hint"))}</div>
+    ${Object.entries(sc).map(([id, text]) => `<div class="script-row" data-script="${esc(id)}" style="margin:10px 0">
+      <div class="row"><input class="mono" data-sid value="${esc(id)}" aria-label="id">
+        <button class="small danger shrink" data-del-script title="${esc(t("delete"))}">✕</button></div>
+      <textarea class="mono" rows="5" spellcheck="false" data-stext>${esc(text)}</textarea>
+      <div class="hint" data-scheck></div></div>`).join("")}
+    <button class="small" id="add-script">${t("add_script")}</button></div>`;
+}
+async function checkScript(row) {
+  const out = row.querySelector("[data-scheck]"), text = row.querySelector("[data-stext]").value;
+  try {
+    const r = await api("/api/script_check", { method: "POST", body: { text } });
+    if (row.querySelector("[data-stext]").value !== text) return;          // (typed on since)
+    out.className = r.ok ? "hint" : "hint warn";
+    out.textContent = r.ok ? t("script_ok", { v: r.variables.map((v) => "$" + v).join(", ") || t("script_none"), a: r.actions.join(", ") }) : r.error;
+  } catch (e) { out.className = "hint warn"; out.textContent = e.message; }
+}
+function bindScripts(el) {
+  const box = el.querySelector("#scripts");
+  if (!box) return;
+  box.querySelectorAll("[data-script]").forEach((row) => {
+    const id = row.dataset.script, ta = row.querySelector("[data-stext]");
+    let timer;
+    checkScript(row);
+    ta.oninput = () => { clearTimeout(timer); timer = setTimeout(() => checkScript(row), 300); };
+    ta.onchange = () => commit((p) => { p.scripts[id] = ta.value; }, { render: false });
+    row.querySelector("[data-sid]").onchange = (e) => {
+      const nid = e.target.value.trim();
+      if (!/^[A-Za-z0-9_-]{1,40}$/.test(nid) || (nid !== id && nid in (P().scripts || {}))) { e.target.value = id; return; }
+      if (nid === id) return;
+      commit((p) => {
+        renameRefs(p, "script", id, nid);
+        p.scripts = Object.fromEntries(Object.entries(p.scripts).map(([k, v]) => [k === id ? nid : k, v]));
+      });
+    };
+    row.querySelector("[data-del-script]").onclick = () => commit((p) => {
+      delete p.scripts[id];
+      if (!Object.keys(p.scripts).length) delete p.scripts;
+    });
+  });
+  box.querySelector("#add-script").onclick = () => commit((p) => {
+    const id = uniqueId("script", Object.keys(p.scripts || {}));
+    const first = (p.menus || [])[0];
+    p.scripts = { ...(p.scripts || {}), [id]: first ? `play menu:${first.id};` : "play stop;" };
   });
 }
 
@@ -2040,8 +2101,9 @@ async function renderSimScreen() {
   if (!scr) return;
   if (S.simError) { scr.innerHTML = `<div class="sim-msg">${esc(S.simError)}</div>`; return; }
   const sim = S.sim, s = sim.state;
+  const vars = Object.entries(s.vars || {}).map(([k, v]) => `$${k} = ${v}`).join(", ");
   const flags = [s.audio ? t("audio_n", { n: s.audio }) : "", s.subtitle ? t("sub_n", { n: s.subtitle }) : t("sub_off"),
-    s.playall ? t("in_playall") : "", s.playlist ? t("in_playlist") : ""].filter(Boolean).join(" · ");
+    s.playall ? t("in_playall") : "", s.playlist ? t("in_playlist") : "", vars ? `${t("sim_vars")}: ${vars}` : ""].filter(Boolean).join(" · ");
   if (s.domain === "menu") {
     let mm;
     st.innerHTML = `<b>${t("now")}:</b> ${t("menu")} <span class="mono">${esc(s.menu)}</span> · ${esc(flags)}<div class="hint">${esc((s.log || []).join(" → "))}</div>`;
@@ -3372,7 +3434,7 @@ function renderMenuInspector(el) {
     el.innerHTML = `<h2>${sel.kind === "button" ? t("button") : t("text")}</h2>
       ${sel.kind === "button" ? `<label class="field"><span>${t("text")}</span><input data-k="label" value="${esc(it.label)}"></label>
         <label class="field"><span>${t("action")} ${whipHtml("action")}</span>${selectHtml("action", actionOptions(), it.action)}</label>
-        ${/^(title|chapter):/.test(it.action || "") ? `<label class="field"><span>${t("override")}</span>${selectHtml("override", [["__none__", t("override_none")], ...actionOptions({ forButton: false, includeChapters: true, allowPlayAll: true, allowLast: true })], it.override || "__none__")}<div class="hint">${esc(t("override_hint"))}</div></label>` : ""}
+        ${/^(title|chapter):/.test(it.action || "") ? `<label class="field"><span>${t("override")}</span>${selectHtml("override", [["__none__", t("override_none")], ...actionOptions({ forButton: false, includeChapters: true, allowPlayAll: true, allowLast: true, allowScripts: false })], it.override || "__none__")}<div class="hint">${esc(t("override_hint"))}</div></label>` : ""}
         ${TRANSITION_RE.test(it.action || "") ? `<label class="field"><span>${t("transition")}</span>${selectHtml("transition", [["__none__", t("none")], ...mediaOf("video").map((x) => [x, x])], it.transition || "__none__")}<div class="hint">${esc(t("transition_hint"))}</div></label>` : ""}
         ${streamsHtml(it)}
         <label class="field"><span></span><label><input type="checkbox" data-k="auto_activate" ${it.auto_activate ? "checked" : ""}> ${t("auto_activate")}</label></label>

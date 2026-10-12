@@ -207,6 +207,14 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   chapter, opens a menu (Resume comes back, as from the Menu key) or
   switches the sound or subtitles. Preview plays them (*Time in the title*;
   `seek:<seconds>` for `oncemore simulate`); the web version leaves them out.
+* **Navigation scripts** (the disc's Properties > Navigation scripts, DVD):
+  a few lines of navigation for what a link cannot do (count presses,
+  remember a choice, pick at random); **+ Script** adds one, the app says
+  under the text which variables it uses and where it can go (or what is
+  wrong), and a button, a menu's time-out or a title's or playlist's end
+  takes *Script: <name>* as its link. Renaming a script keeps its links, and
+  renaming a menu or title updates the links inside the scripts. Preview
+  runs them and shows the variables. See [Navigation scripts](#navigation-scripts).
 * **Menus with pages** (Menu > Add new page): a menu's buttons spread over
   pages, turned with buttons to the next, previous or a given page; a
   heading or background shape can be on every page. Each page is a menu of

@@ -299,6 +299,31 @@ where the disc goes next.
   that cannot be skipped). What the **Title** key opens is a disc setting;
   what the **Menu** key opens is set for each title.
 
+### Navigation scripts {#scripts}
+
+For what a link alone cannot do (count presses, remember a choice, pick a
+title at random, ask a pass code), write a few lines of navigation in the
+disc's Properties, under *Navigation scripts* (DVD only). **+ Script** adds
+one; then choose *Script: <name>* as the link of a menu's or a title's
+button, a menu's time-out, or the end of a title or playlist.
+
+* `$name` is a variable: 0 when the disc starts, kept until a script
+  changes it (0 to 65535).
+* `play <link>;` goes somewhere, as a button would: `play menu:main;`,
+  `play title:t1;`, `play chapter:t1:3;`, `play playlist:best;`, `play
+  playall;`, `play stop;`, `play audio:2;`, `play subtitle:off;`.
+* `if ($n >= 2) { … } else { … }`, `$n += 1;`, `$r = random(3);` (1 to 3).
+* `audio`, `subtitle`, `angle` and `button` are the player's own values (as
+  dvdauthor reads them: the button is its number × 1024).
+* Every way through a script ends with a `play` that goes somewhere.
+
+Example (the second press plays the film): `$n += 1; if ($n >= 2) { $n = 0; play title:film; } else play menu:main;`
+
+Under the text the app says which variables the script uses and where it can
+go, or what is wrong. Preview runs scripts and shows the variables; the
+flowchart draws a line to each place a script can go. A Blu-ray and the web
+version have no scripts.
+
 ## Playlists {#playlists}
 
 **Timeline > New playlist** plays titles, chapters or ranges of chapters one

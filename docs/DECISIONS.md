@@ -2514,3 +2514,30 @@ a warning. The JSON Schema's subset gained `propertyNames` and
   and plays title B on the second, and one whose `random(1)` plays title
   A, both through libdvdnav.
 
+## 119. Navigation scripts in the app
+
+The disc's Properties have a *Navigation scripts* section (§118): each
+script's name and text, **+ Script** (`script<n>`, starting as a play of the
+first menu) and ✕. While the text is typed, the server reads it as the
+project would (`/api/script_check`: the variables and the places it goes,
+or the error) and the app shows that under it; the text is kept when the
+field is left. The link choices of menu and title buttons, menu time-outs
+and title and playlist ends list *Script: <name>*; first play, the Title
+key and overrides do not, as the project refuses them there.
+
+Renaming a script renames its `commands:` links. Renaming a menu, title or
+playlist also renames the links inside the scripts' text (`play menu:<id>`
+and the others), with the same rule as the other links. Deleting a script
+leaves its links, which the project check then reports. Preview's status
+shows the variables (`$n = 1`).
+
+The manual has a *Navigation scripts* section (en/ja) under Links.
+
+* `tests/test_navscript_gui.py`: the check endpoint; adding a script, its
+  check while typing (an error, then the variables and places), saving,
+  renaming with a button's link following, and Preview running it from the
+  number key (back to the menu with `$n = 1`, then title B); a menu
+  renamed in the scripts' links (`menu:main` and `menu:main:b`, not
+  `menu:mainly`); a title's end offers it, first play does not, and ✕
+  removes it.
+

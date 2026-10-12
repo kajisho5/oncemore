@@ -57,8 +57,9 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 
-from .. import (__version__, build, burn, clips, encode, graph, png4, scaffold, simulate, slideshow,
-               scenes, settings, subtitles, templates, tools, userstyles, usertemplates, web)
+from .. import (__version__, build, burn, clips, encode, graph, navscript, png4, scaffold, simulate,
+               slideshow, scenes, settings, subtitles, templates, tools, userstyles, usertemplates,
+               web)
 from ..errors import OncemoreError, ProjectError
 from ..project import (PROJECT_FILENAME, build_project, clip_starts, parse_time, read_json,
                        source_at)
@@ -706,6 +707,16 @@ class Handler(BaseHTTPRequestHandler):
         project = build_project(self.app.load(), self.app.path, check_files=True)
         infos, plan = build.inspect(project)
         self.json({"valid": True, "summary": build.summary(project, infos, plan)})
+
+    def api_post_script_check(self, q):
+        """A navigation script's text read as the project would: {text} ->
+        {ok, variables, actions} or {ok: false, error}."""
+        try:
+            stmts = navscript.parse(str(self.body_json().get("text", "")))
+        except navscript.ScriptError as e:
+            return self.json({"ok": False, "error": str(e)})
+        self.json({"ok": True, "variables": navscript.variables(stmts),
+                   "actions": list(dict.fromkeys(navscript.actions(stmts)))})
 
     def api_post_upload(self, q):
         name = safe_name(q.get("name", "upload"))
