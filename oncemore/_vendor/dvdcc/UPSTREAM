@@ -1,0 +1,3 @@
+dvdcc, https://github.com/kajisho5/dvdcc (Apache-2.0, see LICENSE and NOTICE)
+copied from PyPI dvdcc 0.1.1 (dvdcc-0.1.1-py3-none-any.whl, sha256 02cff064833d591109f630753c2c01b86b5daf8b38ade811526a4639272e5ddd)
+the package dvdcc/ only; its tests stay upstream

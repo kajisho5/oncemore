@@ -2076,3 +2076,27 @@ from. udfkit 0.1.0 is now on PyPI, so oncemore carries it
   `test_udfinfo`) stay and now test the copy oncemore carries; library
   calls raise `UdfError`. `test_promises` checks for udfkit's writer inside
   the package, as it checked for oncemore's.
+
+## 107. Closed captions written by dvdcc
+
+oncemore's `captions.py` was the code dvdcc was made from. dvdcc 0.1.1 is on
+PyPI (0.1.1 added UTF-16 subtitle files, which oncemore already read: the
+change was made there first, §105), so oncemore carries it
+(`oncemore/_vendor/dvdcc`) and `captions.py` is now a wrapper over it:
+`load` and `inject_file`, with dvdcc's `CaptionError` raised as
+`ProjectError`, as the old module raised.
+
+* dvdcc reads subtitle files with its own copy of the subtitle parsers.
+  oncemore's `subtitles.py` keeps its own (it also draws the subpictures
+  and reads image scripts' `Display_Area`, `Directory` and FAB scripts,
+  which dvdcc has not). Captions are text, so an image script carries none:
+  one of plain lines gave no captions before and gives none now; one that
+  opens with `Display_Area` or `Directory` gave no captions without a word
+  and is now refused at that line. A FAB script is refused the same way.
+* Checked by loading SubRip, WebVTT, ASS, drop-frame and non-drop text
+  scripts, a Scenarist file, a UTF-16 and a Shift_JIS file, each with and
+  without an offset and at the top and the bottom, through the old module
+  and through dvdcc: the same frames and the same notes. The same schedules
+  written into one MPEG-2 stream give byte-identical files.
+* `test_captions` now tests the copy oncemore carries, and checks that a
+  file dvdcc refuses reaches the project check as a `ProjectError`.

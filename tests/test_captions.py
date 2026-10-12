@@ -14,11 +14,12 @@ import subprocess
 import tempfile
 import unittest
 
-from oncemore import captions, tools
+from oncemore import captions as oncemore_captions, tools
+from oncemore._vendor.dvdcc import captions
+from oncemore._vendor.dvdcc.subtitles import Cue
 from oncemore.errors import ProjectError
 from oncemore.project import build_project
 from oncemore.scaffold import sample_project
-from oncemore.subtitles import Cue
 
 from .helpers import have, json_lines, run_cli
 
@@ -87,6 +88,25 @@ class TestBytes(unittest.TestCase):
                          [(0x94, 0x20), (0x94, 0x20), (0x94, 0xAE), (0x94, 0x2F)])
         with self.assertRaises(ValueError):
             captions.parse_scc("1\n00:00:01,000 --> 00:00:02,000\nnot scc\n")
+
+    def test_errors_are_oncemore_errors(self):
+        # dvdcc's CaptionError reaches the project check as a ProjectError
+        d = tempfile.mkdtemp(prefix="oncemore-cc-")
+        self.addCleanup(shutil.rmtree, d, True)
+        for name, text in (("bad.scc", "1\n00:00:01,000 --> 00:00:02,000\nnot scc\n"),
+                           ("bad.txt", "1 00:00:01:00 00:00:02:00 missing.png\n")):
+            path = os.path.join(d, name)
+            with open(path, "w") as f:
+                f.write(text)
+            with self.assertRaises(ProjectError) as cm:
+                oncemore_captions.load(path)
+            self.assertIn(path, cm.exception.message)
+        path = os.path.join(d, "ok.srt")
+        with open(path, "w") as f:
+            f.write("1\n00:00:01,000 --> 00:00:02,000\nHi\n")
+        (s, notes), (want, want_notes) = oncemore_captions.load(path), captions.load(path)
+        self.assertEqual((s.frames, notes), (want.frames, want_notes))
+        self.assertTrue(s.frames)
 
     def test_user_data(self):
         d = captions.user_data([(0x94, 0x20), captions.FILLER])
