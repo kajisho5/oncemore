@@ -192,6 +192,14 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   of the same scene, switched with the remote's Angle key without a break
   (the new angle from the next interleaved unit, about a second); add,
   pick, order and remove them there (the title's own video is angle 1).
+* **Buttons over a title** (project file `buttons` of a title, DVD): areas
+  of the picture the viewer selects and presses while the title plays, each
+  from a start to an end (a "skip intro" over the opening, links to the
+  next episode over the credits). The video shows them; the disc lights the
+  area. The arrow keys go between the buttons shown at the time; a link
+  plays a title or chapter, opens a menu (Resume comes back, as from the
+  Menu key) or switches the sound or subtitles. The disc simulator plays
+  them (`seek:<seconds>`); the web version leaves them out.
 * **Menus with pages** (Menu > Add new page): a menu's buttons spread over
   pages, turned with buttons to the next, previous or a given page; a
   heading or background shape can be on every page. Each page is a menu of
@@ -500,6 +508,8 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `slideshow` | a title made from pictures (below) | none |
 | `clips` | a title made of parts of several videos (below) | none |
 | `angles` | more views of the same scene (DVD only): video files the viewer switches between with the remote's Angle key, the `source` being angle 1; up to 8, each at least as long as the source, encoded with the title's settings and sound | `[]` |
+| `buttons` | buttons over the title's picture (DVD only; not with `subtitles`): `[{id, start, end, x, y, width, height, action}]`, each an area of the picture (the disc's pixels) the viewer selects with the arrow keys and presses with Enter from `start` to `end` (seconds; no `end`: to the title's end). The video shows what they look like; the disc lights the area when selected and pressed. `action` as a menu button's, but `resume` and `page:` (a link leaves the title as its end action would; `audio:` / `subtitle:` switch and the title plays on). The times they change are at least 1 s apart, and from chapters | `[]` |
+| `button_colors` | `{highlight, select}` of the buttons over the title | `#FFD400`, `#FF5A00` |
 | `chapters` | list of times, or `{time, name, poster}` objects (`name` labels the chapter-menu button, `poster` is the time of its thumbnail); `0` is added if missing | `[0]` |
 | `audio.codec` | `ac3` \| `lpcm` \| `dts` (48 kHz DTS copied from the sources, never encoded; 5.1 unless `channels` says 2; a DTS-HD source gives its DTS core; a DVD takes up to 1536k) | `ac3` |
 | `audio.bitrate` | AC-3 only, 64k–448k | `192k` (`448k` for 5.1) |
@@ -983,6 +993,9 @@ own folder in it, named after the project folder.
   and its background are left out. 4:3 titles and menus are
   pillarboxed in the 16:9 HD frame. Burning a BD uses the same tools as a DVD; growisofs
   documents BD media, `hdiutil burn` with a BD writer has not been tried.
+* Buttons over a title are for DVD, and not yet beside subtitles in the same
+  title (the player lights a button in the subtitle stream it shows); the
+  web version and Blu-ray leave them out.
 * No copy protection (by design, permanently).
 
 ## Libraries

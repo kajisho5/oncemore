@@ -421,11 +421,30 @@ def _end_command(project, action, ts):
     return "exit;"
 
 
+def title_button_command(project, title, action):
+    """Command of a button over `title` (its titleset's title domain): a
+    stream button switches and stays; a link leaves the title as its end
+    action would (a title, chapter or play all first ends play-all,
+    playlist and override modes, as a menu button does)."""
+    kind, target, num = parse_action(action)
+    if kind == "audio":
+        return f"audio = {num - 1};"
+    if kind == "subtitle":
+        return _subtitle_set(num)
+    end = _end_command(project, action, title.titleset)
+    if kind in ("title", "chapter"):
+        return _single(project) + end
+    if kind == "playall":
+        reset = f"{STATE_REG} = 0; {ITEM_END_REG} = 0; " if project.uses_playlists else ""
+        return reset + _no_override(project) + end
+    return end
+
+
 def end_chapters(project):
-    """(title id, chapter) that title / playlist end actions and overrides
-    go to, in a fixed order (their VMGM routes)."""
+    """(title id, chapter) that title / playlist end actions, overrides and
+    buttons over titles go to, in a fixed order (their VMGM routes)."""
     ends = [t.end_action for t in project.titles] + [p.end_action for p in project.playlists] + \
-        project.overrides
+        project.overrides + [b.action for t in project.titles for b in t.buttons]
     out = []
     for a in ends:
         kind, tid, n = parse_action(a)
@@ -453,13 +472,18 @@ def first_play_command(project):
 
 def title_pre(project, title):
     """<pre> of a title: remember which menu the Menu key should open, and
-    that there is something to resume."""
+    that there is something to resume; a title with buttons over it on a
+    disc with subtitles: subpicture stream 0, its buttons'."""
     cmds = []
     if project.uses_remote_menu:
         n = _menu_number(project, title.remote_menu) if title.remote_menu else 1
         cmds.append(f"{MENUKEY_REG} = {n};")
     if project.uses_resume:
         cmds.append(f"{resume_reg(project)} = 1;")
+    if title.buttons and project.subtitle_langs:
+        # (its buttons light up in subpicture stream 0, which the player
+        # must be on: another title's subtitles may have moved it)
+        cmds.append("subtitle = 0;")
     return " ".join(cmds) or None
 
 
@@ -683,6 +707,9 @@ def build_xml(project, menu_files, title_files, dest, transition_files=None):
             if pre:
                 x.append(f"        <pre>{pre}</pre>")
             x.append(f"        {title_vob(project, t, title_files[t.id])}")
+            for b in t.buttons:
+                x.append(f"        <button name={quoteattr(b.id)}>"
+                         f"{title_button_command(project, t, b.action)}</button>")
             x.append(f"        <post>{end_command(project, t.end_action, t)}</post>")
             x.append("      </pgc>")
         x += ["    </titles>", "  </titleset>"]

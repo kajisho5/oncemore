@@ -11,14 +11,14 @@ import tempfile
 import threading
 
 from . import (author, bdmenu, bluray, captions, clips, discimage, encode, iso, layerbreak,
-               lpcmfix, settings, slideshow, subtitles, tools, videots)
+               lpcmfix, settings, slideshow, subtitles, titlebuttons, tools, videots)
 from . import menu as menu_module
 from ._vendor.bdmvkit import pgs
 from ._vendor.vtskit import VtsError
 from ._vendor.vtskit import __version__ as vtskit_version
 from ._vendor.vtskit import ps as vtskit_ps
 from .errors import OncemoreError, ProjectError
-from .project import parse_action, retime_thumbs, title_fps
+from .project import button_times, parse_action, retime_thumbs, title_fps
 from .menu import (MenuBuilder, check_element_fonts, display_width, find_font, link_font,
                    menu_seconds, menu_text)
 
@@ -221,6 +221,18 @@ def inspect(project, reporter=None, prepare=True, bd=False):
                 issues.append({"path": f"{where}.chapters[{j}]",
                                "message": f"chapter at {c:.3f}s is beyond the end "
                                           f"({info['duration']:.3f}s)"})
+        for j, b in enumerate(t.buttons):
+            if bd:
+                issues.append({"path": f"{where}.buttons", "message": "buttons over a title are for "
+                               "DVD; a Blu-ray title has none yet"})
+                break
+            if b.start >= info["duration"]:
+                issues.append({"path": f"{where}.buttons[{j}].start",
+                               "message": f"the button starts at {b.start:.3f}s, after the end "
+                                          f"({info['duration']:.3f}s)"})
+            elif b.end is not None and b.end > info["duration"]:
+                warnings.append(f"{where}.buttons[{j}]: ends at {b.end:.3f}s, after the title "
+                                f"({info['duration']:.3f}s); shown to its end")
     for i, m in enumerate(project.menus):
         for what, path in (("background", m.background), ("audio", m.audio),
                            ("background_video", m.background_video)):
@@ -497,6 +509,7 @@ def title_cache_key(project, title, info, vbps, fast):
         "tracks": [(_file_sig(tr.source), tr.stream) for tr in title.audio_tracks],
         "disc": [disc.standard, disc.aspect, disc.width, disc.height],
         "chapters": title.chapters, "vbps": vbps, "fast": fast, "scan": title.video_mode,
+        **({"button_times": button_times(title)} if title.buttons else {}),
         "ivtc": encode.is_ivtc(title),
         "audio": [title.audio_codec, title.audio_bitrate, title.audio_channels,
                   title.audio_passthrough],
@@ -686,6 +699,10 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None, ca
                 _cache_put(store, key, out)
             if t.subtitles:
                 out, palettes[t.id] = add_subtitles(project, v, out, plan, work, reporter, cues_id=t.id)
+            if t.buttons:
+                reporter.step("subtitles", f"Adding the buttons over '{v.id}'", item=t.id)
+                out = titlebuttons.mux(v, out, title_fps(t, project.disc), infos[t.id]["duration"],
+                                       project.disc.width, project.disc.height)
             if v is t:
                 title_files[t.id] = out
                 if t.angles:
