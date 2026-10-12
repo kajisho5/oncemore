@@ -178,6 +178,7 @@ const I18N = {
     disc_tips: "Coordinates are DVD pixels (720 wide). Text is drawn with the font that oncemore picks to cover all characters.",
     tools: "Tools", ok: "OK", missing: "missing", tracks_hint: "Leave empty to use the video's own sound.",
     stream: "Stream", file: "File", add_track: "+ Track", add_sub: "+ Subtitle file",
+    tbtn: "Buttons over the title", tbtn_add: "+ Button", tbtn_hint: "Areas of the picture the viewer selects with the arrow keys and presses with OK while the title plays (DVD only; a Blu-ray build and the web version leave them out). Draw what they look like into the video; the disc lights the area. On the picture, drag a box to move it and its corner to resize it.", tbtn_from: "From", tbtn_to: "To", tbtn_to_end: "the end", tbtn_here: "Set to the playhead", tbtn_subs: "A title with subtitles cannot have buttons over it yet: the player lights the buttons in the subtitle stream it shows.", tbtn_hl: "Selected", tbtn_sel: "Pressed", tbtn_link: "Link", sim_time: "Time in the title",
     angles: "Angles", add_angle: "+ Angle", angle_n: "Angle {n}", angles_hint: "Other views of the same scene, switched with the remote's Angle key (DVD only; a Blu-ray build leaves them out). Each video must be at least as long as the title's; it is encoded with the title's settings and sound.", angles_none: "Angles need a single video file as the title's source.",
     frame_err: "Cannot show this frame", preview_err: "Preview failed",
     confirm_delete: "Delete “{x}”?", chapter_at: "Chapter {n}", playhead: "Playhead",
@@ -454,6 +455,7 @@ const I18N = {
     disc_tips: "座標は DVD のピクセル（幅 720）です。文字は全文字を描けるフォントを oncemore が自動で選んで描きます。",
     tools: "ツール", ok: "OK", missing: "不足", tracks_hint: "空なら動画自体の音声を使います。",
     stream: "ストリーム", file: "ファイル", add_track: "＋トラック", add_sub: "＋字幕ファイル",
+    tbtn: "タイトル上のボタン", tbtn_add: "＋ボタン", tbtn_hint: "タイトルの再生中に、矢印キーで選び OK で押せる映像上の領域です（DVD のみ。Blu-ray のビルドと Web 版では省きます）。見た目は映像に描いておき、ディスクはその領域を光らせます。映像上の枠はドラッグで移動、角のドラッグで大きさを変えられます。", tbtn_from: "開始", tbtn_to: "終了", tbtn_to_end: "最後まで", tbtn_here: "再生位置にする", tbtn_subs: "字幕のあるタイトルには、まだボタンを置けません（プレーヤーは表示中の字幕ストリームの上でボタンを光らせるため）。", tbtn_hl: "選択時", tbtn_sel: "決定時", tbtn_link: "リンク", sim_time: "タイトル内の時刻",
     angles: "アングル", add_angle: "＋アングル", angle_n: "アングル {n}", angles_hint: "同じ場面の別の映像で、リモコンのアングルキーで切り替えます（DVD のみ。Blu-ray のビルドでは省きます）。各動画はタイトルの長さ以上が必要で、タイトルと同じ設定・音声でエンコードします。", angles_none: "アングルを使うには、タイトルのソースが 1 本の動画ファイルである必要があります。",
     frame_err: "このフレームを表示できません", preview_err: "プレビューに失敗",
     confirm_delete: "「{x}」を削除しますか？", chapter_at: "チャプター {n}", playhead: "再生位置",
@@ -1520,9 +1522,12 @@ function renderTitle(m) {
   m.innerHTML = `<div class="monitor">
     <div class="monitor-screen ${zoom === "fit" ? "fit" : ""}"><div class="viewer" style="aspect-ratio:${ar.replace(":", " / ")};${zoom === "fit" ? "" : `width:${Math.round(720 * Number(zoom))}px`}"><img id="frame" alt=""><video id="player" playsinline preload="none" hidden></video>
       ${S.showSafe ? `<div class="safe-guides"><i></i><b></b></div>` : ""}
+      ${(ti.buttons || []).length ? `<div class="tbtn-layer" id="tbtn-layer"></div>` : ""}
       <span class="tc" id="tc">${fmtTime(ph)}</span><span class="proxy-msg" id="proxy-msg" hidden></span></div></div>
     <div class="timeline" id="timeline">
       ${chapters.map((c, i) => `<div class="marker" data-ch="${i}" title="${esc(t("chapter_at", { n: i + 1 }))} ${fmtTime(c)}" style="left:${dur ? (c / dur) * 100 : 0}%"></div>`).join("")}
+      ${dur ? (ti.buttons || []).map((b) => { const a = Math.min(dur, Number(b.start) || 0), e = b.end == null ? dur : Math.min(dur, Number(b.end));
+        return `<div class="tbtn-bar" data-tbar="${b.start}" title="${esc(b.id)} ${fmtTime(a)}–${fmtTime(e)}" style="left:${a / dur * 100}%;width:${Math.max(0, e - a) / dur * 100}%"></div>`; }).join("") : ""}
       <input type="range" id="scrub" min="0" max="${dur}" step="${(1 / fps).toFixed(5)}" value="${ph}">
     </div>
     <div class="monitor-bar transport">
@@ -1557,6 +1562,7 @@ function renderTitle(m) {
   const show = (time) => {
     S.playhead[ti.id] = time; tlPlayhead(time);
     $("#tc").textContent = fmtTime(time); $("#tc-input").value = fmtTime(time);
+    titleButtonLayer(ti, time);
     const n = Math.max(1, chapters.filter((c) => c <= time + 1e-6).length), chEl = $("#mon-ch");
     if (chEl) chEl.textContent = String(n).padStart(2, "0");
     const tlTc = $("#tl-tc"); if (tlTc) tlTc.textContent = fmtTime(time);
@@ -1591,6 +1597,7 @@ function renderTitle(m) {
     if (!playing) return;
     scrub.value = video.currentTime; S.playhead[ti.id] = video.currentTime; tlPlayhead(video.currentTime);
     $("#tc").textContent = fmtTime(video.currentTime); $("#tc-input").value = fmtTime(video.currentTime);
+    titleButtonLayer(ti, video.currentTime);
   };
   video.onerror = () => { if (video.getAttribute("src")) { msg.hidden = false; msg.textContent = t("play_err"); toFrames(null); } };
   playBtn.onclick = async () => {
@@ -1618,6 +1625,7 @@ function renderTitle(m) {
   m.querySelectorAll("[data-step]").forEach((b) => (b.onclick = () => seek(Number(scrub.value) + Number(b.dataset.step))));
   m.querySelectorAll("[data-seek]").forEach((el) => (el.onclick = () => seek(Number(el.dataset.seek))));
   m.querySelectorAll(".marker").forEach((el) => (el.onclick = () => seek(chapters[Number(el.dataset.ch)])));
+  m.querySelectorAll("[data-tbar]").forEach((el) => (el.onclick = () => seek(Number(el.dataset.tbar))));
   $("#tc-input").onchange = (e) => seek(parseTime(e.target.value));
   $("#mon-prev").onclick = () => jumpChapter(-1);
   $("#mon-next").onclick = () => jumpChapter(1);
@@ -1997,7 +2005,7 @@ async function renderSim(m) {
     // as on a player's remote: 0-9 press the button with that number (with
     // the menu's offset), Home the Title key,
     // Insert the Menu key, End plays to the end
-    if (/^[0-9]$/.test(e.key) && S.sim?.state?.domain === "menu") {
+    if (/^[0-9]$/.test(e.key) && (S.sim?.state?.domain === "menu" || S.sim?.title?.buttons?.length)) {
       // (up to two digits, as players take them: the second within a moment)
       e.preventDefault();
       clearTimeout(S.simDigitTimer);
@@ -2045,9 +2053,18 @@ async function renderSimScreen() {
     scr.dataset.menu = "";
     const ti = sim.title, k = ti.chapter, start = ti.chapters[k - 1] || 0;
     const name = (ti.names || [])[k - 1];
+    // the buttons over the title shown now: the selected one lit in its colour
+    const tb = ti.buttons || [], [sw, sh] = ti.size || [720, 480];
     scr.innerHTML = `<img class="base" src="${imgUrl("frame", { path: ti.frame.path, t: ti.frame.t.toFixed(3), w: 720 })}" alt="">
+      ${tb.map((x, i) => `<div class="hit tbtn-sim" data-hit="${i + 1}" style="left:${x.rect[0] / sw * 100}%;top:${x.rect[1] / sh * 100}%;width:${(x.rect[2] - x.rect[0]) / sw * 100}%;height:${(x.rect[3] - x.rect[1]) / sh * 100}%;${i + 1 === s.button ? `background:${esc(ti.colors[0])}` : ""}" title="${esc(x.id)} → ${esc(x.action)}"></div>`).join("")}
       <div class="sim-osd">${esc(ti.name)} — ${esc(t("chapter_n", { n: k, m: ti.chapters.length }))}${name ? " · " + esc(name) : ""}</div>`;
-    st.innerHTML = `<b>${t("now")}:</b> ${t("title")} <span class="mono">${esc(ti.id)}</span> · ${esc(t("chapter_n", { n: k, m: ti.chapters.length }))} · ${esc(flags)}<div class="hint">${esc((s.log || []).join(" → "))}</div>`;
+    scr.querySelectorAll("[data-hit]").forEach((h) => (h.onclick = async () => { await simCall("select:" + h.dataset.hit); simCall("enter"); }));
+    const end = ti.duration || Math.max(...ti.chapters, ...(ti.times || [0])) + 10;
+    st.innerHTML = `<b>${t("now")}:</b> ${t("title")} <span class="mono">${esc(ti.id)}</span> · ${esc(t("chapter_n", { n: k, m: ti.chapters.length }))} · ${esc(flags)}
+      ${ti.times ? `<div class="row sim-seek"><span class="shrink hint">${t("sim_time")}</span><input type="range" id="sim-seek" min="0" max="${end}" step="0.1" value="${ti.time}"><span class="shrink mono">${fmtTime(ti.time)}</span></div>` : ""}
+      <div class="hint">${esc((s.log || []).join(" → "))}</div>`;
+    const seekEl = $("#sim-seek");
+    if (seekEl) seekEl.onchange = () => simCall("seek:" + seekEl.value);
   } else {
     scr.innerHTML = `<div class="sim-msg">■ ${esc(t("stopped"))}</div>`;
     st.innerHTML = `<div class="hint">${esc((s.log || []).join(" → "))}</div>`;
@@ -2108,6 +2125,97 @@ function bindAngles(el, find) {
   });
 }
 
+// -- buttons over a title (DVD): areas of the picture shown from a start to
+// an end (project.TitleButton); the disc lights the area, the video shows them
+function titleButtonActions() {
+  return actionOptions({ forButton: true, allowLast: true }).filter(([v]) => v !== "resume" && !v.startsWith("page:"));
+}
+function titleButtonsHtml(ti) {
+  const list = ti.buttons || [], subs = (ti.subtitles || []).length > 0, cols = ti.button_colors || {};
+  const acts = titleButtonActions();
+  return `<h3>${t("tbtn")}</h3>
+    <div class="hint">${esc(t("tbtn_hint"))}</div>
+    ${subs ? `<div class="hint warn">${esc(t("tbtn_subs"))}</div>` : ""}
+    ${list.map((b, i) => `<div class="tbtn-row" data-tbtn="${i}" data-nobind>
+      <div class="row"><input class="mono shrink" style="width:90px" data-k="id" value="${esc(b.id)}" title="${esc(t("id"))}">
+        ${selectHtml("action", acts, b.action)}
+        <button class="small danger shrink" data-del-tbtn="${i}">✕</button></div>
+      <div class="row"><span class="shrink hint">${t("tbtn_from")}</span><input class="mono" data-k="start" value="${esc(fmtTime(Number(b.start) || 0))}">
+        <button class="small shrink" data-here="start" title="${esc(t("tbtn_here"))}">⏱</button>
+        <span class="shrink hint">${t("tbtn_to")}</span><input class="mono" data-k="end" value="${b.end == null ? "" : esc(fmtTime(Number(b.end)))}" placeholder="${esc(t("tbtn_to_end"))}">
+        <button class="small shrink" data-here="end" title="${esc(t("tbtn_here"))}">⏱</button></div>
+      <div class="row">${["x", "y", "width", "height"].map((k) => `<input type="number" min="0" class="shrink" style="width:64px" data-k="${k}" value="${b[k]}" title="${k}">`).join("")}</div></div>`).join("")}
+    <button class="small" id="add-tbtn" ${subs ? "disabled" : ""}>${t("tbtn_add")}</button>
+    ${list.length ? `<div class="row" style="margin-top:6px" data-nobind>
+      <label class="shrink">${t("tbtn_hl")} <input type="color" data-tbtn-color="highlight" value="${esc((cols.highlight || "#FFD400").slice(0, 7))}"></label>
+      <label class="shrink">${t("tbtn_sel")} <input type="color" data-tbtn-color="select" value="${esc((cols.select || "#FF5A00").slice(0, 7))}"></label></div>` : ""}`;
+}
+function bindTitleButtons(el, find) {
+  el.querySelectorAll("[data-tbtn]").forEach((row) => {
+    const i = Number(row.dataset.tbtn);
+    row.querySelectorAll("[data-k]").forEach((inp) => inp.addEventListener("change", () => commit((p) => {
+      const b = find(p).buttons[i], k = inp.dataset.k;
+      if (k === "start") b.start = Math.max(0, parseTime(inp.value) || 0);
+      else if (k === "end") { if (inp.value.trim()) b.end = parseTime(inp.value); else delete b.end; }
+      else if (k === "id") b.id = inp.value.trim().replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 40) || b.id;
+      else if (k === "action") b.action = inp.value;
+      else b[k] = Math.max(k === "width" || k === "height" ? 2 : 0, Math.round(Number(inp.value) || 0));
+    })));
+    row.querySelectorAll("[data-here]").forEach((h) => (h.onclick = () => commit((p) => {
+      const x = find(p), now = Math.round((S.playhead[x.id] || 0) * 1000) / 1000;
+      x.buttons[i][h.dataset.here] = now;
+    })));
+  });
+  el.querySelectorAll("[data-del-tbtn]").forEach((b) => (b.onclick = () => commit((p) => {
+    const x = find(p); x.buttons.splice(Number(b.dataset.delTbtn), 1);
+    if (!x.buttons.length) { delete x.buttons; delete x.button_colors; }
+  })));
+  el.querySelectorAll("[data-tbtn-color]").forEach((c) => (c.onchange = () => commit((p) => {
+    const x = find(p); (x.button_colors = x.button_colors || {})[c.dataset.tbtnColor] = c.value.toUpperCase();
+  })));
+  const add = el.querySelector("#add-tbtn");
+  if (add) add.onclick = () => commit((p) => {
+    const x = find(p), list = (x.buttons = x.buttons || []);
+    const ids = new Set(list.map((b) => b.id));
+    let n = list.length + 1; while (ids.has("b" + n)) n++;
+    const start = Math.round((S.playhead[x.id] || 0) * 1000) / 1000;
+    const w = 200, h = 60, W = 720, H = P().disc.standard === "PAL" ? 576 : 480;
+    const first = titleButtonActions()[0];
+    list.push({ id: "b" + n, start, end: start + 5, x: (W - w) / 2, y: H - h - 60, width: w, height: h, action: first ? first[0] : "stop" });
+  });
+}
+// the buttons over a title shown at `time`, as boxes on the picture
+// (percentages of the disc's frame); drag to move, the corner to resize
+function titleButtonLayer(ti, time) {
+  const layer = $("#tbtn-layer");
+  if (!layer) return;
+  const W = 720, H = P().disc.standard === "PAL" ? 576 : 480;
+  const shown = (ti.buttons || []).map((b, i) => [b, i]).filter(([b]) => (Number(b.start) || 0) <= time + 1e-6 && (b.end == null || time < Number(b.end)));
+  layer.innerHTML = shown.map(([b, i]) => `<div class="tbtn-box" data-tbox="${i}" title="${esc(b.id)} → ${esc(b.action)}"
+    style="left:${b.x / W * 100}%;top:${b.y / H * 100}%;width:${b.width / W * 100}%;height:${b.height / H * 100}%">
+    <span class="tbtn-name">${esc(b.id)}</span><i class="tbtn-corner"></i></div>`).join("");
+  layer.querySelectorAll("[data-tbox]").forEach((box) => (box.onpointerdown = (e) => {
+    e.preventDefault();
+    const i = Number(box.dataset.tbox), b = ti.buttons[i], rect = layer.getBoundingClientRect();
+    const corner = e.target.classList.contains("tbtn-corner");
+    const x0 = e.clientX, y0 = e.clientY, sx = W / rect.width, sy = H / rect.height;
+    const from = { x: b.x, y: b.y, width: b.width, height: b.height };
+    let to = from;
+    box.setPointerCapture(e.pointerId);
+    box.onpointermove = (ev) => {
+      const dx = Math.round((ev.clientX - x0) * sx), dy = Math.round((ev.clientY - y0) * sy);
+      to = corner
+        ? { ...from, width: Math.max(2, Math.min(W - from.x, from.width + dx)), height: Math.max(2, Math.min(H - from.y, from.height + dy)) }
+        : { ...from, x: Math.max(0, Math.min(W - from.width, from.x + dx)), y: Math.max(0, Math.min(H - from.height, from.y + dy)) };
+      Object.assign(box.style, { left: `${to.x / W * 100}%`, top: `${to.y / H * 100}%`, width: `${to.width / W * 100}%`, height: `${to.height / H * 100}%` });
+    };
+    box.onpointerup = () => {
+      box.onpointermove = box.onpointerup = null;
+      if (to !== from) commit((p) => Object.assign(p.titles.find((y) => y.id === ti.id).buttons[i], to));
+    };
+  }));
+}
+
 function renderTitleInspector(el) {
   const ti = curTitle();
   if (!ti) { el.innerHTML = ""; return; }
@@ -2147,6 +2255,7 @@ function renderTitleInspector(el) {
         <button class="small danger shrink" data-del-track="${i}">✕</button></div>`).join("")}
     <button class="small" id="add-track" ${ti.clips ? "disabled" : ""}>${t("add_track")}</button>
     ${anglesHtml(ti)}
+    ${titleButtonsHtml(ti)}
     <h3>${t("subtitles")}</h3>
     ${subs.map((s, i) => `<div class="row" style="margin:6px 0 4px" data-sub="${i}" data-nobind>
         ${selectHtml("file", mediaOf("subtitle").filter((f) => !/\.scc$/i.test(f)).map((f) => [f, f.replace(/^media\//, "")]), s.file)}
@@ -2230,6 +2339,7 @@ function renderTitleInspector(el) {
   })));
   $("#add-track").onclick = () => commit((p) => { const x = find(p); x.audio_tracks = x.audio_tracks || [{}]; x.audio_tracks.push({}); });
   bindAngles(el, find);
+  bindTitleButtons(el, find);
   $("#add-sub").onclick = () => commit((p) => { const x = find(p); (x.subtitles = x.subtitles || []).push({ file: mediaOf("subtitle").find((f) => !/\.scc$/i.test(f)) }); });
   // closed captions: a file, or {file, offset}
   const ccSet = () => commit((p) => {
