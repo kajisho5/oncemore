@@ -439,6 +439,40 @@
           "$ref": "#/$defs/prohibit",
           "description": "Remote keys that do nothing during this title (user operations), e.g. a notice that cannot be skipped: [\"next\", \"fast_forward\", \"menu\"]."
         },
+        "buttons": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 99,
+          "description": "Buttons over the title's picture (DVD only; not with subtitles): areas of the picture the viewer selects with the arrow keys and presses with Enter while the title plays, each from its start to its end. The picture shows what the buttons look like; the disc lights the area in the highlight colour when it is selected and the select colour when it is pressed. Arrow keys go through the buttons shown at the time in the order given. The times the buttons change are at least 1 s apart, and from chapters.",
+          "items": {
+            "type": "object",
+            "required": ["id", "start", "x", "y", "width", "height", "action"],
+            "additionalProperties": false,
+            "properties": {
+              "id": {"$ref": "#/$defs/id"},
+              "start": {"$ref": "#/$defs/time", "description": "When the button appears, in the title."},
+              "end": {"$ref": "#/$defs/time", "description": "When it goes (default: the end of the title)."},
+              "x": {"type": "integer", "minimum": 0, "description": "Left edge, in the disc's pixels (720 wide)."},
+              "y": {"type": "integer", "minimum": 0, "description": "Top edge (480 high for NTSC, 576 for PAL)."},
+              "width": {"type": "integer", "minimum": 2},
+              "height": {"type": "integer", "minimum": 2},
+              "action": {
+                "type": "string",
+                "pattern": "^(menu:[A-Za-z0-9_-]{1,40}(:[A-Za-z0-9_-]{1,40})?|title:[A-Za-z0-9_-]{1,40}|chapter:[A-Za-z0-9_-]{1,40}:[1-9][0-9]*|playall|playlist:[A-Za-z0-9_-]{1,40}|audio:[1-8]|subtitle:([1-9]|[12][0-9]|3[0-2]|off)|lastmenu|stop)$",
+                "description": "menu:<id>[:<button id>] | title:<id> | chapter:<title id>:<n> | playall | playlist:<id> | audio:<n> | subtitle:<n> | subtitle:off | lastmenu | stop. A link leaves the title as its end action would; audio and subtitle switch the stream and the title plays on."
+              }
+            }
+          }
+        },
+        "button_colors": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "The colours of the buttons over the title: highlight (selected) and select (pressed), #RRGGBB or #RRGGBBAA.",
+          "properties": {
+            "highlight": {"$ref": "#/$defs/color"},
+            "select": {"$ref": "#/$defs/color"}
+          }
+        },
         "auto_chapter_menu": {
           "description": "Generate a chapter-selection menu with thumbnails for this title.",
           "anyOf": [
