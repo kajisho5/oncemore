@@ -10,8 +10,10 @@ DISC.json: {"titles": [{"clip": "a.m2ts", "fps": "24000/1001",
 "action": "title:1"}]}], "play_all": true}; paths are relative to the JSON
 file. A button may also have "activated" and "normal" pictures, "nav"
 ({"up": id, ...}), "auto", "audio", "subtitle" and "override"; a menu
-"default" (a button id), "fps", "loop", "end", "seconds" and "prohibit"; a
-title "default_audio", "default_subtitle" and "prohibit". The disc may have
+"default" (a button id), "fps", "loop", "end", "seconds", "prohibit",
+"music" (a sound file) and "loop_point" (its "background" may be a video); a
+title "default_audio", "default_subtitle", "prohibit" and "popup" ({"buttons":
+[...], "default"}: its pop-up menu, buttons as a menu's). The disc may have
 "playlists" ([{"id", "items": [n or [n, first, last]], "order", "end"}]),
 "first_play" and "title_key".
 """
@@ -75,15 +77,21 @@ def main(argv=None):
         def file(name):
             return os.path.join(base, name) if name else None
 
+        def buttons(spec_buttons):
+            return [MenuButton(b["id"], int(b["x"]), int(b["y"]), file(b["selected"]),
+                               file(b.get("activated")), file(b.get("normal")), b.get("action"),
+                               dict(b.get("nav", {})), bool(b.get("auto")), b.get("audio"),
+                               b.get("subtitle"), b.get("override")) for b in spec_buttons]
+
+        for n, t in enumerate(spec.get("titles", []), 1):
+            if t.get("popup"):
+                disc.add_popup(n, buttons(t["popup"]["buttons"]), t["popup"].get("default"))
         for m in spec.get("menus", []):
-            disc.add_menu(m["id"], file(m["background"]), [
-                MenuButton(b["id"], int(b["x"]), int(b["y"]), file(b["selected"]),
-                           file(b.get("activated")), file(b.get("normal")), b.get("action"),
-                           dict(b.get("nav", {})), bool(b.get("auto")), b.get("audio"),
-                           b.get("subtitle"), b.get("override"))
-                for b in m["buttons"]], fps=_fps(m.get("fps", "24000/1001")),
-                default=m.get("default"), loop=m.get("loop"), end=m.get("end"),
-                prohibit=m.get("prohibit", []), seconds=float(m.get("seconds", 1.0)))
+            disc.add_menu(m["id"], file(m["background"]), buttons(m["buttons"]),
+                          fps=_fps(m.get("fps", "24000/1001")), default=m.get("default"),
+                          loop=m.get("loop"), end=m.get("end"), prohibit=m.get("prohibit", []),
+                          seconds=m.get("seconds"), music=file(m.get("music")),
+                          loop_point=m.get("loop_point"))
         res = disc.write(args.out, play_all=spec.get("play_all", True), fast=args.fast)
     except (BdmvError, OSError, KeyError, ValueError) as e:
         print(f"bdmvkit: {getattr(e, 'message', e)}", file=sys.stderr)
