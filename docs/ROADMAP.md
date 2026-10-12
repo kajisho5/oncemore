@@ -437,24 +437,28 @@ against their published help, not from memory)
 **Still missing after reading the classic app's whole manual** (184
 pages, read page by page against the code; most important first)
 
-- [ ] Blu-ray video formats besides 1080: 1280×720 at 50 / 59.94p,
-  1440×1080 (AVCHD sources kept as they are), SD on Blu-ray, 24.000p
-- [ ] Multi-language defaults: the disc's default audio track, subtitles
-  explicitly off, a menu's default button following the audio or
-  subtitle track playing, audio and subtitle tracks per playlist item,
-  playlists inside playlists
-- [ ] Japanese typesetting on menus: vertical text, wrapping inside a
-  box, formatting part of a text, kinsoku line breaking, underline and
-  strikethrough
+- [x] Blu-ray at 720p (50 / 59.94p) and AVCHD's 1440×1080 kept as it is
+  (#106, DECISIONS §100)
+- [ ] SD on Blu-ray (720×480 / 576) and 24.000p
+- [x] The disc's starting audio track and subtitles off from the start
+  (#107, §101)
+- [ ] A menu's default button following the audio or subtitle track
+  playing; audio and subtitle tracks per playlist item; playlists inside
+  playlists
+- [x] Japanese typesetting on menus: wrapping inside a box with kinsoku,
+  vertical text, underline and strikethrough (#110, §103)
+- [ ] Formatting part of a menu text (one style per text today)
 - [ ] Subtitle placement and formatting per cue (position, font, outline
   width), vertical subtitles, duplicating a subtitle track
-- [ ] Subtitle deliveries: the older image script (Display_Area /
-  Directory lines) and the FAB image script with colour mapping; UTF-16
-  scripts; GIF images
+- [x] Subtitle deliveries: the image script with Display_Area / Directory
+  lines, the FAB image script, UTF-16 scripts, GIF pictures (#108, #109,
+  §102, §104); the FAB script's colour mapping is not taken over (a
+  picture keeps its own colours, §78)
+- [x] .m2v, .mp2 / .mpa, WMA, GIF and TGA sources (#108, §102)
 - [ ] Assets used where they are (an external or network drive) instead
-  of copied into media/; .m2v, .mp2, WMA, GIF, TGA and 96 kHz / 24-bit
-  WAV sources; overriding a source's pixel aspect ratio; compliant
-  sources marked "do not transcode" by themselves
+  of copied into media/; 96 kHz / 24-bit WAV sources; overriding a
+  source's pixel aspect ratio; compliant sources marked "do not
+  transcode" by themselves
 - [ ] Named transcode presets (CBR, minimum / maximum bitrate, GOP
   length), exported and imported
 - [ ] DVD highlights in three colours per state and two highlight groups
