@@ -993,9 +993,10 @@ Changes to them are made and released in their own repositories, and
 oncemore carries a copy of each release (`oncemore/_vendor`, updated with
 `tools/vendor.py`), so it still installs with no dependencies. All four are
 carried so. On Blu-ray, bdmvkit writes the navigation (titles, playlists,
-menus' commands, movie objects) and its files and the PGS subtitles;
-oncemore still encodes the clips and draws the menus and pop-up menus
-itself, until bdmvkit releases those.
+menus' commands, movie objects) and its files, the menus' button streams
+and the PGS subtitles; oncemore still encodes the clips and draws the menus
+and pop-up menus (each button's pictures) itself, until bdmvkit releases
+those.
 
 Every day `.github/workflows/library-updates.yml` looks on PyPI for a newer
 release of each library oncemore carries and opens a draft pull request that

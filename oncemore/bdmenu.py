@@ -19,22 +19,21 @@ area of it (normal) and the same with the highlight shapes painted over
 (selected, activated) as the objects of a pop-up interactive composition,
 muxed into the title's clip (popup_stream).
 
-The segments, the object coding and the stream-type patch are bdmvkit's
-(igs, DECISIONS §108); the composition is made here.
+The stream (composition, palette, objects) and the stream-type patch are
+bdmvkit's (igs, DECISIONS §110); the buttons' pictures are drawn here.
 """
 
 import dataclasses
 import os
-import struct
 
 from . import bluray, encode, png4, tools
-from ._vendor.bdmvkit import pgs
-from ._vendor.bdmvkit.igs import NO_OBJECT, _objects, _segment, patch_ig_stream_type
+from ._vendor.bdmvkit import igs
+from ._vendor.bdmvkit.errors import BdmvError
+from ._vendor.bdmvkit.igs import patch_ig_stream_type
 from .errors import OncemoreError
 from .menu import MenuBuilder
 from .project import Disc
 
-ICS, PDS, ODS, END = 0x18, 0x14, 0x15, 0x80
 STILL_SECONDS = 1.0            # a still menu's clip; the playlist holds its last picture
 
 
@@ -128,44 +127,6 @@ def hd_project(project, probe):
 # the Interactive Graphics stream
 # --------------------------------------------------------------------------
 
-def _colour(index, color):
-    r, g, b, a = png4.parse_color(color)
-    y, cb, cr = pgs.ycbcr((r, g, b))
-    return (index, y, cr, cb, a)
-
-
-def quantize(images):
-    """RGBA pictures -> (palette [(r, g, b, a)] for indices 1.., index
-    pictures) with at most 255 colours; fully transparent pixels are index
-    0. Fewer bits per channel are kept until the colours fit; past that the
-    rarest go to their nearest kept colour."""
-    for bits in (8, 7, 6, 5, 4, 3):
-        mask = (0xFF << (8 - bits)) & 0xFF
-        table = bytes(v & mask for v in range(256))
-        q = [im.translate(table) for im in images]
-        counts = {}
-        for qi in q:
-            for i in range(0, len(qi), 4):
-                c = qi[i:i + 4]
-                if c[3]:
-                    counts[c] = counts.get(c, 0) + 1
-        if len(counts) <= 255:
-            break
-    kept = sorted(counts, key=counts.get, reverse=True)[:255]
-    index = {c: k + 1 for k, c in enumerate(kept)}
-    for c in counts:
-        if c not in index:
-            index[c] = min(index.items(), key=lambda kv: sum((a - b) ** 2 for a, b in
-                                                           zip(kv[0], c)))[1]
-    half = (~mask & 0xFF) >> 1
-    palette = [tuple(v | half if v else v for v in c) for c in kept]
-    out = []
-    for qi in q:
-        out.append(bytes(index.get(qi[i:i + 4], 0) if qi[i + 3] else 0
-                         for i in range(0, len(qi), 4)))
-    return palette, out
-
-
 def _over(top, look):
     """`top` (r, g, b, a) painted over the RGBA pixel `look`."""
     a = top[3] / 255
@@ -216,73 +177,49 @@ def popup_states(menu, geoms, canvas, look):
 
 
 def ig_stream(menu, geoms, canvas, commands, frame_rate, follow_selection=False, look=None):
-    """The menu's buttons as an IG stream (.sup layout: "PG" segments).
+    """The menu's buttons as an IG stream (.sup layout: "PG" segments), made
+    by bdmvkit (igs.ig_stream) from each button's state pictures.
 
     geoms: the builder's ButtonGeom list (HD pixels), canvas: its highlight
-    canvas (index 1 where a button's shape is); commands(button) -> its
-    navigation commands; frame_rate: the video's frame rate code;
-    follow_selection: no default button, the selected one (PSR 10) is kept.
-    look: a pop-up menu: the menu's transparent RGBA picture, whose button
-    areas are the buttons (see popup_states)."""
-    index = {g.id: k for k, g in enumerate(geoms)}
+    canvas (index 1 where a button's shape is), drawn in the highlight,
+    select and normal colours; commands(button) -> its navigation commands;
+    frame_rate: the video's frame rate code; follow_selection: no default
+    button, the selected one (PSR 10) is kept. look: a pop-up menu: the
+    menu's transparent RGBA picture, whose button areas are the buttons (see
+    popup_states)."""
     by_id = {b.id: b for b in menu.buttons}
-    objects, buttons = b"", b""
+    ids = {g.id for g in geoms}
     W = canvas.width
-    if look is not None:
-        crops = popup_states(menu, geoms, canvas, look)
-        colours, pictures = quantize([c for trio in crops for c in trio])
-        palette = [(0, 16, 128, 128, 0)] + [
-            (k, *(lambda y, cb, cr: (y, cr, cb))(*pgs.ycbcr(c[:3])), c[3])
-            for k, c in enumerate(colours, 1)]
-    else:
-        palette = [(0, 16, 128, 128, 0), _colour(1, menu.highlight_color),
-                   _colour(2, menu.select_color)]
-        if menu.normal_color:
-            palette.append(_colour(3, menu.normal_color))
-    states = [(1, 1), (2, 2)] + ([(0, 3)] if menu.normal_color or look is not None else [])
+    states = [menu.normal_color, menu.highlight_color, menu.select_color]
+    crops = popup_states(menu, geoms, canvas, look) if look is not None else None
+    buttons = []
     for k, g in enumerate(geoms):
         x0, y0, x1, y1 = g.rect
         w, h = x1 - x0 + 1, y1 - y0 + 1
-        crop = b"".join(bytes(canvas.pixels[(y0 + yy) * W + x0:(y0 + yy) * W + x0 + w])
-                        for yy in range(h))
-        ids = {}
-        for slot, idx in states:            # slot: 0 normal, 1 selected, 2 activated
-            oid = 3 * k + slot
-            if look is not None:
-                pixels = pictures[3 * k + slot]
-            else:
-                # (the canvas marks the shape with 1; each state draws it in its own colour)
-                pixels = crop.translate(bytes([0, idx]) + bytes(254))
-            objects += _objects(oid, w, h, pixels)
-            ids[slot] = oid
-        nav = [index.get(g.nav.get(d), k) for d in ("up", "down", "left", "right")]
-        cmds = commands(by_id[g.id])
-        normal = ids.get(0, NO_OBJECT)
-        # (its number for the number keys: its place among the buttons, plus the menu's offset)
-        button = struct.pack(">HHBHH", k, menu.button_offset + k + 1, 0x80 if g.auto else 0, x0, y0)
-        button += struct.pack(">HHHH", *nav)
-        button += struct.pack(">HHB", normal, normal, 0)
-        button += struct.pack(">BHHB", 0xFF, ids[1], ids[1], 0)
-        button += struct.pack(">BHH", 0xFF, ids[2], ids[2])
-        button += struct.pack(">H", len(cmds)) + b"".join(cmds)
-        # one button per overlap group: buttons do not overlap
-        buttons += struct.pack(">HB", k, 1) + button
+        if crops:
+            normal, selected, activated = crops[k]
+        else:
+            shape = b"".join(bytes(canvas.pixels[(y0 + yy) * W + x0:(y0 + yy) * W + x0 + w])
+                             for yy in range(h))
+            # (the canvas marks the shape with 1; each state draws it in its own
+            # colour; no normal colour: nothing until selected)
+            normal, selected, activated = [
+                c and b"".join(bytes(png4.parse_color(c)) if p else bytes(4) for p in shape)
+                for c in states]
+        nav = {d: g.nav[d] if g.nav.get(d) in ids else g.id
+               for d in ("up", "down", "left", "right")}
+        buttons.append(igs.Button(g.id, x0, y0, w, h, selected, activated, normal,
+                                  commands(by_id[g.id]), nav, bool(g.auto)))
     # a menu links open on a particular button: the player's selection (which
     # its movie object sets) decides, not a fixed default
-    default = 0xFFFF if follow_selection else index.get(menu.default_button, 0)
-    page = struct.pack(">BB", 0, 0) + bytes(8)           # page 0, no user-operation mask
-    page += bytes([0, 0]) + bytes([0, 0])                  # no in / out effects
-    page += struct.pack(">BHHBB", 0, default, NO_OBJECT, 0, len(geoms)) + buttons
-    # multiplexed; always on, or a pop-up (the Pop-up key shows it); no timeouts
-    body = bytes([0x40 if look is not None else 0x00]) + bytes(10)
-    body += (0).to_bytes(3, "big") + bytes([1]) + page     # no user time-out; one page
-    ics = struct.pack(">HHB", canvas.width, canvas.height, frame_rate << 4)
-    ics += struct.pack(">HB", 0, 0x80)                     # composition 0, epoch start
-    ics += bytes([0xC0]) + len(body).to_bytes(3, "big") + body
-    if len(ics) > pgs.MAX_SEGMENT:
-        raise OncemoreError(f"menu {menu.id!r}: too many button commands for one composition")
-    pds = bytes([0, 0]) + b"".join(bytes(e) for e in palette)
-    return _segment(ICS, ics) + _segment(PDS, pds) + objects + _segment(END, b"")
+    default = menu.default_button if menu.default_button in ids else None
+    try:
+        return igs.ig_stream(buttons, frame_rate, default=default, popup=look is not None,
+                             button_offset=menu.button_offset,
+                             follow_selection=follow_selection,
+                             size=(canvas.width, canvas.height))
+    except BdmvError as e:
+        raise OncemoreError(f"menu {menu.id!r}: {e.message}") from e
 
 
 # --------------------------------------------------------------------------

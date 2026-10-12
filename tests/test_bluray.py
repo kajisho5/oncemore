@@ -248,12 +248,13 @@ class TestNavigationFiles(unittest.TestCase):
 
     def test_popup_pictures(self):
         from oncemore import bdmenu, png4
+        from oncemore._vendor.bdmvkit import igs
         # colours as drawn over transparent black come back as they are
         self.assertEqual(bdmenu.straight((128, 64, 0, 128)), (255, 128, 0, 128))
         self.assertEqual(bdmenu.straight((10, 20, 30, 255)), (10, 20, 30, 255))
         # 300 colours: fewer bits until at most 255, transparent stays 0
         pics = [bytes(c for k in range(300) for c in (k % 256, k // 256 * 80, 7, 255)) + bytes(4)]
-        palette, out = bdmenu.quantize(pics)
+        palette, out = igs.quantize(pics)
         self.assertLessEqual(len(palette), 255)
         self.assertEqual(out[0][-1], 0)
         self.assertTrue(all(out[0][:300]))
@@ -268,6 +269,34 @@ class TestNavigationFiles(unittest.TestCase):
         self.assertEqual(selected[:4], bytes((255, 0, 0, 255)))
         self.assertEqual(selected[8:12], bytes((255, 255, 255, 255)))
         self.assertEqual(activated[:4], bytes((0, 255, 0, 255)))
+
+    def test_button_stream(self):
+        from oncemore import bdmenu, png4
+        from oncemore._vendor.bdmvkit import igs
+        b = type("B", (), {"id": "b"})
+        menu = type("M", (), {"id": "m", "buttons": [b], "highlight_color": "#FF0000",
+                              "select_color": "#00FF0080", "normal_color": "#FFFFFF00",
+                              "default_button": None, "button_offset": 0})
+        canvas = png4.Canvas(1280, 720)
+        canvas.fill_rect(1200, 700, 1279, 719, 1)        # the shape: the button's whole area
+        geom = type("G", (), {"id": "b", "rect": (1200, 700, 1279, 719), "nav": {}, "auto": False})
+        data = bdmenu.ig_stream(menu, [geom], canvas, lambda _: [], 1)
+        segs = []
+        while data:
+            kind, size = data[10], struct.unpack(">H", data[11:13])[0]
+            segs.append((kind, data[13:13 + size]))
+            data = data[13 + size:]
+        ics, pds = segs[0][1], segs[1][1]
+        # placed on the 720p frame
+        self.assertEqual(struct.unpack(">HH", ics[:4]), (1280, 720))
+        # the palette: transparent, then the highlight and select colours; the
+        # fully transparent normal colour is transparent (index 0), not a colour
+        entries = [tuple(pds[i:i + 5]) for i in range(2, len(pds), 5)]
+        self.assertEqual([e[4] for e in entries], [0, 255, 0x80])
+        y, cb, cr = pgs.ycbcr((255, 0, 0))
+        self.assertEqual(entries[1][1:4], (y, cr, cb))     # red
+        # three objects: normal (empty), selected, activated
+        self.assertEqual([k for k, _ in segs[2:]], [igs.ODS] * 3 + [igs.END])
 
     def test_links_to_a_button(self):
         p = project(menus=[
