@@ -2448,7 +2448,20 @@ Mac at hand).
   icon; its layers are square (no tile, no rounded rectangle, no text) in
   the brand colours; the app's Info.plist and build name it.
 
-## 117. Navigation scripts (DVD)
+## 117. Preview takes keys in order
+
+Each key in Preview is a request carrying the state the last answer left
+(`/api/sim`). Keys pressed before that answer was back went out with the
+older state, so ▼ then OK in quick succession pressed the button ▼ had
+left, and the later of two answers could overwrite the other (the title
+buttons' Preview test failed on CI this way). `simCall` now chains the
+requests: a key waits for the one before it and is sent with its state.
+
+* `tests/test_gui.py` `test_simulator_keys_in_order`: ▼ and OK pressed at
+  once on the main menu, with ▼'s answer held back 2 s by the server,
+  open the chapter menu (and stay there).
+
+## 118. Navigation scripts (DVD)
 
 A project's `scripts` are navigation written by hand, for what a link
 alone cannot do (count, remember, choose at random, ask a pass code). An
