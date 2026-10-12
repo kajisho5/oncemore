@@ -2670,3 +2670,23 @@ is the object as placed, so the editor and every preview show it there.
   text coming down and fading in; a DVD menu encoded with one (dark
   before, white after); the app's Comes in for a text and a picture.
 
+
+## 124. 1.0: the Mac app signed and notarised
+
+The project has a Developer ID, so the release workflow's signing secrets
+are set and the Mac app is signed with it (hardened runtime) and notarised;
+it opens without Privacy & Security's Open Anyway. With that the version
+goes to 1.0.0. The release notes keep saying that discs have not yet been
+played on set-top players.
+
+* A release from 1.0 on is refused without the signing and notarisation
+  secrets (`MACOS_CERT_P12`, `APPLE_ID`): an unsigned 1.x zip would quietly
+  bring back Open Anyway. 0.x tags and build-only runs still build ad hoc,
+  so a fork without a Developer ID builds as before.
+* From 1.0 a release is a draft (the workflow's rule), published by hand.
+* README (en/ja) no longer tells everyone to use Open Anyway; it says
+  which builds still need it (CI artifacts, 0.x releases).
+
+* `tests/test_promises.py` `test_signed_and_notarised_from_1_0`: the
+  workflow's refusal, a 1.x version, READMEs without the old advice, and
+  release notes for this version without it.

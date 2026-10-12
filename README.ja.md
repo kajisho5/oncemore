@@ -88,9 +88,9 @@ brew install ffmpeg-full
 
 [Releases](https://github.com/kajisho5/oncemore/releases) ページ（または最新の CI 実行の成果物）から
 `Oncemore-<version>-arm64.zip`（Apple シリコン用）か `Oncemore-<version>-x86_64.zip`（Intel 用）を
-ダウンロードして展開し、*Oncemore.app* を「アプリケーション」に入れてください。まだ公証（notarize）していないため、
-初回起動は macOS にブロックされます。「システム設定 › プライバシーとセキュリティ」で **このまま開く** を押すか、
-`xattr -dr com.apple.quarantine /Applications/Oncemore.app` を実行してください。
+ダウンロードして展開し、*Oncemore.app* を「アプリケーション」に入れてください。1.0 以降のリリースは Developer ID で署名し
+Apple の公証（notarize）を受けているので、ふつうのダウンロードしたアプリと同じように開けます
+（CI の成果物と 0.x のリリースは除きます。「システム設定 › プライバシーとセキュリティ」で **このまま開く** を押してください）。
 oncemore はインターネットに接続しないため、新しい版を自動では探しません。「ヘルプ › アップデートを確認…」で今の版を確かめ、
 Releases ページを開けます（GitHub の **Watch › Custom › Releases** を選ぶと新しい版の通知が届きます）。
 アイコンは Apple の[ヒューマンインターフェイスガイドライン](https://developer.apple.com/jp/design/human-interface-guidelines/app-icons)に沿っています。
@@ -100,7 +100,7 @@ macOS 26 以降はレイヤー構成のアイコン（`macos/AppIcon.icon`。角
 `CODESIGN_IDENTITY` と `NOTARIZE=1` で署名・公証済みのアプリを作れます。
 タグ `v<version>` を push すると `.github/workflows/release.yml` が両アーキテクチャをビルドし、
 それぞれサンプルプロジェクトで起動確認したうえで zip をリリースに添付します
-（ファイル冒頭に書いた署名用 secrets を設定すれば署名・公証済みになります）。0.x のバージョンはその場で
+（ファイル冒頭に書いた署名用 secrets を設定すれば署名・公証済みになります。1.0 以降は secrets がないとリリースしません）。0.x のバージョンはその場で
 プレリリースとして公開、1.0 以降は下書きになります。リリースノートは `docs/release-notes/<タグ>.md` です。
 ワークフローを手動で実行（Actions > Release > Run workflow）して `tag` を指定しても同じリリースになり、タグは実行したコミットに作られます。
 
