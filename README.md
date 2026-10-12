@@ -688,6 +688,58 @@ end of its last chapter. Title, chapter and play-all buttons leave playlist mode
 items as the playlist has, each picked at random, so one can come again) on a
 Blu-ray and in the web version; a DVD plays them as listed.
 
+### Navigation scripts
+
+For what a link alone cannot do (count, remember, choose at random, ask a
+pass code), a DVD's navigation can be written by hand as a few lines of
+dvdauthor's command language:
+
+```jsonc
+"scripts": {
+  "twice": "# the second press plays the film\n$n += 1;\nif ($n >= 2) { $n = 0; play title:film; }\nelse play menu:main;",
+  "dice":  "$r = random(3); if ($r == 1) play title:a; else if ($r == 2) play title:b; else play title:c;"
+}
+```
+
+An action `commands:<id>` runs a script: on a menu's button (`chapter`
+menus' BACK too), a menu's time-out, a title's end, a playlist's end and a
+button over a title. Not at first play, the Title key or in an override.
+
+* **Variables** are `$name`. oncemore gives each a player register its own
+  navigation leaves free, so a script cannot break play all, playlists or
+  remembered buttons; the same name is the same variable in every script.
+  They are 0 when the disc starts and keep their value (0 to 65535) until
+  a script changes them. A disc that uses every register for its own
+  navigation has none left (fewer menus that remember their last button
+  free some).
+* **Links** are `play <action>;` with any action a button takes
+  (`menu:<id>`, `menu:<id>:<button>`, `title:<id>`, `chapter:<id>:<n>`,
+  `playlist:<id>`, `playall`, `lastmenu` at a title's end or on its
+  buttons, `stop`, `audio:<n>`, `subtitle:<n>` / `subtitle:off`). It does
+  what the action does there. `jump`, `call` and `gN` are not taken.
+* **Statements**: `$x = <expression>;`, `$x += <value>;` (and `-= *= /= %=
+  &= |= ^=`), `audio =`, `subtitle =`, `angle =`, `button =` (the
+  player's own registers, as dvdauthor reads them: audio stream from 0,
+  subtitle stream from 0 plus 64 when shown, button number × 1024; set to
+  a number or a `$name`), `if (<condition>) { … } else { … }` and `play`.
+  `#` starts a comment.
+* **Expressions** are values (numbers, `$x`, `audio`, `subtitle`, `angle`,
+  `button`) joined by `+ - * / % & | ^`, worked out from left to right;
+  the first may be `random(n)` (1 to n). `$x` may only come first in its
+  own expression (`$x = $x * 2 + 1`), since the disc computes it in place.
+  A condition compares two values (`== != < <= > >=`), one of them a
+  `$name` or a player register, and joins comparisons with `and` or with
+  `or` (one kind in a condition; put an `if` inside an `if` for both).
+* A script ends with a `play` that leaves (not a sound or subtitle switch)
+  on every path, so the player always knows where to go; nothing may follow
+  it in its block.
+
+The project check reports a script it cannot read or the disc cannot hold,
+and a script nothing runs. The simulator runs scripts (its state shows the
+variables); a value outside 0 to 65535 or a division by 0 stops it there,
+since what a player does then is not described. The flowchart draws an edge
+to each place a script can go. Blu-ray and the web version have no scripts.
+
 ### Slideshows
 
 ```jsonc
@@ -1000,6 +1052,8 @@ own folder in it, named after the project folder.
   and its background are left out. 4:3 titles and menus are
   pillarboxed in the 16:9 HD frame. Burning a BD uses the same tools as a DVD; growisofs
   documents BD media, `hdiutil burn` with a BD writer has not been tried.
+* Navigation scripts (`commands:<id>`) are for DVD; a Blu-ray or web build
+  with one stops with a message.
 * Buttons over a title are for DVD, and not yet beside subtitles in the same
   title (the player lights a button in the subtitle stream it shows); the
   web version and Blu-ray leave them out.

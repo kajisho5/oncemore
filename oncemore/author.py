@@ -63,6 +63,9 @@ without buttons, and its <post> does what the button would have done
 (streams, override, link). It stays in the menu domain, so a menu-to-menu
 dissolve never leaves the menus, and "last menu" is still the one whose
 button was pressed.
+A project's navigation scripts (`commands:<id>`, oncemore.navscript) get
+the registers left after those (`script_registers`), one a variable, and
+their `play` statements are written as the action is where they run.
 The VMGM title menu is what the Title / Top Menu key opens: g1 == 0 there
 means the key was pressed (routes always set g1), so `disc.title_key` applies.
 
@@ -77,6 +80,7 @@ means the key was pressed (routes always set g1), so `disc.title_key` applies.
 import os
 from xml.sax.saxutils import quoteattr
 
+from . import navscript
 from .project import chapter_points, format_time, parse_action, title_fps, transition_key
 
 NAV_REG = "g1"
@@ -144,6 +148,29 @@ def entry_reg(project):
     k = int(project.uses_resume) + int(bool(project.overrides)) + int(project.uses_last_menu)
     free = _free_regs(project)[k:]
     return free[0] if free else None
+
+
+def script_registers(project):
+    """{variable: register} for the project's scripts: the registers left
+    after the ones above, a variable of the same name being the same one in
+    every script. ValueError when there are not enough."""
+    names = []
+    for stmts in project.scripts.values():
+        names += [v for v in navscript.variables(stmts) if v not in names]
+    k = (int(project.uses_resume) + int(bool(project.overrides)) + int(project.uses_last_menu)
+         + int(bool(project.entry_buttons)))
+    free = _free_regs(project)[k:]
+    if len(names) > len(free):
+        raise ValueError(f"the scripts use {len(names)} variables "
+                         f"({', '.join('$' + n for n in names)}) and this disc leaves {len(free)} "
+                         "player registers free (fewer menus that remember their last button "
+                         "would free more)")
+    return dict(zip(names, free))
+
+
+def _script(project, sid, play):
+    """Script `sid` in dvdauthor's language, its plays written by `play`."""
+    return navscript.expand(project.scripts[sid], script_registers(project), play)
 
 
 def _entry(project, mid, button):
@@ -263,6 +290,8 @@ def button_command(project, action, menu=None, override=None):
 def _menu_domain_command(project, action):
     kind, target, num = parse_action(action)
     single = _single(project)
+    if kind == "commands":
+        return _script(project, target, lambda a: _menu_domain_command(project, a))
     if kind == "menu":
         return f"{_entry(project, target, num)}jump menu {_menu_number(project, target)};"
     if kind == "playlist":
@@ -382,6 +411,12 @@ def _post_rest(project, action, title):
 
 def _end_command(project, action, ts):
     kind, target, num = parse_action(action)
+    if kind == "commands":
+        return _script(project, target, lambda a: _end_command(project, a, ts))
+    if kind == "audio":                         # (in a script)
+        return f"audio = {num - 1};"
+    if kind == "subtitle":
+        return _subtitle_set(num)
     if kind == "menu":
         reg = f"{_entry(project, target, num)}{NAV_REG} = {_menu_number(project, target)};"
         if ts == 1:
@@ -427,6 +462,8 @@ def title_button_command(project, title, action):
     action would (a title, chapter or play all first ends play-all,
     playlist and override modes, as a menu button does)."""
     kind, target, num = parse_action(action)
+    if kind == "commands":
+        return _script(project, target, lambda a: title_button_command(project, title, a))
     if kind == "audio":
         return f"audio = {num - 1};"
     if kind == "subtitle":
@@ -446,7 +483,7 @@ def end_chapters(project):
     ends = [t.end_action for t in project.titles] + [p.end_action for p in project.playlists] + \
         project.overrides + [b.action for t in project.titles for b in t.buttons]
     out = []
-    for a in ends:
+    for a in (x for e in ends for x in project.plays(e)):
         kind, tid, n = parse_action(a)
         if kind == "chapter" and n > 1 and (tid, n) not in out:
             out.append((tid, n))

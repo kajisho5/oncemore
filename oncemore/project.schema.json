@@ -43,6 +43,19 @@
         "$ref": "#/$defs/playlist"
       },
       "description": "Sequences of titles and chapter ranges, started by playlist:<id> buttons."
+    },
+    "scripts": {
+      "type": "object",
+      "maxProperties": 99,
+      "propertyNames": {
+        "pattern": "^[A-Za-z0-9_-]{1,40}$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4000
+      },
+      "description": "Navigation commands written by hand (DVD): {script id: text}, run where an action names them (commands:<id>): a menu's or a title's button, a menu's time-out, a title's or a playlist's end. dvdauthor's command language with $name variables and play <action>; links; see the README (Navigation scripts)."
     }
   },
   "$defs": {
@@ -101,8 +114,8 @@
     },
     "action": {
       "type": "string",
-      "description": "menu:<id> | menu:<id>:<button id> (that menu with the button highlighted) | title:<id> | chapter:<title id>:<n> (1-based) | playall | playlist:<id> | audio:<n> | subtitle:<n> | subtitle:off | page:next | page:prev | page:<n> (buttons of a menu with pages: that page of the same menu) | resume | stop. playall plays every title in project order, then follows the last title's end_action. resume (menu buttons only) continues the title the remote's Menu / Title key interrupted, or plays the first title when there is nothing to resume.",
-      "pattern": "^(menu:[A-Za-z0-9_-]{1,40}(:[A-Za-z0-9_-]{1,40})?|title:[A-Za-z0-9_-]{1,40}|chapter:[A-Za-z0-9_-]{1,40}:[1-9][0-9]*|playall|playlist:[A-Za-z0-9_-]{1,40}|audio:[1-8]|subtitle:([1-9]|[12][0-9]|3[0-2]|off)|page:(next|prev|[1-9][0-9]?)|resume|stop)$"
+      "description": "menu:<id> | menu:<id>:<button id> (that menu with the button highlighted) | title:<id> | chapter:<title id>:<n> (1-based) | playall | playlist:<id> | audio:<n> | subtitle:<n> | subtitle:off | page:next | page:prev | page:<n> (buttons of a menu with pages: that page of the same menu) | resume | commands:<script id> (a script of the project's scripts, DVD) | stop. playall plays every title in project order, then follows the last title's end_action. resume (menu buttons only) continues the title the remote's Menu / Title key interrupted, or plays the first title when there is nothing to resume.",
+      "pattern": "^(menu:[A-Za-z0-9_-]{1,40}(:[A-Za-z0-9_-]{1,40})?|title:[A-Za-z0-9_-]{1,40}|chapter:[A-Za-z0-9_-]{1,40}:[1-9][0-9]*|playall|playlist:[A-Za-z0-9_-]{1,40}|audio:[1-8]|subtitle:([1-9]|[12][0-9]|3[0-2]|off)|page:(next|prev|[1-9][0-9]?)|resume|commands:[A-Za-z0-9_-]{1,40}|stop)$"
     },
     "disc": {
       "type": "object",
@@ -428,7 +441,7 @@
         },
         "end_action": {
           "type": "string",
-          "pattern": "^(menu:[A-Za-z0-9_-]{1,40}(:[A-Za-z0-9_-]{1,40})?|title:[A-Za-z0-9_-]{1,40}|chapter:[A-Za-z0-9_-]{1,40}:[1-9][0-9]*|playall|playlist:[A-Za-z0-9_-]{1,40}|lastmenu|stop)$",
+          "pattern": "^(menu:[A-Za-z0-9_-]{1,40}(:[A-Za-z0-9_-]{1,40})?|title:[A-Za-z0-9_-]{1,40}|chapter:[A-Za-z0-9_-]{1,40}:[1-9][0-9]*|playall|playlist:[A-Za-z0-9_-]{1,40}|lastmenu|commands:[A-Za-z0-9_-]{1,40}|stop)$",
           "description": "menu:<id> | title:<id> | chapter:<title id>:<n> | playall | playlist:<id> | lastmenu | stop. lastmenu returns to the menu shown last. Default: first menu, or stop."
         },
         "remote_menu": {
@@ -458,7 +471,7 @@
               "height": {"type": "integer", "minimum": 2},
               "action": {
                 "type": "string",
-                "pattern": "^(menu:[A-Za-z0-9_-]{1,40}(:[A-Za-z0-9_-]{1,40})?|title:[A-Za-z0-9_-]{1,40}|chapter:[A-Za-z0-9_-]{1,40}:[1-9][0-9]*|playall|playlist:[A-Za-z0-9_-]{1,40}|audio:[1-8]|subtitle:([1-9]|[12][0-9]|3[0-2]|off)|lastmenu|stop)$",
+                "pattern": "^(menu:[A-Za-z0-9_-]{1,40}(:[A-Za-z0-9_-]{1,40})?|title:[A-Za-z0-9_-]{1,40}|chapter:[A-Za-z0-9_-]{1,40}:[1-9][0-9]*|playall|playlist:[A-Za-z0-9_-]{1,40}|audio:[1-8]|subtitle:([1-9]|[12][0-9]|3[0-2]|off)|lastmenu|commands:[A-Za-z0-9_-]{1,40}|stop)$",
                 "description": "menu:<id>[:<button id>] | title:<id> | chapter:<title id>:<n> | playall | playlist:<id> | audio:<n> | subtitle:<n> | subtitle:off | lastmenu | stop. A link leaves the title as its end action would; audio and subtitle switch the stream and the title plays on."
               }
             }
@@ -1094,7 +1107,7 @@
         },
         "end_action": {
           "type": "string",
-          "pattern": "^(menu:[A-Za-z0-9_-]{1,40}(:[A-Za-z0-9_-]{1,40})?|title:[A-Za-z0-9_-]{1,40}|chapter:[A-Za-z0-9_-]{1,40}:[1-9][0-9]*|playall|playlist:[A-Za-z0-9_-]{1,40}|stop)$",
+          "pattern": "^(menu:[A-Za-z0-9_-]{1,40}(:[A-Za-z0-9_-]{1,40})?|title:[A-Za-z0-9_-]{1,40}|chapter:[A-Za-z0-9_-]{1,40}:[1-9][0-9]*|playall|playlist:[A-Za-z0-9_-]{1,40}|commands:[A-Za-z0-9_-]{1,40}|stop)$",
           "description": "What happens after the last loop (only with a loop count). Default: stop."
         },
         "default_button": {
@@ -1193,7 +1206,7 @@
         },
         "end_action": {
           "type": "string",
-          "pattern": "^(menu:[A-Za-z0-9_-]{1,40}(:[A-Za-z0-9_-]{1,40})?|title:[A-Za-z0-9_-]{1,40}|chapter:[A-Za-z0-9_-]{1,40}:[1-9][0-9]*|playall|playlist:[A-Za-z0-9_-]{1,40}|lastmenu|stop)$",
+          "pattern": "^(menu:[A-Za-z0-9_-]{1,40}(:[A-Za-z0-9_-]{1,40})?|title:[A-Za-z0-9_-]{1,40}|chapter:[A-Za-z0-9_-]{1,40}:[1-9][0-9]*|playall|playlist:[A-Za-z0-9_-]{1,40}|lastmenu|commands:[A-Za-z0-9_-]{1,40}|stop)$",
           "description": "After the last item: menu:<id> | title:<id> | chapter:<title id>:<n> | playall | playlist:<id> | lastmenu (the menu shown last) | stop. Default: stop."
         },
         "order": {

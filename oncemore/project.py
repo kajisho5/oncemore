@@ -14,7 +14,7 @@ import re
 from dataclasses import dataclass, field
 from importlib import resources
 
-from . import schemalite
+from . import navscript, schemalite
 from . import slideshow
 from .errors import ProjectError
 
@@ -282,6 +282,9 @@ def resolve_pages(project):
 
     d = project.disc
     d.first_play, d.title_key = fix(d.first_play), fix(d.title_key)
+    for stmts in project.scripts.values():
+        for play in navscript.plays(stmts):
+            play.action = fix(play.action)
     for t in project.titles:
         t.end_action = fix(t.end_action)
     for pl in project.playlists:
@@ -622,6 +625,7 @@ class Project:
     menus: list
     warnings: list = field(default_factory=list)
     playlists: list = field(default_factory=list)
+    scripts: dict = field(default_factory=dict)    # {id: navscript statements}
 
     def title(self, tid):
         return next((t for t in self.titles if t.id == tid), None)
@@ -683,11 +687,21 @@ class Project:
         ends = [t.end_action for t in self.titles] + [p.end_action for p in self.playlists] + \
             [b.override for m in self.menus for b in m.buttons if b.override] + \
             [b.action for t in self.titles for b in t.buttons]
+        ends = [x for a in ends for x in self.plays(a)]
         return "lastmenu" in ends and bool(self.menus)
 
-    def actions(self):
+    def plays(self, action):
+        """The actions `action` plays: those of its script (commands:<id>),
+        else itself."""
+        if action and action.startswith("commands:") and action[9:] in self.scripts:
+            return navscript.actions(self.scripts[action[9:]])
+        return [action]
+
+    def actions(self, scripts=True):
         """Every action of the disc: first play, Title key, buttons and their
-        overrides, menu, title and playlist end actions, buttons over titles."""
+        overrides, menu, title and playlist end actions, buttons over titles;
+        a script's (commands:<id>) as the actions it plays, or, without
+        `scripts`, as itself."""
         out = [self.disc.first_play, self.disc.title_key]
         for m in self.menus:
             out += [b.action for b in m.buttons] + [b.override for b in m.buttons]
@@ -695,7 +709,7 @@ class Project:
                 out.append(m.end_action)
         out += [t.end_action for t in self.titles] + [p.end_action for p in self.playlists]
         out += [b.action for t in self.titles for b in t.buttons]
-        return [a for a in out if a]
+        return [x for a in out if a for x in (self.plays(a) if scripts else [a])]
 
     @property
     def entry_buttons(self):
@@ -915,6 +929,11 @@ class _Builder:
         playlists = [self.playlist(i, pl) for i, pl in enumerate(d.get("playlists", []))]
         self.unique([pl.id for pl in playlists], "playlists")
         project = Project(self.path, self.base, disc, titles, menus, self.warnings, playlists)
+        for sid, text in d.get("scripts", {}).items():
+            try:
+                project.scripts[sid] = navscript.parse(text)
+            except navscript.ScriptError as e:
+                self.err(f"scripts.{sid}", str(e))
         resolve_pages(project)
         self.check_refs(project, user_menu_ids)
         return project
@@ -1507,9 +1526,24 @@ class _Builder:
         return out
 
     def check_refs(self, project, user_menu_ids):
-        def check(where, action, allow_chapter=True, allow_resume=False, allow_last=False):
+        def check(where, action, allow_chapter=True, allow_resume=False, allow_last=False,
+                  domain=None):
+            """`domain`: where a script may run ("menu": a menu's button or
+            time-out, "title": a title's button or end, a playlist's end)."""
             kind, target, num = parse_action(action)
-            if kind == "page":
+            if kind == "commands":
+                if domain is None:
+                    self.err(where, "commands:... runs on a menu's or a title's button, a menu's "
+                                    "time-out or the end of a title or playlist")
+                elif target not in project.scripts:
+                    if f"scripts.{target}" not in [i["path"] for i in self.issues]:
+                        self.err(where, f"no script with id {target!r}")
+                else:
+                    used.add(target)
+                    for a in project.plays(action):
+                        check(f"{where} (script {target!r})", a, allow_chapter,
+                              allow_last=domain == "title")
+            elif kind == "page":
                 self.err(where, "page:... is for the buttons of a menu with pages")
             elif kind == "resume" and not allow_resume:
                 self.err(where, "resume is only for menu buttons")
@@ -1540,6 +1574,7 @@ class _Builder:
                     elif num > len(t.chapters):
                         self.err(where, f"title {target!r} has only {len(t.chapters)} chapters")
 
+        used = set()
         check("disc.first_play", project.disc.first_play)
         if project.disc.layer_break:
             tid, ch = project.disc.layer_break
@@ -1555,17 +1590,18 @@ class _Builder:
             if not project.menus and project.disc.title_key:
                 self.warnings.append("disc.title_key needs at least one menu; ignored")
         for i, t in enumerate(project.titles):
-            check(f"titles[{i}].end_action", t.end_action, allow_last=True)
+            check(f"titles[{i}].end_action", t.end_action, allow_last=True, domain="title")
             if t.remote_menu and project.menu(t.remote_menu) is None:
                 self.err(f"titles[{i}].remote_menu", f"no menu with id {t.remote_menu!r}")
             for j, b in enumerate(t.buttons):
-                check(f"titles[{i}].buttons[{j}].action", b.action, allow_last=True)
+                check(f"titles[{i}].buttons[{j}].action", b.action, allow_last=True,
+                      domain="title")
         for m in project.menus:
             src = m.page_of or m.id
             where = f"menus[{user_menu_ids.index(src)}]" if src in user_menu_ids and not m.generated \
                 else f"menu {m.id!r}"
             for j, b in enumerate(m.buttons):
-                check(f"{where}.buttons[{j}].action", b.action, allow_resume=True)
+                check(f"{where}.buttons[{j}].action", b.action, allow_resume=True, domain="menu")
                 for key in ("audio", "subtitle"):
                     n = getattr(b, key)
                     if n is None:
@@ -1589,9 +1625,9 @@ class _Builder:
                         self.err(f"{where}.buttons[{j}].transition",
                                  "a link transition is a video (a still picture cannot play)")
             if m.loop is not None:
-                check(f"{where}.end_action", m.end_action)
+                check(f"{where}.end_action", m.end_action, domain="menu")
         for i, pl in enumerate(project.playlists):
-            check(f"playlists[{i}].end_action", pl.end_action, allow_last=True)
+            check(f"playlists[{i}].end_action", pl.end_action, allow_last=True, domain="title")
             if not pl.items:
                 self.err(f"playlists[{i}].items", "a playlist needs at least one item")
             for j, it in enumerate(pl.items):
@@ -1625,10 +1661,19 @@ class _Builder:
                 self.err("menus", "returning to the last menu needs one free player register, "
                                   "and this disc uses them all (fewer menus that remember "
                                   "their last button would free one)")
+            if project.scripts:
+                try:
+                    author.script_registers(project)
+                except ValueError as e:
+                    self.err("scripts", str(e))
             if project.overrides and author.override_reg(project) is None:
                 self.err("menus", "end-action overrides need one free player register, and "
                                   "this disc uses them all (fewer menus that remember "
                                   "their last button would free one)")
+        for sid in project.scripts:
+            if sid not in used:
+                self.warnings.append(f"scripts.{sid} is not run by any button, time-out or end "
+                                     "action")
         for kind, attr in (("audio", "audio_tracks"), ("subtitle", "subtitles")):
             seen = {}
             for i, t in enumerate(project.titles):
