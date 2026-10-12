@@ -1418,6 +1418,8 @@ class TestGuiBrowser(unittest.TestCase):
             cmd = lambda c: page.evaluate(f"window.oncemoreCommand('{c}')")  # noqa: E731
             # Save as: a new folder in another place, which is then the project
             cmd("save_as")
+            # (each dialog is named as its command, not by a translation key)
+            self.assertEqual(page.locator("#modal h2").inner_text(), "Save as")
             page.fill("#fb-path", other)
             page.locator("#fb-path").dispatch_event("change")
             page.locator("#fb-list", has_text="No folders").wait_for()
@@ -1435,6 +1437,7 @@ class TestGuiBrowser(unittest.TestCase):
             self.poll(lambda: self.s.app.dir == os.path.realpath(self.dir))
             # Open project: the chooser marks project folders; double-click opens
             cmd("open_project")
+            self.assertEqual(page.locator("#modal h2").inner_text(), "Open project")
             page.fill("#fb-path", other)
             page.locator("#fb-path").dispatch_event("change")
             page.locator(".fb-item.is-project", has_text="Copy").dblclick()
@@ -1442,6 +1445,7 @@ class TestGuiBrowser(unittest.TestCase):
             page.locator("#modal").wait_for(state="hidden")
             # New project: a new folder, then the New Project dialog for it
             cmd("new_project")
+            self.assertEqual(page.locator("#modal h2").inner_text(), "New project")
             page.fill("#fb-path", other)
             page.locator("#fb-path").dispatch_event("change")
             page.fill("#fb-name", "Fresh")
