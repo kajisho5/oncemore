@@ -495,6 +495,17 @@ class Shape:
 
 
 @dataclass
+class Adjust:
+    """A picture's own adjustments, before it is placed: `crop` (x, y, w, h)
+    as fractions of its size, brightness (-1..1), contrast and saturation
+    (1 = as it is)."""
+    crop: tuple = None
+    brightness: float = 0.0
+    contrast: float = 1.0
+    saturation: float = 1.0
+
+
+@dataclass
 class Picture:
     """A picture on a menu that is not a button (a logo, a photo)."""
     file: str
@@ -506,6 +517,7 @@ class Picture:
     rotate: float = 0.0
     flip: str = None
     page: int = 0
+    adjust: Adjust = None
 
 
 @dataclass
@@ -598,6 +610,7 @@ class Menu:
     generated: bool = False
     number: int = 0  # 1-based menu PGC number inside the titleset
     background_video: str = None
+    background_adjust: Adjust = None   # crop / brightness / contrast / saturation of either
     loop: int = None           # None = forever, else plays before end_action
     loop_point: float = 0.0    # repeats start here (the part before is an intro)
     end_action: str = "stop"   # after the last loop
@@ -1313,8 +1326,10 @@ class _Builder:
                     for s in m.get("shapes", [])],
             images=[Picture(self.file(f"{where}.images[{j}].file", p["file"]), p["x"], p["y"],
                             p["w"], p["h"], p.get("opacity", 1.0), page=p.get("page", 0),
+                            adjust=self.adjust(f"{where}.images[{j}].adjust", p.get("adjust")),
                             **self.transform(p))
                     for j, p in enumerate(m.get("images", []))],
+            background_adjust=self.adjust(f"{where}.background_adjust", m.get("background_adjust")),
             background_video=self.file(f"{where}.background_video", m.get("background_video")),
             background=self.file(f"{where}.background", m.get("background")),
             background_color=m.get("background_color", "#000000"),
@@ -1431,6 +1446,23 @@ class _Builder:
         except ValueError as e:
             self.err(where, str(e))
             return 0.0
+
+    def adjust(self, where, spec):
+        """An Adjust from the project's `adjust` object, None when it leaves
+        the picture as it is."""
+        if not spec:
+            return None
+        crop = spec.get("crop")
+        if crop:
+            if crop["x"] + crop["w"] > 1.0001 or crop["y"] + crop["h"] > 1.0001:
+                self.err(f"{where}.crop", "the crop goes past the picture's edge "
+                                          "(x + w and y + h are at most 1)")
+            crop = (crop["x"], crop["y"], crop["w"], crop["h"])
+            if crop == (0, 0, 1, 1):
+                crop = None
+        a = Adjust(crop, spec.get("brightness", 0.0), spec.get("contrast", 1.0),
+                   spec.get("saturation", 1.0))
+        return None if a == Adjust() else a
 
     @staticmethod
     def transform(spec):

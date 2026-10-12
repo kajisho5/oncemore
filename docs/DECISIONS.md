@@ -2541,3 +2541,35 @@ The manual has a *Navigation scripts* section (en/ja) under Links.
   `menu:mainly`); a title's end offers it, first play does not, and ✕
   removes it.
 
+## 120. Menu pictures adjusted: crop, brightness, contrast, saturation
+
+A menu's background (picture or video) and its pictures take an `adjust`
+(`background_adjust` on the menu, `adjust` on a picture): `crop` a part of
+the source as fractions of its width and height (so it does not depend on
+the file's pixel size, and a replaced file keeps the same framing), and
+`brightness` (-1 to 1), `contrast` and `saturation` (0 to 3). They are
+ffmpeg's `crop` and `eq` (brightness added, contrast and saturation
+multiplied, as eq documents them) before the picture is scaled: the
+background is cropped first and then fitted to the menu as before
+(pillar- or letterboxed in `background_color` when the crop has another
+shape), a picture's crop fills its `w` × `h`. eq works in YUV and ffmpeg
+keeps the alpha plane through it, so a transparent PNG stays transparent
+(the test checks it). An adjustment that leaves the picture as it is
+(no crop, 0, 1, 1) is no adjustment. The menu's cache key holds the menu
+as a whole, so a change re-renders it.
+
+In the app the menu's Properties (when it has a background) and a
+picture's Properties have an Adjust section: crop in percent, three
+sliders and Reset. The stage shows the picture through
+`/api/adjusted`, which runs the same filters with ffmpeg, rather than an
+approximation in CSS (CSS brightness and contrast are not eq's).
+
+* `tests/test_imageadjust.py`: the model, its refusal (a crop past the
+  edge, a contrast past 3), the filters; menus rendered with the left half
+  of a red and blue background, brighter and grey backgrounds, and a
+  picture's opaque half cropped to fill its box while its transparent part
+  stays clear.
+* `tests/test_imageadjust_gui.py`: the endpoint (a crop and grey), and the
+  Properties writing the background's crop and brightness, the stage
+  showing the adjusted picture, Reset, and a picture made grey.
+

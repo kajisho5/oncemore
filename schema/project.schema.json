@@ -1032,6 +1032,10 @@
           ],
           "description": "Still image (PNG/JPEG...). Scaled to fit the disc aspect."
         },
+        "background_adjust": {
+          "$ref": "#/$defs/adjust",
+          "description": "Crop, brightness, contrast and saturation of the background picture or video, made before it is fitted to the menu."
+        },
         "psd": {
           "type": "string",
           "description": "The layered Photoshop file this menu was imported from (kept so it can be imported again after editing)."
@@ -1272,6 +1276,63 @@
         }
       }
     },
+    "adjust": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A picture's own adjustments, made before it is placed: crop (a part of it, as fractions of its width and height from its top-left corner), brightness, contrast and saturation.",
+      "properties": {
+        "crop": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "x",
+            "y",
+            "w",
+            "h"
+          ],
+          "properties": {
+            "x": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "y": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "w": {
+              "type": "number",
+              "minimum": 0.01,
+              "maximum": 1
+            },
+            "h": {
+              "type": "number",
+              "minimum": 0.01,
+              "maximum": 1
+            }
+          }
+        },
+        "brightness": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1,
+          "description": "-1 to 1; 0 (default) leaves it."
+        },
+        "contrast": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 3,
+          "description": "0 to 3; 1 (default) leaves it."
+        },
+        "saturation": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 3,
+          "description": "0 (grey) to 3; 1 (default) leaves it."
+        }
+      }
+    },
     "picture": {
       "type": "object",
       "required": [
@@ -1328,6 +1389,9 @@
           "minimum": 0,
           "maximum": 1,
           "description": "0 (invisible) to 1 (default)."
+        },
+        "adjust": {
+          "$ref": "#/$defs/adjust"
         }
       }
     },

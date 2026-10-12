@@ -283,6 +283,22 @@ def display_width(disc):
     return int(round(disc.height * disc.dar / 2.0)) * 2
 
 
+def adjust_filter(a, sep=""):
+    """ffmpeg filters for a project.Adjust (crop, then brightness, contrast
+    and saturation with eq, which keeps a picture's transparency), followed
+    by `sep`; "" when there is nothing to do."""
+    if a is None:
+        return ""
+    parts = []
+    if a.crop:
+        x, y, w, h = a.crop
+        parts.append(f"crop=iw*{w:.4f}:ih*{h:.4f}:iw*{x:.4f}:ih*{y:.4f}")
+    if (a.brightness, a.contrast, a.saturation) != (0, 1, 1):
+        parts.append(f"eq=brightness={a.brightness:.3f}:contrast={a.contrast:.3f}:"
+                     f"saturation={a.saturation:.3f}")
+    return ",".join(parts) + sep if parts else ""
+
+
 def _hex(color):
     r, g, b, a = png4.parse_color(color)
     return f"0x{r:02X}{g:02X}{b:02X}@{a / 255:.3f}"
@@ -1019,12 +1035,14 @@ class MenuBuilder:
             # tpad: hold the last frame if `duration` is longer than the video
             bg = (f"[0:v]fps={num}/{den},"
                   f"tpad=stop_mode=clone:stop_duration={self.menu_duration(menu):.3f},"
+                  f"{adjust_filter(menu.background_adjust, ',')}"
                   f"scale={self.dw}:{H}:force_original_aspect_ratio=decrease,"
                   f"pad={self.dw}:{H}:(ow-iw)/2:(oh-ih)/2:color={_hex(menu.background_color)},"
                   f"setsar=1,format=rgb24")
         elif menu.background:
             inputs += ["-i", menu.background]
-            bg = (f"[0:v]scale={self.dw}:{H}:force_original_aspect_ratio=decrease,"
+            bg = (f"[0:v]{adjust_filter(menu.background_adjust, ',')}"
+                  f"scale={self.dw}:{H}:force_original_aspect_ratio=decrease,"
                   f"pad={self.dw}:{H}:(ow-iw)/2:(oh-ih)/2:color={_hex(menu.background_color)},"
                   f"setsar=1,format=rgb24")
         else:
@@ -1063,6 +1081,7 @@ class MenuBuilder:
         for p in menu.images:
             fade = f",colorchannelmixer=aa={p.opacity:.3f}" if p.opacity < 1 else ""
             overlays.append(placed(p.file, p, "image", round(p.x * self.sx), p.y,
+                                   f"{adjust_filter(p.adjust, ',')}"
                                    f"scale={max(1, round(p.w * self.sx))}:{p.h},format=rgba{fade}"))
         overlays += list(self.thumbnails(menu))
         for b in menu.buttons:

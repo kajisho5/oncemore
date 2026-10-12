@@ -561,6 +561,7 @@ when there are more.
 | `background` | still image or `null` | `null` |
 | `background_color` | `#RRGGBB` | `#000000` |
 | `background_video` | video file for a **motion menu** (overrides `background`) | `null` |
+| `background_adjust` | `{crop: {x, y, w, h}, brightness, contrast, saturation}` made to the background picture or video before it is fitted to the menu: `crop` a part of it (fractions of its width and height from its top-left corner), `brightness` -1 to 1 (0: as it is), `contrast` and `saturation` 0 to 3 (1: as it is; saturation 0 is grey). In the app: the menu's Properties > Adjust | none |
 | `audio` | music file or `null` | the background video's sound, else silence |
 | `duration` | loop length, seconds | video / music length (≤ 600), else 5 |
 | `loop` | `"forever"` or how many times it plays before `end_action` | `forever` |
@@ -580,7 +581,7 @@ when there are more.
 | `normal_color` | colour of the buttons' highlight shapes while not selected (the colour set's Normal state); none when absent | — |
 | `texts[]` | `{text, x, y, size?, color?}` decorative text, plus the text style keys below | `[]` |
 | `shapes[]` | `{x, y, w, h, color}` filled rectangles (bars, panels; `#RRGGBBAA` for translucent) drawn under texts and buttons | `[]` |
-| `images[]` | `{file, x, y, w, h, opacity}` pictures that are not buttons (logos, photos; PNG keeps its transparency), drawn over the rectangles and under texts and buttons. In the app: Tools > Picture, or right-click an image > Place on the menu | `[]` |
+| `images[]` | `{file, x, y, w, h, opacity, adjust}` pictures that are not buttons (logos, photos; PNG keeps its transparency), drawn over the rectangles and under texts and buttons; `adjust` as `background_adjust`, the cropped part filling `w` × `h`. In the app: Tools > Picture, or right-click an image > Place on the menu | `[]` |
 
 Text style (texts and text buttons): `font` (a font file for this element; it
 must contain all its characters), `outline` + `outline_width`, `shadow` +
