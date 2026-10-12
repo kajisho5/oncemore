@@ -434,6 +434,7 @@ oncemore は標準ライブラリだけ・オフラインのままです。
 | `background` | 静止画 または `null` | `null` |
 | `background_color` | `#RRGGBB` | `#000000` |
 | `background_video` | **モーションメニュー**用の動画（`background` より優先） | `null` |
+| `background_adjust` | `{crop: {x, y, w, h}, brightness, contrast, saturation}` 背景の画像・動画をメニューに合わせる前の調整：`crop` は一部の切り抜き（左上からの位置と大きさを、幅・高さに対する割合で）、`brightness` は -1〜1（0 でそのまま）、`contrast` と `saturation` は 0〜3（1 でそのまま。彩度 0 はグレー）。アプリではメニューのプロパティ > 調整 | なし |
 | `audio` | 音楽ファイル または `null` | 背景動画の音、無ければ無音 |
 | `duration` | ループの長さ（秒） | 動画／BGM の長さ（600 以下）、無ければ 5 |
 | `loop` | `"forever"` か、`end_action` までに再生する回数 | `forever` |
@@ -453,7 +454,7 @@ oncemore は標準ライブラリだけ・オフラインのままです。
 | `normal_color` | 選択されていないボタンのハイライト形状の色（カラーセットの通常時）。無指定なら表示しない | — |
 | `texts[]` | `{text, x, y, size?, color?}` 装飾テキスト（下の文字スタイルも指定可） | `[]` |
 | `shapes[]` | `{x, y, w, h, color}` 塗りつぶしの四角形（帯やパネル。`#RRGGBBAA` で半透明）。テキストとボタンの下に描画 | `[]` |
-| `images[]` | `{file, x, y, w, h, opacity}` ボタンではない画像（ロゴ・写真。PNG は透明部分を保持）。四角形の上、テキストとボタンの下に描画。アプリでは ツール > 画像、または画像を右クリック > メニューに配置 | `[]` |
+| `images[]` | `{file, x, y, w, h, opacity, adjust}` ボタンではない画像（ロゴ・写真。PNG は透明部分を保持）。四角形の上、テキストとボタンの下に描画。`adjust` は `background_adjust` と同じで、切り抜いた部分が `w` × `h` に収まります。アプリでは ツール > 画像、または画像を右クリック > メニューに配置 | `[]` |
 
 文字スタイル（テキストと文字ボタン）：`font`（この要素用のフォントファイル。全文字を含む必要あり）、
 `outline` と `outline_width`（縁取り）、`shadow` と `shadow_offset`（影）、`bold` と `italic`（フォントファミリーの太字・斜体のフォント。フォントと同じ場所に置くかインストールしておく）、

@@ -179,6 +179,9 @@ const I18N = {
     tools: "Tools", ok: "OK", missing: "missing", tracks_hint: "Leave empty to use the video's own sound.",
     stream: "Stream", file: "File", add_track: "+ Track", add_sub: "+ Subtitle file",
     tbtn: "Buttons over the title", tbtn_add: "+ Button", tbtn_hint: "Areas of the picture the viewer selects with the arrow keys and presses with OK while the title plays (DVD only; a Blu-ray build and the web version leave them out). Draw what they look like into the video; the disc lights the area. On the picture, drag a box to move it and its corner to resize it.", tbtn_from: "From", tbtn_to: "To", tbtn_to_end: "the end", tbtn_here: "Set to the playhead", tbtn_subs: "A title with subtitles cannot have buttons over it yet: the player lights the buttons in the subtitle stream it shows.", tbtn_hl: "Selected", tbtn_sel: "Pressed", tbtn_link: "Link", sim_time: "Time in the title",
+    adjust: "Adjust", adj_left: "Crop left %", adj_top: "Crop top %", adj_width: "Crop width %", adj_height: "Crop height %",
+    adj_brightness: "Brightness", adj_contrast: "Contrast %", adj_saturation: "Saturation %", adj_reset: "Reset",
+    adj_hint: "Made to the picture before it is placed (crop, then brightness, contrast and saturation), as the disc gets it.",
     scripts: "Navigation scripts", scripts_hint: "A few lines of navigation for what a link cannot do: count, remember, choose at random. A menu's or a title's button, a menu's time-out or the end of a title or playlist runs one when its link is “Script: …”. $name is a variable (0 when the disc starts); play <link>; goes somewhere, e.g. play menu:main; or play title:t1;. DVD only.", add_script: "+ Script", script_item: "Script: {s}", script_ok: "Variables: {v} · goes to: {a}", script_none: "none", sim_vars: "Variables",
     angles: "Angles", add_angle: "+ Angle", angle_n: "Angle {n}", angles_hint: "Other views of the same scene, switched with the remote's Angle key (DVD only; a Blu-ray build leaves them out). Each video must be at least as long as the title's; it is encoded with the title's settings and sound.", angles_none: "Angles need a single video file as the title's source.",
     frame_err: "Cannot show this frame", preview_err: "Preview failed",
@@ -457,6 +460,9 @@ const I18N = {
     tools: "ツール", ok: "OK", missing: "不足", tracks_hint: "空なら動画自体の音声を使います。",
     stream: "ストリーム", file: "ファイル", add_track: "＋トラック", add_sub: "＋字幕ファイル",
     tbtn: "タイトル上のボタン", tbtn_add: "＋ボタン", tbtn_hint: "タイトルの再生中に、矢印キーで選び OK で押せる映像上の領域です（DVD のみ。Blu-ray のビルドと Web 版では省きます）。見た目は映像に描いておき、ディスクはその領域を光らせます。映像上の枠はドラッグで移動、角のドラッグで大きさを変えられます。", tbtn_from: "開始", tbtn_to: "終了", tbtn_to_end: "最後まで", tbtn_here: "再生位置にする", tbtn_subs: "字幕のあるタイトルには、まだボタンを置けません（プレーヤーは表示中の字幕ストリームの上でボタンを光らせるため）。", tbtn_hl: "選択時", tbtn_sel: "決定時", tbtn_link: "リンク", sim_time: "タイトル内の時刻",
+    adjust: "調整", adj_left: "切り抜き 左 %", adj_top: "切り抜き 上 %", adj_width: "切り抜き 幅 %", adj_height: "切り抜き 高さ %",
+    adj_brightness: "明るさ", adj_contrast: "コントラスト %", adj_saturation: "彩度 %", adj_reset: "リセット",
+    adj_hint: "配置する前の画像に対して行います（切り抜き、続いて明るさ・コントラスト・彩度）。ディスクにもこのとおり入ります。",
     scripts: "ナビゲーションスクリプト", scripts_hint: "リンクだけではできないこと（回数を数える、覚えておく、ランダムに選ぶ）を数行のナビゲーションで書けます。メニューやタイトルのボタン、メニューのタイムアウト、タイトル・プレイリストの終了時のリンクを「スクリプト：…」にすると実行されます。$name は変数（ディスク開始時は 0）、play <リンク>; で移動します（例：play menu:main; play title:t1;）。DVD のみ。", add_script: "＋スクリプト", script_item: "スクリプト：{s}", script_ok: "変数：{v} · 行き先：{a}", script_none: "なし", sim_vars: "変数",
     angles: "アングル", add_angle: "＋アングル", angle_n: "アングル {n}", angles_hint: "同じ場面の別の映像で、リモコンのアングルキーで切り替えます（DVD のみ。Blu-ray のビルドでは省きます）。各動画はタイトルの長さ以上が必要で、タイトルと同じ設定・音声でエンコードします。", angles_none: "アングルを使うには、タイトルのソースが 1 本の動画ファイルである必要があります。",
     frame_err: "このフレームを表示できません", preview_err: "プレビューに失敗",
@@ -598,6 +604,44 @@ async function api(path, { method = "GET", body, raw } = {}) {
 }
 const imgUrl = (endpoint, params) =>
   `/api/${endpoint}?` + new URLSearchParams({ ...params, token: S.token }).toString();
+// a menu picture (or a video's first frame) with its adjustments, as the disc gets it
+function adjustedUrl(path, a, w, video = false) {
+  if (!a) return video ? imgUrl("frame", { path, t: 0, w }) : imgUrl("file", { path });
+  const c = a.crop;
+  return imgUrl("adjusted", { path, t: 0, w, crop: c ? [c.x, c.y, c.w, c.h].join(",") : "",
+    b: a.brightness ?? 0, c: a.contrast ?? 1, s: a.saturation ?? 1 });
+}
+// the Adjust section of a picture's or a menu background's Properties
+function adjustHtml(a) {
+  a = a || {};
+  const c = a.crop || { x: 0, y: 0, w: 1, h: 1 }, pc = (v) => Math.round(v * 100);
+  const num = (k, v, min, max) => `<label class="field"><span>${t("adj_" + k)}</span><input type="number" data-adj="${k}" min="${min}" max="${max}" value="${v}"></label>`;
+  return `<h3>${t("adjust")}</h3><div class="hint">${esc(t("adj_hint"))}</div><div data-nobind data-adjust>
+    <div class="grid2">${num("left", pc(c.x), 0, 99)}${num("top", pc(c.y), 0, 99)}${num("width", pc(c.w), 1, 100)}${num("height", pc(c.h), 1, 100)}</div>
+    <label class="field"><span>${t("adj_brightness")}</span><input type="range" data-adj="brightness" min="-100" max="100" value="${pc(a.brightness ?? 0)}"></label>
+    <label class="field"><span>${t("adj_contrast")}</span><input type="range" data-adj="contrast" min="0" max="300" value="${pc(a.contrast ?? 1)}"></label>
+    <label class="field"><span>${t("adj_saturation")}</span><input type="range" data-adj="saturation" min="0" max="300" value="${pc(a.saturation ?? 1)}"></label>
+    <button class="small" data-adj-reset>${t("adj_reset")}</button></div>`;
+}
+// its fields write `key` of the object find(p) returns (left out when it leaves the picture as it is)
+function bindAdjust(el, find, key) {
+  const box = el.querySelector("[data-adjust]");
+  if (!box) return;
+  const val = (k) => Number(box.querySelector(`[data-adj=${k}]`).value) / 100;
+  const save = () => commit((p) => {
+    const o = find(p);
+    let x = Math.min(Math.max(val("left"), 0), 0.99), y = Math.min(Math.max(val("top"), 0), 0.99);
+    const w = Math.min(Math.max(val("width"), 0.01), 1 - x), h = Math.min(Math.max(val("height"), 0.01), 1 - y);
+    const a = {};
+    if (x || y || w < 1 || h < 1) a.crop = { x, y, w: +w.toFixed(4), h: +h.toFixed(4) };
+    if (val("brightness")) a.brightness = val("brightness");
+    if (val("contrast") !== 1) a.contrast = val("contrast");
+    if (val("saturation") !== 1) a.saturation = val("saturation");
+    if (Object.keys(a).length) o[key] = a; else delete o[key];
+  });
+  box.querySelectorAll("[data-adj]").forEach((i) => (i.onchange = save));
+  box.querySelector("[data-adj-reset]").onclick = () => commit((p) => { delete find(p)[key]; });
+}
 
 // ---------------------------------------------------------------- time helpers
 function parseTime(v) {
@@ -2586,14 +2630,14 @@ function renderMenu(m) {
     return;
   }
   let bg = "";
-  if (menu.background_video) bg = `<img class="bg" src="${imgUrl("frame", { path: menu.background_video, t: 0, w: 960 })}" alt="">`;
-  else if (menu.background) bg = `<img class="bg" src="${imgUrl("file", { path: menu.background })}" alt="">`;
+  if (menu.background_video) bg = `<img class="bg" src="${adjustedUrl(menu.background_video, menu.background_adjust, 960, true)}" alt="">`;
+  else if (menu.background) bg = `<img class="bg" src="${adjustedUrl(menu.background, menu.background_adjust, 960)}" alt="">`;
   const defSize = menu.font_size || 32, defColor = menu.text_color || "#FFFFFF";
   const styleOf = (x) => ({ font: x.font, outline: x.outline, outline_width: x.outline_width || 2, shadow: x.shadow, shadow_offset: x.shadow_offset || 3,
     bold: !!x.bold, italic: !!x.italic, tracking: x.letter_spacing || 0, kerning: x.kerning !== false });
   const els = [
     ...(menu.shapes || []).map((x, i) => ({ kind: "shape", i, x: x.x, y: x.y, w: x.w, h: x.h, color: x.color || "#00000080", ...turnOf(x) })),
-    ...(menu.images || []).map((x, i) => ({ kind: "image", i, x: x.x, y: x.y, w: x.w, h: x.h, file: x.file, opacity: x.opacity ?? 1, ...turnOf(x) })),
+    ...(menu.images || []).map((x, i) => ({ kind: "image", i, x: x.x, y: x.y, w: x.w, h: x.h, file: x.file, adjust: x.adjust, opacity: x.opacity ?? 1, ...turnOf(x) })),
     ...(menu.texts || []).map((x, i) => ({ kind: "text", i, x: x.x, y: x.y, size: x.size || defSize, color: x.color || defColor, label: x.text, align: x.align, ls: x.line_spacing || 0,
       boxW: x.width, boxH: x.height, vertical: !!x.vertical, under: !!x.underline, strike: !!x.strikethrough, ...styleOf(x), ...turnOf(x) })),
     ...(menu.buttons || []).map((b, i) => ({ kind: "button", i, x: b.x, y: b.y, size: b.size || defSize, color: b.color || defColor, label: b.label || "", image: b.image, width: b.width, hl: !b.label && !b.image ? b.highlight_image : null, ...styleOf(b), ...turnOf(b) })),
@@ -2659,7 +2703,7 @@ function renderMenu(m) {
       }).join("")}
       ${els.map((e) => `<div class="el ${e.kind} ${isSel(e) ? "selected" : ""} ${e.kind === "button" && e.i === firstBtn ? "highlight" : ""}"
           data-kind="${e.kind}" data-i="${e.i}" style="${css(e)}">${e.kind === "shape" ? "" : e.kind === "image"
-            ? `<img src="${imgUrl("file", { path: e.file })}" alt="" draggable="false" style="display:block;width:100%;height:100%">`
+            ? `<img src="${adjustedUrl(e.file, e.adjust, 720)}" alt="" draggable="false" style="display:block;width:100%;height:100%">`
             : e.hl
             ? `<img class="area" src="${imgUrl("file", { path: e.hl })}" alt="" draggable="false" style="display:block;width:${(e.width || 160) * sx * scale}px;${e.i === firstBtn ? `filter:drop-shadow(0 0 0 ${esc(menu.highlight_color || "#FFD400")});opacity:.9` : "opacity:.35"}">`
             : e.image
@@ -3377,10 +3421,12 @@ function renderMenuInspector(el) {
       </div>
       <label class="field" data-nobind><span></span><label><input type="checkbox" id="pic-ratio" ${S.picFree ? "" : "checked"}> ${t("keep_ratio")}</label></label>
       <label class="field" data-nobind><span>${t("opacity")}</span><input type="range" id="pic-a" min="0" max="100" value="${Math.round((it.opacity ?? 1) * 100)}"></label>
+      ${adjustHtml(it.adjust)}
       ${pageHtml(menu, it)}${transformHtml(it, "image")}
       <button class="danger" id="del-el">${t("delete")}</button>`;
     bindFields(el, (p) => find(p).images[sel.i], { numeric: ["x", "y"] });
     bindTransform(el, (p) => find(p).images[sel.i]);
+    bindAdjust(el, (p) => find(p).images[sel.i], "adjust");
     bindPage(el, (p) => find(p).images[sel.i]);
     const resize = (which) => commit((p) => {
       const x = find(p).images[sel.i], ratio = x.h / x.w;
@@ -3591,6 +3637,7 @@ function renderMenuInspector(el) {
     <label class="field"><span>${t("id")}</span><input id="menu-id" value="${esc(menu.id)}"></label>
     <label class="field"><span>${t("background")}</span>${selectHtml("background", [...none, ...mediaOf("image").map((x) => [x, x])], menu.background || "__none__")}</label>
     <label class="field"><span>${t("background_video")}</span>${selectHtml("background_video", [...none, ...mediaOf("video").map((x) => [x, x])], menu.background_video || "__none__")}</label>
+    ${menu.background || menu.background_video ? `<div id="bg-adjust">${adjustHtml(menu.background_adjust)}</div>` : ""}
     <div class="grid2">
       <label class="field"><span>${t("background_color")}</span><input type="color" data-k="background_color" value="${esc(menu.background_color || "#000000")}"></label>
       <label class="field"><span>${t("text_color")}</span><input type="color" data-k="text_color" value="${esc(menu.text_color || "#ffffff")}"></label>
@@ -3630,6 +3677,7 @@ function renderMenuInspector(el) {
   if ($("#btn-at-loop")) $("#btn-at-loop").onchange = (e) => commit((p) => { const mm = find(p); if (e.target.checked) mm.buttons_at_loop = true; else delete mm.buttons_at_loop; });
   $("#remember-btn").onchange = (e) => commit((p) => { const mm = find(p); if (e.target.checked) delete mm.remember_button; else mm.remember_button = false; });
   bindUops(el, find);
+  bindAdjust(el, find, "background_adjust");
   bindOrder(el, "menus", menu.id);
   $("#menu-id").onchange = (e) => {
     const nid = e.target.value.trim().replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 40);

@@ -61,8 +61,8 @@ from .. import (__version__, build, burn, clips, encode, graph, navscript, png4,
                slideshow, scenes, settings, subtitles, templates, tools, userstyles, usertemplates,
                web)
 from ..errors import OncemoreError, ProjectError
-from ..project import (PROJECT_FILENAME, build_project, clip_starts, parse_time, read_json,
-                       source_at)
+from ..project import (PROJECT_FILENAME, Adjust, build_project, clip_starts, parse_time,
+                       read_json, source_at)
 from ..report import Reporter
 
 MEDIA_EXT = {
@@ -326,6 +326,24 @@ class App:
         p = subprocess.run(cmd, capture_output=True, timeout=60)
         if p.returncode != 0 or not p.stdout:
             raise OncemoreError("cannot read a frame",
+                                details={"output": tools.tail(p.stderr.decode("utf-8", "replace"))})
+        self._remember(key, p.stdout)
+        return p.stdout
+
+    def adjusted(self, full, t, a, width):
+        """A picture (or a video's frame at `t`) with its menu adjustments
+        (project.Adjust) made as the disc makes them, as PNG."""
+        key = ("adj", full, os.path.getmtime(full), round(t, 2), dataclasses.astuple(a), width)
+        if (hit := self._cached(key)) is not None:
+            return hit
+        from ..menu import adjust_filter
+        vf = f"{adjust_filter(a, ',')}scale={width}:-2,format=rgba"
+        cmd = [tools.find("ffmpeg"), "-hide_banner", "-nostdin", "-v", "error",
+               "-ss", f"{max(0.0, t):.3f}", "-i", full, "-frames:v", "1", "-vf", vf,
+               "-f", "image2", "-c:v", "png", "pipe:1"]
+        p = subprocess.run(cmd, capture_output=True, timeout=60)
+        if p.returncode != 0 or not p.stdout:
+            raise OncemoreError("cannot adjust the picture",
                                 details={"output": tools.tail(p.stderr.decode("utf-8", "replace"))})
         self._remember(key, p.stdout)
         return p.stdout
@@ -758,6 +776,20 @@ class Handler(BaseHTTPRequestHandler):
 
     def api_get_probe(self, q):
         self.json(self.app.probe(self.app.resolve(q.get("path"))))
+
+    def api_get_adjusted(self, q):
+        """A menu picture or background with its adjustments: path, t (a
+        video's time), w (width), crop "x,y,w,h" (fractions), b, c, s."""
+        full = self.app.resolve(q.get("path"))
+        width = max(16, min(int(q.get("w", 480)), 1920))
+        crop = None
+        if q.get("crop"):
+            x, y, w, h = (min(1.0, max(0.0, float(v))) for v in q["crop"].split(","))
+            crop = (x, y, max(0.01, min(w, 1 - x)), max(0.01, min(h, 1 - y)))
+        a = Adjust(crop, min(1.0, max(-1.0, float(q.get("b", 0)))),
+                   min(3.0, max(0.0, float(q.get("c", 1)))), min(3.0, max(0.0, float(q.get("s", 1)))))
+        data = self.app.adjusted(full, float(q.get("t", 0)), a, width)
+        self._send(HTTPStatus.OK, data, "image/png", {"Cache-Control": "private, max-age=600"})
 
     def api_get_frame(self, q):
         full = self.app.resolve(q.get("path"))

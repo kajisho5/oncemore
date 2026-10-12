@@ -232,6 +232,10 @@ Viewer**.
 * **Object > Rotate**, **Flip horizontal** and **Flip vertical** turn and
   mirror texts, buttons, rectangles and pictures; the R tool rotates by
   dragging around the centre.
+* **Adjust** (a picture's Properties, and the menu's for its background
+  picture or video): crop a part of it (left, top, width and height in
+  percent), and set its brightness, contrast and saturation. The menu shows
+  it as the disc will; **Reset** puts it back.
 * **Object > Drop shadow and stroke…** adds a shadow and an outline.
   **Convert to button** and **Convert to object** change what an object is.
 * Double-click a text or a button's words to type them in place (Esc ends
