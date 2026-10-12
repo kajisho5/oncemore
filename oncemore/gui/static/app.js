@@ -252,7 +252,7 @@ const I18N = {
     flip_vertical: "Vertical", flip_both: "Both", transform_thumb_hint: "The label or picture turns with its highlight; the thumbnail stays as it is.",
     cmd_view_normal: "Normal", cmd_view_selected: "Selected", cmd_view_activated: "Activated", cmd_exact_preview: "Exact preview",
     cmd_reset_workspace: "Reset workspace", cmd_reload: "Reload", cmd_full_screen: "Enter full screen", cmd_minimize: "Minimise", cmd_zoom_window: "Zoom",
-    cmd_help: "oncemore help",
+    cmd_help: "oncemore help", help_search: "Search the help", help_none: "Nothing found.",
     cmd_check_updates: "Check for Updates…", updates_text: "This is oncemore {v}. oncemore itself never connects to the internet, so it cannot look for new versions: the releases page lists every version with what is new in it and its download.", open_releases: "Open the releases page",
     cmd_sponsor: "Support oncemore (GitHub Sponsors)…", sponsor_text: "oncemore is free. If it helps you, you can support its development through GitHub Sponsors.",
     folder: "Folder", shadow_offset: "Shadow distance", outline_width: "Stroke width",
@@ -528,7 +528,7 @@ const I18N = {
     flip_vertical: "垂直", flip_both: "両方", transform_thumb_hint: "ラベルや画像はハイライトと一緒に回ります。サムネイルはそのままです。",
     cmd_view_normal: "通常", cmd_view_selected: "選択", cmd_view_activated: "決定", cmd_exact_preview: "正確なプレビュー",
     cmd_reset_workspace: "ワークスペースをリセット", cmd_reload: "再読み込み", cmd_full_screen: "フルスクリーンにする", cmd_minimize: "しまう", cmd_zoom_window: "拡大／縮小",
-    cmd_help: "oncemore ヘルプ",
+    cmd_help: "oncemore ヘルプ", help_search: "ヘルプを検索", help_none: "見つかりませんでした。",
     cmd_check_updates: "アップデートを確認…", updates_text: "このアプリは oncemore {v} です。oncemore 自身はインターネットに接続しないため、新しい版を自動では探しません。リリースのページに、すべての版の新機能とダウンロードがあります。", open_releases: "リリースのページを開く",
     cmd_sponsor: "oncemore を支援（GitHub Sponsors）…", sponsor_text: "oncemore は無料です。役に立ったら GitHub Sponsors から開発を支援できます。",
     folder: "フォルダー", shadow_offset: "影の距離", outline_width: "境界線の幅",
@@ -1083,7 +1083,7 @@ function showIssues(issues, title) {
   const b = $("#issues-replace");
   if (b) b.onclick = () => replaceAssetBox(missing[0]);
 }
-function openModal(html) { $("#modal-body").innerHTML = html; $("#modal").hidden = false; }
+function openModal(html) { $("#modal-body").innerHTML = html; $("#modal .modal-card").classList.remove("help-card"); $("#modal").hidden = false; }
 function closeModal() { $("#modal").hidden = true; }
 
 // The Project frame: Project (every element and asset in one list with its
@@ -4759,7 +4759,7 @@ const COMMANDS = {
   minimize: { app: true, key: "mod+m" },
   zoom_window: { app: true },
   // -- Help
-  help: { run: openHelp },
+  help: { key: "f1", run: () => openHelp() },
   shortcuts: { key: "?", run: shortcutsSheet },
   sponsor: { run: () => openLink(SPONSOR_URL) },
   check_updates: { run: checkUpdates },
@@ -5272,8 +5272,111 @@ function openLink(url) {
   if (IN_APP) location.assign(url);              // (the app opens it in the browser)
   else window.open(url, "_blank", "noopener");
 }
-function openHelp() {
-  openLink(`https://github.com/kajisho5/oncemore/blob/main/${LANG === "ja" ? "README.ja.md" : "README.md"}`);
+// Help: the manual (static/manual-<language>.md, served with the app, so it
+// reads without a connection) in a window of its own: its contents, a search
+// field and the text. F1 opens it at what is being worked on (helpTopic);
+// the menu reference is made from the menu bar itself, so it never drifts.
+const HELP_CACHE = {};
+function helpTopic() {
+  if (S.leftTab === "build" || S.sel.view === "build") return "build";
+  const v = S.sel.view;
+  if (v === "menu") return S.element ? "menu-objects" : "menus";
+  if (v === "title") return curTitle()?.slideshow ? "slideshows" : "titles";
+  return { playlist: "playlists", flow: "flowchart", sim: "preview", disc: "projects" }[v] || "start";
+}
+// a small Markdown: headings (## Name {#id}), paragraphs, * and 1. lists,
+// > notes, **bold**, *italic*, `code` and [links](#id or https://…);
+// everything else is text (escaped)
+function helpInline(text) {
+  return esc(text)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+    .replace(/(^|[\s(])\*([^*\s][^*]*)\*/g, "$1<i>$2</i>")
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, label, href) => `<a href="${href.replace(/"/g, "&quot;")}" ${href.startsWith("#") ? `data-help="${href.slice(1)}"` : 'data-ext="1"'}>${label}</a>`);
+}
+function helpSections(md) {
+  const out = [];
+  let sec = null, block = null;
+  const flush = () => { if (block && sec) sec.html += block.kind === "p" ? `<p>${helpInline(block.lines.join(" "))}</p>`
+    : block.kind === "note" ? `<p class="help-note">${helpInline(block.lines.join(" "))}</p>`
+      : `<${block.kind}>${block.items.map((x) => `<li>${helpInline(x.join(" "))}</li>`).join("")}</${block.kind}>`; block = null; };
+  for (const raw of md.split("\n")) {
+    const line = raw.replace(/\s+$/, "");
+    const h = line.match(/^(#{1,3}) (.*?)(?: \{#([\w-]+)\})?$/);
+    if (h) {
+      flush();
+      if (h[1].length <= 2) { sec = { id: h[3] || "intro", title: h[2], level: h[1].length, html: "" }; out.push(sec); }
+      else sec.html += `<h3 ${h[3] ? `id="help-${h[3]}" data-anchor="${h[3]}"` : ""}>${helpInline(h[2])}</h3>`;
+      continue;
+    }
+    if (line === "<!-- menu-reference -->") { flush(); sec.html += helpMenuReference(); continue; }
+    const li = line.match(/^(\*|\d+\.) (.*)$/);
+    if (li) {
+      const kind = li[1] === "*" ? "ul" : "ol";
+      if (!block || block.kind !== kind) { flush(); block = { kind, items: [] }; }
+      block.items.push([li[2]]);
+      continue;
+    }
+    if (!line) { flush(); continue; }
+    if (block && (block.kind === "ul" || block.kind === "ol") && /^\s+/.test(raw)) { block.items[block.items.length - 1].push(line.trim()); continue; }
+    const note = line.match(/^> (.*)$/);
+    if (note) { if (!block || block.kind !== "note") { flush(); block = { kind: "note", lines: [] }; } block.lines.push(note[1]); continue; }
+    if (!block || block.kind !== "p") { flush(); block = { kind: "p", lines: [] }; }
+    block.lines.push(line.trim());
+  }
+  flush();
+  return out;
+}
+function helpMenuReference() {
+  const items = (list) => list.filter((x) => x !== "-" && x.label && !/^recent_/.test(x.id || "")).map((x) =>
+    `<li>${esc(x.label)}${x.key ? ` <span class="help-key">${esc(keyLabel(x.key))}</span>` : ""}${x.sub?.length ? `<ul>${items(x.sub)}</ul>` : ""}</li>`).join("");
+  return window.oncemoreMenuSpec().map((m) => `<h3>${esc(m.title)}</h3><ul class="help-ref">${items(m.items)}</ul>`).join("");
+}
+async function openHelp(topic) {
+  topic = typeof topic === "string" ? topic : helpTopic();
+  const lang = LANG === "ja" ? "ja" : "en";
+  try {
+    if (!HELP_CACHE[lang]) {
+      const r = await fetch(`manual-${lang}.md`);
+      if (!r.ok) throw new Error(`manual-${lang}.md: ${r.status}`);
+      HELP_CACHE[lang] = await r.text();
+    }
+  } catch (e) { openModal(`<h2>${esc(t("cmd_help"))}</h2><p>${esc(e.message)}</p>`); return; }
+  const secs = helpSections(HELP_CACHE[lang]);
+  const intro = secs[0], body = secs.slice(1);
+  openModal(`<div class="help" id="help">
+    <nav class="help-toc"><input id="help-search" type="search" placeholder="${esc(t("help_search"))}" aria-label="${esc(t("help_search"))}">
+      <ul>${body.map((x) => `<li><a href="#${x.id}" data-help="${x.id}">${esc(x.title)}</a></li>`).join("")}</ul>
+      <p class="help-none" hidden>${esc(t("help_none"))}</p></nav>
+    <article class="help-text" id="help-text"><h1>${esc(intro.title)}</h1>${intro.html}
+      ${body.map((x) => `<section id="help-${x.id}" data-section="${x.id}"><h2>${esc(x.title)}</h2>${x.html}</section>`).join("")}</article></div>`);
+  $("#modal .modal-card").classList.add("help-card");
+  const root = $("#help"), text = $("#help-text");
+  const go = (id) => {
+    const el = root.querySelector(`#help-${CSS.escape(id)}`);
+    root.querySelectorAll(".help-toc a").forEach((a) => a.classList.toggle("on", a.dataset.help === (el?.closest("section")?.dataset.section || id)));
+    if (el) text.scrollTop = el.offsetTop - text.offsetTop;
+  };
+  root.addEventListener("click", (e) => {
+    const a = e.target.closest("a");
+    if (!a) return;
+    e.preventDefault();
+    if (a.dataset.help) go(a.dataset.help);
+    else if (a.dataset.ext) openLink(a.getAttribute("href"));
+  });
+  $("#help-search").oninput = (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    let shown = 0;
+    root.querySelectorAll("section[data-section]").forEach((sec) => {
+      const hit = !q || sec.textContent.toLowerCase().includes(q);
+      sec.hidden = !hit;
+      root.querySelector(`.help-toc a[data-help="${sec.dataset.section}"]`).parentElement.hidden = !hit;
+      shown += hit;
+    });
+    root.querySelector(".help-none").hidden = shown > 0;
+    text.scrollTop = 0;
+  };
+  go(topic);
 }
 // the page's copy / cut / paste events (the Mac app's Edit menu sends these):
 // objects and project items when no text is being edited
@@ -5618,6 +5721,7 @@ function keyMatches(spec, e) {
   if (key === "pageup" || key === "pagedown") return e.key === { pageup: "PageUp", pagedown: "PageDown" }[key];
   if (key === "[" || key === "]") return e.code === (key === "[" ? "BracketLeft" : "BracketRight");
   if (key === ",") return e.code === "Comma";
+  if (/^f[0-9]+$/.test(key)) return e.key === key.toUpperCase();
   if (key === ";") return e.code === "Semicolon";
   if (/^[0-9]$/.test(key)) return e.code === "Digit" + key;
   return e.code === "Key" + key.toUpperCase();

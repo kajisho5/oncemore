@@ -2252,3 +2252,37 @@ raised as `OncemoreError`.
   of a palette entry of its own.
 * `test_button_stream` checks a 720p button stream's frame, its palette
   (a transparent normal colour gets no entry) and its objects.
+
+## 112. The manual inside the app
+
+*Help > oncemore help* opened the README on GitHub: it needed a connection,
+the Mac app left for the browser to show it, and the README is written for
+installing and building rather than for working in the app. The app now has
+its own manual.
+
+* The text is Markdown, `oncemore/gui/static/manual-en.md` and
+  `manual-ja.md`, served with the app (the static files are package data,
+  so it reads offline, in the Mac app too). The two have the same sections
+  with the same ids (`## Menus {#menus}`), in the same order.
+* The Help window shows the contents, a search field (it keeps the sections
+  that mention the words) and the text, drawn by a small renderer (headings,
+  paragraphs, lists, bold, italic, code, links between sections), everything
+  else escaped.
+* **F1** (and the Help menu) opens it at what is being worked on:
+  `helpTopic` maps the view to a section (a menu: Menus, or Objects on a menu
+  with one selected; a title: Titles or Slideshows; a playlist, the
+  flowchart, the preview, the Build panel, the disc). The Mac app's menu
+  leaves F1 to the page (it binds only ⌘ and ⌥ keys).
+* The menu reference is not written by hand: the manual marks its place and
+  the window fills it from the menu bar's own list (`oncemoreMenuSpec`),
+  labels and shortcuts in the current language, so it never drifts from the
+  menus.
+* What it says is what the app does: it was written from the README's
+  account of the app and checked against the code (labels as the app shows
+  them, settings where the app has them).
+
+* `TestManual` checks that both languages have the same sections, that every
+  topic F1 opens is one of them, and that the reference marker is there
+  once; `test_help_window` opens it with F1 on a menu and a title, searches,
+  reads the reference, in Japanese too, and sees no request leave the
+  computer.
