@@ -2221,6 +2221,38 @@ every day (00:17 UTC) and by hand:
   in oncemore too: it is made on the same branch before merging, with its
   DECISIONS entry.
 
+## 110. Menus' button streams made by bdmvkit
+
+bdmvkit 0.6.0 makes an IG stream on a 720p frame as well
+(`igs.ig_stream(size=)`), so oncemore no longer composes the stream
+itself. `bdmenu.ig_stream` draws each button's states as pictures and hands
+them, with the button's commands, arrow-key moves, number, auto-activation
+and the menu's default button, to bdmvkit:
+
+* a menu: the button's highlight shape (the canvas) in the highlight
+  colour (selected), the select colour (activated) and, when the menu has
+  one, the normal colour (normal);
+* a pop-up menu: the button's area of the transparent menu picture as it
+  is (normal) and with the shapes painted over (`popup_states`, as before).
+
+What stays in oncemore is the drawing (`popup_states`, `straight`, the
+canvas); `quantize`, the palette and the segments are bdmvkit's, and its
+checks (buttons inside the frame, unique ids, 12-byte commands) now apply,
+raised as `OncemoreError`.
+
+* Checked by building five Blu-ray projects before and after (the four of
+  §108 and a 4:3 PAL menu with normal, highlight and select colours, a
+  default button, a button offset and an auto-activated button): the
+  playlists, clip information and every PID but the IG stream's are byte
+  for byte the same. The IG streams show the same: the compositions are the
+  same bytes and every object decodes to the same colours. Only the order
+  of the objects (normal, selected, activated, where oncemore wrote the
+  normal ones last) and of the palette entries (in the order the colours
+  first appear) differ; a fully transparent colour is now index 0 instead
+  of a palette entry of its own.
+* `test_button_stream` checks a 720p button stream's frame, its palette
+  (a transparent normal colour gets no entry) and its objects.
+
 ## 111. Every command run once; what it found
 
 Each command of the app's menu bar was run in the contexts where it is

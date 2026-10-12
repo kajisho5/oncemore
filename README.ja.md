@@ -797,7 +797,7 @@ oncemore の一部は、他のツールからも使えるよう単体のライ�
 | [dvdcc](https://github.com/kajisho5/dvdcc) | DVD の MPEG-2 映像へのライン 21 クローズドキャプション（CEA-608） | Apache-2.0 |
 | [vtskit](https://github.com/kajisho5/vtskit) | DVD-Video のオーサリング：IFO、ナビゲーションパック、メニュー、字幕、アングルブロック、dvdauthor の命令言語 | LGPL-3.0 以降 |
 
-変更はそれぞれのリポジトリで行ってリリースし、oncemore はリリースの写しを持ちます（`oncemore/_vendor`、`tools/vendor.py` で更新）。そのため oncemore は依存ライブラリ無しでインストールできます。4つとも写しを使っています。Blu-ray では、ナビゲーション（タイトル、プレイリスト、メニューの命令、ムービーオブジェクト）とそのファイル、PGS 字幕を bdmvkit が書きます。クリップのエンコードと、メニュー・ポップアップメニューの描画は、bdmvkit でリリースされるまで oncemore が行います。
+変更はそれぞれのリポジトリで行ってリリースし、oncemore はリリースの写しを持ちます（`oncemore/_vendor`、`tools/vendor.py` で更新）。そのため oncemore は依存ライブラリ無しでインストールできます。4つとも写しを使っています。Blu-ray では、ナビゲーション（タイトル、プレイリスト、メニューの命令、ムービーオブジェクト）とそのファイル、メニューのボタンストリーム、PGS 字幕を bdmvkit が書きます。クリップのエンコードと、メニュー・ポップアップメニューの描画（各ボタンの画像）は、bdmvkit でリリースされるまで oncemore が行います。
 
 `.github/workflows/library-updates.yml` が毎日 PyPI を見て、oncemore が持つライブラリに新しいリリースがあれば、それを取り込むドラフトの PR を作り、CI を走らせます。マージするかどうかは人が決めます（同じ一覧は `python tools/vendor.py --outdated` で見られます）。
 
