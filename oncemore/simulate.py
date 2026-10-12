@@ -26,6 +26,7 @@ requests):
   resume      {"title", "chapter", "button"} the Menu / Title key left, for resume
               buttons (the player's resume information; None once the
               title ended, as the resume flag register says)
+  vars        {variable: value} of the project's scripts (0 until set)
   time        seconds into the title (domain "title"): the start of its
               chapter, or where the key seek:<seconds> put it; the buttons
               over the title shown then answer the arrow keys, Enter and
@@ -35,7 +36,7 @@ requests):
 
 import os
 
-from . import author, navigation
+from . import author, navigation, navscript
 from .project import parse_action
 
 KEYS = ("up", "down", "left", "right", "enter", "menu", "title", "next", "prev",
@@ -82,7 +83,7 @@ class Simulator:
         s = {"domain": "stopped", "menu": None, "button": 1, "title": None, "chapter": 0,
              "audio": 1, "subtitle": 0, "playall": 0, "playlist": 0, "item_end": 0,
              "menu_key": None, "remember": {}, "loops": 0, "resume": None, "override": None, "last_menu": None,
-             "time": 0.0, "log": []}
+             "time": 0.0, "vars": {}, "log": []}
         sub = author.default_subtitle(self.p)
         if sub is not None:
             s["subtitle"] = sub + 1
@@ -158,10 +159,44 @@ class Simulator:
         s["playlist"], s["item_end"] = state, item.last or 0
         self.play(s, item.title_id, item.first)
 
+    def script(self, s, sid, play):
+        """Run script `sid`, its plays done by `play(action)`; the player's
+        registers as the disc keeps them (audio stream from 0, subtitle
+        stream from 0 plus 64 when shown, button number * 1024)."""
+        def get(name):
+            if name == "audio":
+                return s["audio"] - 1
+            if name == "subtitle":
+                return 64 + s["subtitle"] - 1 if s["subtitle"] else 0
+            if name == "button":
+                return s["button"] * 1024
+            return s.get("angle", 1)
+
+        def put(name, v):
+            if name == "audio":
+                s["audio"] = v + 1
+            elif name == "subtitle":
+                s["subtitle"] = (v & 63) + 1 if v & 64 else 0
+            elif name == "button":
+                s["button"] = v // 1024
+            else:
+                s["angle"] = v
+            self.note(s, f"{name} = {v}")
+
+        self.note(s, f"script {sid}")
+        s.setdefault("vars", {})
+        try:
+            navscript.run(self.p.scripts[sid], {"vars": s["vars"], "get": get, "set": put,
+                                                "play": play})
+        except navscript.ScriptError as e:
+            raise SimError(f"script {sid}: {e}")
+
     def menu_command(self, s, action):
         """A button or a menu time-out (menu domain)."""
         kind, target, num = parse_action(action)
-        if kind == "menu":
+        if kind == "commands":
+            self.script(s, target, lambda a: self.menu_command(s, a))
+        elif kind == "menu":
             self.enter_menu(s, target, num)
         elif kind == "playlist":
             self.playlist_start(s, target)
@@ -201,7 +236,15 @@ class Simulator:
     def end_command(self, s, action):
         """A title's or playlist's end action (title domain)."""
         kind, target, num = parse_action(action)
-        if kind == "menu":
+        if kind == "commands":
+            self.script(s, target, lambda a: self.end_command(s, a))
+        elif kind == "audio":                       # (in a script)
+            s["audio"] = num
+            self.note(s, f"audio {num}")
+        elif kind == "subtitle":
+            s["subtitle"] = num
+            self.note(s, f"subtitle {'off' if not num else num}")
+        elif kind == "menu":
             self.via_root(s, target, num)
         elif kind == "lastmenu":
             # g1 = the last menu; 0 before any: the root's dispatcher then takes
@@ -391,8 +434,13 @@ class Simulator:
         resumed, as with the Menu key); others as the title's end."""
         g = shown[min(s["button"], len(shown)) - 1]
         self.note(s, f"button {g['id']} -> {g['action']}")
-        kind, target, num = parse_action(g["action"])
-        if kind == "audio":
+        self.title_action(s, g["action"])
+
+    def title_action(self, s, action):
+        kind, target, num = parse_action(action)
+        if kind == "commands":
+            self.script(s, target, lambda a: self.title_action(s, a))
+        elif kind == "audio":
             s["audio"] = num
             self.note(s, f"audio {num}")
         elif kind == "subtitle":
@@ -410,7 +458,7 @@ class Simulator:
         else:
             if kind in ("menu", "lastmenu") and self.p.menus:
                 s["resume"] = {"title": s["title"], "chapter": s["chapter"], "button": s["button"]}
-            self.end_command(s, g["action"])
+            self.end_command(s, action)
 
     def play_chapter(self, s, t):
         """Play to the end of the current chapter."""

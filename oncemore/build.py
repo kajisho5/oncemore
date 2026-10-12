@@ -29,6 +29,45 @@ DVD_DTS_MAX = 1_536_000
 DVD_CHAPTERS = 99          # chapters (parts of title) a DVD title can have
 
 
+def script_issues(project, bd=False):
+    """The navigation scripts compiled where they run (vtskit.lang), so a
+    script it cannot take is reported before anything is encoded. A
+    Blu-ray has none."""
+    used = [a for a in project.actions(scripts=False) if a.startswith("commands:")]
+    if not used:
+        return []
+    if bd:
+        return [{"path": "scripts", "message": "navigation scripts (commands:...) are for DVD; "
+                                               "a Blu-ray and the web version have none yet"}]
+    disc = videots.disc_of(project)
+    out = []
+
+    def compile_(where, text, domain, vts):
+        try:
+            disc.compile(text, domain, vts)
+        except (VtsError, ValueError) as e:
+            out.append({"path": where, "message": f"the script does not compile: {e}"})
+
+    for m in project.menus:
+        for j, b in enumerate(m.buttons):
+            if b.action.startswith("commands:"):
+                compile_(f"menu {m.id!r}.buttons[{j}]", author.menu_button_command(project, m, b),
+                         "vtsm", 1)
+        if m.loop is not None and m.end_action.startswith("commands:"):
+            compile_(f"menu {m.id!r}.end_action", author.menu_post(project, m), "vtsm", 1)
+    for i, t in enumerate(project.titles):
+        ends = [t.end_action] + [pl.end_action for pl in project.playlists
+                                 if any(it.title_id == t.id for it in pl.items)]
+        if any(a.startswith("commands:") for a in ends):
+            compile_(f"titles[{i}].end_action", author.end_command(project, t.end_action, t),
+                     "vts", t.titleset)
+        for j, b in enumerate(t.buttons):
+            if b.action.startswith("commands:"):
+                compile_(f"titles[{i}].buttons[{j}]", author.title_button_command(project, t, b.action),
+                         "vts", t.titleset)
+    return out
+
+
 def inspect(project, reporter=None, prepare=True, bd=False):
     """Probe every source and plan the bitrate. Used by validate and build.
     With prepare=False slideshows that are not rendered yet are planned from
@@ -46,6 +85,7 @@ def inspect(project, reporter=None, prepare=True, bd=False):
             probes[path] = encode.probe(path)
         return probes[path]
 
+    issues += script_issues(project, bd)
     if not bd:
         for i, pl in enumerate(project.playlists):
             if pl.order != "sequential":

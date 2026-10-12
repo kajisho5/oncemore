@@ -2,8 +2,9 @@
 project.schema.json (stdlib only, so no `jsonschema` dependency).
 
 Supported keywords: type, enum, const, properties, required,
-additionalProperties, items, minItems, maxItems, minLength, maxLength,
-pattern, minimum, maximum, anyOf, oneOf, $ref (local "#/..." only).
+additionalProperties, propertyNames, maxProperties, items, minItems, maxItems,
+minLength, maxLength, pattern, minimum, maximum, anyOf, oneOf, $ref (local
+"#/..." only).
 Annotation keywords (description, default, title, $id, $schema) are ignored.
 """
 
@@ -79,6 +80,12 @@ def validate(instance, schema, root=None, path=()):
 
     if isinstance(instance, dict):
         props = schema.get("properties", {})
+        if "maxProperties" in schema and len(instance) > schema["maxProperties"]:
+            errors.append((_path(path), f"must have at most {schema['maxProperties']} properties"))
+        if "propertyNames" in schema:
+            for key in instance:
+                for _, msg in validate(key, schema["propertyNames"], root, path):
+                    errors.append((_path(path + (key,)), f"name {msg}"))
         for key in schema.get("required", []):
             if key not in instance:
                 errors.append((_path(path), f"missing required property {key!r}"))

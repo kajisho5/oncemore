@@ -2447,3 +2447,57 @@ Mac at hand).
 * `tests/test_appicon.py`: the logo script writes exactly the committed
   icon; its layers are square (no tile, no rounded rectangle, no text) in
   the brand colours; the app's Info.plist and build name it.
+
+## 117. Navigation scripts (DVD)
+
+A project's `scripts` are navigation written by hand, for what a link
+alone cannot do (count, remember, choose at random, ask a pass code). An
+action `commands:<id>` runs one where a menu's or a title's button, a
+menu's time-out, or a title's or playlist's end would run an action
+(oncemore/navscript.py).
+
+The language is dvdauthor's command language with two changes that keep
+it from breaking oncemore's own navigation. Variables are `$name`, each
+given a register oncemore leaves free after its own (resume flag,
+override, last menu, menu button: `author.script_registers`); the same
+name is the same register everywhere, and a project with more variables
+than free registers is refused. Links are `play <action>` with the
+actions buttons take, written as that action is where the script runs
+(`_menu_domain_command`, `_end_command`, `title_button_command`); `jump`,
+`call` and `gN` are refused, since the disc's menu numbers and registers
+are oncemore's. `resume` and `page:` are not taken (both are resolved per
+button).
+
+What is accepted is what vtskit.lang compiles without scratch registers
+(it keeps GPRM 13 to 15 for its own): an expression is values joined
+left to right and becomes one Set a value, `$x = random(n)` is the first
+of them, `$x` itself only first in its own expression; a player register
+is set to a number or a variable; a condition compares a register with a
+value and joins comparisons with `and` or with `or`. A script ends with a
+play that leaves on every path, and nothing follows it: vtskit's
+dispatcher for buttons of several commands runs into the next button's
+code when one does not leave. `random(n)` is 1 to n, as dvdauthor's manual
+describes it (https://dvdauthor.sourceforge.net/doc/dvdauthor.html); the
+disc test checks `random(1)` gives 1. The public descriptions (dvdinfo
+vmi.html) list the Set operations without saying what a player does
+outside 0 to 65535 or with a division by 0, so a literal `/ 0` is refused
+and the simulator stops at either with that message rather than guess.
+
+`build.inspect` compiles each script where it runs, so validate reports
+one vtskit cannot take before anything is encoded; a Blu-ray or web build
+with one stops (neither has scripts yet). `Project.actions()` counts a
+script's plays as the disc's actions (play all, entry buttons, last menu,
+chapter routes); the flowchart draws an edge to each, labelled with the
+script. The simulator runs scripts with the player's registers as the disc
+keeps them, and keeps the variables in its state. A script nothing runs is
+a warning. The JSON Schema's subset gained `propertyNames` and
+`maxProperties` for the scripts' ids.
+
+* `tests/test_navscript.py`: the language (what it takes and refuses, its
+  commands, its run), the project's checks and warnings, the registers
+  left free, the commands of a menu button, a title's end and a button
+  over a title, compiled by vtskit; the simulator and the flowchart; a
+  disc built with a button that returns to its menu on the first press
+  and plays title B on the second, and one whose `random(1)` plays title
+  A, both through libdvdnav.
+

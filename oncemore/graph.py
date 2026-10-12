@@ -48,6 +48,13 @@ def build(project):
     nodes, edges = [], []
 
     def edge(src, action, kind, label=None, transition=None):
+        if action and action.startswith("commands:"):
+            # (a script: an edge to each place it can go)
+            if action[9:] in project.scripts:
+                note = " · ".join(x for x in (label, f"script {action[9:]}") if x)
+                for a in dict.fromkeys(project.plays(action)):
+                    edge(src, a, kind, note, transition)
+            return
         dst, extra = _target(action, project)
         if dst is not None:
             e = {"from": src, "to": dst, "kind": kind,
