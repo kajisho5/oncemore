@@ -53,6 +53,15 @@ jobs:
           [ "$TAG" = "v$v" ] || { echo "tag $TAG != v$v"; exit 1; }
       - name: External tools for the smoke test
         run: brew install ffmpeg-full
+      - name: Xcode 26 or later (actool reads the layered icon)
+        run: |
+          x="$(ls -d /Applications/Xcode_26*.app /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1)"
+          if [ -n "$x" ]; then
+            echo "DEVELOPER_DIR=$x/Contents/Developer" >> "$GITHUB_ENV"
+            DEVELOPER_DIR="$x/Contents/Developer" xcodebuild -version
+          else
+            xcodebuild -version
+          fi
       - name: Signing certificate (if configured)
         env:
           MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}

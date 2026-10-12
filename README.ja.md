@@ -93,7 +93,10 @@ brew install ffmpeg-full
 `xattr -dr com.apple.quarantine /Applications/Oncemore.app` を実行してください。
 oncemore はインターネットに接続しないため、新しい版を自動では探しません。「ヘルプ › アップデートを確認…」で今の版を確かめ、
 Releases ページを開けます（GitHub の **Watch › Custom › Releases** を選ぶと新しい版の通知が届きます）。
-自分でビルドする場合は `macos/build_app.sh`（Xcode コマンドラインツールと `gh` が必要）。Developer ID があれば
+アイコンは Apple の[ヒューマンインターフェイスガイドライン](https://developer.apple.com/jp/design/human-interface-guidelines/app-icons)に沿っています。
+macOS 26 以降はレイヤー構成のアイコン（`macos/AppIcon.icon`。角丸なしの正方形で、角丸と光の効果、ダーク・クリア・ティントの見た目はシステムが付けます）、
+それより前の macOS では平面のアイコンを使います。
+自分でビルドする場合は `macos/build_app.sh`（レイヤー構成のアイコンのため Xcode 26 以降、古い Xcode なら `NO_LAYERED_ICON=1`。ほかに `gh` が必要）。Developer ID があれば
 `CODESIGN_IDENTITY` と `NOTARIZE=1` で署名・公証済みのアプリを作れます。
 タグ `v<version>` を push すると `.github/workflows/release.yml` が両アーキテクチャをビルドし、
 それぞれサンプルプロジェクトで起動確認したうえで zip をリリースに添付します

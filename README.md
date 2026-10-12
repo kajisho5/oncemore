@@ -105,8 +105,13 @@ Settings › Privacy & Security* and click **Open Anyway** (or run
 `xattr -dr com.apple.quarantine /Applications/Oncemore.app`). oncemore never
 connects to the internet, so it does not look for new versions by itself:
 *Help › Check for Updates…* shows which version you have and opens the Releases
-page (or click **Watch › Custom › Releases** on GitHub to be told). Build it yourself
-with `macos/build_app.sh` (Xcode command line tools + `gh`); with a Developer ID
+page (or click **Watch › Custom › Releases** on GitHub to be told). Its icon follows Apple's
+[Human Interface Guidelines](https://developer.apple.com/design/human-interface-guidelines/app-icons):
+on macOS 26 and later a layered icon (`macos/AppIcon.icon`, square and
+unmasked: the system rounds it and adds its light, and makes the dark,
+clear and tinted looks), on earlier macOS the flat one. Build it yourself
+with `macos/build_app.sh` (Xcode 26 or later, for the layered icon; older
+Xcode with `NO_LAYERED_ICON=1` + `gh`); with a Developer ID
 set `CODESIGN_IDENTITY` and `NOTARIZE=1` to produce a signed, notarised app.
 Pushing a tag `v<version>` runs `.github/workflows/release.yml`, which builds
 both architectures, launches each on a sample project and attaches the zips to a
