@@ -2076,3 +2076,53 @@ from. udfkit 0.1.0 is now on PyPI, so oncemore carries it
   `test_udfinfo`) stay and now test the copy oncemore carries; library
   calls raise `UdfError`. `test_promises` checks for udfkit's writer inside
   the package, as it checked for oncemore's.
+
+## 103. Typesetting menu texts: boxes, vertical text, underline
+
+The classic app's manual describes paragraph text in a box, vertical text
+and underline / strikethrough for Japanese menus. drawtext lays out one
+line of characters left to right and nothing more, so oncemore lays the
+text out itself (`oncemore/typeset.py`, `MenuBuilder._wrapped`,
+`_vertical`, `_lines`) and hands drawtext lines or single characters.
+
+* **Line breaks** (`width`, or `height` when vertical): a line may break at
+  a space between words, between two Japanese or Chinese characters, or
+  inside a word only when the word alone is wider than the box. A character
+  that may not start a line (stops, closing brackets, small kana, the long
+  vowel mark, iteration marks; JIS X 4051's line-start prohibited classes
+  without the optional ones) takes the character before it to the next line
+  (oidashi); an opening bracket at the end of a line goes down with what
+  follows. There is no hanging punctuation (burasage) and no justification:
+  the lines are left, centred or right as `align` says. Widths come from the
+  font's advances and kerning pairs (`fontfaces.Font.offsets`), the same
+  numbers letter spacing already uses.
+* **Vertical text**: each line is a column, the first on the right. Each
+  character is drawn alone in a square of the font size, centred across
+  the column, letter spacing added down the column; columns are as far
+  apart as the same text's lines would be across (line spacing added), so
+  a vertical paragraph is as open as a horizontal one. drawtext cannot use
+  a font's `vert` substitutions, so punctuation and brackets are drawn as
+  the characters of Unicode's Vertical Forms and CJK Compatibility Forms
+  blocks (︒ for 。, ﹁ for 「, ︱ for ー ...) when the font has them, and
+  as they are otherwise. Small kana are moved by a tenth of the size to the
+  upper right of their square, near where `vert` puts them in the CJK
+  fonts tried (Noto Sans CJK); this is an approximation, not the font's own
+  vertical glyph. Latin letters and digits stay upright, one per square.
+  The square's baseline is 0.88 of the size below its top, the ideographic
+  em box of CJK fonts (typo ascender 880 of 1000).
+* **Underline / strikethrough**: a bar of the text's colour, a fifteenth of
+  the size thick: under each line just below the baseline, or through it
+  at 0.3 of the size above the baseline; in vertical text on the right of
+  each column (the side Japanese puts a sideline on) or through its middle.
+  The bar has no outline or shadow.
+* **Formatting part of a text** (one word bold or coloured) is not done:
+  a text has one style. It stays in the roadmap.
+* The editor shows the same layout with CSS (`writing-mode: vertical-rl`,
+  `line-break: strict` in a box of the text's width, `text-decoration`).
+  The browser uses the font's own vertical glyphs and line-break rules, so
+  small details can differ from the disc; the build is what counts.
+* Blu-ray menus scale the box with the rest of the menu.
+* `tests/test_typeset.py`: the line-break rules, the vertical forms, the HD
+  box, ink measured on drawn menus (lines inside the box, a full-width bar
+  under or through the letters, two columns of the right lengths, right to
+  left), and the Properties fields and the stage in a browser.

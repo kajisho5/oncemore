@@ -31,6 +31,8 @@ const I18N = {
     stage_keys: "Shift-click or drag a box: select several · arrows: nudge · Shift-drag: straight · Alt-drag: copy · ⌘-drag: no snapping · ⌘D: duplicate · ⌘C/⌘V",
     multi_hint: "Drag to move them together, or use the align buttons above the menu.",
     shape: "Rectangle", height: "Height", fill: "Fill", opacity: "Opacity",
+    box_width: "Box width", box_height: "Column length", box_none: "none", vertical_text: "Vertical", underline: "Underline", strikethrough: "Strikethrough",
+    box_hint: "With a box width (a column length when vertical), lines are broken to fit it, keeping stops, closing brackets and small kana off the start of a line.",
     paragraph: "Paragraph", para_align: "Lines", para_left: "Left", para_center: "Centre", para_right: "Right", line_spacing: "Line spacing", paragraph_hint: "Each line of the text is a line on the menu (Return starts a new one); X is the paragraph's left edge.",
     text_style: "Text style", font: "Font", disc_font: "Disc font", outline: "Outline", shadow: "Shadow",
     font_hint: "Add .ttf / .otf files to Media to use them here.",
@@ -305,6 +307,8 @@ const I18N = {
     stage_keys: "Shift+クリックか範囲ドラッグで複数選択・矢印キーで移動・Shift+ドラッグで直線移動・Alt(⌥)+ドラッグで複製・⌘+ドラッグでスナップなし・⌘D 複製・⌘C/⌘V",
     multi_hint: "ドラッグでまとめて移動、またはメニュー上の整列ボタンを使えます。",
     shape: "四角形", height: "高さ", fill: "塗り", opacity: "不透明度",
+    box_width: "ボックスの幅", box_height: "列の長さ", box_none: "なし", vertical_text: "縦書き", underline: "下線", strikethrough: "取り消し線",
+    box_hint: "ボックスの幅（縦書きでは列の長さ）を入れると、その中に収まるように改行します。句読点・閉じ括弧・小書きの仮名は行頭に来ないようにします。",
     paragraph: "段落", para_align: "行揃え", para_left: "左揃え", para_center: "中央揃え", para_right: "右揃え", line_spacing: "行間", paragraph_hint: "テキストの各行がメニューの 1 行になります（Return で改行）。X は段落の左端です。",
     text_style: "文字のスタイル", font: "フォント", disc_font: "ディスクのフォント", outline: "縁取り", shadow: "影",
     font_hint: ".ttf / .otf ファイルを素材に追加するとここで選べます。",
@@ -2412,7 +2416,8 @@ function renderMenu(m) {
   const els = [
     ...(menu.shapes || []).map((x, i) => ({ kind: "shape", i, x: x.x, y: x.y, w: x.w, h: x.h, color: x.color || "#00000080", ...turnOf(x) })),
     ...(menu.images || []).map((x, i) => ({ kind: "image", i, x: x.x, y: x.y, w: x.w, h: x.h, file: x.file, opacity: x.opacity ?? 1, ...turnOf(x) })),
-    ...(menu.texts || []).map((x, i) => ({ kind: "text", i, x: x.x, y: x.y, size: x.size || defSize, color: x.color || defColor, label: x.text, align: x.align, ls: x.line_spacing || 0, ...styleOf(x), ...turnOf(x) })),
+    ...(menu.texts || []).map((x, i) => ({ kind: "text", i, x: x.x, y: x.y, size: x.size || defSize, color: x.color || defColor, label: x.text, align: x.align, ls: x.line_spacing || 0,
+      boxW: x.width, boxH: x.height, vertical: !!x.vertical, under: !!x.underline, strike: !!x.strikethrough, ...styleOf(x), ...turnOf(x) })),
     ...(menu.buttons || []).map((b, i) => ({ kind: "button", i, x: b.x, y: b.y, size: b.size || defSize, color: b.color || defColor, label: b.label || "", image: b.image, width: b.width, hl: !b.label && !b.image ? b.highlight_image : null, ...styleOf(b), ...turnOf(b) })),
   ].filter((e) => !menu[KIND_LIST[e.kind]][e.i].hidden && onPage(menu, menu[KIND_LIST[e.kind]][e.i]));   // (switched off in Layers; another page)
   // selection: S.sels (all selected), S.element (the one the inspector shows)
@@ -2440,6 +2445,11 @@ function renderMenu(m) {
     if (!e.kerning) st += "font-kerning:none;";
     if (e.align) st += `text-align:${e.align};`;
     if (e.ls) st += `line-height:calc(1em + ${e.ls * scale}px);`;
+    // (laid out as the disc draws it, DECISIONS §103: columns right to left,
+    // lines broken in a box with the strict Japanese rules)
+    if (e.vertical) st += "writing-mode:vertical-rl;text-orientation:upright;";
+    if (e.vertical ? e.boxH : e.boxW) st += (e.vertical ? `height:${e.boxH * scale}px;` : `width:${e.boxW * sx * scale}px;`) + "white-space:pre-wrap;line-break:strict;overflow-wrap:anywhere;";
+    if (e.under || e.strike) st += `text-decoration-line:${[e.under ? "underline" : "", e.strike ? "line-through" : ""].join(" ").trim()};text-underline-position:right;`;
     const sh = [];
     if (e.outline) { const o = Math.max(1, e.outline_width * scale); for (const [dx, dy] of [[o, 0], [-o, 0], [0, o], [0, -o], [o, o], [-o, -o], [o, -o], [-o, o]]) sh.push(`${dx}px ${dy}px 0 ${cssColor(e.outline)}`); }
     if (e.shadow) sh.push(`${e.shadow_offset * scale}px ${e.shadow_offset * scale}px 0 ${cssColor(e.shadow)}`);
@@ -3263,7 +3273,13 @@ function renderMenuInspector(el) {
       ${sel.kind === "text" ? `<h3>${t("paragraph")}</h3><div class="grid2">
         <label class="field"><span>${t("para_align")}</span>${selectHtml("align", [["left", t("para_left")], ["center", t("para_center")], ["right", t("para_right")]], it.align || "left")}</label>
         <label class="field"><span>${t("line_spacing")}</span><input type="number" data-k="line_spacing" min="-50" max="200" value="${it.line_spacing || 0}"></label>
-      </div><div class="hint">${esc(t("paragraph_hint"))}</div>` : ""}
+        <label class="field"><span>${t(it.vertical ? "box_height" : "box_width")}</span><input type="number" data-k="${it.vertical ? "height" : "width"}" id="text-box" min="8" max="${it.vertical ? 576 : 720}" value="${(it.vertical ? it.height : it.width) || ""}" placeholder="${t("box_none")}"></label>
+        <label class="field"><span></span><span class="row">
+          <label><input type="checkbox" data-k="vertical" ${it.vertical ? "checked" : ""}> ${t("vertical_text")}</label></span></label>
+        <label class="field"><span></span><span class="row">
+          <label><input type="checkbox" data-k="underline" ${it.underline ? "checked" : ""}> <u>${t("underline")}</u></label>
+          <label><input type="checkbox" data-k="strikethrough" ${it.strikethrough ? "checked" : ""}> <s>${t("strikethrough")}</s></label></span></label>
+      </div><div class="hint">${esc(t("paragraph_hint"))} ${esc(t("box_hint"))}</div>` : ""}
       ${isImage ? "" : `<h3>${t("text_style")}</h3>
       <label class="field"><span>${t("font")}</span>${selectHtml("font", fonts, it.font || "__none__")}<div class="hint">${esc(t("font_hint"))}</div></label>
       <div class="grid2" data-nobind>
@@ -3304,9 +3320,11 @@ function renderMenuInspector(el) {
     };
     const at = { x: it.x, y: it.y };       // (where it was: a drawn highlight moves with it)
     bindFields(el, (p) => (sel.kind === "button" ? find(p).buttons : find(p).texts)[sel.i], {
-      numeric: ["x", "y", "size", "width", "audio", "subtitle", "line_spacing"],
+      numeric: ["x", "y", "size", "width", "height", "audio", "subtitle", "line_spacing"],
       onAfter: (p, key) => {
         const o = (sel.kind === "button" ? find(p).buttons : find(p).texts)[sel.i];
+        for (const k of ["vertical", "underline", "strikethrough"]) if (key === k && !o[k]) delete o[k];
+        if (key === "vertical") { delete o.width; delete o.height; }   // (the box runs the other way)
         if (key === "align" && o.align === "left") delete o.align;
         if (key === "line_spacing" && !o.line_spacing) delete o.line_spacing;
         if (o.nav && !Object.keys(o.nav).length) delete o.nav;
