@@ -183,6 +183,27 @@ def title_fps(title, disc):
     return FILM_FPS if getattr(title, "video_mode", None) == "pulldown" else disc.fps
 
 
+MIN_BUTTON_GAP = 1.0        # seconds between the times a title's buttons change
+
+
+def button_times(title):
+    """The times a title's buttons appear or go (but its start and end)."""
+    out = {b.start for b in title.buttons if b.start > 0}
+    out |= {b.end for b in title.buttons if b.end is not None}
+    return sorted(out)
+
+
+def button_stretches(title):
+    """[(start, end)] over which the same buttons show (end None: the
+    title's end), in order; empty stretches left out."""
+    edges = sorted({0.0} | set(button_times(title)))
+    out = []
+    for a, b in zip(edges, edges[1:] + [None]):
+        if any(x.start <= a and (x.end is None or b is not None and x.end >= b) for x in title.buttons):
+            out.append((a, b))
+    return out
+
+
 def chapter_points(chapters, fps):
     """Chapter times snapped to frames, for encoding and authoring.
 
@@ -368,6 +389,21 @@ def is_image(path):
 
 
 @dataclass
+class TitleButton:
+    """A button over a title's picture (DVD): an area of the picture
+    (x, y, width, height in the disc's pixels) the viewer can select and
+    press from `start` to `end` (seconds; None: the title's end)."""
+    id: str
+    start: float
+    end: float
+    x: int
+    y: int
+    width: int
+    height: int
+    action: str
+
+
+@dataclass
 class Title:
     id: str
     name: str
@@ -400,6 +436,9 @@ class Title:
     captions_offset: float = 0.0   # taken off the captions' times (a file timed from 01;00;00;00)
     prohibit: list = field(default_factory=list)   # remote keys the title does not allow (uops.NAMES)
     angles: list = field(default_factory=list)     # DVD: more views of the scene (files), the source is angle 1
+    buttons: list = field(default_factory=list)    # DVD: TitleButton over the picture
+    button_highlight: str = DEFAULT_HIGHLIGHT       # their area when selected
+    button_select: str = DEFAULT_SELECT             # ... and when pressed
 
     @property
     def track_bps(self):
@@ -642,18 +681,20 @@ class Project:
     def uses_last_menu(self):
         """Some title / playlist end action or override returns to the last menu."""
         ends = [t.end_action for t in self.titles] + [p.end_action for p in self.playlists] + \
-            [b.override for m in self.menus for b in m.buttons if b.override]
+            [b.override for m in self.menus for b in m.buttons if b.override] + \
+            [b.action for t in self.titles for b in t.buttons]
         return "lastmenu" in ends and bool(self.menus)
 
     def actions(self):
         """Every action of the disc: first play, Title key, buttons and their
-        overrides, menu, title and playlist end actions."""
+        overrides, menu, title and playlist end actions, buttons over titles."""
         out = [self.disc.first_play, self.disc.title_key]
         for m in self.menus:
             out += [b.action for b in m.buttons] + [b.override for b in m.buttons]
             if m.loop is not None:
                 out.append(m.end_action)
         out += [t.end_action for t in self.titles] + [p.end_action for p in self.playlists]
+        out += [b.action for t in self.titles for b in t.buttons]
         return [a for a in out if a]
 
     @property
@@ -1061,6 +1102,8 @@ class _Builder:
             if not t.get("transcode", True):
                 self.err(f"{where}.angles", "angles are encoded to line up; the picture cannot "
                                              "be used as it is (transcode: false)")
+        if "buttons" in t:
+            self.title_buttons(where, t, title)
         if "captions" in t:
             cap = t["captions"] if isinstance(t["captions"], dict) else {"file": t["captions"]}
             title.captions = self.file(f"{where}.captions", cap["file"])
@@ -1089,6 +1132,49 @@ class _Builder:
                      f"{len(tracks)} {codec} tracks need {title.audio_bps / 1e6:.2f} Mbit/s; "
                      "DVD allows 9.8 Mbit/s in total and video needs at least 1")
         return title
+
+    def title_buttons(self, where, t, title):
+        """A title's buttons over its picture (DVD; not with subtitles:
+        the player lights a button in the subpicture stream it shows)."""
+        colours = t.get("button_colors", {})
+        title.button_highlight = colours.get("highlight", DEFAULT_HIGHLIGHT)
+        title.button_select = colours.get("select", DEFAULT_SELECT)
+        ids = set()
+        for j, b in enumerate(t["buttons"]):
+            bw = f"{where}.buttons[{j}]"
+            try:
+                start = parse_time(b["start"])
+                end = parse_time(b["end"]) if b.get("end") is not None else None
+            except ValueError as e:
+                self.err(bw, str(e))
+                continue
+            if end is not None and end <= start:
+                self.err(f"{bw}.end", "must be after start")
+            if b["id"] in ids:
+                self.err(f"{bw}.id", f"another button of the title is {b['id']!r}")
+            ids.add(b["id"])
+            x, y, w, h = b["x"], b["y"], b["width"], b["height"]
+            if x + w > self._disc.width or y + h > self._disc.height:
+                self.err(bw, f"the button ({x}, {y}, {w} x {h}) is not inside the "
+                             f"{self._disc.width} x {self._disc.height} picture")
+            title.buttons.append(TitleButton(b["id"], start, end, x, y, w, h, b["action"]))
+        if title.subtitles:
+            self.err(f"{where}.buttons", "a title with buttons over its picture cannot have "
+                                         "subtitles yet: the player lights the buttons in the "
+                                         "subtitle stream it shows")
+        for a, b in button_stretches(title):
+            shown = [x for x in title.buttons
+                     if x.start <= a and (x.end is None or b is not None and x.end >= b)]
+            if len(shown) > 36:
+                self.err(f"{where}.buttons", f"{len(shown)} buttons at {a:.3f} s (at most 36 at a time)")
+        times = sorted(set(button_times(title)) | {c for c in title.chapters if c > 0})
+        for a, b in zip(times, times[1:]):
+            if b - a < MIN_BUTTON_GAP:
+                self.err(f"{where}.buttons", f"buttons appear or go at {a:.3f} s and {b:.3f} s, "
+                                             f"with a chapter or each other: leave at least "
+                                             f"{MIN_BUTTON_GAP} s between them (a DVD changes its "
+                                             "buttons once a VOBU, about half a second)")
+                break
 
     def menu(self, i, m, disc):
         where = f"menus[{i}]"
@@ -1472,6 +1558,8 @@ class _Builder:
             check(f"titles[{i}].end_action", t.end_action, allow_last=True)
             if t.remote_menu and project.menu(t.remote_menu) is None:
                 self.err(f"titles[{i}].remote_menu", f"no menu with id {t.remote_menu!r}")
+            for j, b in enumerate(t.buttons):
+                check(f"titles[{i}].buttons[{j}].action", b.action, allow_last=True)
         for m in project.menus:
             src = m.page_of or m.id
             where = f"menus[{user_menu_ids.index(src)}]" if src in user_menu_ids and not m.generated \

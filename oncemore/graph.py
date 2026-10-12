@@ -83,6 +83,8 @@ def build(project):
         nodes.append({"id": nid, "kind": "title", "label": t.name or t.id,
                       "chapters": len(t.chapters), "number": t.global_number or t.number})
         edge(nid, t.end_action, "end")
+        for b in t.buttons:
+            edge(nid, b.action, "button", b.id)
         if project.menus:
             edges.append({"from": nid, "to": node_id("menu", t.remote_menu or
                                                       project.menus[0].id),

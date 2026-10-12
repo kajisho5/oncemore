@@ -5,8 +5,9 @@ oncemore.author writes it (its XML is kept in the work folder as a readable
 record); vtskit.lang compiles each text for the domain it runs in. The
 menus' buttons (their areas, arrow keys and the shapes that light up) come
 from oncemore.menu's layout; the subtitles are muxed by oncemore.subtitles
-with vtskit; the remote keys a title or menu turns off and the menus'
-button offsets go straight into the IFOs and navigation packs.
+with vtskit, and buttons over a title are oncemore.titlebuttons'; the
+remote keys a title or menu turns off and the menus' button offsets go
+straight into the IFOs and navigation packs.
 
 Layout (as author.build_xml describes it): the menus in titleset 1, numbered
 as the project does (an intro and its loop as two program chains, link
@@ -18,7 +19,7 @@ another titleset.
 
 import os
 
-from . import author, uops
+from . import author, titlebuttons, uops
 from .project import chapter_points, title_fps
 from ._vendor.vtskit import lang, spu, titleset, vmg
 from ._vendor.vtskit.menu import Button, Menu
@@ -139,17 +140,27 @@ def write(project, menu_files, title_files, dest, transition_files=None, layouts
             cell_commands = {k: disc.compile(f"if ({author.ITEM_END_REG} == {k}) jump pgc tail;", "vts", ts)[0]
                              for k in ends}
             angles = angle_files.get(t.id)
+            post_text = author.end_command(project, t.end_action, t)
+            palette, buttons = tuple(palettes.get(t.id, ())), ()
+            if t.buttons:
+                # (no subtitles beside them: the buttons' colours are the palette)
+                commands, post = titlebuttons.compile_buttons(project, disc, t, post_text)
+                buttons = tuple(titlebuttons.vts_buttons(t, fps, commands))
+                palette = titlebuttons.colours(t)[0]
+            else:
+                post = disc.compile(post_text, "vts", ts)
             vts_titles.append(Title(
                 None if angles else title_files[t.id], tuple(points), audio[:max(1, len(t.audio_tracks))],
                 tuple(Subpicture(sub_langs[j] if j < len(sub_langs) else None) for j in range(len(t.subtitles))),
-                palette=tuple(palettes.get(t.id, ())),
+                palette=palette,
                 pre=disc.compile(pre, "vts", ts) if pre else (),
-                post=disc.compile(author.end_command(project, t.end_action, t), "vts", ts),
+                post=post,
                 cell_commands=cell_commands,
                 stills={k: None for k in range(1, len(points) + 1)} if held else {},
                 uops=uops.dvd_mask(t.prohibit),
                 # an angle block over the whole title: the source and its angles interleaved
-                parts=(Angles((title_files[t.id], *angles)),) if angles else ()))
+                parts=(Angles((title_files[t.id], *angles)),) if angles else (),
+                buttons=buttons))
         sets.append((ts, vts_titles, menus, any(t.captions for t in titles)))
     first_play = disc.compile(author.first_play_command(project), "fp")
     vmgm_menus = []

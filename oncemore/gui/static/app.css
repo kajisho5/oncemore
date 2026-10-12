@@ -823,3 +823,14 @@ fieldset.group legend { padding: 0 var(--sp-1); color: var(--c-text); }
 .help-key { font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--c-text-2); margin-left: var(--sp-2); }
 .help-ref { columns: 2; column-gap: var(--sp-6); }
 .help-ref ul { padding-left: var(--sp-4); }
+
+/* buttons over a title: boxes on the picture (drag to move, the corner to resize) and bars on the timeline */
+.tbtn-layer { position: absolute; inset: 0; pointer-events: none; }
+.tbtn-box { position: absolute; border: 2px solid var(--c-accent); border-radius: 2px; pointer-events: auto; cursor: move; box-sizing: border-box; }
+.tbtn-box .tbtn-name { position: absolute; left: 2px; top: 1px; font-size: var(--fs-sm); color: var(--c-on-picture); text-shadow: 0 0 2px var(--c-picture); }
+.tbtn-box .tbtn-corner { position: absolute; right: -5px; bottom: -5px; width: 10px; height: 10px; background: var(--c-accent); cursor: nwse-resize; }
+.tbtn-bar { position: absolute; bottom: 0; height: 4px; background: var(--c-accent); opacity: .7; cursor: pointer; }
+.tbtn-row { border-top: 1px solid var(--c-line); padding: 6px 0; display: grid; gap: 4px; }
+.sim-screen .tbtn-sim { border: 1px dashed var(--c-hit); opacity: .6; }
+.sim-seek { margin: 6px 0; }
+.hint.warn { color: var(--c-warning); }

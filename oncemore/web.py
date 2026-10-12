@@ -10,7 +10,7 @@ from the folder itself (index.html, no server) or from any web server.
 
 What a browser cannot do the way a disc does: one sound track per title
 (the first), no DVD subpicture colours (subtitles are WebVTT text; picture
-subtitles are left out).
+subtitles are left out), no buttons over a title.
 """
 
 import dataclasses
@@ -293,6 +293,9 @@ def build_web(project, out_dir, reporter, fast=False, keep_work=False):
                 f.write(to_vtt(cues, sub.position))
             entry["subtitles"].append({"src": name, "lang": sub.lang or "", "default": sub.default})
         titles[t.id] = entry
+        if t.buttons:
+            reporter.warn(f"title {t.id!r}: its buttons over the picture are left out of the web "
+                          "version (it plays without them)")
     if len(project.titles[0].audio_tracks) > 1 or any(len(t.audio_tracks) > 1
                                                       for t in project.titles):
         reporter.warn("the web version has the first sound track of each title only")

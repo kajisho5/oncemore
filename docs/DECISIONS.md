@@ -2335,6 +2335,83 @@ and go on from there.
   does with 0.1.0); vtskit's own tests decode what libdvdnav hands a
   player through a switch.
 
+## 114. Buttons over a title (DVD)
+
+A title may carry buttons over its picture (`buttons`: an area, a start
+and an end, an action), as a disc offers "skip intro" over an opening or
+"next episode" over the credits. The video shows what they look like; the
+disc lights the area when a button is selected or pressed. vtskit 0.2/0.3
+writes them (`TitleButtons`); oncemore:
+
+* cuts the title into stretches over which the same buttons show; each
+  stretch's highlight information is in the VOBUs that play during it,
+  from its start to its end (dvdinfo's hli_s_ptm, hli_e_ptm,
+  btn_sl_e_ptm), and its overlay (the areas, transparent) is a forced
+  subpicture in stream 0 for the stretch;
+* forces a key frame where the buttons change, as at chapters, so a VOBU
+  starts there (a VOBU carries one set of buttons; vtskit gives a VOBU the
+  stretch covering more of it where a frame's time and the VOBU's start
+  differ, as in film with pulldown). The times are at least 1 s apart, and
+  from chapters: closer, a VOBU would be shorter than the 0.4 s a DVD
+  allows;
+* compiles an action for the title's domain: a link leaves the title as
+  its end action would (a title, chapter or play all first ends play-all,
+  playlist and override modes, as a menu button does; a menu is called,
+  so Resume comes back as from the Menu key); `audio:` and `subtitle:`
+  switch and the title plays on; `resume` and `page:` are not for a title.
+  A button of several commands runs them from the title's post commands,
+  as dvdauthor does (vtskit.lang); the title starts with button 1
+  highlighted, as dvdauthor writes it;
+* the arrow keys go between the buttons shown at the time as between a
+  menu's (oncemore.navigation).
+
+Not yet: subtitles in the same title (the player lights a button in the
+subpicture stream it shows, and a stream shows one picture at a time: the
+overlay and a subtitle would have to be one picture); Blu-ray (an IG
+stream over a title); the web version (it plays the title without them).
+A disc with subtitles in other titles selects stream 0 (display off) in a
+title with buttons, so the player is on the buttons' stream.
+
+The disc simulator has a time in the title (`seek:<seconds>`; chapters set
+it to their start) and answers the arrow keys, Enter and the number keys
+with the buttons shown then; the flowchart shows their links.
+
+* `tests/test_titlebuttons.py`: the project's buttons and their checks,
+  the commands, the key frames, the stretches and arrow keys, the
+  simulator and the flowchart; a disc built with two buttons from 2 s to
+  6 s, which libdvdnav offers in those seconds alone, the first selected,
+  and whose links play title A and open the main menu.
+
+## 115. Buttons over a title in the app
+
+A title's Properties have a *Buttons over the title* section (§114): each
+button's id, link, start and end (⏱ sets either to the playhead; an empty
+end is the title's end) and its area as numbers; **+ Button** adds one at
+the playhead (5 s long, 200 × 60 near the bottom), and the selected and
+pressed colours are set there. The links offered are a menu button's but
+Resume and pages. With subtitles in the title the section says why there
+are none and adds none.
+
+On the picture, the buttons shown at the playhead are boxes over the
+frame (the disc's pixels mapped to the frame), redrawn as the playhead
+moves or the title plays; a box drags to move and its corner to resize,
+kept inside the picture. A bar under the picture marks when each button
+shows, and clicking it goes to its start.
+
+Preview has a *Time in the title* slider under the picture in a title
+with buttons (the simulator's `seek:`): the buttons shown then are drawn
+over the frame, the selected one in its colour, and answer the arrows, OK,
+the number keys and clicks. The server's simulator call returns the frame
+at that time and the buttons shown.
+
+The manual has a *Buttons over a title* section (en/ja), and Preview's
+and the limits' sections say how they behave.
+
+* `tests/test_titlebuttons_gui.py`: adding one at the playhead, its link,
+  end, colour and removal; its box dragged and resized; no box past its
+  end; none with subtitles; in Preview, moving into its time brings the
+  two buttons up and the arrow and OK keys run the second's link.
+
 ## 116. The Mac app's icon after Apple's guidelines (layered, unmasked)
 
 The app's icon was one flat picture (`AppIcon.png`: a rounded tile drawn
