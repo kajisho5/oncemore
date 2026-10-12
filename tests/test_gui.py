@@ -17,6 +17,7 @@ import urllib.request
 from unittest import mock
 
 from oncemore import tools
+from oncemore.errors import ProjectError
 from oncemore.gui.server import make_server, safe_name
 
 from .helpers import have
@@ -351,6 +352,27 @@ class TestGuiApi(unittest.TestCase):
         self.assertEqual(events[-1]["event"], "result")
         self.assertTrue(any(e["event"] == "progress" for e in events))
         self.assertTrue(os.path.isfile(os.path.join(self.dir, "output", "SAMPLE_DISC.iso")))
+
+    @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/ISO tool")
+    def test_check_finds_overlapping_buttons(self):
+        """Check reports buttons whose areas overlap (making the menu refuses
+        them), instead of "ready to build"; the build stops before encoding."""
+        self.s.call("/api/new", "POST", {"sample": True})
+        project = self.s.call("/api/state")[1]["project"]
+        self.assertEqual(self.s.call("/api/validate", "POST")[0], 200)
+        play, ch = project["menus"][0]["buttons"][:2]
+        ch["x"], ch["y"] = play["x"] + 10, play["y"] + 10
+        self.assertEqual(self.s.call("/api/project", "PUT", {"project": project})[0], 200)
+        status, err = self.s.call("/api/validate", "POST")
+        self.assertEqual(status, 422, err)
+        self.assertEqual([i["path"] for i in err["issues"]], ["menus[0].buttons"])
+        self.assertIn("buttons 'play' and 'ch' overlap", err["issues"][0]["message"])
+        # the build says the same before it encodes anything
+        from oncemore import build
+        from oncemore.project import load_project
+        with self.assertRaises(ProjectError) as cm:
+            build.inspect(load_project(os.path.join(self.dir, "project.oncemore.json")))
+        self.assertIn("overlap", cm.exception.issues[0]["message"])
 
     @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/ISO tool")
     def test_build_web(self):

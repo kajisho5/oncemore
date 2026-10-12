@@ -254,6 +254,10 @@ def inspect(project, reporter=None, prepare=True, bd=False):
     if project.menus or cues:
         font = find_font(project.disc.font, text)
     check_element_fonts(project, font)
+    if prepare:
+        overlapping = button_overlaps(project, font)
+        if overlapping:
+            raise ProjectError("menu check failed", overlapping)
     if bd:
         # (a picture used as it is keeps its own rate)
         plan = bluray.plan([(infos[t.id]["duration"], t.audio_bps) +
@@ -302,6 +306,29 @@ def _clip_info(project, t, probe, issues, where):
                  has_video=all(probe(c.source).get("has_video") for c in t.clips),
                  has_audio=any(probe(c.source).get("has_audio") for c in t.clips))
     return first
+
+
+def button_overlaps(project, font=None):
+    """Issues for menu buttons whose areas overlap: the remote could not
+    tell them apart, and making the menu refuses them. Found here, with the
+    menus laid out as the build lays them out, so Check reports them and a
+    build stops before anything is encoded."""
+    issues = []
+    if not project.menus:
+        return issues
+    work = tempfile.mkdtemp(prefix="oncemore-check-")
+    try:
+        mb = MenuBuilder(project, work, font=font)
+        for i, m in enumerate(project.menus):
+            pairs = []
+            mb.layout(m, pairs)
+            for a, b in pairs:
+                issues.append({"path": f"menus[{i}].buttons",
+                               "message": f"menu {m.id!r}: buttons {a!r} and {b!r} overlap; "
+                                          "move them apart"})
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    return issues
 
 
 def summary(project, infos, plan):

@@ -260,7 +260,8 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   rectangle, preview) and a viewer bar under the menu: zoom, safe area,
   routing, snapping, guides and *New guide*, and *Highlights: Normal /
   Selected / Activated* showing every button as the disc will in that state.
-  Buttons whose areas overlap are outlined in red. Object > Rotate and Flip
+  Buttons whose areas overlap are outlined in red, and *Check project*
+  lists them (a disc cannot be built with them). Object > Rotate and Flip
   turn and mirror texts, buttons, rectangles and pictures (on the disc too,
   highlights included).
 * **Pick whip**: drag the ◎ next to a button's link (or a title's end action,
