@@ -2300,3 +2300,50 @@ and go on from there.
   and checks that libdvdnav never comes back to a moment it played (it
   does with 0.1.0); vtskit's own tests decode what libdvdnav hands a
   player through a switch.
+
+## 114. Buttons over a title (DVD)
+
+A title may carry buttons over its picture (`buttons`: an area, a start
+and an end, an action), as a disc offers "skip intro" over an opening or
+"next episode" over the credits. The video shows what they look like; the
+disc lights the area when a button is selected or pressed. vtskit 0.2/0.3
+writes them (`TitleButtons`); oncemore:
+
+* cuts the title into stretches over which the same buttons show; each
+  stretch's highlight information is in the VOBUs that play during it,
+  from its start to its end (dvdinfo's hli_s_ptm, hli_e_ptm,
+  btn_sl_e_ptm), and its overlay (the areas, transparent) is a forced
+  subpicture in stream 0 for the stretch;
+* forces a key frame where the buttons change, as at chapters, so a VOBU
+  starts there (a VOBU carries one set of buttons; vtskit gives a VOBU the
+  stretch covering more of it where a frame's time and the VOBU's start
+  differ, as in film with pulldown). The times are at least 1 s apart, and
+  from chapters: closer, a VOBU would be shorter than the 0.4 s a DVD
+  allows;
+* compiles an action for the title's domain: a link leaves the title as
+  its end action would (a title, chapter or play all first ends play-all,
+  playlist and override modes, as a menu button does; a menu is called,
+  so Resume comes back as from the Menu key); `audio:` and `subtitle:`
+  switch and the title plays on; `resume` and `page:` are not for a title.
+  A button of several commands runs them from the title's post commands,
+  as dvdauthor does (vtskit.lang); the title starts with button 1
+  highlighted, as dvdauthor writes it;
+* the arrow keys go between the buttons shown at the time as between a
+  menu's (oncemore.navigation).
+
+Not yet: subtitles in the same title (the player lights a button in the
+subpicture stream it shows, and a stream shows one picture at a time: the
+overlay and a subtitle would have to be one picture); Blu-ray (an IG
+stream over a title); the web version (it plays the title without them).
+A disc with subtitles in other titles selects stream 0 (display off) in a
+title with buttons, so the player is on the buttons' stream.
+
+The disc simulator has a time in the title (`seek:<seconds>`; chapters set
+it to their start) and answers the arrow keys, Enter and the number keys
+with the buttons shown then; the flowchart shows their links.
+
+* `tests/test_titlebuttons.py`: the project's buttons and their checks,
+  the commands, the key frames, the stretches and arrow keys, the
+  simulator and the flowchart; a disc built with two buttons from 2 s to
+  6 s, which libdvdnav offers in those seconds alone, the first selected,
+  and whose links play title A and open the main menu.

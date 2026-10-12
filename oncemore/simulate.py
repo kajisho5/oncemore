@@ -26,6 +26,10 @@ requests):
   resume      {"title", "chapter", "button"} the Menu / Title key left, for resume
               buttons (the player's resume information; None once the
               title ended, as the resume flag register says)
+  time        seconds into the title (domain "title"): the start of its
+              chapter, or where the key seek:<seconds> put it; the buttons
+              over the title shown then answer the arrow keys, Enter and
+              the number keys
   log         what happened on the last key, for the app to show
 """
 
@@ -35,7 +39,7 @@ from . import author, navigation
 from .project import parse_action
 
 KEYS = ("up", "down", "left", "right", "enter", "menu", "title", "next", "prev",
-        "play", "end", "timeout")
+        "play", "end", "timeout", "seek")
 
 
 class SimError(ValueError):
@@ -77,7 +81,8 @@ class Simulator:
     def start(self):
         s = {"domain": "stopped", "menu": None, "button": 1, "title": None, "chapter": 0,
              "audio": 1, "subtitle": 0, "playall": 0, "playlist": 0, "item_end": 0,
-             "menu_key": None, "remember": {}, "loops": 0, "resume": None, "override": None, "last_menu": None, "log": []}
+             "menu_key": None, "remember": {}, "loops": 0, "resume": None, "override": None, "last_menu": None,
+             "time": 0.0, "log": []}
         sub = author.default_subtitle(self.p)
         if sub is not None:
             s["subtitle"] = sub + 1
@@ -126,9 +131,12 @@ class Simulator:
         t = self.p.title(tid)
         if t is None:
             raise SimError(f"no title {tid!r}")
-        s.update(domain="title", menu=None, title=t.id, chapter=chapter, loops=0)
+        s.update(domain="title", menu=None, title=t.id, chapter=chapter, loops=0,
+                 time=t.chapters[chapter - 1] if chapter <= len(t.chapters) else 0.0)
         if self.p.uses_remote_menu:
             s["menu_key"] = t.remote_menu or self.root().id
+        if t.buttons:
+            s["button"] = 1                  # (its pre: button = 1, as dvdauthor writes it)
         self.note(s, f"title {t.id} chapter {chapter}")
 
     def stop(self, s):
@@ -265,6 +273,11 @@ class Simulator:
         s["log"] = []
         if key.startswith("select:"):
             key, arg = "select", key[7:]
+        elif key.startswith("seek:"):
+            try:
+                key, arg = "seek", float(key[5:])
+            except ValueError:
+                raise SimError(f"seek:{key[5:]}: seconds into the title")
         elif key.isdigit() or key.startswith("number:"):
             # number keys: the button with that number (its place plus the
             # menu's offset), selected and run (a DVD player's "select and
@@ -316,17 +329,41 @@ class Simulator:
         # title domain
         t = self.p.title(s["title"])
         n = len(t.chapters)
-        if key == "menu" and self.p.menus:
+        shown = self.title_buttons(t, s["time"])
+        if key in navigation.DIRECTIONS + ("select", "number", "enter") and not shown:
+            return s
+        if key in navigation.DIRECTIONS:
+            ids = [g["id"] for g in shown]
+            cur = shown[min(s["button"], len(shown)) - 1]
+            s["button"] = ids.index(cur["nav"][key]) + 1
+        elif key == "select":
+            ids = [g["id"] for g in shown]
+            s["button"] = ids.index(arg) + 1 if arg in ids else int(arg)
+        elif key == "number":
+            if 1 <= arg <= len(shown):
+                s["button"] = arg
+                self.title_button(s, t, shown)
+            else:
+                self.note(s, f"no button {arg} here")
+        elif key == "enter":
+            self.title_button(s, t, shown)
+        elif key == "seek":
+            s["time"] = max(0.0, arg)
+            s["chapter"] = max(k for k, c in enumerate(t.chapters, 1) if c <= s["time"])
+            self.note(s, f"at {s['time']:.1f} s, chapter {s['chapter']}")
+        elif key == "menu" and self.p.menus:
             target = s["menu_key"] if self.p.uses_remote_menu else None
             self.via_root(s, target or self.root().id)
         elif key == "next":
             if s["chapter"] < n:
                 s["chapter"] += 1
+                s["time"] = t.chapters[s["chapter"] - 1]
                 self.note(s, f"chapter {s['chapter']}")
             else:
                 self.post(s)
         elif key == "prev":
             s["chapter"] = max(1, s["chapter"] - 1)
+            s["time"] = t.chapters[s["chapter"] - 1]
             self.note(s, f"chapter {s['chapter']}")
         elif key == "play":
             self.play_chapter(s, t)
@@ -335,6 +372,45 @@ class Simulator:
             while s["domain"] == "title" and s["title"] == here:
                 self.play_chapter(s, t)
         return s
+
+    @staticmethod
+    def title_buttons(t, time):
+        """The buttons over title `t` shown at `time`, as menu layouts are
+        given ({"id", "rect", "nav", "action"}), the arrow keys between
+        them as titlebuttons writes them."""
+        shown = [b for b in t.buttons if b.start <= time and (b.end is None or time < b.end)]
+        rects = {b.id: (b.x, b.y, b.x + b.width, b.y + b.height) for b in shown}
+        nav = navigation.compute([(b.id, rects[b.id], None) for b in shown])
+        return [{"id": b.id, "rect": rects[b.id], "nav": nav[b.id], "action": b.action}
+                for b in shown]
+
+    def title_button(self, s, t, shown):
+        """Enter on a button over title `t` (its titleset's title domain, as
+        author.title_button_command): a stream button switches and the
+        title plays on; a link to a menu calls it (the title can be
+        resumed, as with the Menu key); others as the title's end."""
+        g = shown[min(s["button"], len(shown)) - 1]
+        self.note(s, f"button {g['id']} -> {g['action']}")
+        kind, target, num = parse_action(g["action"])
+        if kind == "audio":
+            s["audio"] = num
+            self.note(s, f"audio {num}")
+        elif kind == "subtitle":
+            s["subtitle"] = num
+            self.note(s, f"subtitle {'off' if not num else num}")
+        elif kind in ("title", "chapter"):
+            self.single(s)
+            self.play(s, target, num if kind == "chapter" else 1)
+        elif kind == "playall":
+            if self.p.uses_playlists:
+                s["playlist"] = s["item_end"] = 0
+            s["override"] = None
+            s["playall"] = 1
+            self.play(s, self.p.titles[0].id)
+        else:
+            if kind in ("menu", "lastmenu") and self.p.menus:
+                s["resume"] = {"title": s["title"], "chapter": s["chapter"], "button": s["button"]}
+            self.end_command(s, g["action"])
 
     def play_chapter(self, s, t):
         """Play to the end of the current chapter."""
@@ -345,6 +421,7 @@ class Simulator:
             self.post(s)
         else:
             s["chapter"] = k + 1
+            s["time"] = t.chapters[k]
             self.note(s, f"chapter {k + 1}")
 
     def activate(self, s, m, geoms):

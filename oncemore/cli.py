@@ -367,7 +367,8 @@ def make_parser():
     s.add_argument("project", help=proj_help)
     s.add_argument("--keys", default="",
                    help="comma-separated keys: up, down, left, right, enter, menu, title, "
-                        "next, prev, play, end, timeout, select:<button>")
+                        "next, prev, play, end, timeout, select:<button>, a number, "
+                        "seek:<seconds> (into the title: its buttons answer then)")
     s.add_argument("--simple-layout", action="store_true",
                    help="lay buttons out in a column instead of measuring the labels "
                         "(no ffmpeg needed; arrow keys may differ from the disc)")

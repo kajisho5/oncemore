@@ -10,7 +10,7 @@ from fractions import Fraction
 from . import tools
 from .errors import OncemoreError, ProjectError, ToolFailedError
 from . import captions, pulldown
-from .project import FILM_FPS, chapter_points, gop_limits, title_fps
+from .project import FILM_FPS, button_times, chapter_points, gop_limits, title_fps
 
 # Upper limits we allow ourselves (DVD-Video allows 9.8 Mbit/s video and
 # 10.08 Mbit/s total; staying below leaves headroom for players).
@@ -698,7 +698,9 @@ def _encode_clips(title, disc, video_bps, out_path, work, two_pass, on_progress,
 
 def _video_args(title, disc, video_bps, target, mode):
     fps = title_fps(title, disc)
-    keys, _ = chapter_points(title.chapters, fps)
+    # (the times its buttons change start VOBUs too, as chapters do: a
+    # VOBU carries one set of buttons)
+    keys, _ = chapter_points(sorted(set(title.chapters) | set(button_times(title))), fps)
     keyframes = ",".join(f"{t:.6f}" for t in keys)
     video = ["-target", target,
              "-aspect", disc.aspect, "-b:v", str(video_bps),
