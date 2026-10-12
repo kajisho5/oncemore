@@ -2252,3 +2252,28 @@ raised as `OncemoreError`.
   of a palette entry of its own.
 * `test_button_stream` checks a 720p button stream's frame, its palette
   (a transparent normal colour gets no entry) and its objects.
+
+## 111. Every command run once; what it found
+
+Each command of the app's menu bar was run in the contexts where it is
+enabled (a menu, a selected button, a selected text, a title) on the sample
+project, recording what it did: the page's changes, its API requests, its
+dialogs and file choosers, page errors, and text on screen that is a
+translation key rather than words. Every command did something; two
+things were wrong:
+
+* The New project and Open project dialogs were titled `cmd_new` and
+  `cmd_open`: `folderBox` named its dialog `t("cmd_" + mode)` and those
+  keys do not exist. The dialogs now take their command's name (without the
+  menu's ellipsis).
+* Buttons whose areas overlap: the menu editor outlines them and making the
+  menu refuses them ("move them apart"), but *Check project* said "Ready to
+  build" and a build found them only when it reached the menus, after
+  encoding the titles. `build.inspect` now lays every menu out as the build
+  does (`button_overlaps`) and reports each pair as an issue, so Check lists
+  them and a build stops before encoding. (Not for the encode status, which
+  inspects without preparing: it stays quick.)
+
+* `test_projects_from_the_file_menu` checks the three dialogs' titles;
+  `test_check_finds_overlapping_buttons` checks Check and `build.inspect`
+  with two buttons moved over each other. Both fail without the change.

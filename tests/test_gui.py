@@ -17,6 +17,7 @@ import urllib.request
 from unittest import mock
 
 from oncemore import tools
+from oncemore.errors import ProjectError
 from oncemore.gui.server import make_server, safe_name
 
 from .helpers import have
@@ -351,6 +352,27 @@ class TestGuiApi(unittest.TestCase):
         self.assertEqual(events[-1]["event"], "result")
         self.assertTrue(any(e["event"] == "progress" for e in events))
         self.assertTrue(os.path.isfile(os.path.join(self.dir, "output", "SAMPLE_DISC.iso")))
+
+    @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/ISO tool")
+    def test_check_finds_overlapping_buttons(self):
+        """Check reports buttons whose areas overlap (making the menu refuses
+        them), instead of "ready to build"; the build stops before encoding."""
+        self.s.call("/api/new", "POST", {"sample": True})
+        project = self.s.call("/api/state")[1]["project"]
+        self.assertEqual(self.s.call("/api/validate", "POST")[0], 200)
+        play, ch = project["menus"][0]["buttons"][:2]
+        ch["x"], ch["y"] = play["x"] + 10, play["y"] + 10
+        self.assertEqual(self.s.call("/api/project", "PUT", {"project": project})[0], 200)
+        status, err = self.s.call("/api/validate", "POST")
+        self.assertEqual(status, 422, err)
+        self.assertEqual([i["path"] for i in err["issues"]], ["menus[0].buttons"])
+        self.assertIn("buttons 'play' and 'ch' overlap", err["issues"][0]["message"])
+        # the build says the same before it encodes anything
+        from oncemore import build
+        from oncemore.project import load_project
+        with self.assertRaises(ProjectError) as cm:
+            build.inspect(load_project(os.path.join(self.dir, "project.oncemore.json")))
+        self.assertIn("overlap", cm.exception.issues[0]["message"])
 
     @unittest.skipUnless(MEDIA_TOOLS, "needs ffmpeg/ISO tool")
     def test_build_web(self):
@@ -1418,6 +1440,8 @@ class TestGuiBrowser(unittest.TestCase):
             cmd = lambda c: page.evaluate(f"window.oncemoreCommand('{c}')")  # noqa: E731
             # Save as: a new folder in another place, which is then the project
             cmd("save_as")
+            # (each dialog is named as its command, not by a translation key)
+            self.assertEqual(page.locator("#modal h2").inner_text(), "Save as")
             page.fill("#fb-path", other)
             page.locator("#fb-path").dispatch_event("change")
             page.locator("#fb-list", has_text="No folders").wait_for()
@@ -1435,6 +1459,7 @@ class TestGuiBrowser(unittest.TestCase):
             self.poll(lambda: self.s.app.dir == os.path.realpath(self.dir))
             # Open project: the chooser marks project folders; double-click opens
             cmd("open_project")
+            self.assertEqual(page.locator("#modal h2").inner_text(), "Open project")
             page.fill("#fb-path", other)
             page.locator("#fb-path").dispatch_event("change")
             page.locator(".fb-item.is-project", has_text="Copy").dblclick()
@@ -1442,6 +1467,7 @@ class TestGuiBrowser(unittest.TestCase):
             page.locator("#modal").wait_for(state="hidden")
             # New project: a new folder, then the New Project dialog for it
             cmd("new_project")
+            self.assertEqual(page.locator("#modal h2").inner_text(), "New project")
             page.fill("#fb-path", other)
             page.locator("#fb-path").dispatch_event("change")
             page.fill("#fb-name", "Fresh")

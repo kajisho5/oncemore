@@ -4862,7 +4862,8 @@ async function folderBox(mode) {
   const parent = (d) => d.replace(/[\\/][^\\/]*$/, "") || d;
   const start = S.dir ? parent(S.dir) : "";
   const named = mode !== "open";
-  openModal(`<h2>${t("cmd_" + mode)}</h2>
+  // (the dialog is named as its command is: New project, Open project, Save as)
+  openModal(`<h2>${t({ new: "cmd_new_project", open: "cmd_open_project" }[mode] || "cmd_" + mode).replace(/…$/, "")}</h2>
     ${named ? `<label class="field"><span>${t("name")}</span><input id="fb-name" value="${esc(mode === "save_as" ? `${S.dir.split(/[\\/]/).pop()} copy` : "My DVD")}"></label>` : ""}
     <label class="field"><span>${t(named ? "location" : "folder")}</span><div class="row"><input id="fb-path" class="mono"><button class="small shrink" id="fb-up" title="${esc(t("fb_up"))}">↑</button><button class="small shrink" id="fb-home">${t("fb_home")}</button></div></label>
     <div class="fb-list" id="fb-list" role="listbox" aria-label="${esc(t("folders"))}"></div>
