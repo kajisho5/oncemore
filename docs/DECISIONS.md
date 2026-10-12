@@ -2334,3 +2334,35 @@ and go on from there.
   and checks that libdvdnav never comes back to a moment it played (it
   does with 0.1.0); vtskit's own tests decode what libdvdnav hands a
   player through a switch.
+
+## 116. The Mac app's icon after Apple's guidelines (layered, unmasked)
+
+The app's icon was one flat picture (`AppIcon.png`: a rounded tile drawn
+into a 1024 px square with a transparent margin, the Big Sur layout) made
+into `AppIcon.icns`. Apple's Human Interface Guidelines for app icons now
+ask, for macOS too, for square, unmasked layers: the system rounds the
+corners, adds the light of Liquid Glass and makes the dark, clear and
+tinted looks; "providing layers with pre-defined masking negatively
+impacts specular highlight effects and makes edges look jagged". macOS 26 is reported to shrink icons
+that do not fit and set them on a grey tile (not checked here: there is no
+Mac at hand).
+
+* `macos/AppIcon.icon` (Icon Composer's format: `icon.json` and
+  `Assets/mark.svg`) is drawn by `make_logo.py --icon`: the background a
+  solid `--brand-ink` fill (in Display P3, as Icon Composer writes
+  colours), the mark the one foreground layer, centred at the share of the
+  icon it had on the old tile. The look of each appearance is left to the
+  system (none provided).
+* `build_app.sh` compiles it with `actool` (Xcode 26 or later) into
+  `Assets.car`, and `Info.plist` names it (`CFBundleIconName`); macOS 15
+  and earlier still take `AppIcon.icns` (`CFBundleIconFile`), made from
+  `AppIcon.png` as before (actool's own `.icns` is smaller). The CI and
+  release jobs pick the newest Xcode 26 or later on the runner;
+  `NO_LAYERED_ICON=1` builds without it on an older Xcode.
+* CI renders the icon with Icon Composer's own renderer (`ictool`, light
+  and dark) and keeps the pictures as an artifact, for a look without a
+  Mac.
+
+* `tests/test_appicon.py`: the logo script writes exactly the committed
+  icon; its layers are square (no tile, no rounded rectangle, no text) in
+  the brand colours; the app's Info.plist and build name it.

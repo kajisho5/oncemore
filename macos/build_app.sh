@@ -6,13 +6,15 @@
 #
 # The app bundles a standalone CPython (python-build-standalone, pinned
 # release, checksum-verified) and the oncemore package, so users only need
-# Homebrew's ffmpeg-full. Needs: Xcode command line tools
-# (swiftc, codesign, iconutil, sips) and `gh` (to fetch the Python build).
+# Homebrew's ffmpeg-full. Needs: Xcode 26 or later (swiftc, codesign,
+# iconutil, sips, and actool for the layered icon) and `gh` (to fetch the
+# Python build).
 #
 # Environment:
 #   ARCH=arm64|x86_64     target architecture (default: this machine)
 #   PY_TAG, PY_MINOR      python-build-standalone release and Python version
 #   CODESIGN_IDENTITY     signing identity (default "-" = ad-hoc)
+#   NO_LAYERED_ICON=1     leave out the macOS 26 layered icon (no Xcode 26)
 #   NOTARIZE=1            notarize + staple (needs APPLE_ID, APPLE_TEAM_ID,
 #                         APPLE_APP_PASSWORD and a Developer ID identity)
 set -euo pipefail
@@ -55,6 +57,30 @@ for s in 16 32 128 256 512; do
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 rm -rf "$ICONSET"
+
+# macOS 26 and later: the layered icon (macos/AppIcon.icon, made by
+# docs/images/logo/make_logo.py), compiled into Assets.car and named by
+# CFBundleIconName; the system masks it and adds its light. Earlier macOS
+# keep AppIcon.icns. Needs Xcode 26 or later (actool reading .icon);
+# NO_LAYERED_ICON=1 builds without it.
+if [ -z "${NO_LAYERED_ICON:-}" ]; then
+  echo "==> layered icon (Xcode at ${DEVELOPER_DIR:-$(xcode-select -p)})"
+  ICONTMP="$OUT/AppIcon.actool"
+  rm -rf "$ICONTMP"; mkdir -p "$ICONTMP"
+  xcrun actool "$ROOT/macos/AppIcon.icon" --compile "$ICONTMP" \
+    --output-format human-readable-text --notices --warnings --errors \
+    --output-partial-info-plist "$ICONTMP/partial.plist" \
+    --app-icon AppIcon --include-all-app-icons --enable-on-demand-resources NO \
+    --development-region en --target-device mac --minimum-deployment-target 12.0 \
+    --platform macosx
+  # (only the asset catalog: actool's own AppIcon.icns is smaller than ours)
+  cp "$ICONTMP/Assets.car" "$APP/Contents/Resources/Assets.car"
+  xcrun assetutil --info "$APP/Contents/Resources/Assets.car" | grep -q 'AppIcon' \
+    || { echo "Assets.car has no AppIcon" >&2; exit 1; }
+  rm -rf "$ICONTMP"
+else
+  /usr/libexec/PlistBuddy -c "Delete :CFBundleIconName" "$APP/Contents/Info.plist"
+fi
 
 if [ -z "${NO_PYTHON:-}" ]; then
   echo "==> Python $PY_MINOR (python-build-standalone $PY_TAG)"

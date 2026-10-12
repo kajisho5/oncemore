@@ -63,12 +63,30 @@ jobs:
           fetch-depth: 0   # CFBundleVersion = commit count
       - name: External tools for the smoke test
         run: brew install ffmpeg-full
+      - name: Xcode 26 or later (actool reads the layered icon)
+        run: |
+          x="$(ls -d /Applications/Xcode_26*.app /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1)"
+          if [ -n "$x" ]; then
+            echo "DEVELOPER_DIR=$x/Contents/Developer" >> "$GITHUB_ENV"
+            DEVELOPER_DIR="$x/Contents/Developer" xcodebuild -version
+          else
+            xcodebuild -version
+          fi
       - name: Build Oncemore.app
         run: macos/build_app.sh
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Smoke test (launch the app on a sample project)
         run: macos/smoke_test.sh dist/Oncemore.app
+      - name: Icon previews (Icon Composer's renderer)
+        run: |
+          macos/icon_previews.sh dist/icon-previews
+          for f in dist/icon-previews/*.png; do [ -f "$f" ] || continue; echo "PREVIEW-BEGIN $f"; base64 -i "$f"; echo "PREVIEW-END"; done
+      - uses: actions/upload-artifact@v6
+        with:
+          name: Oncemore-icon-previews
+          path: dist/icon-previews
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v6
         with:
           name: Oncemore-macOS-arm64
