@@ -1,6 +1,6 @@
 import unittest
 
-from oncemore import udfinfo
+from oncemore._vendor.udfkit import info as udfinfo
 
 
 class TestDstring(unittest.TestCase):

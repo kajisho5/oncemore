@@ -44,7 +44,8 @@ the whole job. oncemore is that tool — with no copy protection, ever.
 
 oncemore itself is pure Python (3.11+, standard library only); the DVD-Video
 structure (IFO files, navigation packs, button and subtitle subpictures) is
-written by its own copy of [vtskit](https://github.com/kajisho5/vtskit). It
+written by its own copy of [vtskit](https://github.com/kajisho5/vtskit), and
+the disc images by its copy of [udfkit](https://github.com/kajisho5/udfkit). It
 drives these programs:
 
 | Program | Used for |
@@ -976,8 +977,8 @@ own folder in it, named after the project folder.
 
 ## Libraries
 
-Parts of oncemore are published on their own, for other tools to use. They
-are pure Python with no dependencies, like oncemore:
+Parts of oncemore are published on their own, on PyPI, for other tools to
+use. They are pure Python with no dependencies, like oncemore:
 
 | Library | What it does | License |
 |---|---|---|
@@ -986,8 +987,11 @@ are pure Python with no dependencies, like oncemore:
 | [dvdcc](https://github.com/kajisho5/dvdcc) | Line-21 closed captions (CEA-608) into a DVD's MPEG-2 video | Apache-2.0 |
 | [vtskit](https://github.com/kajisho5/vtskit) | DVD-Video authoring: IFO files, navigation packs, menus, subtitles, angle blocks, dvdauthor's command language | LGPL-3.0-or-later |
 
-oncemore keeps its own copy of this code, so it still installs with no
-dependencies. Fixes go to both places.
+Changes to them are made and released in their own repositories, and
+oncemore carries a copy of each release (`oncemore/_vendor`, updated with
+`tools/vendor.py`), so it still installs with no dependencies. vtskit and
+udfkit are carried so already; bdmvkit and dvdcc take the place of oncemore's
+own modules next.
 
 ## Support oncemore
 

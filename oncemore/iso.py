@@ -4,7 +4,7 @@ DVD players and libdvdread (the library VLC, mpv and most software players
 use) locate VIDEO_TS through the UDF file system, so a DVD-Video image needs
 a UDF + ISO 9660 "bridge" layout. Backends, in `auto` order:
 
-  builtin      oncemore's own writer (udfwriter.py): UDF 1.02 + ISO 9660,
+  builtin      udfkit's writer (discimage.py, DECISIONS §106): UDF 1.02 + ISO 9660,
                files placed where the IFOs say; nothing to install
   hdiutil      macOS built-in: `makehybrid -udf -udf-version 1.02 -iso`
   genisoimage  `-dvd-video -udf` (Debian/Ubuntu package `genisoimage`)
@@ -17,7 +17,7 @@ a UDF + ISO 9660 "bridge" layout. Backends, in `auto` order:
 import os
 import shutil
 
-from . import tools, udfinfo, udfwriter
+from . import discimage, tools
 from .errors import OncemoreError
 
 XORRISO_WARNING = (
@@ -88,11 +88,11 @@ def make_iso(dvd_dir, out_iso, label, tool="auto", log=None, reporter=None, shif
         os.remove(out_iso)
     if name == "builtin":
         # (hidden entries such as .work are left out by the writer itself)
-        udfwriter.write_image(
+        discimage.write_dvd(
             dvd_dir, out_iso, label, shift=shift,
             on_progress=(lambda f: reporter.progress("iso", f)) if reporter else None)
         return {"tool": name, "path": out_iso, "bytes": os.path.getsize(out_iso),
-                "udf": True, "volume_names": udfinfo.volume_names(out_iso), "warnings": []}
+                "udf": True, "volume_names": discimage.volume_names(out_iso), "warnings": []}
     os.makedirs(os.path.join(dvd_dir, "AUDIO_TS"), exist_ok=True)
     src, cleanup = _staging(dvd_dir)
     warnings = []
@@ -113,7 +113,7 @@ def make_iso(dvd_dir, out_iso, label, tool="auto", log=None, reporter=None, shif
                 break
     if not os.path.isfile(out_iso):
         raise OncemoreError(f"{name} did not produce {out_iso}")
-    names = udfinfo.volume_names(out_iso)
+    names = discimage.volume_names(out_iso)
     if name != "xorriso" and names["udf_volume"] != label:
         msg = (f"{name} wrote UDF volume name {names['udf_volume']!r} instead of {label!r}; "
                "players show the UDF name as the disc title")

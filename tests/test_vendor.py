@@ -1,7 +1,8 @@
-"""The vendored vtskit: a verbatim copy of the package named in UPSTREAM,
-with its licence beside it."""
+"""The vendored libraries: verbatim copies of the packages their UPSTREAM
+names, with their licences beside them (DECISIONS §105)."""
 
 import hashlib
+import importlib
 import importlib.util
 import io
 import os
@@ -12,34 +13,59 @@ import unittest
 import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-VENDOR = os.path.join(ROOT, "oncemore", "_vendor", "vtskit")
+VENDOR_ROOT = os.path.join(ROOT, "oncemore", "_vendor")
+VENDOR = os.path.join(VENDOR_ROOT, "vtskit")
 
 
-class TestVendoredVtskit(unittest.TestCase):
+def vendored():
+    """The libraries oncemore carries a copy of."""
+    return sorted(n for n in os.listdir(VENDOR_ROOT) if os.path.isdir(os.path.join(VENDOR_ROOT, n))
+                  and not n.startswith("__"))
+
+
+class TestVendored(unittest.TestCase):
     def test_upstream_names_a_commit_or_a_release(self):
-        with open(os.path.join(VENDOR, "UPSTREAM"), encoding="utf-8") as f:
-            text = f.read()
-        self.assertIn("https://github.com/kajisho5/vtskit", text)
-        self.assertRegex(text, r"copied from (commit [0-9a-f]{40}\b|PyPI vtskit (\S+) \(vtskit-\2-\S+\.whl, "
-                               r"sha256 [0-9a-f]{64}\))")
-        self.assertTrue(os.path.isfile(os.path.join(VENDOR, "COPYING.LESSER")))
-        m = re.search(r"PyPI vtskit (\S+) ", text)
-        if m:                                  # (the copy is that release)
-            from oncemore._vendor.vtskit import __version__
-            self.assertEqual(__version__, m[1])
+        tool = load_tool()
+        for name in vendored():
+            vendor = os.path.join(VENDOR_ROOT, name)
+            with open(os.path.join(vendor, "UPSTREAM"), encoding="utf-8") as f:
+                text = f.read()
+            self.assertIn(f"https://github.com/kajisho5/{name}", text)
+            self.assertRegex(text, rf"copied from (commit [0-9a-f]{{40}}\b|PyPI {name} (\S+) \({name}-\2-\S+\.whl, "
+                                   r"sha256 [0-9a-f]{64}\))")
+            for licence in tool.LIBRARIES[name][1]:
+                self.assertTrue(os.path.isfile(os.path.join(vendor, licence)), (name, licence))
+            m = re.search(rf"PyPI {name} (\S+) ", text)
+            if m:                                  # (the copy is that release)
+                version = importlib.import_module(f"oncemore._vendor.{name}").__version__
+                self.assertEqual(version, m[1], name)
 
     def test_package_only(self):
-        names = sorted(n for n in os.listdir(VENDOR) if n != "__pycache__")
-        self.assertNotIn("tests", names)
-        self.assertTrue(all(n.endswith(".py") or n in ("UPSTREAM", "COPYING.LESSER") for n in names), names)
-        for name in names:
-            if name.endswith(".py"):
-                with open(os.path.join(VENDOR, name), encoding="utf-8") as f:
-                    self.assertNotRegex(f.read(), r"^\s*(from|import) (oncemore|vtskit)\b", f"{name}: imports are relative")
+        tool = load_tool()
+        self.assertIn("vtskit", vendored())
+        for lib in vendored():
+            vendor = os.path.join(VENDOR_ROOT, lib)
+            names = sorted(n for n in os.listdir(vendor) if n != "__pycache__")
+            self.assertNotIn("tests", names)
+            extra = {"UPSTREAM", *tool.LIBRARIES[lib][1]}
+            self.assertTrue(all(n.endswith(".py") or n in extra for n in names), names)
+            for name in names:
+                if name.endswith(".py"):
+                    with open(os.path.join(vendor, name), encoding="utf-8") as f:
+                        self.assertNotRegex(f.read(), rf"^\s*(from|import) (oncemore|{lib})\b",
+                                            f"{lib}/{name}: imports are relative")
+
+    def test_packaged(self):
+        # every copy goes into the package, with its UPSTREAM and licence
+        with open(os.path.join(ROOT, "pyproject.toml"), encoding="utf-8") as f:
+            toml = f.read()
+        for lib in vendored():
+            self.assertIn(f'"oncemore._vendor.{lib}"', toml)
 
     def test_version_module(self):
-        from oncemore._vendor.vtskit import __version__
-        self.assertRegex(__version__, r"^\d+\.\d+\.\d+$")
+        for lib in vendored():
+            version = importlib.import_module(f"oncemore._vendor.{lib}").__version__
+            self.assertRegex(version, r"^\d+\.\d+\.\d+$", lib)
 
 
 def load_tool():

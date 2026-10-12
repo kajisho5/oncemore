@@ -8,9 +8,9 @@ import struct
 import tempfile
 import unittest
 
-from oncemore import udf250
-from oncemore.errors import OncemoreError
-from oncemore.udfwriter import SECTOR, crc_itu_t, tag_checksum
+from oncemore._vendor.udfkit import bluray as udf250
+from oncemore._vendor.udfkit.dvd import SECTOR, crc_itu_t, tag_checksum
+from oncemore._vendor.udfkit.errors import UdfError
 
 try:
     from . import udfread_sim
@@ -128,7 +128,7 @@ class TestUdf250(unittest.TestCase):
     def test_needs_bdmv(self):
         empty = os.path.join(self.tmp, "empty")
         os.makedirs(empty)
-        with self.assertRaises(OncemoreError):
+        with self.assertRaises(UdfError):
             udf250.write_image(empty, os.path.join(self.tmp, "x.iso"), "X")
 
     def test_long_files_use_several_extents(self):

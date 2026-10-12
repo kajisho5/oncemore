@@ -38,8 +38,8 @@ import os
 import struct
 import zlib
 
-from .errors import OncemoreError
-from .udfwriter import (ACCESS_READ_ONLY, DOMAIN_FLAGS, DOMAIN_ID, FID_DIRECTORY,
+from .errors import UdfError
+from .dvd import (ACCESS_READ_ONLY, DOMAIN_FLAGS, DOMAIN_ID, FID_DIRECTORY,
                         FID_PARENT, FIRST_UNIQUE_ID, ICB_FLAGS, ICB_STRATEGY,
                         IMPLEMENTATION_ID, INTEGRITY_CLOSE, LV_INFO_ID, MAX_EXTENT,
                         PARTITION_FLAG_ALLOCATED, PERM_DIRECTORY, PERM_FILE, SECTOR,
@@ -210,7 +210,7 @@ def file_set(label, root_block, date):
 def file_identifier(block, name, characteristics, icb_block, unique_id):
     ident = cs0(name) if name is not None else b""
     if len(ident) > 255:
-        raise OncemoreError(f"file name too long for UDF: {name!r}")
+        raise UdfError(f"file name too long for UDF: {name!r}")
     buf = bytearray((38 + len(ident) + 3) & ~3)
     struct.pack_into("<HBB", buf, 16, 1, characteristics, len(ident))
     struct.pack_into("<IIHHIH", buf, 20, SECTOR, icb_block, METADATA, 0,
@@ -244,7 +244,7 @@ def file_entry(block, is_dir, size, data_block, unique_id, link_count, date):
         ads = b"".join(struct.pack("<IIH6x", n, b, PHYSICAL)
                        for n, b in _extents(size, data_block))
     if 176 + len(ads) > SECTOR:
-        raise OncemoreError("file too large for one UDF File Entry")
+        raise UdfError("file too large for one UDF File Entry")
     buf = bytearray(176 + len(ads))
     _icb_tag(buf, FILE_TYPE_DIRECTORY if is_dir else FILE_TYPE_FILE,
              AD_SHORT if is_dir else AD_LONG)
@@ -311,7 +311,7 @@ def scan_tree(src_dir, skip=None):
         try:
             entries = sorted(os.scandir(path), key=lambda e: e.name)
         except OSError as e:
-            raise OncemoreError(f"cannot read {path}: {e.strerror}") from e
+            raise UdfError(f"cannot read {path}: {e.strerror}") from e
         for e in entries:
             if e.name.startswith(".") or os.path.realpath(e.path) == skip:
                 continue
@@ -333,14 +333,14 @@ def scan_tree(src_dir, skip=None):
 
 def write_image(src_dir, out_path, label, *, date=None, on_progress=None):
     """Write a UDF 2.50 image of `src_dir` (a BDMV disc folder) to out_path.
-    Returns statistics like udfwriter.write_image."""
+    Returns statistics like udfkit.dvd.write_image."""
     validate_label(label)
     if date is None:
         date = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
     out_path = os.path.abspath(out_path)
     root = scan_tree(src_dir, skip=os.path.realpath(out_path))
     if not any(c.name == "BDMV" and c.is_dir for c in root.children):
-        raise OncemoreError(f"{src_dir} has no BDMV directory")
+        raise UdfError(f"{src_dir} has no BDMV directory")
     layout = _plan(root)
     try:
         _write(root, layout, out_path, label, date, on_progress)
@@ -470,7 +470,7 @@ def _write(root, layout, out_path, label, date, on_progress):
         out.write(anchor_pointer(layout["total"] - 1).ljust(SECTOR, b"\0"))
         progress(gap + len(meta) + SECTOR)
         if out.tell() != total_bytes:
-            raise OncemoreError(f"internal error: wrote {out.tell()} bytes, "
+            raise UdfError(f"internal error: wrote {out.tell()} bytes, "
                                 f"expected {total_bytes}")
 
 
@@ -487,6 +487,6 @@ def _copy_file(node, out, progress):
                 progress(len(chunk))
             extra = f.read(1)
     except OSError as e:
-        raise OncemoreError(f"cannot read {node.src}: {e.strerror}") from e
+        raise UdfError(f"cannot read {node.src}: {e.strerror}") from e
     if remaining or extra:
-        raise OncemoreError(f"{node.src} changed size while the image was written")
+        raise UdfError(f"{node.src} changed size while the image was written")
