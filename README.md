@@ -293,7 +293,7 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
 * **Preview** (⇧Space) starts the remote-control preview at the menu you are
   editing; in it, 1–9 press that button, Home is the Title key, Insert the
   Menu key, End plays to the end, Space plays, ⌘← / ⌘→ previous / next
-  chapter.
+  chapter. Keys pressed quickly one after another are taken in order.
 * **Flowchart** shows the whole disc: first play, menus, titles, playlists and
   every link between them (buttons, end actions, time-outs, the remote's Menu
   and Title keys). Boxes a viewer can never reach, or menus they cannot leave,

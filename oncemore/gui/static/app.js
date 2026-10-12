@@ -1976,7 +1976,13 @@ function flowLink(src, action, ev, btn = null) {
 
 // ---------------------------------------------------------------- disc simulator
 const SIM_KEYS = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", Enter: "enter", m: "menu", t: "title", n: "next", p: "prev" };
-async function simCall(key) {
+// keys go one after another: each is sent with the state the one before
+// it left (a key pressed while the last is still on its way waits)
+function simCall(key) {
+  S.simQueue = (S.simQueue || Promise.resolve()).then(() => simSend(key));
+  return S.simQueue;
+}
+async function simSend(key) {
   const body = { project: S.project };
   if (key && S.sim) { body.state = S.sim.state; body.key = key; }
   else if (S.simFrom) { body.from_menu = S.simFrom; S.simFrom = null; }
