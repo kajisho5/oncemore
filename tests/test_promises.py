@@ -38,6 +38,21 @@ class TestMacApp(unittest.TestCase):
         self.assertRegex(rel, r"macos-\d+-intel|macos-13")
         self.assertRegex(rel, r"arm64|macos-(14|15|latest)")
 
+    def test_signed_and_notarised_from_1_0(self):
+        # a release from 1.0 on is refused without the signing secrets, so
+        # the app opens without "Open Anyway" (DECISIONS §124)
+        rel = read(".github", "workflows", "release.yml")
+        self.assertIn('""|v0.*) ;;', rel)
+        self.assertIn("must be signed and notarised", rel)
+        self.assertIn("NOTARIZE=1", rel)
+        from oncemore import __version__
+        self.assertNotRegex(__version__, r"^0\.")
+        self.assertNotIn("not notarised", read("README.md"))
+        self.assertNotIn("まだ公証", read("README.ja.md"))
+        notes = read("docs", "release-notes", f"v{__version__}.md")
+        self.assertIn(f"Oncemore-{__version__}-arm64.zip", notes)
+        self.assertNotIn("Open Anyway", notes)
+
 
 class TestDiscImage(unittest.TestCase):
     def test_iso_and_folder_output(self):

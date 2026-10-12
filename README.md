@@ -99,10 +99,10 @@ brew install ffmpeg-full
 Download `Oncemore-<version>-arm64.zip` (Apple silicon) or
 `Oncemore-<version>-x86_64.zip` (Intel) from the
 [Releases](https://github.com/kajisho5/oncemore/releases) page (or the latest CI
-run's artifacts), unzip, and move *Oncemore.app* to Applications. The
-build is not notarised yet, so macOS blocks the first launch: open *System
-Settings › Privacy & Security* and click **Open Anyway** (or run
-`xattr -dr com.apple.quarantine /Applications/Oncemore.app`). oncemore never
+run's artifacts), unzip, and move *Oncemore.app* to Applications. From 1.0
+on the release is signed with a Developer ID and notarised by Apple, so it
+opens like any downloaded app (a CI artifact or a 0.x release is not:
+open *System Settings › Privacy & Security* and click **Open Anyway**). oncemore never
 connects to the internet, so it does not look for new versions by itself:
 *Help › Check for Updates…* shows which version you have and opens the Releases
 page (or click **Watch › Custom › Releases** on GitHub to be told). Its icon follows Apple's
@@ -116,7 +116,7 @@ set `CODESIGN_IDENTITY` and `NOTARIZE=1` to produce a signed, notarised app.
 Pushing a tag `v<version>` runs `.github/workflows/release.yml`, which builds
 both architectures, launches each on a sample project and attaches the zips to a
 release (signed and notarised when the signing secrets listed in that file are
-set): 0.x versions are published as pre-releases right away, 1.0 and later as
+set; from 1.0 on it refuses to release without them): 0.x versions are published as pre-releases right away, 1.0 and later as
 drafts; the notes come from `docs/release-notes/<tag>.md`. Running the
 workflow by hand (Actions > Release > Run workflow) with `tag` set does the
 same and makes the tag on the commit it ran on.
