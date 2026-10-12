@@ -79,9 +79,7 @@ jobs:
       - name: Smoke test (launch the app on a sample project)
         run: macos/smoke_test.sh dist/Oncemore.app
       - name: Icon previews (Icon Composer's renderer)
-        run: |
-          macos/icon_previews.sh dist/icon-previews
-          for f in dist/icon-previews/*.png; do [ -f "$f" ] || continue; echo "PREVIEW-BEGIN $f"; base64 -i "$f"; echo "PREVIEW-END"; done
+        run: macos/icon_previews.sh dist/icon-previews
       - uses: actions/upload-artifact@v6
         with:
           name: Oncemore-icon-previews
