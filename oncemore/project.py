@@ -546,6 +546,8 @@ class Thumb:
     h: int
     animated: bool = False     # plays the chapter (motion chapter menus)
     chapter: int = None        # the chapter (0-based) whose start the time follows
+    mask: str = None           # "rounded" | "ellipse": the shape it is cut to
+    mask_image: str = None     # a picture whose opaque pixels show it (still thumbnails)
 
 
 @dataclass
@@ -1388,8 +1390,14 @@ class _Builder:
                 time = title.chapters[chapter]
         else:
             time, follows = thumb_time(title.chapters, chapter), chapter
+        mask_image = self.file(f"{where}.mask_image", spec.get("mask_image"))
+        if mask_image and spec.get("animated"):
+            self.err(f"{where}.mask_image", "a picture mask is for a still thumbnail (an "
+                                            "animated one takes mask rounded or ellipse)")
+        mask = spec.get("mask")
         return Thumb(title.id, time, spec["x"], spec["y"], spec["w"], spec["h"],
-                     animated=bool(spec.get("animated")), chapter=follows)
+                     animated=bool(spec.get("animated")), chapter=follows,
+                     mask=None if mask == "rectangle" else mask, mask_image=mask_image)
 
     def slideshow(self, where, spec):
         slides = [slideshow.Slide(self.file(f"{where}.slideshow.slides[{j}].image", s["image"]),

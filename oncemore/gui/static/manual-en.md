@@ -232,6 +232,9 @@ Viewer**.
 * **Object > Rotate**, **Flip horizontal** and **Flip vertical** turn and
   mirror texts, buttons, rectangles and pictures; the R tool rotates by
   dragging around the centre.
+* A title or chapter button's **thumbnail** (its Properties > Thumbnail)
+  can be cut to a **Shape**: rounded corners, an ellipse, or a picture whose
+  opaque part shows it (still thumbnails), as the menu shows.
 * **Adjust** (a picture's Properties, and the menu's for its background
   picture or video): crop a part of it (left, top, width and height in
   percent), and set its brightness, contrast and saturation. The menu shows

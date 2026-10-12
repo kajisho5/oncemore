@@ -2573,3 +2573,33 @@ approximation in CSS (CSS brightness and contrast are not eq's).
   Properties writing the background's crop and brightness, the stage
   showing the adjusted picture, Reset, and a picture made grey.
 
+## 121. Button thumbnails cut to a shape
+
+A button's `thumbnail` takes `mask` (`rectangle`, the default; `rounded`;
+`ellipse`) or `mask_image` (a picture whose opaque pixels show it). The
+shapes are an alpha made with ffmpeg's `geq` as the thumbnail is placed
+(the ellipse in its rectangle; rounded corners of 15 % of the shorter
+side, one fixed radius rather than another setting), so a moving
+thumbnail is cut on every frame. A picture mask is the picture's alpha
+(`alphaextract`, stretched to the rectangle) merged into the still
+thumbnail before it is placed, written as a PNG of its own; a moving
+thumbnail with a picture mask is refused, since the overlay places one
+input per picture and that mask would be a second one. The mask picture
+is in the menu's cache key.
+
+The highlight is not changed: a thumbnail button is still lit as its
+highlight says (a frame around the button, or a drawn area, which can be
+an ellipse to match). The subpicture has no soft edges either way.
+
+In the app the button's Thumbnail section has a Shape choice (and the
+picture for a picture shape, offered when the project has pictures); the
+stage rounds or masks the thumbnail with CSS (`border-radius`,
+`mask-image`, which also reads the picture's alpha).
+
+* `tests/test_thumbmask.py`: the model, the refusal of a picture mask on
+  a moving thumbnail and of an unknown shape, the filters; a menu drawn
+  with a white thumbnail: a rectangle reaches its corner, an ellipse and
+  rounded corners leave it to the background, a picture mask shows only
+  where the picture is opaque; in the app, the Shape choice writes
+  `mask` and `mask_image` and the stage rounds the thumbnail.
+
