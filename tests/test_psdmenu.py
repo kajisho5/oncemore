@@ -84,6 +84,38 @@ def design(highlights_visible=False, composite=True):
     return build_psd(W, H, layers, composite=flat if composite else None)
 
 
+P1_ART, P2_ART = (100, 100, 300, 140), (400, 300, 600, 340)
+NEXT_ART, PREV_ART = (560, 400, 660, 430), (60, 400, 160, 430)
+RED, GREEN = (200, 30, 30, 255), (30, 200, 30, 255)
+
+
+def paged_design():
+    """A shared background and two pages (top-level "(page)" groups, the
+    second hidden as a designer leaves it): page 1 has CHAPTER 1, a red
+    heading and NEXT; page 2 CHAPTER 2, a green heading and PREV."""
+    layers = [
+        Group("(page) One", [
+            Group("(+) Chapter 1", [layer("label", P1_ART, WHITE)]),
+            Group("(+) Next", [layer("NEXT", NEXT_ART, WHITE)]),
+            layer("heading", (100, 40, 400, 80), RED),
+        ]),
+        Group("(page) Two", [
+            Group("(+) Chapter 2", [layer("label", P2_ART, WHITE)]),
+            Group("(+) Prev", [layer("PREV", PREV_ART, WHITE)]),
+            layer("heading", (100, 40, 400, 80), GREEN),
+        ], visible=False),
+        layer("Background", (0, 0, W, H), NAVY),
+    ]
+    return build_psd(W, H, layers, composite=solid(W, H, NAVY))
+
+
+def rgba(png, x, y):
+    out = subprocess.run([tools.find("ffmpeg"), "-v", "error", "-i", png, "-vf",
+                          f"crop=1:1:{x}:{y}", "-f", "rawvideo", "-pix_fmt", "rgba", "-"],
+                         capture_output=True, check=True).stdout
+    return tuple(out[:4])
+
+
 def pixel(png, x, y):
     out = subprocess.run([tools.find("ffmpeg"), "-v", "error", "-i", png, "-vf",
                           f"crop=1:1:{x}:{y}", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
@@ -110,6 +142,9 @@ class TestGuessAction(unittest.TestCase):
         self.assertEqual(g("Subtitles off", p)[0], "subtitle:off")
         self.assertEqual(g("Audio 2", p)[0], "audio:2")
         self.assertIsNone(g("Bonus", p)[0])
+        self.assertIsNone(g("Next", p)[0])                          # (no pages)
+        self.assertEqual(g("Next", p, pages=True)[0], "page:next")
+        self.assertEqual(g("Previous page", p, pages=True)[0], "page:prev")
         used = set()
         self.assertEqual([psdmenu.slug(n, used) for n in ("Play Movie", "play movie", "★")],
                          ["play_movie", "play_movie_2", "button"])
@@ -177,6 +212,41 @@ class TestImport(unittest.TestCase):
         again, _ = self.run_import(design())
         self.assertEqual(again["buttons"][2]["action"], "menu:chapters")
         self.assertEqual(again["loop"], 2)
+
+    def test_pages(self):
+        menu, notes = self.run_import(paged_design())
+        self.assertEqual(menu["pages"], 2)
+        b = {x["id"]: x for x in menu["buttons"]}
+        self.assertEqual({k: (v["action"], v["page"]) for k, v in b.items()},
+                         {"chapter_1": ("chapter:t1:1", 1), "next": ("page:next", 1),
+                          "chapter_2": ("chapter:t1:2", 2), "prev": ("page:prev", 2)})
+        self.assertIn("2 pages", " ".join(n["message"] for n in notes))
+        # the background: what is outside the pages
+        bg = os.path.join(self.dir, menu["background"])
+        self.assertEqual(pixel(bg, round(200 * 854 / 720), 60), NAVY[:3])
+        # each page's artwork: a picture on that page, clear elsewhere (the
+        # hidden page too)
+        pics = {p["page"]: p for p in menu["images"]}
+        self.assertEqual(sorted(pics), [1, 2])
+        self.assertEqual((pics[2]["x"], pics[2]["y"], pics[2]["w"], pics[2]["h"]), (0, 0, W, H))
+        one, two = (os.path.join(self.dir, pics[n]["file"]) for n in (1, 2))
+        self.assertEqual(rgba(one, round(200 * 854 / 720), 60), RED)
+        self.assertEqual(rgba(two, round(200 * 854 / 720), 60), GREEN)
+        self.assertEqual(rgba(two, round(500 * 854 / 720), 320), WHITE)     # CHAPTER 2's label
+        self.assertEqual(rgba(two, 10, 10)[3], 0)
+        # the project takes it: two pages, NEXT and PREV between them
+        self.project["menus"].append(menu)
+        from oncemore.project import build_project
+        p = build_project(self.project, os.path.join(self.dir, "project.oncemore.json"),
+                          check_files=False)
+        first, second = p.menu("art"), p.menu("art~2")
+        self.assertEqual([x.id for x in first.buttons], ["chapter_1", "next"])
+        self.assertEqual(first.buttons[1].action, "menu:art~2")
+        self.assertEqual(second.buttons[1].action, "menu:art")
+        self.assertEqual([x.page for x in second.images], [2])
+        # imported again without pages, it has none
+        again, _ = self.run_import(design())
+        self.assertNotIn("pages", again)
 
     def test_no_buttons(self):
         data = build_psd(W, H, [layer("Background", (0, 0, W, H), NAVY)],

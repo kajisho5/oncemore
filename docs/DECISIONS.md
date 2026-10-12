@@ -2603,3 +2603,32 @@ stage rounds or masks the thumbnail with CSS (`border-radius`,
   where the picture is opaque; in the app, the Shape choice writes
   `mask` and `mask_image` and the stage rounds the thumbnail.
 
+## 122. Pages of a menu from Photoshop
+
+A menu with pages (§84: one menu a page on the disc, objects with a
+`page` on it alone) can now come from one layered file: each top-level
+layer group named `(page) …` is a page, numbered in the order of the
+Layers panel from the top. A designer shows one page at a time, so a page
+group counts as shown whether it is visible in the file or not (the
+layers inside it still follow their own visibility).
+
+* The background is what is outside the pages, rebuilt from those layers
+  (the file's flattened image holds whichever page was showing, so it
+  cannot be used); a note says so.
+* Each page's artwork (its visible layers, the buttons' artwork with them,
+  highlight and thumbnail layers left out) becomes a full-menu picture
+  with transparency, an `images` entry with that `page`.
+* Its `(+)` buttons get that `page`; buttons outside the pages are on
+  every page.
+* With pages, buttons named Next / Prev (and "next page", "previous",
+  `>` / `<`) are linked to `page:next` / `page:prev`; without pages those
+  names guess nothing, as before.
+* Imported again without page groups, the menu has no pages.
+
+* `tests/test_psdmenu.py`: a design with a shared background and two
+  pages, the second hidden: two pages, the buttons on theirs with their
+  links, the background without the pages' artwork, each page's picture
+  with its own heading (the hidden one too) and clear elsewhere, the
+  project paginating it with NEXT and PREV between the pages, and a
+  re-import without pages; the Next / Prev names only with pages.
+

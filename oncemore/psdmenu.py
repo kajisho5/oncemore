@@ -10,6 +10,11 @@ the prefixes long used for DVD menus:
   (=1) ...     inside a button: the highlight. (=2) and (=3) are taken too;
                a DVD highlight here has one colour, so they are merged
   (%) ...      inside a button: where the title / chapter thumbnail goes
+  (page) Name  a top-level layer group that is a page of the menu: its
+               artwork shows on that page only and its buttons are on it
+               (pages in the order of the Layers panel, from the top; a
+               button named Next or Prev turns the page). The artwork
+               outside the pages is on every page.
 
 Everything else that is visible is artwork. Highlight layers never are,
 visible or not. Without highlight layers a button lights up in the shape
@@ -38,6 +43,7 @@ from .project import STANDARDS, Disc
 
 BUTTON = "(+)"
 THUMB = "(%)"
+PAGE = "(page)"
 _HIGHLIGHT = re.compile(r"^\(=[123]\)")
 
 
@@ -55,8 +61,9 @@ def slug(name, used):
     return out
 
 
-def guess_action(name, project):
-    """An action for a button named `name`, or (None, why)."""
+def guess_action(name, project, pages=False):
+    """An action for a button named `name`, or (None, why); `pages`: the
+    menu has pages (Next / Prev turn them)."""
     titles = project.get("titles", [])
     menus = [m["id"] for m in project.get("menus", [])]
     for t in titles:
@@ -65,6 +72,10 @@ def guess_action(name, project):
             menus.append((spec.get("id") if isinstance(spec, dict) else None)
                          or f"chapters_{t['id']}")
     n = name.lower().strip()
+    if pages and re.fullmatch(r"next( page)?|>+", n):
+        return "page:next", None
+    if pages and re.fullmatch(r"prev(ious)?( page)?|<+", n):
+        return "page:prev", None
     if re.fullmatch(r"play( all| movie| everything)?", n) and titles:
         return ("playall" if len(titles) > 1 and n != "play movie" else
                 f"title:{titles[0]['id']}"), None
@@ -140,11 +151,13 @@ def _scale_png(src, dst, w, h, log):
                "-update", "1", dst], log=log, what="ffmpeg (Photoshop import)", timeout=300)
 
 
-def _composite(doc, layers, out_png, size, background, work, log):
+def _composite(doc, layers, out_png, size, background, work, log, alpha=False):
     """Flatten `layers` (bottom first) over `background` with ffmpeg, scaled
-    to `size` (the menu's square-pixel canvas)."""
+    to `size` (the menu's square-pixel canvas); `alpha` keeps transparency
+    (a page's artwork over a clear background)."""
     inputs = ["-f", "lavfi", "-i",
-              f"color=c={background}:s={doc.width}x{doc.height}:d=1"]
+              f"color=c={background}:s={doc.width}x{doc.height}:d=1"
+              + (",format=rgba" if alpha else "")]
     chains, cur = [], "0:v"
     k = 0
     for layer in layers:
@@ -160,7 +173,8 @@ def _composite(doc, layers, out_png, size, background, work, log):
         chains.append(f"[{cur}][l{k}]overlay={layer.left}:{layer.top}:format=auto[c{k}]")
         cur = f"c{k}"
     w, h = size
-    chains.append(f"[{cur}]scale={w}:{h}:flags=bicubic,setsar=1,format=rgb24[out]")
+    chains.append(f"[{cur}]scale={w}:{h}:flags=bicubic,setsar=1,"
+                  f"format={'rgba' if alpha else 'rgb24'}[out]")
     # (passed inline: -filter_complex_script is gone in ffmpeg 8, and its
     # replacement "-/filter_complex" does not exist before ffmpeg 7)
     tools.run([tools.find("ffmpeg"), "-hide_banner", "-nostdin", "-y"] + inputs +
@@ -196,6 +210,23 @@ def import_psd(psd_path, project, menu_id, out_dir, rel_base):
     for g in groups:
         for layer in g.walk():
             in_button[id(layer)] = g
+    # pages: top-level groups; each is shown on its own page, whether it is
+    # visible in the file or not (a designer shows one page at a time)
+    pages = [l for l in doc.walk() if l.is_group and l.parent is None
+             and l.name.lower().startswith(PAGE)]
+    page_of = {}
+    for n, pg in enumerate(pages, 1):
+        page_of[id(pg)] = n
+        for layer in pg.walk():
+            page_of[id(layer)] = n
+
+    def shown(layer):
+        """Visible in the file, a page group counting as shown."""
+        while layer is not None:
+            if not layer.visible and not (layer.parent is None and id(layer) in page_of):
+                return False
+            layer = layer.parent
+        return True
     special = set()
     for layer in doc.walk():
         if _HIGHLIGHT.match(layer.name):
@@ -217,7 +248,8 @@ def import_psd(psd_path, project, menu_id, out_dir, rel_base):
         # -- background ---------------------------------------------------------
         bg_png = os.path.join(out_dir, f"{menu_id}-background.png")
         visible_special = any(x.effective_visible for x in doc.walk() if id(x) in special)
-        merged = doc.composite() if not visible_special else None
+        # (with pages, the flattened image holds whichever page was showing)
+        merged = doc.composite() if not visible_special and not pages else None
         if merged is not None:
             raw = os.path.join(work, "merged.png")
             psd.write_png(raw, doc.width, doc.height, merged)
@@ -230,10 +262,15 @@ def import_psd(psd_path, project, menu_id, out_dir, rel_base):
                       timeout=300)
         else:
             art = [x for x in reversed(list(doc.walk())) if x.effective_visible
-                   and id(x) not in special]
+                   and id(x) not in special and id(x) not in page_of]
             # walk() is top first; flatten bottom first
             _composite(doc, art, bg_png, (dw, H), "black", work, log)
-            if visible_special:
+            if pages:
+                notes.append({"level": "info", "message": f"{len(pages)} pages: the background "
+                              "was rebuilt from the layers outside them (layer effects such "
+                              "as shadows are not included), and each page's artwork is a "
+                              "picture on that page"})
+            elif visible_special:
                 notes.append({"level": "info", "message": "highlight or thumbnail layers are "
                               "visible in the file, so the background was rebuilt from the "
                               "layers (layer effects such as shadows are not included); hide "
@@ -252,6 +289,16 @@ def import_psd(psd_path, project, menu_id, out_dir, rel_base):
         if kinds and merged is None:
             notes.append({"level": "info", "message": "adjustment layers are not applied"})
 
+        page_pics = []
+        for n, pg in enumerate(pages, 1):
+            art = [x for x in reversed(list(pg.walk())) if shown(x) and id(x) not in special
+                   and x is not pg]
+            if not any(not x.is_group and not x.is_empty for x in art):
+                continue
+            png = os.path.join(out_dir, f"{menu_id}-page{n}.png")
+            _composite(doc, art, png, (dw, H), "black@0.0", work, log, alpha=True)
+            page_pics.append({"file": rel(png), "x": 0, "y": 0, "w": W, "h": H, "page": n})
+
         # -- buttons ------------------------------------------------------------
         used, buttons = set(), []
         for g in groups:
@@ -260,7 +307,7 @@ def import_psd(psd_path, project, menu_id, out_dir, rel_base):
             kids = descendants(g)
             hls = [x for x in kids if _HIGHLIGHT.match(x.name)]
             thumbs = [x for x in kids if x.name.startswith(THUMB)]
-            art = [x for x in kids if id(x) not in special and x.effective_visible]
+            art = [x for x in kids if id(x) not in special and shown(x)]
             area = _clip(_union([x.bounds for x in kids if not x.is_group and not x.is_empty]),
                          doc.width, doc.height)
             if area is None:
@@ -290,7 +337,7 @@ def import_psd(psd_path, project, menu_id, out_dir, rel_base):
                     if k in prev:
                         btn[k] = prev[k]
             if "action" not in btn:
-                action, why = guess_action(name, project)
+                action, why = guess_action(name, project, pages=bool(pages))
                 if action is None:
                     titles = project.get("titles", [])
                     action = f"title:{titles[0]['id']}" if titles else "stop"
@@ -307,13 +354,19 @@ def import_psd(psd_path, project, menu_id, out_dir, rel_base):
                 else:
                     notes.append({"level": "info", "message": f"button {bid!r}: the (%) "
                                   "thumbnail needs a title or chapter action"})
+            if id(g) in page_of:
+                btn["page"] = page_of[id(g)]
             buttons.append(btn)
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
     menu = dict(old or {}, id=menu_id, background=rel(bg_png), buttons=buttons)
-    for k in ("texts", "shapes", "images"):
+    for k in ("texts", "shapes", "images", "pages"):
         menu.pop(k, None)              # the artwork is in the background now
+    if pages:
+        menu["pages"] = len(pages)
+        if page_pics:
+            menu["images"] = page_pics
     if menu.get("default_button") not in {x["id"] for x in buttons}:
         menu.pop("default_button", None)
     # the file's guides come along (in menu pixels); a file without any
