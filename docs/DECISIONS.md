@@ -2311,3 +2311,26 @@ its own manual.
   once; `test_help_window` opens it with F1 on a menu and a title, searches,
   reads the reference, in Japanese too, and sees no request leave the
   computer.
+
+## 113. Angle switches go on without a break (vtskit 0.1.1)
+
+The pictures libdvdnav hands a player through an angle switch, decoded,
+showed vtskit 0.1.0's seamless angle blocks replaying the moment of the
+switch (half a second, a VOBU): every PCI carried NSML_AGLI (each angle's
+VOBU of the same moment) beside the DSI's SML_AGLI (each angle's next
+interleaved unit), and libdvdnav follows NSML_AGLI whenever it is filled.
+The first stretch of a block was not marked "seamless angle" either. Every
+angle title oncemore writes is one seamless block, so every switch did
+this.
+
+vtskit 0.1.1 fills only SML_AGLI in a seamless block (only NSML_AGLI in
+one switched with a break), marks every cell of a seamless block, and
+refuses angle streams whose interleaved units start with open groups of
+pictures (oncemore's have no B-pictures). oncemore takes it unchanged:
+its angle titles now switch at the next interleaved unit (about a second)
+and go on from there.
+
+* `test_e2e.TestAngles.test_a_switch_goes_on` switches early in the title
+  and checks that libdvdnav never comes back to a moment it played (it
+  does with 0.1.0); vtskit's own tests decode what libdvdnav hands a
+  player through a switch.

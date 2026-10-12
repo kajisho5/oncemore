@@ -189,8 +189,9 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   rectangle or ellipse drawn on the menu (drag it, and its corner to resize;
   filled or just its outline). The highlight picture can still replace it.
 * **Multi-angle titles** (a title's Properties > Angles, DVD): other videos
-  of the same scene, switched with the remote's Angle key; add, pick, order
-  and remove them there (the title's own video is angle 1).
+  of the same scene, switched with the remote's Angle key without a break
+  (the new angle from the next interleaved unit, about a second); add,
+  pick, order and remove them there (the title's own video is angle 1).
 * **Menus with pages** (Menu > Add new page): a menu's buttons spread over
   pages, turned with buttons to the next, previous or a given page; a
   heading or background shape can be on every page. Each page is a menu of
