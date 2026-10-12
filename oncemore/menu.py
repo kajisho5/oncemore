@@ -283,6 +283,29 @@ def display_width(disc):
     return int(round(disc.height * disc.dar / 2.0)) * 2
 
 
+def animated(menu):
+    """Whether something on the menu comes in (an `animate`)."""
+    return any(x.animate for x in list(menu.images) + list(menu.texts))
+
+
+def _progress(a, t="t"):
+    """An ffmpeg expression of the time `t`: 0 before an animation, 1 after,
+    linear between (used inside quotes, so its commas need no escape)."""
+    return f"clip(({t}-{a.start:.3f})/{a.duration:.3f},0,1)"
+
+
+def _growing(a):
+    """geq drawing a picture at its box's size times the animation's scale
+    (growing to 1), about the box's centre, clear around it (scale cannot
+    change a frame's size as it goes, so the box stays and the picture is
+    drawn smaller in it)."""
+    s = f"({a.scale:.4f}+(1-{a.scale:.4f})*{_progress(a, 'T')})"
+    sx, sy = f"((X-W/2)/{s}+W/2)", f"((Y-H/2)/{s}+H/2)"
+    inside = f"between({sx},0,W-1)*between({sy},0,H-1)"
+    return (f"geq=r='r({sx},{sy})':g='g({sx},{sy})':b='b({sx},{sy})':"
+            f"a='if({inside},alpha({sx},{sy}),0)'")
+
+
 def mask_filter(mask, w, h):
     """ffmpeg filters cutting a w x h picture to a shape: "rounded" (corners
     of 15 % of its shorter side) or "ellipse" (the ellipse in its box); the
@@ -1051,7 +1074,7 @@ class MenuBuilder:
             return (path, x, y, mask_filter(t.mask, *size))
         return (path, x, y)
 
-    def compose(self, menu, transparent=False):
+    def compose(self, menu, transparent=False, animate=False):
         """ffmpeg inputs + filter_complex drawing the menu, ending in [out].
 
         Input 0 is the background: a still image, a colour, or (motion menu)
@@ -1062,6 +1085,12 @@ class MenuBuilder:
         """
         H = self.disc.height
         inputs = []
+        num, den = self.disc.fps
+        # objects coming in (animate): the menu over its whole length; without
+        # `animate` every object is drawn where it comes to rest
+        moving = animate and animated(menu)
+        dur = self.menu_duration(menu) if moving else None
+        loop = ["-loop", "1", "-framerate", f"{num}/{den}", "-t", f"{dur:.3f}"] if moving else []
         if transparent:
             # (rgba chosen in the source itself, or its alpha is lost)
             inputs += ["-f", "lavfi", "-i", f"color=c=black@0.0:s={self.dw}x{H}:d=1,format=rgba"]
@@ -1077,13 +1106,15 @@ class MenuBuilder:
                   f"pad={self.dw}:{H}:(ow-iw)/2:(oh-ih)/2:color={_hex(menu.background_color)},"
                   f"setsar=1,format=rgb24")
         elif menu.background:
-            inputs += ["-i", menu.background]
+            inputs += loop + ["-i", menu.background]
             bg = (f"[0:v]{adjust_filter(menu.background_adjust, ',')}"
                   f"scale={self.dw}:{H}:force_original_aspect_ratio=decrease,"
                   f"pad={self.dw}:{H}:(ow-iw)/2:(oh-ih)/2:color={_hex(menu.background_color)},"
                   f"setsar=1,format=rgb24")
         else:
-            inputs += ["-f", "lavfi", "-i", f"color=c={_hex(menu.background_color)}:s={self.dw}x{H}:d=1"]
+            length = f"r={num}/{den}:d={dur:.3f}" if moving else "d=1"
+            inputs += ["-f", "lavfi", "-i",
+                       f"color=c={_hex(menu.background_color)}:s={self.dw}x{H}:{length}"]
             bg = "[0:v]format=rgb24"
         chains = [bg + "[bg0]"]
         cur = "bg0"
@@ -1117,9 +1148,19 @@ class MenuBuilder:
         overlays = []
         for p in menu.images:
             fade = f",colorchannelmixer=aa={p.opacity:.3f}" if p.opacity < 1 else ""
-            overlays.append(placed(p.file, p, "image", round(p.x * self.sx), p.y,
-                                   f"{adjust_filter(p.adjust, ',')}"
-                                   f"scale={max(1, round(p.w * self.sx))}:{p.h},format=rgba{fade}"))
+            w, h = max(1, round(p.w * self.sx)), p.h
+            a = p.animate if moving else None
+            grow = f",{_growing(a)}" if a and a.scale != 1 else ""
+            entry = placed(p.file, p, "image", round(p.x * self.sx), p.y,
+                           f"{adjust_filter(p.adjust, ',')}scale={w}:{h},format=rgba{grow}{fade}")
+            if a:
+                path, x, y, pre = entry
+                if a.fade:
+                    pre += f",fade=t=in:st={a.start:.3f}:d={a.duration:.3f}:alpha=1"
+                x = f"'{x}+{round(a.dx * self.sx)}*(1-{_progress(a)})'"
+                y = f"'{y}+{a.dy}*(1-{_progress(a)})'"
+                entry = (path, x, y, pre, loop)
+            overlays.append(entry)
         overlays += list(self.thumbnails(menu))
         for b in menu.buttons:
             if b.image:
@@ -1136,11 +1177,13 @@ class MenuBuilder:
                 src = f"[im{i}]"
             chains.append(f"[{cur}]{src}overlay={x}:{y}[bg{i}]")
             cur = f"bg{i}"
-        draws, turned = [], []
+        draws, turned, coming = [], [], []
         for i, t in enumerate(menu.texts):
             tf = self._textfile(f"{menu.id}.text{i}.txt", t.text)
             text = self._drawtext(tf, t.x, t.y, t.size, t.color, t)
-            if self.turned(t):
+            if moving and t.animate:
+                coming.append((text, t, self.pivot(menu.id, t, "text", i) if self.turned(t) else None))
+            elif self.turned(t):
                 turned.append((text, t, self.pivot(menu.id, t, "text", i)))
             else:
                 draws.append(text)
@@ -1163,6 +1206,17 @@ class MenuBuilder:
             chains.append(f"{chain}[turn{k}]")
             chains.append(f"[{cur}][turn{k}]overlay={x}:{y}[tl{k}]")
             cur = f"tl{k}"
+        for k, (text, el, pivot) in enumerate(coming):
+            # (a text coming in: drawn alone on a clear layer that moves and fades)
+            a = el.animate
+            layer = f"color=c=0x00000000:s={self.dw}x{H}:r={num}/{den}:d={dur:.3f},format=rgba,{text}"
+            chain, x, y = self.turned_layer(layer, el, pivot) if pivot else (layer, 0, 0)
+            if a.fade:
+                chain += f",fade=t=in:st={a.start:.3f}:d={a.duration:.3f}:alpha=1"
+            chains.append(f"{chain}[come{k}]")
+            chains.append(f"[{cur}][come{k}]overlay=x='{x}+{round(a.dx * self.sx)}*(1-{_progress(a)})':"
+                          f"y='{y}+{a.dy}*(1-{_progress(a)})'[cm{k}]")
+            cur = f"cm{k}"
         chains.append(f"[{cur}]{self._squeeze()}[out]")
         return inputs, ";".join(chains)
 
@@ -1220,9 +1274,10 @@ class MenuBuilder:
             # from black, once: the loop point is at the end of the fade or later
             finish = f"fade=t=in:st=0:d={menu.fade_in:.3f}," + finish
         afade = f",afade=t=in:st=0:d={menu.fade_in:.3f}" if menu.fade_in else ""
-        if menu.background_video:
-            # motion menu: draw the menu onto every frame of the video
-            inputs, graph = self.compose(menu)
+        if menu.background_video or animated(menu):
+            # motion menu: draw the menu onto every frame of the video (or of
+            # the still background, objects coming in)
+            inputs, graph = self.compose(menu, animate=True)
             args = inputs
             n = len([x for x in inputs if x == "-i"])
             graph = graph.replace("[out]", "[menu]") + f";[menu]{finish}[v]"

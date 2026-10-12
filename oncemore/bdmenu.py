@@ -31,7 +31,7 @@ from ._vendor.bdmvkit import igs
 from ._vendor.bdmvkit.errors import BdmvError
 from ._vendor.bdmvkit.igs import patch_ig_stream_type
 from .errors import OncemoreError
-from .menu import MenuBuilder
+from .menu import MenuBuilder, animated
 from .project import Disc
 
 STILL_SECONDS = 1.0            # a still menu's clip; the playlist holds its last picture
@@ -86,6 +86,10 @@ def scale_menu(menu, disc, probe):
     def Y(y):
         return round(y * ky)
 
+    def moved(a):
+        # (an animation's distance on the HD frame)
+        return a and dataclasses.replace(a, dx=round(a.dx * kx), dy=round(a.dy * ky))
+
     def styled(el, **kw):
         return dataclasses.replace(
             el, size=max(4, round(el.size * ky)),
@@ -109,11 +113,13 @@ def scale_menu(menu, disc, probe):
     return dataclasses.replace(
         menu, buttons=buttons,
         texts=[styled(t, x=X(t.x), y=Y(t.y), line_spacing=round(t.line_spacing * ky),
-                      width=t.width and W(t.width), height=t.height and Y(t.height))
+                      width=t.width and W(t.width), height=t.height and Y(t.height),
+                      animate=moved(t.animate))
                for t in menu.texts],
         shapes=[dataclasses.replace(s, x=X(s.x), y=Y(s.y), w=W(s.w), h=Y(s.h))
                 for s in menu.shapes],
-        images=[dataclasses.replace(p, x=X(p.x), y=Y(p.y), w=W(p.w), h=Y(p.h))
+        images=[dataclasses.replace(p, x=X(p.x), y=Y(p.y), w=W(p.w), h=Y(p.h),
+                                    animate=moved(p.animate))
                 for p in menu.images])
 
 
@@ -268,14 +274,14 @@ def encode_menu(project, menu, work, font, commands, max_bps, fast=False, on_pro
                           follow_selection=menu.id in project.entry_buttons))
     music = menu.audio or (menu.background_video if menu.background_video and
                            mb._probe(menu.background_video).get("has_audio") else None)
-    still = not (menu.background_video or music or menu.fade_in)
+    still = not (menu.background_video or music or menu.fade_in or animated(menu))
     dur = STILL_SECONDS if still else mb.menu_duration(menu)
     num, den = bluray.bd_fps(fps, disc)
     finish = "scale=out_color_matrix=bt709:out_range=tv,format=yuv420p,setsar=1"
     if menu.fade_in and not still:
         finish = f"fade=t=in:st=0:d={menu.fade_in:.3f}," + finish
-    if menu.background_video:
-        inputs, graph = mb.compose(menu)
+    if menu.background_video or animated(menu):
+        inputs, graph = mb.compose(menu, animate=True)
         graph = graph.replace("[out]", "[menu]") + f";[menu]{finish}[v]"
     else:
         base = mb.render_base(menu)

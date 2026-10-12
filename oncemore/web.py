@@ -19,7 +19,7 @@ import os
 import shutil
 
 from . import encode, tools
-from .menu import MenuBuilder, display_width, link_font
+from .menu import MenuBuilder, animated, display_width, link_font
 from .project import FILM_FPS
 
 PLAYER_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "webplayer")
@@ -169,8 +169,8 @@ class MenuRenderer:
         finish = f"scale={self.dw}:{self.H}:flags=bicubic,setsar=1,format=yuv420p"
         if menu.fade_in:
             finish = f"fade=t=in:st=0:d={menu.fade_in:.3f}," + finish
-        if menu.background_video:
-            inputs, graph = self.mb.compose(menu)
+        if menu.background_video or animated(menu):
+            inputs, graph = self.mb.compose(menu, animate=True)
             graph = graph.replace("[out]", "[menu]") + f";[menu]{finish}[v]"
         else:
             inputs = ["-loop", "1", "-framerate", f"{num}/{den}", "-t", f"{dur:.3f}",
@@ -201,7 +201,7 @@ class MenuRenderer:
         if menu.normal_color:
             entry["normal"] = "menus/" + os.path.basename(
                 self.overlay(menu, assets.buttons, "normal", None, "normal"))
-        if menu.background_video or menu.audio:
+        if menu.background_video or menu.audio or animated(menu):
             self.video(menu, assets, dur)
             entry["video"] = f"menus/{menu.id}.mp4"
         self._scale_png(assets.base_png, os.path.join(self.out, "menus", f"{menu.id}.png"),
