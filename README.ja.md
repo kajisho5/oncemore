@@ -799,6 +799,8 @@ oncemore の一部は、他のツールからも使えるよう単体のライ�
 
 変更はそれぞれのリポジトリで行ってリリースし、oncemore はリリースの写しを持ちます（`oncemore/_vendor`、`tools/vendor.py` で更新）。そのため oncemore は依存ライブラリ無しでインストールできます。vtskit・udfkit・dvdcc はすでに写しを使っており、bdmvkit も oncemore 自身の Blu-ray モジュールと置き換えます。
 
+`.github/workflows/library-updates.yml` が毎日 PyPI を見て、oncemore が持つライブラリに新しいリリースがあれば、それを取り込むドラフトの PR を作り、CI を走らせます。マージするかどうかは人が決めます（同じ一覧は `python tools/vendor.py --outdated` で見られます）。
+
 ## oncemore を支援する
 
 oncemore は無料で、これからも無料です。役に立ったら [GitHub Sponsors](https://github.com/sponsors/kajisho5)（このリポジトリ上部の

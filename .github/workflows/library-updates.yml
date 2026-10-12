@@ -1,0 +1,69 @@
+name: Library updates
+
+# Every day: when one of the libraries oncemore carries (oncemore/_vendor) has
+# a newer release on PyPI, copy it in with tools/vendor.py and open a draft
+# pull request for it, one per library and version (DECISIONS §109).
+#
+# A pull request opened with GITHUB_TOKEN does not start CI by itself (its
+# runs wait for approval), so CI is started on the branch with
+# workflow_dispatch, which GITHUB_TOKEN may do; its checks show on the pull
+# request. Opening the pull request needs "Allow GitHub Actions to create and
+# approve pull requests" (Settings > Actions > General).
+
+on:
+  schedule:
+    - cron: "17 0 * * *"        # 00:17 UTC, 09:17 in Japan
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+concurrency:
+  group: library-updates
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Copy in new releases, a pull request each
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          base=$(git rev-parse HEAD)
+          python tools/vendor.py --outdated > outdated.txt
+          cat outdated.txt
+          # (the list on fd 3: git and gh must not read the loop's input)
+          while read -r name have latest <&3; do
+            branch="library/$name-$latest"
+            if git ls-remote --exit-code --heads origin "$branch" > /dev/null; then
+              echo "$branch: there already"
+              continue
+            fi
+            git checkout -q -B "$branch" "$base"
+            python tools/vendor.py "$name" --pypi "$latest"
+            git add -A "oncemore/_vendor/$name"
+            git commit -q -m "Take $name $latest from PyPI" \
+              -m "python tools/vendor.py $name --pypi $latest (oncemore had $have)."
+            git push -q origin "$branch"
+            gh pr create --draft --base main --head "$branch" \
+              --title "Take $name $latest from PyPI" \
+              --body "$(printf '%s\n' \
+                "oncemore carried $name $have; PyPI has $latest. This copies it into \`oncemore/_vendor/$name\` with \`python tools/vendor.py $name --pypi $latest\` (the wheel checked against the SHA-256 PyPI publishes; DECISIONS §105)." \
+                "" \
+                "Before merging: CI green on this branch (started by the workflow), and the library's release notes read for changes oncemore must follow (an API or output change needs a change in oncemore on this branch, and DECISIONS)." \
+                "" \
+                "Opened by .github/workflows/library-updates.yml.")"
+            gh workflow run ci.yml --ref "$branch"
+          done 3< outdated.txt

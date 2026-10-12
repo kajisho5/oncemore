@@ -994,6 +994,11 @@ oncemore carries a copy of each release (`oncemore/_vendor`, updated with
 udfkit and dvdcc are carried so already; bdmvkit takes the place of
 oncemore's own Blu-ray modules next.
 
+Every day `.github/workflows/library-updates.yml` looks on PyPI for a newer
+release of each library oncemore carries and opens a draft pull request that
+takes it, with CI run on it; merging it is still a person's call
+(`python tools/vendor.py --outdated` shows the same list).
+
 ## Support oncemore
 
 oncemore is free and stays free. If it saves you time, you can support its
