@@ -2126,3 +2126,28 @@ text out itself (`oncemore/typeset.py`, `MenuBuilder._wrapped`,
   box, ink measured on drawn menus (lines inside the box, a full-width bar
   under or through the letters, two columns of the right lengths, right to
   left), and the Properties fields and the stage in a browser.
+
+## 109. New library releases are taken by a pull request opened every day
+
+The libraries are released on their own (§105), so oncemore can fall behind
+them without anyone noticing. `.github/workflows/library-updates.yml` runs
+every day (00:17 UTC) and by hand:
+
+* `python tools/vendor.py --outdated` lists each carried library whose
+  latest PyPI release is newer than the copy's `__version__` (versions
+  compared number by number: 0.10 is newer than 0.9; a library oncemore does
+  not carry yet is left out).
+* For each, unless the branch `library/<name>-<version>` is there already,
+  it copies the release in with `tools/vendor.py <name> --pypi <version>`
+  (the wheel checked against PyPI's SHA-256), pushes that branch and opens
+  a draft pull request. Nothing is merged by it.
+* A pull request opened with `GITHUB_TOKEN` does not start CI on its own
+  (GitHub makes such runs wait for approval); `workflow_dispatch` is the
+  exception, so the workflow starts `ci.yml` on the branch and its checks
+  show on the pull request.
+* Opening pull requests needs the repository setting "Allow GitHub Actions
+  to create and approve pull requests" (Settings > Actions > General >
+  Workflow permissions); without it the step fails and says so.
+* A release that changes an API or the bytes oncemore writes needs a change
+  in oncemore too: it is made on the same branch before merging, with its
+  DECISIONS entry.

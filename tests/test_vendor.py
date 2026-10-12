@@ -139,3 +139,41 @@ class TestFromWheel(unittest.TestCase):
                            capture_output=True, text=True)
         self.assertEqual(p.returncode, 2)
         self.assertIn("tools/vendor.py udfkit --pypi", p.stderr)
+
+
+class TestUpdates(unittest.TestCase):
+    """tools/vendor.py --outdated and the workflow that acts on it."""
+
+    def setUp(self):
+        self.tool = load_tool()
+        self.root = tempfile.mkdtemp(prefix="oncemore-vendor-")
+        self.addCleanup(shutil.rmtree, self.root, True)
+        for name, version in (("vtskit", "0.1.0"), ("udfkit", "0.2.0"), ("dvdcc", "0.10.0")):
+            os.makedirs(os.path.join(self.root, name))
+            with open(os.path.join(self.root, name, "__init__.py"), "w") as f:
+                f.write(f'"""{name}."""\n\n__version__ = "{version}"\n')
+
+    def test_newer_releases(self):
+        pypi = {"vtskit": "0.1.1", "udfkit": "0.2.0", "dvdcc": "0.9.0", "bdmvkit": "9.9.9"}
+        # (bdmvkit is not carried here: nothing to update; 0.10 is newer than 0.9)
+        self.assertEqual(self.tool.outdated(pypi.get, self.root), [("vtskit", "0.1.0", "0.1.1")])
+        pypi["dvdcc"] = "0.10.1"
+        self.assertEqual([r[0] for r in self.tool.outdated(pypi.get, self.root)],
+                         ["vtskit", "dvdcc"])
+
+    def test_carried_versions(self):
+        for lib in vendored():
+            self.assertRegex(self.tool.carried_version(lib), r"^\d+\.\d+\.\d+$")
+
+    def test_workflow(self):
+        with open(os.path.join(ROOT, ".github", "workflows", "library-updates.yml"),
+                  encoding="utf-8") as f:
+            text = f.read()
+        self.assertIn("schedule:", text)
+        self.assertIn("python tools/vendor.py --outdated", text)
+        self.assertIn('python tools/vendor.py "$name" --pypi "$latest"', text)
+        self.assertIn("gh pr create --draft", text)
+        # (a pull request opened with GITHUB_TOKEN does not start CI: the workflow does)
+        self.assertIn('gh workflow run ci.yml --ref "$branch"', text)
+        with open(os.path.join(ROOT, ".github", "workflows", "ci.yml"), encoding="utf-8") as f:
+            self.assertIn("workflow_dispatch:", f.read())

@@ -5,6 +5,7 @@ dvdcc), from PyPI or from a checkout of its repository.
     python tools/vendor.py udfkit --pypi 0.1.0
     python tools/vendor.py udfkit --pypi            (the latest release)
     python tools/vendor.py udfkit ../udfkit         (a checkout)
+    python tools/vendor.py --outdated               (what PyPI has that oncemore does not)
 
 The libraries are worked on, tested and released in their own
 repositories; oncemore takes a release (DECISIONS §105).
@@ -21,6 +22,10 @@ origin has, so that UPSTREAM names a commit anyone can fetch.
 
 Either way the copy goes into oncemore/_vendor/<library>, replacing what is
 there. Run oncemore's tests afterwards.
+
+--outdated prints "<library> <version oncemore has> <latest on PyPI>", a
+line for each library with a newer release; .github/workflows/
+library-updates.yml runs it every day and opens a pull request for each.
 """
 
 import hashlib
@@ -140,8 +145,41 @@ def from_pypi(name, version=None, vendor=None):
     return from_wheel(name, data, version, wheel["filename"], vendor)
 
 
+def carried_version(name, vendor=None):
+    """The version of the copy oncemore carries (its __version__)."""
+    vendor = vendor or os.path.join(VENDOR_ROOT, name)
+    with open(os.path.join(vendor, "__init__.py"), encoding="utf-8") as f:
+        m = re.search(r'^__version__ = "([^"]+)"', f.read(), re.M)
+    return m[1] if m else None
+
+
+def latest_version(name):
+    return json.loads(_get(f"https://pypi.org/pypi/{name}/json"))["info"]["version"]
+
+
+def _key(version):
+    return tuple(int(x) if x.isdigit() else -1 for x in re.split(r"[.+-]", version or "0"))
+
+
+def outdated(latest=latest_version, vendor_root=None):
+    """[(library, version carried, newer version on PyPI)]."""
+    out = []
+    for name in LIBRARIES:
+        vendor = os.path.join(vendor_root or VENDOR_ROOT, name)
+        if not os.path.isdir(vendor):
+            continue
+        have, new = carried_version(name, vendor), latest(name)
+        if _key(new) > _key(have):
+            out.append((name, have, new))
+    return out
+
+
 def main(argv):
     args = argv[1:]
+    if args == ["--outdated"]:
+        for row in outdated():
+            print(*row)
+        return 0
     if not args or args[0] not in LIBRARIES:
         print(__doc__, file=sys.stderr)
         return 2

@@ -11,6 +11,10 @@ to PyPI: vtskit, udfkit, bdmvkit and dvdcc.
   repository; oncemore then takes the release with
   `python tools/vendor.py <library> --pypi <version>`.
 * Never edit `oncemore/_vendor/`: it is a copy, replaced as a whole.
+* `.github/workflows/library-updates.yml` opens a draft pull request
+  (`library/<name>-<version>`) when PyPI has a newer release; check CI and
+  the library's changes before merging it, and change oncemore on that
+  branch when the release needs it (§109).
 * vtskit is worked on by its own session; do not change its repository.
 * oncemore itself is not published to PyPI.
 
