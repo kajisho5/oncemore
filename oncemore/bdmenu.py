@@ -105,7 +105,8 @@ def scale_menu(menu, disc, probe):
                               thumb=thumb, area=area))
     return dataclasses.replace(
         menu, buttons=buttons,
-        texts=[styled(t, x=X(t.x), y=Y(t.y), line_spacing=round(t.line_spacing * ky))
+        texts=[styled(t, x=X(t.x), y=Y(t.y), line_spacing=round(t.line_spacing * ky),
+                      width=t.width and W(t.width), height=t.height and Y(t.height))
                for t in menu.texts],
         shapes=[dataclasses.replace(s, x=X(s.x), y=Y(s.y), w=W(s.w), h=Y(s.h))
                 for s in menu.shapes],
