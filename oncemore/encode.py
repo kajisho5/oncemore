@@ -32,6 +32,11 @@ MENU_AUDIO_BPS = 192_000
 # probing
 # --------------------------------------------------------------------------
 
+# elementary video streams (.m2v and the like): their average rate is the
+# demuxer's default (25), the stream's own rate is r_frame_rate
+RAW_VIDEO = {"mpegvideo", "mpeg1video", "h264", "hevc", "m4v"}
+
+
 def probe(path):
     """Return a dict describing the first video/audio stream of `path`."""
     tools.require(["ffprobe"])
@@ -65,7 +70,8 @@ def probe(path):
         sar = _ratio(v.get("sample_aspect_ratio")) or Fraction(1)
         out.update({
             "width": int(v["width"]), "height": int(v["height"]), "sar": sar,
-            "fps": _ratio(v.get("avg_frame_rate")) or _ratio(v.get("r_frame_rate")),
+            "fps": (_ratio(v.get("r_frame_rate")) if fmt.get("format_name") in RAW_VIDEO else None)
+                   or _ratio(v.get("avg_frame_rate")) or _ratio(v.get("r_frame_rate")),
             "codec": v.get("codec_name"),
             "pix_fmt": v.get("pix_fmt"),
             "video_bit_rate": int(v.get("bit_rate", 0) or 0),
@@ -77,7 +83,27 @@ def probe(path):
         out.update({"audio_codec": a.get("codec_name"),
                     "audio_rate": int(a.get("sample_rate", 0) or 0),
                     "audio_channels": int(a.get("channels", 0) or 0)})
+    if out["duration"] is None and (v or a):
+        out["duration"] = _stream_length(path, "v:0" if v else "a:0")
     return out
+
+
+def _stream_length(path, stream):
+    """Length of a stream whose file gives none (an elementary stream such as
+    .m2v): the end of its last packet."""
+    cmd = [tools.find("ffprobe"), "-v", "error", "-select_streams", stream, "-show_entries",
+           "packet=pts_time,dts_time,duration_time", "-of", "csv=p=0", path]
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    except subprocess.TimeoutExpired:
+        return None
+    end = None
+    for line in p.stdout.splitlines():
+        f = [_float(x) or 0.0 for x in line.split(",")[:3]]
+        if len(f) == 3:
+            e = max(f[0], f[1]) + f[2]
+            end = e if end is None or e > end else end
+    return end or None
 
 
 def _chapters(info):
@@ -420,8 +446,8 @@ def clip_graph(title, probes, disc, mode, video=True, audio=True):
         info = probes[c.source]
         dur = c.duration
         if c.still:
-            inputs += ["-loop", "1", "-framerate", f"{num}/{den}", "-t", f"{dur:.6f}",
-                       "-i", c.source]
+            inputs += tools.still_input(c.source) + [
+                "-loop", "1", "-framerate", f"{num}/{den}", "-t", f"{dur:.6f}", "-i", c.source]
         else:
             inputs += ["-ss", f"{c.start:.6f}", "-t", f"{dur:.6f}", "-i", c.source]
         if video:
@@ -474,8 +500,8 @@ def still_input(info, fps, duration, size):
     or black of `size`, for `duration` seconds at `fps`."""
     num, den = fps
     if info.get("still"):
-        return ["-loop", "1", "-framerate", f"{num}/{den}", "-t", f"{duration:.3f}",
-                "-i", info["still"]]
+        return tools.still_input(info["still"]) + [
+            "-loop", "1", "-framerate", f"{num}/{den}", "-t", f"{duration:.3f}", "-i", info["still"]]
     w, h = size
     return ["-f", "lavfi", "-i", f"color=c=black:s={w}x{h}:r={num}/{den}:d={duration:.3f}"]
 
