@@ -601,6 +601,44 @@ class TestGuiApi(unittest.TestCase):
 
 
 
+class TestManual(unittest.TestCase):
+    """The in-app manual: the two languages have the same sections, in the
+    same order, every topic F1 opens is one of them, and the menu reference
+    is made by the app."""
+
+    STATIC = os.path.join(os.path.dirname(__file__), "..", "oncemore", "gui", "static")
+
+    def read(self, name):
+        with open(os.path.join(self.STATIC, name), encoding="utf-8") as f:
+            return f.read()
+
+    def ids(self, md):
+        return re.findall(r"^#{2,3} .*\{#([\w-]+)\}$", md, re.M)
+
+    def test_same_sections_in_both_languages(self):
+        en, ja = self.read("manual-en.md"), self.read("manual-ja.md")
+        self.assertGreater(len(self.ids(en)), 20)
+        self.assertEqual(self.ids(en), self.ids(ja))
+        self.assertEqual(len(set(self.ids(en))), len(self.ids(en)))       # (each once)
+        for md in (en, ja):
+            self.assertEqual(md.count("<!-- menu-reference -->"), 1)
+            self.assertEqual(re.findall(r"encore|adobe", md, re.I), [])
+
+    def test_every_help_topic_is_a_section(self):
+        js = self.read("app.js")
+        body = js[js.index("function helpTopic()"):js.index("// a small Markdown")]
+        topics = set(re.findall(r'"([a-z][\w-]*)"', body)) - {
+            "build", "menu", "title", "playlist", "flow", "sim", "disc"} | {"build"}
+        self.assertTrue({"menus", "menu-objects", "titles", "slideshows", "playlists",
+                         "flowchart", "preview", "projects", "start", "build"} <= topics, topics)
+        self.assertEqual(topics - set(self.ids(self.read("manual-en.md"))), set())
+
+    def test_packaged(self):
+        with open(os.path.join(os.path.dirname(__file__), "..", "pyproject.toml"),
+                  encoding="utf-8") as f:
+            self.assertIn('"oncemore.gui" = ["static/*"]', f.read())
+
+
 class TestDesignSystem(unittest.TestCase):
     """The design system holds: tokens are the only source of colours, every
     variable used is defined, and the two languages have the same keys."""
@@ -1113,6 +1151,56 @@ class TestGuiBrowser(unittest.TestCase):
         self.assertIn('add(self, name: "oncemoreMenu")', swift)
         self.assertIn('applicationNameForUserAgent = "OncemoreApp"', swift)
 
+    def test_help_window(self):
+        """Help opens the manual inside the app, offline: F1 opens the part
+        about what is being edited, the search keeps the sections that
+        mention a word, the menu reference lists the menu bar, Japanese too."""
+        self.s.call("/api/new", "POST", {"sample": True})
+        with sync_playwright() as p:
+            browser = self.launch(p)
+            page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="en-US")
+            errors, outside = [], []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.on("request", lambda r: None if r.url.startswith(self.s.base) else outside.append(r.url))
+            page.goto(f"{self.s.base}/#token={self.s.app.token}")
+            page.locator(".stage .el.button").first.wait_for(timeout=120000)
+            active = lambda: page.locator(".help-toc a.on").inner_text()  # noqa: E731
+            # F1 on a menu: Menus
+            page.click(".nav-item[data-view=menu][data-id=main]")
+            page.locator("#stage").focus()
+            page.keyboard.press("F1")
+            page.locator("#help").wait_for()
+            self.assertEqual(active(), "Menus")
+            self.assertEqual(page.locator("#help-text h1").inner_text(), "oncemore Help")
+            # the search keeps the sections that mention the word
+            page.fill("#help-search", "poster frame")
+            shown = page.locator(".help-toc li:not([hidden]) a").all_inner_texts()
+            self.assertIn("Titles", shown)
+            self.assertNotIn("Flowchart", shown)
+            page.fill("#help-search", "zzzz-nothing")
+            self.assertTrue(page.locator(".help-none").is_visible())
+            # the reference is the menu bar's: every menu and its commands
+            page.fill("#help-search", "")
+            page.click("a[data-help=reference]")
+            ref = page.locator("#help-reference").inner_text()
+            for word in ("File", "Timeline", "Help", "Add chapter at playhead", "Exact preview"):
+                self.assertIn(word, ref)
+            # a link inside the text goes to its section
+            page.keyboard.press("Escape")
+            self.assertTrue(page.locator("#modal").is_hidden())
+            # F1 on a title, and in Japanese, from the Help menu
+            page.click(".nav-item[data-view=title][data-id=t1]")
+            page.evaluate("window.oncemoreCommand('language')")
+            page.evaluate("window.oncemoreCommand('help')")
+            page.locator("#help").wait_for()
+            self.assertEqual(active(), "タイトル")
+            self.assertEqual(page.locator("#help-text h1").inner_text(), "oncemore ヘルプ")
+            text = page.locator("#help-text").inner_text()
+            self.assertIsNone(re.search(r"\b(cmd|m)_[a-z_]+\b", text))
+            page.evaluate("window.oncemoreCommand('language')")
+            self.assertEqual(errors, [])
+            self.assertEqual(outside, [])          # (nothing from the internet)
+
     def test_every_menu_and_submenu(self):
         """The menu bar in disc authoring order, every submenu opens, every
         item has a label (English and Japanese), every command is reachable."""
@@ -1414,10 +1502,12 @@ class TestGuiBrowser(unittest.TestCase):
             self.poll(lambda: len(self.project()["titles"]) == 5)
             self.assertTrue(self.project()["titles"][3]["source"].endswith("-clip.mp4"))
             self.assertTrue(self.project()["titles"][4]["slideshow"]["slides"][0]["image"].startswith("media/menu_bg"))
-            # Help opens the guide (README) outside the app
-            page.evaluate("window.open = (u) => { window.__opened = u; }")
+            # Help opens the manual inside the app, not a page outside it (§112)
+            page.evaluate("window.__opened = null; window.open = (u) => { window.__opened = u; }")
             cmd("help")
-            self.assertIn("/README.md", page.evaluate("window.__opened"))
+            page.locator("#help").wait_for()
+            self.assertTrue(page.locator("#help-text h1").inner_text())
+            self.assertIsNone(page.evaluate("window.__opened"))
             browser.close()
         self.assertEqual(errors, [])
         self.assertTrue(self.s.app.check(self.project())["valid"])

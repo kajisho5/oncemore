@@ -294,6 +294,12 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   the menus' and what is left), before anything is encoded (`oncemore
   validate` prints it too); **Build** writes the `.iso` (or a VIDEO_TS folder) into
   `my-disc/output/`, with progress.
+* **Help > oncemore help** (F1) opens the app's manual in a window of its
+  own, without a connection: its contents, a search field, and a reference
+  of every menu command made from the menu bar itself. F1 opens it at the
+  part about what you are working on (a menu, a title, the flowchart, the
+  preview, the build). The text is `oncemore/gui/static/manual-en.md` and
+  `manual-ja.md`.
 * Everything is saved automatically to `my-disc/project.oncemore.json`;
   ⌘Z / Ctrl+Z undoes. The UI follows your browser language (English/日本語;
   Edit > Preferences switches it, sets the brightness and a light theme).
