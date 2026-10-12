@@ -66,13 +66,16 @@ from ..report import Reporter
 
 MEDIA_EXT = {
     "video": {".mp4", ".mov", ".m4v", ".mkv", ".avi", ".mpg", ".mpeg", ".mts", ".m2ts",
-              ".ts", ".webm", ".wmv", ".dv", ".vob", ".mxf"},
-    "audio": {".wav", ".aif", ".aiff", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".ac3", ".dts", ".opus"},
-    "image": {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp"},
+              ".ts", ".webm", ".wmv", ".dv", ".vob", ".mxf", ".m2v"},
+    "audio": {".wav", ".aif", ".aiff", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".ac3", ".dts", ".opus",
+              ".mp2", ".mpa", ".wma"},
+    "image": {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp", ".gif", ".tga"},
     "subtitle": {".srt", ".vtt", ".ass", ".ssa", ".txt", ".scc"},
     "font": {".ttf", ".otf", ".ttc"},
     "design": {".psd", ".psb"},
 }
+# pictures a browser does not draw: sent to the editor as PNG
+UNDRAWN_IMAGES = {".tif", ".tiff", ".tga"}
 SKIP_DIRS = {"output", "exports", ".work", "__pycache__", "node_modules"}
 BACKUP_RE = re.compile(r"^project-\d{8}-\d{6}\.json$")
 
@@ -322,6 +325,20 @@ class App:
         p = subprocess.run(cmd, capture_output=True, timeout=60)
         if p.returncode != 0 or not p.stdout:
             raise OncemoreError("cannot read a frame",
+                                details={"output": tools.tail(p.stderr.decode("utf-8", "replace"))})
+        self._remember(key, p.stdout)
+        return p.stdout
+
+    def picture(self, full):
+        """A still the browser cannot draw (TIFF, TGA), as PNG."""
+        key = ("png", full, os.path.getmtime(full))
+        if (hit := self._cached(key)) is not None:
+            return hit
+        cmd = [tools.find("ffmpeg"), "-hide_banner", "-nostdin", "-v", "error", "-i", full,
+               "-frames:v", "1", "-f", "image2", "-c:v", "png", "pipe:1"]
+        p = subprocess.run(cmd, capture_output=True, timeout=60)
+        if p.returncode != 0 or not p.stdout:
+            raise OncemoreError("cannot read the picture",
                                 details={"output": tools.tail(p.stderr.decode("utf-8", "replace"))})
         self._remember(key, p.stdout)
         return p.stdout
@@ -1070,6 +1087,9 @@ class Handler(BaseHTTPRequestHandler):
         full = self.app.resolve(q.get("path"))
         if media_kind(full) not in ("image", "subtitle", "font"):
             raise PermissionError("only images, subtitles and fonts are served")
+        if os.path.splitext(full)[1].lower() in UNDRAWN_IMAGES:
+            self._send(HTTPStatus.OK, self.app.picture(full), "image/png")
+            return
         with open(full, "rb") as f:
             self._send(HTTPStatus.OK, f.read(),
                        mimetypes.guess_type(full)[0] or "application/octet-stream")

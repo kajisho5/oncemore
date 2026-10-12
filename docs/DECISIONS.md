@@ -1992,6 +1992,36 @@ plain forms only.
   off) and a Blu-ray read with libbluray (audio stream 2 before the title
   plays, no subtitles shown). The DVD check fails without the change.
 
+## 102. More source formats: .m2v, .mp2, .mpa, .wma, .gif, .tga
+
+The classic app's manual lists sources oncemore turned away or could not
+read. ffmpeg decodes all of these; what was missing was in oncemore.
+
+* **`.m2v`** (an MPEG-2 video elementary stream, often delivered apart from
+  its AC-3) is a title's `source`, its sound in `audio_tracks`. Such a
+  stream has no container, so two things read from the container are
+  wrong or missing:
+  * its length: ffprobe gives none. `encode.probe` then takes the end of
+    the last packet (the larger of its pts and dts, plus its duration).
+  * its rate: ffprobe's `avg_frame_rate` is the raw demuxer's default
+    (25), whatever the stream says. For the raw formats (`mpegvideo`,
+    `mpeg1video`, `h264`, `hevc`, `m4v`) `r_frame_rate`, the rate in the
+    stream's own headers, is used.
+* **`.mp2`, `.mpa`** (MPEG Layer II) and **`.wma`** are sound sources like
+  any other and are made AC-3 (or the disc's codec).
+* **`.gif`** and **`.tga`** are stills: menu backgrounds, slides, clips,
+  the picture of a sound-only title and image-script subtitles. ffmpeg's
+  gif demuxer has no `-loop`, so a looped still goes through the image2
+  demuxer with the gif decoder (`tools.still_input`), which reads the first
+  picture. An animated GIF therefore shows its first picture, as a still
+  should. Browsers draw GIF but not Targa (nor TIFF in most), so the editor
+  gets those as PNG from `/api/file`.
+* **PICT** is left out: ffmpeg has no decoder for it.
+* `tests/test_source_formats.py` builds a DVD from all of them (the `.m2v`
+  with three separate tracks and a GIF image-script subtitle, a GIF menu
+  background, a Targa and a GIF slide) and checks the streams, the length
+  and the rate.
+
 ## 105. The libraries are made in their own repositories, released, and copied in
 
 The disc formats live in four libraries, each in its own repository and on

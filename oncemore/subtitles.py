@@ -189,7 +189,7 @@ _DIRECTORY = re.compile(r"^directory[ \t]+(.+)$", re.I)
 # a FAB image script: one picture a line, with its own place
 #   RACE001.TIF 00;00;02;02 00;00;03;15 000 000 720 480
 _FAB_LINE = re.compile(r"^(.+?)[ \t]+(\S+)[ \t]+(\S+)[ \t]+(\d+)[ \t]+(\d+)[ \t]+(\d+)[ \t]+(\d+)$")
-IMAGE_FILE = re.compile(r"\.(png|bmp|tiff?|jpe?g|webp)$", re.I)
+IMAGE_FILE = re.compile(r"\.(png|bmp|tiff?|jpe?g|webp|gif|tga)$", re.I)
 
 
 def timecode_seconds(tc, standard="NTSC"):
