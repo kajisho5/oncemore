@@ -68,7 +68,8 @@ class TestDiscImage(unittest.TestCase):
         finally:
             os.environ["PATH"] = old or ""
             tools.reset_cache()
-        self.assertTrue(os.path.isfile(os.path.join(ROOT, "oncemore", "udfwriter.py")))
+        # (udfkit's writer, carried inside the package: DECISIONS §106)
+        self.assertTrue(os.path.isfile(os.path.join(ROOT, "oncemore", "_vendor", "udfkit", "dvd.py")))
 
     def test_image_without_a_burner(self):
         # the image never needs a drive: only the burn step, run on request,
@@ -76,7 +77,8 @@ class TestDiscImage(unittest.TestCase):
         for path, src in package_sources():
             if path != os.path.join("oncemore", "burn.py"):
                 self.assertNotRegex(src, r"\b(drutil|growisofs|cdrecord|wodim)\b", path)
-        for name in ("build.py", "author.py", "udfwriter.py", "iso.py"):
+        for name in ("build.py", "author.py", "discimage.py", "iso.py",
+                     os.path.join("_vendor", "udfkit", "dvd.py")):
             self.assertNotIn("burn", read("oncemore", name).replace("burned", ""), name)
 
 

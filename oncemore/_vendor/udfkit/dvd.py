@@ -78,7 +78,7 @@ import struct
 import unicodedata
 import zlib
 
-from .errors import OncemoreError
+from .errors import UdfError
 
 SECTOR = 2048
 
@@ -114,7 +114,7 @@ UDF_REVISION = 0x0102
 DOMAIN_ID = b"*OSTA UDF Compliant"
 DOMAIN_FLAGS = 0x03                # hard + soft write protect (read-only disc)
 LV_INFO_ID = b"*UDF LV Info"
-IMPLEMENTATION_ID = b"*oncemore"
+IMPLEMENTATION_ID = b"*udfkit"
 PARTITION_CONTENTS_ID = b"+NSR02"
 OSTA_CHARSET = b"OSTA Compressed Unicode"
 PARTITION_FLAG_ALLOCATED = 1       # ECMA-167 3/10.5.3
@@ -406,7 +406,7 @@ def file_identifier(block, name, characteristics, icb_block, unique_id):
     (UDF 2.3.4.3). `block` is the block where the descriptor starts."""
     ident = cs0(name) if name is not None else b""
     if len(ident) > 255:
-        raise OncemoreError(f"file name too long for UDF: {name!r}",
+        raise UdfError(f"file name too long for UDF: {name!r}",
                             hint="UDF allows 254 Latin-1 or 127 other characters")
     length = (38 + len(ident) + 3) & ~3
     buf = bytearray(length)
@@ -428,7 +428,7 @@ def file_entry(block, is_dir, size, data_block, unique_id, link_count, date):
         pos += chunk // SECTOR
         remaining -= chunk
     if 176 + len(ads) > SECTOR:
-        raise OncemoreError("file too large for one UDF File Entry")
+        raise UdfError("file too large for one UDF File Entry")
     buf = bytearray(176 + len(ads))
     # ICB tag (4/14.6)
     struct.pack_into("<IHHHBB", buf, 16, 0, ICB_STRATEGY, 0, 1, 0,
@@ -475,7 +475,7 @@ def iso_primary_volume(label, volume_sectors, path_table_size, l_table, m_table,
     struct.pack_into(">II", buf, 148, m_table, 0)
     buf[156:190] = root_record
     buf[190:702] = b" " * 512                        # volume set .. preparer
-    buf[574:702] = b"ONCEMORE".ljust(128)            # application identifier
+    buf[574:702] = b"UDFKIT".ljust(128)            # application identifier
     buf[702:813] = b" " * 111                        # copyright, abstract, biblio
     buf[813:830] = buf[830:847] = iso_volume_date(date)
     buf[847:864] = buf[864:881] = _ISO_NO_DATE       # expiration, effective
@@ -529,7 +529,7 @@ class _Node:
 
 def validate_label(label):
     if not isinstance(label, str) or not LABEL_RE.fullmatch(label):
-        raise OncemoreError(
+        raise UdfError(
             f"invalid volume label {label!r}",
             hint="DVD labels are 1-32 characters from A-Z, 0-9 and _")
     return label
@@ -554,16 +554,16 @@ def _scan_dir(node, path, skip, in_video_ts=False):
     try:
         entries = sorted(os.scandir(path), key=lambda e: e.name)
     except OSError as e:
-        raise OncemoreError(f"cannot read {path}: {e.strerror}") from e
+        raise UdfError(f"cannot read {path}: {e.strerror}") from e
     for e in entries:
         if e.name.startswith(".") or os.path.realpath(e.path) == skip:
             continue
         if e.is_dir():
             if in_video_ts:
-                raise OncemoreError(f"VIDEO_TS must contain only files, found folder {e.name!r}")
+                raise UdfError(f"VIDEO_TS must contain only files, found folder {e.name!r}")
             child = _Node(e.name, e.path, True, parent=node)
             if child.depth >= ISO_MAX_DEPTH:
-                raise OncemoreError(
+                raise UdfError(
                     f"{child.path()} is nested too deeply for ISO 9660",
                     hint=f"ISO 9660 allows {ISO_MAX_DEPTH} directory levels including the root")
             _scan_dir(child, e.path, skip,
@@ -574,14 +574,14 @@ def _scan_dir(node, path, skip, in_video_ts=False):
             child = _Node(name, e.path, False, size, parent=node)
             if in_video_ts:
                 if not _83_RE.fullmatch(name):
-                    raise OncemoreError(f"VIDEO_TS/{e.name} is not an 8.3 file name",
+                    raise UdfError(f"VIDEO_TS/{e.name} is not an 8.3 file name",
                                         hint="DVD-Video files are named like VTS_01_1.VOB")
                 if size > DVD_FILE_LIMIT:
-                    raise OncemoreError(
+                    raise UdfError(
                         f"VIDEO_TS/{e.name} is {size} bytes; DVD-Video files must not "
                         f"exceed 1 GiB ({DVD_FILE_LIMIT} bytes)")
             elif size > ISO_FILE_LIMIT:
-                raise OncemoreError(f"{child.path()} is too large for ISO 9660 (4 GiB limit)")
+                raise UdfError(f"{child.path()} is too large for ISO 9660 (4 GiB limit)")
         else:
             continue
         node.children.append(child)
@@ -589,7 +589,7 @@ def _scan_dir(node, path, skip, in_video_ts=False):
         names = [c.name for c in node.children]
         dup = {n for n in names if names.count(n) > 1}
         if dup:
-            raise OncemoreError(f"VIDEO_TS has names differing only in case: {sorted(dup)}")
+            raise UdfError(f"VIDEO_TS has names differing only in case: {sorted(dup)}")
         node.children.sort(key=lambda c: dvd_sort_key(c.name))
 
 
@@ -598,7 +598,7 @@ def scan_tree(src_dir, skip=None):
     then the other entries by name."""
     video = os.path.join(src_dir, "VIDEO_TS")
     if not os.path.isdir(video):
-        raise OncemoreError(f"{src_dir} has no VIDEO_TS directory")
+        raise UdfError(f"{src_dir} has no VIDEO_TS directory")
     root = _Node("", src_dir, True)
     _scan_dir(root, src_dir, skip)
     by_name = {c.name: c for c in root.children}
@@ -606,7 +606,7 @@ def scan_tree(src_dir, skip=None):
     ats = by_name.get("AUDIO_TS")
     if ats is None or not ats.is_dir:
         if ats is not None:
-            raise OncemoreError(f"{src_dir}/AUDIO_TS is not a directory")
+            raise UdfError(f"{src_dir}/AUDIO_TS is not a directory")
         ats = _Node("AUDIO_TS", None, True, parent=root)
     rest = [c for c in root.children if c.name not in ("VIDEO_TS", "AUDIO_TS")]
     root.children = [vts, ats] + rest
@@ -698,11 +698,11 @@ def _read_ifo(path, magic):
             for off in range(8, min(8 + 12 * count, len(tt) - 11), 12):
                 vts, start = tt[off + 6], struct.unpack_from(">I", tt, off + 8)[0]
                 if starts.setdefault(vts, start) != start:
-                    raise OncemoreError(
+                    raise UdfError(
                         f"VIDEO_TS.IFO gives two start sectors for title set {vts}")
             return {"last_sector": last, "menu_vobs": menu, "vts_start": starts}
     except OSError as e:
-        raise OncemoreError(f"cannot read {path}: {e.strerror}") from e
+        raise UdfError(f"cannot read {path}: {e.strerror}") from e
 
 
 def video_ts_layout(video_ts):
@@ -721,7 +721,7 @@ def video_ts_layout(video_ts):
         if at is None:
             at = pos
         if at < pos:
-            raise OncemoreError(
+            raise UdfError(
                 f"VIDEO_TS/{name} must start at sector {at} of the DVD ({why}), "
                 f"but the files before it need {pos} sectors",
                 hint="the IFO files do not match the VOB sizes; author the disc again")
@@ -749,7 +749,7 @@ def video_ts_layout(video_ts):
         ifo_name = f"VTS_{vts:02d}_0.IFO"
         start = vmg["vts_start"].get(vts) if vmg else None
         if ifo_name not in files:
-            raise OncemoreError(f"VIDEO_TS has files of title set {vts} but no {ifo_name}")
+            raise UdfError(f"VIDEO_TS has files of title set {vts} but no {ifo_name}")
         place(ifo_name, start, f"title set {vts} start sector in VIDEO_TS.IFO")
         base = placed[-1][1]
         info = _read_ifo(placed[-1][0].src, b"DVDVIDEO-VTS")
@@ -796,7 +796,7 @@ def write_image(src_dir, out_path, label, *, date=None, on_progress=None, shift=
     if date is None:
         date = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
     if not 1970 <= date.year <= 2155:
-        raise OncemoreError(f"date {date} is out of range for ISO 9660 (1970-2155)")
+        raise UdfError(f"date {date} is out of range for ISO 9660 (1970-2155)")
     out_path = os.path.abspath(out_path)
     root = scan_tree(src_dir, skip=os.path.realpath(out_path))
     layout = _plan(root, date, shift)
@@ -1055,7 +1055,7 @@ def _write(root, layout, out_path, label, date, on_progress):
             out.write(anchor_pointer(s, MAIN_VDS_SECTOR, RESERVE_VDS_SECTOR).ljust(SECTOR, b"\0"))
         progress((total - layout["end"]) * SECTOR)
         if out.tell() != total_bytes:
-            raise OncemoreError(f"internal error: wrote {out.tell()} bytes, "
+            raise UdfError(f"internal error: wrote {out.tell()} bytes, "
                                 f"expected {total_bytes}")
 
 
@@ -1080,7 +1080,7 @@ def _copy_file(node, out, progress):
                 progress(len(chunk))
             extra = f.read(1)
     except OSError as e:
-        raise OncemoreError(f"cannot read {node.src}: {e.strerror}") from e
+        raise UdfError(f"cannot read {node.src}: {e.strerror}") from e
     if remaining or extra:
-        raise OncemoreError(f"{node.src} changed size while the image was written")
+        raise UdfError(f"{node.src} changed size while the image was written")
     progress(-node.size % SECTOR)

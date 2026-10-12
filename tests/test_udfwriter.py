@@ -1,4 +1,5 @@
-"""The built-in UDF 1.02 + ISO 9660 image writer (oncemore.udfwriter).
+"""The built-in UDF 1.02 + ISO 9660 image writer: udfkit.dvd, as oncemore
+carries it (oncemore/_vendor/udfkit, DECISIONS §106).
 
 Reference byte strings marked "genisoimage" were taken from an image that
 `genisoimage -dvd-video -udf -V SAMPLE_DISC` (cdrkit 1.1.11) wrote for the
@@ -17,9 +18,10 @@ import subprocess
 import tempfile
 import unittest
 
-from oncemore import tools, udfwriter
-from oncemore.errors import OncemoreError
-from oncemore.udfinfo import _dstring, volume_names
+from oncemore import tools
+from oncemore._vendor.udfkit import dvd as udfwriter
+from oncemore._vendor.udfkit.errors import UdfError
+from oncemore._vendor.udfkit.info import _dstring, volume_names
 
 from .helpers import have, run_cli
 
@@ -331,7 +333,7 @@ class TestPrimitives(unittest.TestCase):
         for good in ("SAMPLE_DISC", "A", "X" * 32, "DISC_2026"):
             self.assertEqual(udfwriter.validate_label(good), good)
         for bad in ("", "lower", "X" * 33, "A-B", "SPACE BAR", "ÄB", None):
-            with self.assertRaises(OncemoreError):
+            with self.assertRaises(UdfError):
                 udfwriter.validate_label(bad)
 
     def test_dvd_order(self):
@@ -416,7 +418,7 @@ class TestStructure(_TmpCase):
     def test_ifo_layout_conflict(self):
         # the IFO says the VMG ends at sector 2, but IFO + BUP need 4
         ifo_video_ts(self.src, vmg_last=2)
-        with self.assertRaises(OncemoreError) as cm:
+        with self.assertRaises(UdfError) as cm:
             self.build()
         self.assertIn("VIDEO_TS.BUP", str(cm.exception))
         self.assertFalse(os.path.exists(self.img))
@@ -525,7 +527,7 @@ class TestDeterminism(_TmpCase):
 
 class TestErrors(_TmpCase):
     def assertFails(self, text, label="TEST_DISC"):
-        with self.assertRaises(OncemoreError) as cm:
+        with self.assertRaises(UdfError) as cm:
             udfwriter.write_image(self.src, self.img, label, date=DATE)
         self.assertIn(text, str(cm.exception))
         self.assertFalse(os.path.exists(self.img))

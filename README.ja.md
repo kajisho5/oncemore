@@ -39,7 +39,7 @@ Intel ビルドのままです。一方、DVD-Video の必須コーデックは�
 
 ## インストール
 
-oncemore 本体は Python 3.11+ の標準ライブラリのみで動きます。DVD-Video の構造（IFO、ナビゲーションパック、ボタンと字幕のサブピクチャ）は同梱の [vtskit](https://github.com/kajisho5/vtskit) が書きます。外部プログラムを呼び出します：
+oncemore 本体は Python 3.11+ の標準ライブラリのみで動きます。DVD-Video の構造（IFO、ナビゲーションパック、ボタンと字幕のサブピクチャ）は同梱の [vtskit](https://github.com/kajisho5/vtskit) が、ディスクイメージは同梱の [udfkit](https://github.com/kajisho5/udfkit) が書きます。外部プログラムを呼び出します：
 
 | プログラム | 用途 |
 |---|---|
@@ -784,7 +784,7 @@ DVD ナビゲーションライブラリ）でメニューのボタンを実際�
 
 ## ライブラリ
 
-oncemore の一部は、他のツールからも使えるよう単体のライブラリとして公開しています。oncemore と同じく Python だけで動き、依存ライブラリはありません。
+oncemore の一部は、他のツールからも使えるよう単体のライブラリとして PyPI で公開しています。oncemore と同じく Python だけで動き、依存ライブラリはありません。
 
 | ライブラリ | 内容 | ライセンス |
 |---|---|---|
@@ -793,7 +793,7 @@ oncemore の一部は、他のツールからも使えるよう単体のライ�
 | [dvdcc](https://github.com/kajisho5/dvdcc) | DVD の MPEG-2 映像へのライン 21 クローズドキャプション（CEA-608） | Apache-2.0 |
 | [vtskit](https://github.com/kajisho5/vtskit) | DVD-Video のオーサリング：IFO、ナビゲーションパック、メニュー、字幕、アングルブロック、dvdauthor の命令言語 | LGPL-3.0 以降 |
 
-oncemore は依存ライブラリ無しでインストールできるよう、これらのコードを自分の中にも持っています。修正は両方に入れます。
+変更はそれぞれのリポジトリで行ってリリースし、oncemore はリリースの写しを持ちます（`oncemore/_vendor`、`tools/vendor.py` で更新）。そのため oncemore は依存ライブラリ無しでインストールできます。vtskit と udfkit はすでに写しを使っており、bdmvkit と dvdcc も順に oncemore 自身のモジュールと置き換えます。
 
 ## oncemore を支援する
 
