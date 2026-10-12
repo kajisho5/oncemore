@@ -179,7 +179,7 @@ class TestDefaultSample(unittest.TestCase):
         # PVD volume id; genisoimage pads with spaces, hdiutil with NULs
         self.assertEqual(vrs[40:72].decode("ascii").rstrip(" \x00"), "SAMPLE_DISC")
         # libdvdread (VLC, mpv) shows the UDF volume name as the disc title
-        from oncemore.udfinfo import volume_names
+        from oncemore.discimage import volume_names
         names = volume_names(self.iso)
         self.assertEqual(names, self.result["volume_names"])
         self.assertEqual(names["udf_volume"], "SAMPLE_DISC", names)

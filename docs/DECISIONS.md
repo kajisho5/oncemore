@@ -2055,3 +2055,24 @@ PyPI; it ships as the Mac app and GitHub releases.
 * `tests/test_vendor.py` reads either form of `UPSTREAM` and runs the PyPI
   path on wheels made in the test (no network), each library with its
   licence files.
+
+## 106. Disc images written by udfkit
+
+oncemore's UDF writers (`udfwriter.py` for DVD-Video, `udf250.py` for
+Blu-ray, `udfinfo.py` to read the names back) were the code udfkit was made
+from. udfkit 0.1.0 is now on PyPI, so oncemore carries it
+(`oncemore/_vendor/udfkit`, §105) and the three modules are gone.
+
+* `oncemore/discimage.py` is where oncemore calls it: `write_dvd`,
+  `plan_dvd` (the layer break), `write_bluray` and `volume_names`, with
+  udfkit's `UdfError` raised as `OncemoreError`, as the old modules raised.
+* The images are the same but for udfkit's name: the UDF implementation
+  identifier is `*udfkit` (was `*oncemore`) and the ISO 9660 application
+  identifier `UDFKIT` (was `ONCEMORE`). Checked by writing a DVD and a
+  Blu-ray folder through the old writers and through udfkit with the same
+  date: every other differing byte is the tag checksum or CRC of a
+  descriptor that holds one of those identifiers.
+* The tests of the writers (`test_udfwriter`, `test_udf250`,
+  `test_udfinfo`) stay and now test the copy oncemore carries; library
+  calls raise `UdfError`. `test_promises` checks for udfkit's writer inside
+  the package, as it checked for oncemore's.

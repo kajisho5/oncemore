@@ -42,7 +42,7 @@ _VERSION_ARGS = {
 }
 
 REQUIRED = ("ffmpeg", "ffprobe")
-# "builtin" is oncemore's own UDF + ISO 9660 writer (udfwriter.py), always
+# "builtin" is udfkit's UDF + ISO 9660 writer (discimage.py), always
 # there; then the external UDF-capable tools; xorriso writes no UDF (iso.py)
 ISO_TOOLS = ("builtin", "hdiutil", "genisoimage", "mkisofs", "xorriso")
 UDF_TOOLS = ("builtin", "hdiutil", "genisoimage", "mkisofs")

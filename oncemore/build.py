@@ -10,8 +10,8 @@ import shutil
 import tempfile
 import threading
 
-from . import (author, bdmenu, bluray, captions, clips, encode, iso, layerbreak, lpcmfix, pgs,
-               settings, slideshow, subtitles, tools, udf250, udfwriter, videots)
+from . import (author, bdmenu, bluray, captions, clips, discimage, encode, iso, layerbreak,
+               lpcmfix, pgs, settings, slideshow, subtitles, tools, videots)
 from . import menu as menu_module
 from ._vendor.vtskit import VtsError
 from ._vendor.vtskit import __version__ as vtskit_version
@@ -873,8 +873,8 @@ def build_bluray_iso(project, out_iso, reporter, fast=False, keep_work=False, bu
     result = build_bluray(project, disc_dir, reporter, fast=fast, keep_work=True, work=work,
                           cache=cache)
     reporter.step("iso", f"Writing {os.path.basename(out_iso)}")
-    info = udf250.write_image(disc_dir, out_iso, project.disc.label,
-                              on_progress=lambda f: reporter.progress("iso", f))
+    info = discimage.write_bluray(disc_dir, out_iso, project.disc.label,
+                                  on_progress=lambda f: reporter.progress("iso", f))
     result.update({"iso": info["path"], "iso_bytes": info["bytes"], "iso_tool": "builtin",
                    "iso_udf": info["udf_revision"]})
     result.pop("work_dir", None)
@@ -923,7 +923,7 @@ def _layer_break_shift(project, disc_dir, iso_tool):
     disc fits on one layer or no chapter would do: layer_break says so)."""
     if tools.iso_tool(iso_tool)[0] != "builtin":
         return 0
-    plan = udfwriter.plan_image(disc_dir)
+    plan = discimage.plan_dvd(disc_dir)
     if not layerbreak.needed(plan["total"]):
         return 0
     found = layerbreak.chapters(layerbreak.read_folder(os.path.join(disc_dir, "VIDEO_TS")))

@@ -2,8 +2,7 @@
 
 libdvdread, and therefore libdvdnav, VLC and mpv, takes the disc title from
 the UDF Primary Volume Descriptor and falls back to ISO 9660 only when the
-image has no UDF. `oncemore iso` uses this to check the label actually landed
-in the image.
+image has no UDF. It is used to check that a label actually landed in an image.
 """
 
 import struct
