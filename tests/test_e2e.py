@@ -1387,6 +1387,32 @@ class TestAngles(unittest.TestCase):
             self.assertEqual(d.wait_title(), (2, 2))
             self.assertEqual(d.angle(), (2, 2))
 
+    @unittest.skipUnless(LIBDVDNAV, "libdvdnav not installed")
+    def test_a_switch_goes_on(self):
+        # switched early in the title, libdvdnav goes on at angle 2's next
+        # interleaved unit and never comes back to a moment it has played
+        # (vtskit 0.1.1 fills only the seamless pointers; DECISIONS §113)
+        self.assertEqual(self.rc, 0, self.err + self.out)
+        seen, switched = [], False
+        with dvdnav_sim.DvdSim(self.iso, LIBDVDNAV) as d:
+            d.wait_menu()
+            d.activate(d.button_count())                         # SAMPLE TITLE B
+            d.wait_title()
+            for _ in range(400_000):
+                e = d.step()
+                if e == dvdnav_sim.EV_NAV_PACKET and d.domain() == "title":
+                    raw = d.buf.raw
+                    vob, cell = int.from_bytes(raw[0x41F:0x421], "big"), raw[0x422]
+                    seen.append((vob, cell, raw[0x423:0x427]))     # VOB, cell, cell elapsed time
+                    if len(seen) == 2:
+                        switched = d.change_angle(2)
+                elif seen and (d.stopped or d.domain() != "title"):
+                    break
+        self.assertTrue(switched)
+        self.assertGreater(len({vob for vob, _, _ in seen}), 1, seen)     # both angles played
+        moments = [(cell, t) for _, cell, t in seen]
+        self.assertEqual(len(moments), len(set(moments)), seen)           # none twice
+
     def test_short_angle_refused(self):
         data = json.loads(json.dumps(self.data))
         data["titles"][1].update({"source": "media/cam2.mp4", "angles": ["media/cam1.mp4"]})
