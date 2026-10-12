@@ -214,6 +214,15 @@ def doctor():
     }
 
 
+def still_input(path):
+    """ffmpeg options before `-i` for a still picture. A GIF goes through the
+    image2 demuxer (the gif demuxer takes no -loop), which reads its first
+    picture only."""
+    if os.path.splitext(path)[1].lower() == ".gif":
+        return ["-f", "image2", "-c:v", "gif"]
+    return []
+
+
 def tail(text, lines=25):
     parts = (text or "").strip().splitlines()
     return "\n".join(parts[-lines:])

@@ -640,7 +640,7 @@ function clipJoinNow(ti) {
   const r = S.clipJoins && S.clipJoins[clipKey(ti)];
   return r && !(r instanceof Promise) ? r : null;
 }
-const STILL_RE = /\.(png|jpe?g|bmp|tiff?|webp)$/i;
+const STILL_RE = /\.(png|jpe?g|bmp|tiff?|webp|gif|tga)$/i;
 const isStill = (c) => STILL_RE.test(c.source || "");
 function clipEditorHtml(ti, join) {
   const list = ti.clips || [];
@@ -4617,11 +4617,11 @@ const COMMANDS = {
   save_as: { key: "mod+shift+s", run: () => folderBox("save_as"), when: hasProject },
   revert_backup: { run: backupsBox, when: hasProject },
   import_files: { key: "mod+i", run: pickFiles, when: hasProject },
-  import_menu: { run: () => pickUpload(".psd,.psb,.png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp", false, ([path]) => importAsMenu(path)), when: hasProject },
+  import_menu: { run: () => pickUpload(".psd,.psb,.png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp,.gif,.tga", false, ([path]) => importAsMenu(path)), when: hasProject },
   import_psd: { run: pickPsd, when: hasProject },
-  import_timeline: { run: () => pickUpload("video/*,audio/*,.mkv,.m2ts,.mts,.vob,.ts,.dv,.ac3,.dts", true, (paths) => paths.forEach((x) => mediaAction("title", x))), when: hasProject },
-  import_slideshow: { run: () => pickUpload("image/*", true, (paths) => newSlideshow(paths)), when: hasProject },
-  import_popup: { run: () => pickUpload(".psd,.psb,.png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp", false, ([path]) => importAsMenu(path, popupTitle())), when: () => hasProject() && (P().titles || []).length > 0 },
+  import_timeline: { run: () => pickUpload("video/*,audio/*,.mkv,.m2ts,.mts,.vob,.ts,.dv,.ac3,.dts,.m2v,.mp2,.mpa,.wma", true, (paths) => paths.forEach((x) => mediaAction("title", x))), when: hasProject },
+  import_slideshow: { run: () => pickUpload("image/*,.tga", true, (paths) => newSlideshow(paths)), when: hasProject },
+  import_popup: { run: () => pickUpload(".psd,.psb,.png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp,.gif,.tga", false, ([path]) => importAsMenu(path, popupTitle())), when: () => hasProject() && (P().titles || []).length > 0 },
   replace_asset: { run: () => replaceAssetBox(), when: hasProject },
   locate_asset: { run: () => replaceAssetBox(missingAssets()[0]), when: () => hasProject() && missingAssets().length > 0 },
   interpret_footage: { run: () => titleFieldsBox("interpret_footage"), when: () => inTitle() && !curTitle().slideshow },
@@ -4704,7 +4704,7 @@ const COMMANDS = {
   add_audio_track: { run: addAudioTrackBox, when: () => inTitle() && !curTitle().clips && !curTitle().slideshow },
   add_subtitle_track: { run: addSubtitleTrackBox, when: () => inTitle() && mediaOf("subtitle").length > 0 },
   // (an image script comes with its pictures: choose them together)
-  import_subtitles: { run: () => pickUpload(".srt,.vtt,.ass,.ssa,.txt,.png,.bmp,.tif,.tiff,.jpg,.jpeg,.webp", true, (paths) => {
+  import_subtitles: { run: () => pickUpload(".srt,.vtt,.ass,.ssa,.txt,.png,.bmp,.tif,.tiff,.jpg,.jpeg,.webp,.gif,.tga", true, (paths) => {
     const path = paths.find((x) => /\.(srt|vtt|ass|ssa|txt)$/i.test(x));
     if (path) /\.txt$/i.test(path) ? textScriptBox(curTitle().id, path) : addSubtitleTrack(curTitle().id, path);
   }), when: inTitle },
@@ -5468,7 +5468,7 @@ function chaptersAtScenes() {
   };
 }
 // File > Replace asset: every use of one file in the project points to another
-const MEDIA_RE = /\.(mp4|m4v|mov|mkv|avi|mpe?g|m2ts|mts|ts|vob|webm|dv|wav|aiff?|mp3|m4a|aac|ac3|dts|flac|png|jpe?g|bmp|tiff?|gif|webp|srt|vtt|ass|ssa|scc|psd|psb|ttf|otf|ttc)$/i;
+const MEDIA_RE = /\.(mp4|m4v|mov|mkv|avi|mpe?g|m2ts|mts|ts|vob|webm|dv|m2v|wav|aiff?|mp3|m4a|aac|ac3|dts|flac|mp2|mpa|wma|png|jpe?g|bmp|tiff?|gif|tga|webp|srt|vtt|ass|ssa|scc|psd|psb|ttf|otf|ttc)$/i;
 function assetRefs(p = P()) {
   const uses = new Map();
   const walk = (v) => {

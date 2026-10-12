@@ -485,7 +485,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 |---|---|---|
 | `id` | `[A-Za-z0-9_-]{1,40}` | required |
 | `name` | string | the id |
-| `source` | any video ffmpeg reads | required (or `slideshow` / `clips`) |
+| `source` | any video ffmpeg reads, an MPEG-2 elementary stream (`.m2v`) too (its sound from `audio_tracks`) | required (or `slideshow` / `clips`) |
 | `slideshow` | a title made from pictures (below) | none |
 | `clips` | a title made of parts of several videos (below) | none |
 | `angles` | more views of the same scene (DVD only): video files the viewer switches between with the remote's Angle key, the `source` being angle 1; up to 8, each at least as long as the source, encoded with the title's settings and sound | `[]` |
@@ -724,8 +724,8 @@ interlaced stay interlaced; a mix is made progressive. A clip title has one
 sound track (`audio_tracks` and `audio.passthrough` are not available).
 Menu thumbnails and poster frames pick the clip that plays at that time.
 
-A still picture (`.png`, `.jpg`, `.jpeg`, `.bmp`, `.tif`, `.tiff`, `.webp`) is
-shown for its `duration` (default 5 s, 0.5 s to 1 hour; no `in` / `out`) and
+A still picture (`.png`, `.jpg`, `.jpeg`, `.bmp`, `.tif`, `.tiff`, `.webp`,
+`.gif` (its first picture), `.tga`) is shown for its `duration` (default 5 s, 0.5 s to 1 hour; no `in` / `out`) and
 is silent. `fit` (default) shows all of it with black bars where its shape
 differs from the frame; `fill` fills the frame and crops the edges.
 
@@ -770,7 +770,7 @@ differs from the frame; `fill` fills the frame and crops the edges.
   only, on 29.97 fps pictures (a film title with 3:2 pulldown is refused:
   set its scan to interlaced); Blu-ray and web builds leave them out.
 * Image scripts: a text script whose subtitle text is a picture file next to
-  the script (`.png`, `.bmp`, `.tif`, `.jpg`, `.webp`) shows that picture in
+  the script (`.png`, `.bmp`, `.tif`, `.jpg`, `.webp`, `.gif`, `.tga`) shows that picture in
   its own colours. A picture without transparency has its top-left colour
   keyed out; a frame-sized one (480, 576, 720 or 1080 lines) fills the
   frame, a smaller one is centred at the bottom (or top) margin. A DVD keeps
