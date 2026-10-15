@@ -24,6 +24,12 @@ _FFMPEG_KEGS = (
     "/usr/local/opt/ffmpeg-full/bin",
 )
 
+# Oncemore.app carries its own ffmpeg and ffprobe (macos/build_ffmpeg.sh) in
+# Contents/Resources/ffmpeg, next to Contents/Resources/app/oncemore; they come
+# before Homebrew's (DECISIONS §130).
+_BUNDLED_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))), "ffmpeg")
+
 _ENV_OVERRIDE = {
     "ffmpeg": "ONCEMORE_FFMPEG",
     "ffprobe": "ONCEMORE_FFPROBE",
@@ -83,6 +89,10 @@ def find(name):
     if env and os.environ.get(env):
         cand = os.environ[env]
         path = cand if os.path.isfile(cand) else shutil.which(cand)
+    if path is None and name in ("ffmpeg", "ffprobe"):
+        cand = os.path.join(_BUNDLED_DIR, name)
+        if os.path.isfile(cand) and os.access(cand, os.X_OK):
+            path = cand
     if path is None and name in ("ffmpeg", "ffprobe") and is_macos():
         for keg in _FFMPEG_KEGS:
             cand = os.path.join(keg, name)

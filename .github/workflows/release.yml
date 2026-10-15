@@ -58,8 +58,13 @@ jobs:
         run: |
           v="$(sed -n 's/^__version__ = "\(.*\)"/\1/p' oncemore/__init__.py)"
           [ "$TAG" = "v$v" ] || { echo "tag $TAG != v$v"; exit 1; }
-      - name: External tools for the smoke test
-        run: brew install ffmpeg-full
+      - name: Tools to build the app's ffmpeg
+        run: brew install meson ninja pkgconf nasm
+      - name: The app's ffmpeg, built before (macos/build_ffmpeg.sh)
+        uses: actions/cache@v4
+        with:
+          path: dist/.cache/ffmpeg
+          key: ffmpeg-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('macos/build_ffmpeg.sh') }}
       - name: Xcode 26 or later (actool reads the layered icon)
         run: |
           x="$(ls -d /Applications/Xcode_26*.app /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1)"
@@ -117,6 +122,13 @@ jobs:
           name: Oncemore-macOS-${{ matrix.arch }}
           path: dist/Oncemore-*.zip
           if-no-files-found: error
+      # the source of the app's ffmpeg (GPL): the same for both architectures
+      - uses: actions/upload-artifact@v6
+        if: matrix.arch == 'arm64'
+        with:
+          name: ffmpeg-sources
+          path: dist/ffmpeg-arm64/sources/*
+          if-no-files-found: error
 
   release:
     if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.tag)
@@ -133,8 +145,12 @@ jobs:
           pattern: Oncemore-macOS-*
           merge-multiple: true
           path: dist
+      - uses: actions/download-artifact@v7
+        with:
+          name: ffmpeg-sources
+          path: dist/sources
       - name: Checksums
-        run: cd dist && sha256sum Oncemore-*.zip > SHA256SUMS && cat SHA256SUMS
+        run: cd dist && sha256sum Oncemore-*.zip sources/* | sed 's| sources/| |' > SHA256SUMS && cat SHA256SUMS
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -150,5 +166,6 @@ jobs:
           notes="docs/release-notes/$TAG.md"
           if [ -f "$notes" ]; then how=(--notes-file "$notes"); else how=(--generate-notes); fi
           # (run by hand: the tag is made on the commit the workflow ran on)
-          gh release create "$TAG" dist/Oncemore-*.zip dist/SHA256SUMS --target "$GITHUB_SHA" \
+          # (with the source of the app's ffmpeg, which the GPL asks for)
+          gh release create "$TAG" dist/Oncemore-*.zip dist/sources/* dist/SHA256SUMS --target "$GITHUB_SHA" \
             -R "$GITHUB_REPOSITORY" $kind "${how[@]}" --title "oncemore $TAG"

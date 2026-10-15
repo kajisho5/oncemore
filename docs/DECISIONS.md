@@ -2836,3 +2836,45 @@ already waits for Apple's answer, and a rejection is a real error.
 
 * `tests/test_promises.py`: the build script retries stapling with a
   bounded loop, fails after the last try and validates the staple.
+
+## 130. The Mac app carries its own ffmpeg
+
+Until now the app bundled Python and the oncemore package but asked for
+Homebrew's `ffmpeg-full` (§3): someone who downloads the app could not use it
+without a terminal. Fetching ffmpeg from inside the app is ruled out (no
+outbound network in the package), and copying Homebrew's build in would pull
+in its dozens of libraries. So the app now carries ffmpeg and ffprobe built
+for it by `macos/build_ffmpeg.sh`:
+
+* FFmpeg 9.0.2 with x264 (H.264 for a Blu-ray and the web version), FreeType
+  and HarfBuzz (drawtext needs both since FFmpeg 7), from source archives
+  pinned by SHA-256 (FFmpeg's also checked against its release signature
+  when pinned). Everything else oncemore uses (MPEG-2, AC-3, LPCM, the DVD
+  and MPEG-TS muxers, the deinterlacing and pulldown filters) is FFmpeg's
+  own; zlib, bzip2 and iconv come from macOS.
+* Static programs, `--disable-autodetect` and `--disable-network`; the
+  build checks that they link only macOS's libraries (`otool -L`), that
+  drawtext and libx264 are there, and the signing loop signs them with the
+  rest of the app.
+* `tools.find` looks in `Contents/Resources/ffmpeg` before Homebrew and
+  PATH; `ONCEMORE_FFMPEG` / `ONCEMORE_FFPROBE` still win. The command line
+  and the browser app use the ffmpeg the user installs, as before.
+* With x264 the programs are GPL (version 2 or later), which oncemore's
+  GPL-3.0 allows. Their licences are inside the app
+  (`Resources/ffmpeg/licenses`) and the four source archives, exactly as
+  built, are attached to every release.
+* Built once per architecture and cached in CI, keyed on the script; the
+  smoke test runs with only macOS's own programs on PATH, checks that
+  `doctor` is ready with the app's ffmpeg, and makes a DVD and a Blu-ray
+  image with it.
+
+The app grows by the two programs (about 2 × 30 MB before compression).
+Released as 1.2.0 (notes in `docs/release-notes/v1.2.0.md`).
+
+While building it, `stapler validate` (§129) failed on an Intel runner with
+the same lost connection to Apple's ticket server; validating asks the same
+servers, so it is now inside the retry loop with stapling.
+
+* `tests/test_bundled_ffmpeg.py`: the lookup order, the pinned sources and
+  configure flags, the app build, the smoke test without Homebrew, the
+  sources on the release, and the documents.

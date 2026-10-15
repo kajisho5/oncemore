@@ -5,14 +5,35 @@ set -euo pipefail
 APP="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+# away from the checkout: `python -m oncemore` must load the app's own package
+cd "$TMP"
 PY="$APP/Contents/Resources/python/bin/python3"
 export PYTHONPATH="$APP/Contents/Resources/app"
-export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+# only macOS's own programs: the app must work without Homebrew
+export PATH="/usr/bin:/bin:/usr/sbin:/sbin"
 
 echo "==> bundled engine"
 "$PY" -s -m oncemore --version
 "$PY" -s -m oncemore doctor || true
+"$PY" -s -m oncemore --json doctor > "$TMP/doctor.json" || true
+"$PY" - "$TMP/doctor.json" "$APP" <<'EOF'
+import json, sys
+d = json.load(open(sys.argv[1]))
+d = d.get("result", d)
+paths = {t["name"]: t["path"] for t in d["tools"]}
+import oncemore
+assert oncemore.__file__.startswith(sys.argv[2] + "/"), oncemore.__file__
+for name in ("ffmpeg", "ffprobe"):
+    assert paths[name] == sys.argv[2] + "/Contents/Resources/ffmpeg/" + name, paths
+assert d["ready"], d
+print("doctor: ready, with the app's own ffmpeg and ffprobe")
+EOF
 "$PY" -s -m oncemore init "$TMP/Sample Project" >/dev/null
+
+echo "==> a DVD and a Blu-ray with the app's ffmpeg"
+"$PY" -s -m oncemore iso "$TMP/Sample Project" -o "$TMP/dvd.iso" >/dev/null
+"$PY" -s -m oncemore iso "$TMP/Sample Project" --format bluray -o "$TMP/bd.iso" >/dev/null
+ls -l "$TMP/dvd.iso" "$TMP/bd.iso"
 
 echo "==> launching the app"
 unset PYTHONPATH   # the app sets its own
