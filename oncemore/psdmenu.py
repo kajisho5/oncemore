@@ -83,16 +83,16 @@ def guess_action(name, project, pages=False):
         if n in (t["id"].lower(), str(t.get("name", "")).lower()):
             return f"title:{t['id']}", None
     m = re.fullmatch(r"(?:chapter|scene|ch)\s*0*(\d+)", n)
-    if m and titles:
+    if m and titles and int(m.group(1)) >= 1:
         return f"chapter:{titles[0]['id']}:{int(m.group(1))}", None
     for mid in menus:
         if n == mid.lower():
             return f"menu:{mid}", None
     m = re.fullmatch(r"audio\s*(\d)", n)
-    if m:
+    if m and 1 <= int(m.group(1)) <= 8:
         return f"audio:{m.group(1)}", None
-    m = re.fullmatch(r"subtitles?\s*(\d|off)", n)
-    if m:
+    m = re.fullmatch(r"subtitles?\s*(\d+|off)", n)
+    if m and (m.group(1) == "off" or 1 <= int(m.group(1)) <= 32):
         return f"subtitle:{m.group(1)}", None
     return None, f"no action could be guessed from the name {name!r}"
 

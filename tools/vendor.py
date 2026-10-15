@@ -80,7 +80,14 @@ def from_checkout(name, checkout, vendor=None):
         raise SystemExit(f"commit {commit[:12]} is not on any remote branch: push it first")
     _clear(vendor)
     copied = []
-    for entry in sorted(os.listdir(os.path.join(checkout, name))):
+    entries = sorted(os.listdir(os.path.join(checkout, name)))
+    others = [e for e in entries if not e.endswith(".py")
+              and e not in ("__pycache__", "py.typed", "tests")]   # (its tests stay upstream)
+    if others:
+        # (only the package's own modules are copied: anything else would be lost)
+        raise SystemExit(f"{name}/ has more than modules ({', '.join(others)}): vendor.py "
+                         "copies only the top-level .py files")
+    for entry in entries:
         if entry.endswith(".py"):
             shutil.copy(os.path.join(checkout, name, entry), os.path.join(vendor, entry))
             copied.append(entry)
@@ -101,6 +108,12 @@ def from_wheel(name, data, version, filename, vendor=None):
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         names = z.namelist()
         modules = sorted(n for n in names if re.fullmatch(rf"{name}/[^/]+\.py", n))
+        others = [n for n in names if n.startswith(f"{name}/") and not n.endswith("/")
+                  and n not in modules and n != f"{name}/py.typed"
+                  and not n.startswith((f"{name}/tests/", f"{name}/__pycache__/"))]
+        if others:
+            raise SystemExit(f"the {filename} wheel has more than modules in {name}/ "
+                             f"({', '.join(others)}): vendor.py copies only the top-level .py files")
         licences = {}
         for f in files:
             found = [n for n in names if re.fullmatch(rf"{name}-[^/]+\.dist-info/(licenses/)?{re.escape(f)}", n)]

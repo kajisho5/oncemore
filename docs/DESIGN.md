@@ -152,8 +152,8 @@ the underline is not what tells them apart).
 * **Folder chooser** (File > New / Open / Save as in a browser): a path field,
   up / home, and the folders in it (`.fb-list > .fb-item`, project folders
   `.is-project` with ◉).
-* **Tools panel** (under the menu bar): selection V, text T, zoom Z, new
-  button, new rectangle, a menu from a Photoshop file, Preview; the
+* **Tools panel** (under the menu bar): selection V, rotate R, text T, zoom Z,
+  new button, new rectangle, a menu from a Photoshop file, Preview; the
   Workspace menu and the search field on the right.
 * **Menu Viewer**: the menu on black with a viewer bar under it (zoom, safe
   area, routing, snapping, normal / selected / activated highlights, exact
@@ -208,7 +208,9 @@ the underline is not what tells them apart).
 
 * Sentence case for labels; verbs on buttons ("Import again", "Render & play").
 * Say what will happen, not how ("Every picture starts a chapter").
-* No third-party product names in the interface, the docs or the code.
+* No names of the classic authoring apps in the interface, the docs or the
+  code (outside the README's history paragraph and trademark notice); a
+  file format may be named by its program ("a Photoshop file").
 * Japanese strings are written for Japanese readers, not translated word by
   word; keep both lists in `app.js` (`I18N.en`, `I18N.ja`) in step — a test
   checks that every key exists in both.

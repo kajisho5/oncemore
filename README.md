@@ -6,10 +6,11 @@
 
 **Website: [kajisho5.github.io/oncemore](https://kajisho5.github.io/oncemore/)** · [日本語版 README](README.ja.md)
 
-oncemore turns your video files into a **DVD-Video disc image with real menus**:
-a still menu with buttons, an auto-generated chapter menu with thumbnails,
-chapter jumps, and "return to the menu when the movie ends". You describe the
-disc in one JSON file and get a `.iso` you can play in VLC, burn, or mount.
+oncemore turns your video files into a **DVD-Video or Blu-ray disc image with
+real menus**: a still menu with buttons, an auto-generated chapter menu with
+thumbnails, chapter jumps, and "return to the menu when the movie ends". You
+describe the disc in one JSON file and get a `.iso` you can play in VLC, burn,
+or mount (or a web version that plays the disc in a browser).
 
 It comes as an **authoring app that runs in your browser on your own Mac**
 (`oncemore gui`), on top of a scriptable command-line core. Nothing is uploaded
@@ -55,7 +56,7 @@ them installed):
 | Program | Used for |
 |---|---|
 | `ffmpeg`, `ffprobe` (with the `drawtext` filter) | MPEG-2/AC-3 encoding, menu rendering, probing |
-| *(nothing)* — oncemore writes the UDF + ISO 9660 disc image itself; `hdiutil`, `genisoimage`, `mkisofs` can be chosen instead | the disc image |
+| *(nothing)* — oncemore writes the UDF + ISO 9660 disc image itself; `hdiutil`, `genisoimage`, `mkisofs` or `xorriso` (ISO 9660 only) can be chosen instead | the disc image |
 | *(optional)* `growisofs` (dvd+rw-tools; macOS uses its own `hdiutil`) | burning the disc to a DVD |
 
 ### macOS (Homebrew)
@@ -76,16 +77,20 @@ oncemore doctor
 ### Debian / Ubuntu
 
 ```sh
-sudo apt-get install ffmpeg genisoimage
+sudo apt-get install ffmpeg
 pip install git+https://github.com/kajisho5/oncemore
 oncemore doctor
 ```
+
+(`genisoimage` and `dvd+rw-tools` are optional: another ISO writer, and burning.)
 
 You can also run it from a checkout without installing: `python -m oncemore ...`.
 
 Tool locations can be overridden with `ONCEMORE_FFMPEG`, `ONCEMORE_FFPROBE`,
 `ONCEMORE_GENISOIMAGE`, `ONCEMORE_MKISOFS`, `ONCEMORE_XORRISO`, and the menu
-font with `ONCEMORE_FONT`.
+font with `ONCEMORE_FONT`. Folders: `ONCEMORE_CACHE` (the media cache),
+`ONCEMORE_TEMPLATES` (My Templates), `ONCEMORE_STYLES` (My Styles) and
+`ONCEMORE_CONFIG` (recent projects and settings).
 If something is missing, oncemore says what and prints the install command.
 
 ## The Mac app
@@ -112,8 +117,8 @@ page (or click **Watch › Custom › Releases** on GitHub to be told). Its icon
 on macOS 26 and later a layered icon (`macos/AppIcon.icon`, square and
 unmasked: the system rounds it and adds its light, and makes the dark,
 clear and tinted looks), on earlier macOS the flat one. Build it yourself
-with `macos/build_app.sh` (Xcode 26 or later, for the layered icon; older
-Xcode with `NO_LAYERED_ICON=1` + `gh`); with a Developer ID
+with `macos/build_app.sh` (needs `gh`, and Xcode 26 or later for the layered
+icon, or an older Xcode with `NO_LAYERED_ICON=1`); with a Developer ID
 set `CODESIGN_IDENTITY` and `NOTARIZE=1` to produce a signed, notarised app
 (stapling the ticket is tried up to five times, as Apple's servers sometimes
 drop the connection).
@@ -138,7 +143,7 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   press **◆ Add chapter here** wherever a chapter should start; **▶ Play** plays
   it (a small preview copy is made the first time). Tick *Generate a
   chapter menu* for a thumbnail menu. Set what happens when it ends, audio
-  tracks and subtitles (`.srt`, `.vtt`, `.ass`) in the right-hand panel. Below the
+  tracks and subtitles (`.srt`, `.vtt`, `.ass` / `.ssa`, text scripts) in the right-hand panel. Below the
   timeline, **Subtitles** edits the cues (start / end, text, top or bottom):
   *+ Add cue at playhead* times a new one from where you are; files in other
   formats can be saved as a new `.srt` to edit.
@@ -552,7 +557,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `aspect` | `4:3` \| `16:9` for this title | `disc.aspect` |
 | `audio.lang` | ISO 639-1 code of the (single) audio track | none |
 | `audio_tracks` | 1–8 `{source?, stream?, lang?, default?}`: several audio streams (below); `default: true` (one per title): the disc starts with that track, set once at first play so a viewer's later choice stays | one track from `source` |
-| `subtitles` | up to 32 `{file, lang?, default?}` SRT files (below) | none |
+| `subtitles` | up to 32 `{file, lang?, default?}` subtitle files: SubRip, WebVTT, ASS/SSA or a text script (below) | none |
 | `captions` | closed captions (line 21, CEA-608) on an NTSC DVD: a Scenarist `.scc` file used as it is, or a subtitle file sent as pop-on captions; or `{file, offset}` (below) | none |
 | `auto_chapter_menu` | `true` or object (below) | off |
 
@@ -595,6 +600,7 @@ when there are more.
 | `shapes[]` | `{x, y, w, h, color}` filled rectangles (bars, panels; `#RRGGBBAA` for translucent) drawn under texts and buttons | `[]` |
 | `images[]` | `{file, x, y, w, h, opacity, adjust}` pictures that are not buttons (logos, photos; PNG keeps its transparency), drawn over the rectangles and under texts and buttons; `adjust` as `background_adjust`, the cropped part filling `w` × `h`. In the app: Tools > Picture, or right-click an image > Place on the menu | `[]` |
 | `animate` (texts, images) | `{start, duration, dx, dy, scale, fade}`: the object **comes in** once, `start` seconds into the menu over `duration` (default 0 and 1): from `dx`, `dy` pixels away, growing from `scale` (pictures, 0.05–1) and fading in (`fade`), to where and as it is. The menu becomes a motion menu (DVD, Blu-ray and the web version); set its `loop_point` after the animation to play it once (the project check reminds you). Previews show the objects at rest. In the app: the text's or picture's Properties > Comes in | none |
+| `buttons[]` | 1–36 buttons | required |
 
 Text style (texts and text buttons): `font` (a font file for this element; it
 must contain all its characters), `outline` + `outline_width`, `shadow` +
@@ -626,13 +632,11 @@ pictures with a `page` on that page only and the rest on every page; the
 actions `page:next`, `page:prev` and `page:<n>` turn the pages (next from the
 last page goes to the first). Page *n* is a menu of its own, `<id>~<n>`, and
 `menu:<id>:<button>` opens the page that holds the button.
-| `buttons[]` | 1–36 buttons | required |
 
-**buttons[]**: `id`, `label`, `x`, `y` (top-left of the label), `action`,
-`auto_activate` (run as soon as the button is selected),
+**buttons[]**: `id`, `label`, `x`, `y` (top-left of the label), `action`
 (`menu:<id>` \| `title:<id>` \| `chapter:<title id>:<n>` \| `playall` \| `audio:<n>` \|
 `subtitle:<n>` \| `subtitle:off` \| `page:next` \| `page:prev` \| `page:<n>` \| `resume` \| `stop`),
-optional `size`, `color`, and `nav`
+`auto_activate` (run as soon as the button is selected), optional `size`, `color`, and `nav`
 (`{"up": id, "down": id, "left": id, "right": id}`) to override the automatic
 navigation. `audio:<n>` / `subtitle:<n>` (1-based) select a stream and stay on
 the menu, so a "setup" menu is just a few of these buttons plus a BACK button.
@@ -1063,7 +1067,7 @@ own folder in it, named after the project folder.
 * Motion menus loop one video (with an optional intro). Thumbnails play, and
   texts and pictures can come in once (`animate`), but there are no keyframed
   animations; a button's link transition is the way from one menu to another.
-* Audio is stereo or 5.1 (AC-3 or LPCM), re-encoded unless `audio.passthrough`
+* Encoded audio is stereo or 5.1 (AC-3 or LPCM), unless `audio.passthrough`
   copies 48 kHz AC-3 sources; DTS is copied only (`audio.codec: "dts"`, 5.1 or
   more: a Blu-ray keeps DTS-HD whole, a DVD its core), and a title's tracks
   share one format (no DTS track beside an AC-3 one).
@@ -1104,7 +1108,8 @@ own folder in it, named after the project folder.
   with one stops with a message.
 * Buttons over a title are for DVD, and not yet beside subtitles in the same
   title (the player lights a button in the subtitle stream it shows); the
-  web version and Blu-ray leave them out.
+  web version plays the title without them, and a Blu-ray build stops with a
+  message.
 * No copy protection (by design, permanently).
 
 ## Libraries

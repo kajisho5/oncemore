@@ -139,7 +139,7 @@ together, or a slideshow.
   from SubRip (`.srt`), WebVTT (`.vtt`), ASS / SSA or a text script (`.txt`,
   with timecodes, or with picture files for image subtitles).
 * Under the timeline, **Subtitles** edits the cues: start, end, text, top or
-  bottom. *+ Add cue at playhead* times a new one from where you are.
+  bottom. *+ Cue at the playhead* times a new one from where you are.
 * A subtitle track marked *default* is shown when the title starts; without
   one, a Blu-ray starts with subtitles off and a DVD leaves it to the player's
   language setting.
@@ -176,7 +176,7 @@ when it is pressed.
   to a menu can be come back from with Resume, as from the Menu key.
 * The times buttons appear or go are at least a second apart, and from
   chapters. A title with buttons over it cannot have subtitles yet; a
-  Blu-ray build and the web version leave the buttons out.
+  Blu-ray build stops on them, and the web version plays the title without them.
 
 ### Slideshows {#slideshows}
 

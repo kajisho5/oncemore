@@ -132,6 +132,8 @@ def _targets(project):
         out.add(f"menu:{m['id']}")
     for p in project.get("playlists", []):
         out.add(f"playlist:{p['id']}")
+    for sid in project.get("scripts") or {}:          # {id: text}
+        out.add(f"commands:{sid}")
     return out
 
 
@@ -141,8 +143,8 @@ def _link_ok(action, targets):
     kind = action.split(":", 1)[0]
     if kind == "chapter":                      # chapter:<title>:<n>
         return f"title:{action.split(':')[1]}" in targets
-    if kind in ("title", "menu", "playlist"):
-        return action in targets
+    if kind in ("title", "menu", "playlist", "commands"):
+        return ":".join(action.split(":")[:2]) in targets   # (menu:<id>:<button> too)
     return True                                 # playall, stop, audio:/subtitle: switches
 
 

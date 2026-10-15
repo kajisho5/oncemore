@@ -159,7 +159,11 @@ def inspect(project, reporter=None, prepare=True, bd=False, web=False):
                 # 48 kHz core); elsewhere a DTS source gives its core
                 hd = bd and t.audio_codec == "dts" and DTS_HD.get(a.get("profile"))
                 multi = t.audio_codec == "dts"        # (DTS: 6 is "5.1 or more")
-                if t.audio_codec == "dts" and a.get("profile") == "DTS Express":
+                if not a.get("codec"):
+                    issues.append({"path": f"{where}.audio_tracks[{j}]",
+                                   "message": f"{os.path.basename(tr.source)} has no audio "
+                                              f"stream to copy (turn off audio.passthrough)"})
+                elif t.audio_codec == "dts" and a.get("profile") == "DTS Express":
                     issues.append({"path": f"{where}.audio_tracks[{j}]",
                                    "message": f"{os.path.basename(tr.source)} audio stream "
                                               f"{tr.stream} is DTS Express, which has no DTS "
@@ -273,9 +277,9 @@ def inspect(project, reporter=None, prepare=True, bd=False, web=False):
             why = bluray.copy_compliance(src, title_fps(t, project.disc), project.disc)
             t.bd_copy = not why
             room = bluray.title_max_bps(t, bluray.MAX_VIDEO_BPS)
-            if t.bd_copy and t.audio_peak_bps and encode.source_video_bps(info) > room:
+            if t.bd_copy and t.audio_peak_bps and encode.source_video_bps(info, bd=True) > room:
                 warnings.append(f"{where}.audio: the copied picture "
-                                f"({encode.source_video_bps(info) / 1e6:.1f} Mbit/s) and the "
+                                f"({encode.source_video_bps(info, bd=True) / 1e6:.1f} Mbit/s) and the "
                                 f"DTS-HD sound (up to {t.audio_peak_bps / 1e6:.1f}) may be more "
                                 "than a player reads; set transcode to encode the picture "
                                 f"at up to {room / 1e6:.1f} Mbit/s")
@@ -343,8 +347,12 @@ def inspect(project, reporter=None, prepare=True, bd=False, web=False):
                                       f"before the end of the menu ({menu_seconds(m, probe):.2f}s)"})
     if issues:
         raise ProjectError("media check failed", issues)
-    menu_total = sum(menu_seconds(m, probe) for m in project.menus) + \
-        sum(probe(key[0])["duration"] for key in project.link_transitions)   # (one copy each)
+    transitions = sum(probe(key[0])["duration"] for key in project.link_transitions)  # one each
+    menu_total = sum(menu_seconds(m, probe) for m in project.menus) + transitions
+    # (motion menus and transitions are encoded at a higher rate than still menus)
+    motion_total = sum(menu_seconds(m, probe) for m in project.menus
+                       if m.background_video or menu_module.animated(m)) + transitions
+    rom = rom_bytes(project)
     font = None
     text = menu_text(project) + "".join("".join(line for c in cs for line in c.lines)
                                         for cs in cues.values())
@@ -356,19 +364,31 @@ def inspect(project, reporter=None, prepare=True, bd=False, web=False):
         if overlapping:
             raise ProjectError("menu check failed", overlapping)
     if bd:
-        # (a picture used as it is keeps its own rate)
+        # (a picture used as it is keeps its own rate; the web version is a
+        # folder, so nothing has to fit on a disc)
+        copied = {t.id: encode.source_video_bps(infos[t.id], bd=True)
+                  for t in project.titles if t.bd_copy}
+        target = project.disc.bluray_target
         plan = bluray.plan([(infos[t.id]["duration"], t.audio_bps) +
-                            ((encode.source_video_bps(infos[t.id]),) if t.bd_copy else ())
+                            ((copied[t.id],) if t.id in copied else ())
                             for t in project.titles],
-                           bluray.CAPACITY[project.disc.bluray_target])
-        plan.update(video_bps=plan["max_bps"], per_title=[plan["max_bps"]] * len(project.titles))
+                           float("inf") if web else bluray.CAPACITY[target],
+                           0 if web else menu_total, 0 if web else rom,
+                           bigger=None if target == "BD50" else "BD50")
+        plan.update(video_bps=plan["max_bps"],
+                    per_title=[copied.get(t.id, plan["max_bps"]) for t in project.titles])
+        if web:
+            plan["capacity"] = plan["estimated_bytes"]     # (a folder holds what it needs)
     else:
         # (a picture used as it is keeps its own rate)
         plan = encode.plan_bitrate([(infos[t.id]["duration"], t.audio_bps,
                                      t.video_bitrate if t.transcode
-                                     else encode.source_video_bps(infos[t.id]))
+                                     else encode.source_video_bps(infos[t.id]),
+                                     not t.transcode)
                                     for t in project.titles],
-                                   project.disc.capacity, menu_total, project.disc.video_bitrate)
+                                   project.disc.capacity, menu_total, project.disc.video_bitrate,
+                                   motion_seconds=motion_total, other_bytes=rom,
+                                   bigger=None if project.disc.target == "DVD9" else "DVD9")
     plan["font"] = font
     plan["warnings"] = warnings + plan["warnings"]
     plan["_probes"] = probes
@@ -813,13 +833,14 @@ def build(project, out_dir, reporter, fast=False, keep_work=False, work=None, ca
     os.makedirs(os.path.join(out_dir, "AUDIO_TS"), exist_ok=True)
     rom = copy_rom_files(project, out_dir)
 
-    size = author.video_ts_size(out_dir)
+    size = author.video_ts_size(out_dir) + rom
     if size > project.disc.capacity:
-        raise OncemoreError(f"VIDEO_TS is {size / 2**30:.2f} GiB, larger than "
+        raise OncemoreError(f"VIDEO_TS and the DVD-ROM files are {size / 2**30:.2f} GiB, larger than "
                             f"{project.disc.target} ({project.disc.capacity / 2**30:.2f} GiB)",
-                            hint="Set disc.video_bitrate lower or use DVD9.")
+                            hint="Set disc.video_bitrate lower" +
+                            (" or use DVD9." if project.disc.target != "DVD9" else "."))
     result = summary(project, infos, plan)
-    result.update({"video_ts": os.path.join(out_dir, "VIDEO_TS"), "bytes": size + rom,
+    result.update({"video_ts": os.path.join(out_dir, "VIDEO_TS"), "bytes": size,
                    "files": sorted(os.listdir(os.path.join(out_dir, "VIDEO_TS")))})
     with open(os.path.join(work, "build.json"), "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2, ensure_ascii=False)
@@ -925,15 +946,15 @@ def build_bluray(project, out_dir, reporter, fast=False, keep_work=False, work=N
                              transitions=transitions)
     rom = copy_rom_files(project, out_dir)
     size = sum(os.path.getsize(os.path.join(r, f))
-               for r, _, fs in os.walk(os.path.join(out_dir, "BDMV")) for f in fs)
+               for r, _, fs in os.walk(os.path.join(out_dir, "BDMV")) for f in fs) + rom
     if size > capacity:
-        raise OncemoreError(f"BDMV is {size / 2**30:.2f} GiB, larger than "
+        raise OncemoreError(f"BDMV and the files beside it are {size / 2**30:.2f} GiB, larger than "
                             f"{project.disc.bluray_target} ({capacity / 2**30:.2f} GiB)",
-                            hint="Use BD50 or shorter titles.")
+                            hint=_bd_hint(project))
     result = summary(project, infos, plan)
     result["disc"]["format"] = "bluray"
     result["disc"]["target"] = project.disc.bluray_target
-    result.update({"bdmv": os.path.join(out_dir, "BDMV"), "bytes": size + rom,
+    result.update({"bdmv": os.path.join(out_dir, "BDMV"), "bytes": size,
                    "bd_titles": disc["titles"], "playlists": disc["playlists"]})
     if keep_work:
         result["work_dir"] = work
@@ -1014,12 +1035,29 @@ def build_bluray_iso(project, out_iso, reporter, fast=False, keep_work=False, bu
     capacity = bluray.CAPACITY[project.disc.bluray_target]
     if info["bytes"] > capacity:
         raise OncemoreError(f"the image is {info['bytes'] / 2**30:.2f} GiB, larger than "
-                            f"{project.disc.bluray_target}", hint="Use BD50 or shorter titles.")
+                            f"{project.disc.bluray_target}", hint=_bd_hint(project))
     if keep_work:
         result["build_dir"] = build_dir
     else:
         shutil.rmtree(build_dir, ignore_errors=True)
     return result
+
+
+def _bd_hint(project):
+    return "Use BD50 or shorter titles." if project.disc.bluray_target != "BD50" \
+        else "Use shorter titles."
+
+
+def rom_bytes(project):
+    """The size of disc.rom_files, which go on the disc beside the video."""
+    total = 0
+    for src in project.disc.rom_files:
+        if os.path.isdir(src):
+            total += sum(os.path.getsize(os.path.join(r, f))
+                         for r, _, fs in os.walk(src) for f in fs)
+        elif os.path.isfile(src):
+            total += os.path.getsize(src)
+    return total
 
 
 def copy_rom_files(project, out_dir):

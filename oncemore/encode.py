@@ -209,7 +209,9 @@ def fit_filter(info, disc, pad_color="black", fps=True, mode="progressive", ivtc
     mode "interlaced" works on fields: the source is split into one picture
     per field (bwdif send_field) or taken at the field rate, scaled, and
     woven back into top-field-first frames. mode "pulldown" keeps 23.976
-    film frames (the pulldown flags are set after encoding). ivtc: the
+    film frames (the pulldown flags are set after encoding). mode "fields":
+    progressive, one picture per field of an interlaced source (720p at
+    50 / 59.94, which keeps the fields' motion). ivtc: the
     source is film that was telecined to 29.97i; its film frames are put
     back together (field matching, then the duplicate in every five frames
     dropped) instead of being deinterlaced."""
@@ -227,7 +229,7 @@ def fit_filter(info, disc, pad_color="black", fps=True, mode="progressive", ivtc
             parts.append(f"fps={FILM_FPS[0]}/{FILM_FPS[1]}")
     else:
         if info.get("interlaced"):
-            parts.append("bwdif")
+            parts.append("bwdif=mode=send_field" if mode == "fields" else "bwdif")
         if fps:
             n, d = FILM_FPS if mode == "pulldown" else (num, den)
             parts.append(f"fps={n}/{d}")
@@ -247,29 +249,43 @@ def fit_filter(info, disc, pad_color="black", fps=True, mode="progressive", ivtc
 # bitrate planning
 # --------------------------------------------------------------------------
 
-def plan_bitrate(items, capacity, menu_seconds=0.0, fixed=None):
+def plan_bitrate(items, capacity, menu_seconds=0.0, fixed=None, motion_seconds=0.0,
+                 other_bytes=0, bigger=None):
     """Choose the average video bitrate.
 
     items: list of (duration_seconds, audio_bps) or (duration_seconds,
-    audio_bps, title_bps) for every title; title_bps fixes that title's video
-    bitrate and the others share what is left. Returns a dict with
+    audio_bps, title_bps[, copied]) for every title; title_bps fixes that
+    title's video bitrate and the others share what is left. With `copied`
+    the picture is used as it is, so title_bps is its own rate and is not held
+    to the encoder's cap. motion_seconds: the part of menu_seconds made of
+    motion menus and transitions (encoded at a higher rate); other_bytes:
+    files put on the disc beside the video (disc.rom_files); bigger: the
+    larger disc to suggest when the content does not fit (None: none). Returns a dict with
     "video_bps" (the shared rate), "per_title" (the rate of each item),
     "estimated_bytes", "capacity" and "warnings". Raises ProjectError if the
     content cannot fit.
     """
-    items = [tuple(it) + (None,) * (3 - len(it)) for it in items]
-    total = sum(d for d, _, _ in items)
+    items = [tuple(it) + (None,) * (4 - len(it)) for it in items]
+    total = sum(d for d, _, _, _ in items)
     if total <= 0:
         raise ProjectError("titles have zero total duration")
-    max_audio = max(a for _, a, _ in items)
+    max_audio = max(a for _, a, _, _ in items)
     cap = min(MAX_VIDEO_BPS, MAX_TOTAL_BPS - max_audio)
-    menu_bytes = menu_seconds * (MENU_VIDEO_BPS + MENU_AUDIO_BPS) / 8 * (1 + MUX_OVERHEAD)
-    usable = capacity * (1 - DISC_SAFETY) - IFO_RESERVE - menu_bytes
-    audio_bits = sum(d * a for d, a, _ in items)
-    own_bits = sum(d * min(f, cap) for d, _, f in items if f)
-    shared = sum(d for d, _, f in items if not f)
-    fit = ((usable * 8 / (1 + MUX_OVERHEAD) - audio_bits - own_bits) / shared) if shared \
-        else float("inf")
+
+    def own(f, copied):
+        return f if copied else min(f, cap)
+
+    motion_seconds = min(motion_seconds, menu_seconds)
+    menu_bytes = ((menu_seconds - motion_seconds) * MENU_VIDEO_BPS +
+                  motion_seconds * MOTION_MENU_VIDEO_BPS +
+                  menu_seconds * MENU_AUDIO_BPS) / 8 * (1 + MUX_OVERHEAD)
+    usable = capacity * (1 - DISC_SAFETY) - IFO_RESERVE - menu_bytes - other_bytes
+    audio_bits = sum(d * a for d, a, _, _ in items)
+    own_bits = sum(d * own(f, c) for d, _, f, c in items if f)
+    shared = sum(d for d, _, f, _ in items if not f)
+    left = usable * 8 / (1 + MUX_OVERHEAD) - audio_bits - own_bits
+    fit = left / shared if shared else float("inf")
+    use = f"Use {bigger}, shorter titles" if bigger else "Use shorter titles"
     warnings = []
     if fixed:
         video = min(int(fixed), cap)
@@ -277,24 +293,32 @@ def plan_bitrate(items, capacity, menu_seconds=0.0, fixed=None):
             warnings.append(f"video bitrate limited to {video // 1000}k by the DVD rate limit")
     else:
         video = int(min(cap, fit)) if shared else cap
-    per_title = [min(int(f), cap) if f else video for _, _, f in items]
-    est = (sum(d * (v + a) for (d, a, _), v in zip(items, per_title)) / 8) * (1 + MUX_OVERHEAD) \
-        + menu_bytes + IFO_RESERVE
+    per_title = [int(own(f, c)) if f else video for _, _, f, c in items]
+    est = (sum(d * (v + a) for (d, a, _, _), v in zip(items, per_title)) / 8) \
+        * (1 + MUX_OVERHEAD) + menu_bytes + IFO_RESERVE + other_bytes
+    if not fixed and shared and left <= 0:
+        raise ProjectError(
+            "content does not fit: the sound, the menus and the titles with their own video "
+            "bitrate (or their picture used as it is) already take the whole disc. "
+            f"{use} or AC-3 instead of LPCM.")
     if not fixed and fit < MIN_VIDEO_BPS:
         raise ProjectError(
-            f"content does not fit: {total / 60:.1f} min would need a video bitrate of "
+            f"content does not fit: {shared / 60:.1f} min would need a video bitrate of "
             f"{max(fit, 0) / 1e6:.2f} Mbit/s (minimum {MIN_VIDEO_BPS / 1e6:.1f}). "
-            "Use DVD9, shorter titles or AC-3 instead of LPCM.")
+            f"{use} or AC-3 instead of LPCM.")
     if (fixed or not shared) and est > capacity:
+        how = "the fixed video bitrate" if fixed else \
+            "every title's own video bitrate (or its picture used as it is)"
         raise ProjectError(f"estimated size {est / 2**30:.2f} GiB exceeds the "
-                           f"{capacity / 2**30:.2f} GiB disc with the fixed video bitrate")
+                           f"{capacity / 2**30:.2f} GiB disc with {how}")
     if video < LOW_QUALITY_BPS:
         warnings.append(f"average video bitrate is only {video / 1e6:.2f} Mbit/s; "
                         "expect visible compression artefacts")
     # the bit budget: what each title takes (its streams and their packets),
     # the menus, and the disc's own files
-    titles = [int(d * (v + a) / 8 * (1 + MUX_OVERHEAD)) for (d, a, _), v in zip(items, per_title)]
-    budget = {"titles": titles, "menus": int(menu_bytes), "other": IFO_RESERVE}
+    titles = [int(d * (v + a) / 8 * (1 + MUX_OVERHEAD))
+              for (d, a, _, _), v in zip(items, per_title)]
+    budget = {"titles": titles, "menus": int(menu_bytes), "other": IFO_RESERVE + int(other_bytes)}
     return {"video_bps": video, "per_title": per_title, "estimated_bytes": int(est),
             "capacity": capacity, "total_seconds": total, "warnings": warnings,
             "budget": budget}
@@ -614,10 +638,17 @@ def dvd_compliance(info, disc, audio_bps=0):
     return out
 
 
-def source_video_bps(info):
-    """The video bitrate of a source used as it is (the whole file's rate
-    when the stream does not say)."""
-    return info.get("video_bit_rate") or info.get("bit_rate") or DVD_MAX_VIDEO_BPS
+def source_video_bps(info, bd=False):
+    """The video bitrate of a source used as it is: the stream's, else the
+    whole file's; for a bare stream that says neither, its size over its
+    length, else the most a DVD (or, with bd, a Blu-ray) allows."""
+    bps = info.get("video_bit_rate") or info.get("bit_rate")
+    if bps:
+        return bps
+    path, duration = info.get("path"), info.get("duration")
+    if path and duration and os.path.isfile(path):
+        return int(os.path.getsize(path) * 8 / duration)
+    return 40_000_000 if bd else DVD_MAX_VIDEO_BPS
 
 
 def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
@@ -656,7 +687,7 @@ def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
         # (film gets its pulldown flags, as when it is encoded)
         if is_film(info, disc) or title.captions:
             _pulldown_mux(title, inputs, ["-map", "0:v:0", "-c:v", "copy"], amap, acodec,
-                          1 + len(extra) // 2, duration, out_path, work, on_progress,
+                          duration, out_path, work, on_progress,
                           pulldown_flags=is_film(info, disc))
             return out_path
         run_ffmpeg(inputs + ["-map", "0:v:0", "-c:v", "copy"] + amap + acodec +
@@ -688,7 +719,7 @@ def encode_title(title, info, disc, video_bps, out_path, work, two_pass=True,
                    cwd=work, what=f"ffmpeg (title {title.id}, pass 1)")
         video += ["-pass", "2", "-passlogfile", passlog]
     if mode == "pulldown" or title.captions:
-        _pulldown_mux(title, inputs, video, amap, acodec, 1 + len(extra) // 2, duration,
+        _pulldown_mux(title, inputs, video, amap, acodec, duration,
                       out_path, work, prog(passes - 1), pulldown_flags=mode == "pulldown")
         return out_path
     run_ffmpeg(inputs + video + amap + acodec + ["-t", f"{duration:.3f}", out_path],
@@ -724,7 +755,7 @@ def _encode_clips(title, disc, video_bps, out_path, work, two_pass, on_progress,
         vonly += ["-pass", "2", "-passlogfile", passlog]
     if mode == "pulldown" or title.captions:
         _pulldown_mux(title, inputs, vonly, ["-filter_complex", agraph, "-map", "[a0]"],
-                      acodec, len(title.clips), duration, out_path, work, prog(passes - 1),
+                      acodec, duration, out_path, work, prog(passes - 1),
                       pulldown_flags=mode == "pulldown")
         return out_path
     run_ffmpeg(inputs + ["-filter_complex", graph, "-map", "[v]", "-map", "[a0]"] + venc +
@@ -757,11 +788,12 @@ def _video_args(title, disc, video_bps, target, mode):
     return video
 
 
-def _pulldown_mux(title, inputs, video, amap, acodec, n, duration, out_path, work, progress,
+def _pulldown_mux(title, inputs, video, amap, acodec, duration, out_path, work, progress,
                   pulldown_flags=True):
     """The picture goes to an elementary stream, gets its film pulldown flags
     (pulldown_flags) and its closed captions (title.captions), and is then
-    muxed with the sound (input `n` is the patched stream)."""
+    muxed with the sound (the patched stream is the input after `inputs`)."""
+    n = inputs.count("-i")   # (a sound-only title's still is one of `inputs` too)
     logdir = os.path.join(work, "logs")
     m2v = os.path.join(work, f"{title.id}.m2v")
     run_ffmpeg(inputs + video + ["-an", "-t", f"{duration:.3f}", "-f", "mpeg2video", m2v],

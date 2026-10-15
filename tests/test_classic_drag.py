@@ -51,7 +51,7 @@ FILE_DROP = """([name, b64]) => {
 
 
 @unittest.skipUnless(PLAYWRIGHT, "needs playwright")
-class TestEncoreDrag(unittest.TestCase):
+class TestClassicDrag(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp(prefix="oncemore-edrag-")
         self.addCleanup(shutil.rmtree, self.dir, True)

@@ -36,7 +36,7 @@ g13-g15 are dvdauthor's scratch registers (multi-statement buttons and
 expressions), so they stay untouched. A multi-statement button that does not
 jump falls through into the next button's code in dvdauthor's dispatcher, so
 only buttons that leave the menu get the "remember" prefix.
-An end-action override on a button (`override`, Encore-style: "play this title,
+An end-action override on a button (`override`, as in the classic apps: "play this title,
 then go there instead of its own end action") is a number in the next free
 register: the button sets it, every other way of starting a title clears it,
 and each title's <post> first checks it (and clears it) before its usual end.

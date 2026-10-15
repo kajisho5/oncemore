@@ -55,8 +55,8 @@ _MODE_NAMES = {0: "Bitmap", 1: "Grayscale", 2: "Indexed", 3: "RGB", 4: "CMYK",
                7: "Multichannel", 8: "Duotone", 9: "Lab"}
 _BASE_CHANNELS = {RGB: 3, GRAYSCALE: 1}
 
-# Additional-info keys whose length is 8 bytes in PSB files: Adobe's list plus
-# the ones psd-tools found in real files.
+# Additional-info keys whose length is 8 bytes in PSB files: the format
+# specification's list plus the ones psd-tools found in real files.
 _BIG_KEYS = {b"LMsk", b"Lr16", b"Lr32", b"Layr", b"Mt16", b"Mt32", b"Mtrn",
              b"Alph", b"FMsk", b"lnk2", b"lnk3", b"lnkE", b"FEid", b"FXid",
              b"PxSD", b"FELS", b"artd", b"cinf", b"extd", b"extn", b"pths"}

@@ -20,7 +20,7 @@ except ImportError:  # pragma: no cover
 
 
 @unittest.skipUnless(PLAYWRIGHT, "needs playwright")
-class TestEncoreTimeline(unittest.TestCase):
+class TestClassicTimeline(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp(prefix="oncemore-etl-")
         self.addCleanup(shutil.rmtree, self.dir, True)

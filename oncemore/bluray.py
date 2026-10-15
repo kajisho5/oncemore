@@ -35,6 +35,7 @@ from ._vendor.bdmvkit.playlist import mpls  # noqa: F401
 
 CAPACITY = {"BD25": 25_025_314_816, "BD50": 50_050_629_632}
 MIN_VIDEO_BPS = 4_000_000      # below this an HD picture falls apart
+MENU_AUDIO_BPS = 192_000       # a menu's or link transition's AC-3 sound
 DISC_SAFETY = 0.03             # transport-stream overhead and some free space
 
 
@@ -95,32 +96,44 @@ class HDFrame:
 # planning and encoding
 # --------------------------------------------------------------------------
 
-def plan(items, capacity):
+def plan(items, capacity, menu_seconds=0.0, other_bytes=0, bigger=None):
     """Highest video rate the titles may peak at so that they fit.
 
     items: (duration, audio bps) per title, or (duration, audio bps, video
     bps) for a picture used as it is (its own rate). Pictures are encoded at
     a constant quality and capped at this rate, so the disc is never
-    overfilled. Returns {"max_bps", "estimated_bytes", "capacity", "warnings"}."""
+    overfilled. menu_seconds: the menus and link transitions, encoded at the
+    same peak with AC-3 sound (MENU_AUDIO_BPS); other_bytes: files beside
+    BDMV (disc.rom_files); bigger: the larger disc to suggest when it does
+    not fit (None: none). Returns {"max_bps", "estimated_bytes", "capacity",
+    "warnings", "budget"}."""
     items = [(d, a, rest[0] if rest else None) for d, a, *rest in items]
     if sum(d for d, _, _ in items) <= 0:
         raise ProjectError("titles have zero total duration")
     total = sum(d for d, _, v in items if v is None)
-    usable = capacity * (1 - DISC_SAFETY) * 8 - sum(d * (a + (v or 0)) for d, a, v in items)
-    fit = usable / total if total else (MAX_VIDEO_BPS if usable >= 0 else -1)
+    shared = total + menu_seconds
+    usable = capacity * (1 - DISC_SAFETY) * 8 - sum(d * (a + (v or 0)) for d, a, v in items) \
+        - menu_seconds * MENU_AUDIO_BPS - other_bytes * 8
+    use = f"Use {bigger} or shorter titles." if bigger else "Use shorter titles."
+    if usable <= 0:
+        raise ProjectError("content does not fit: the sound, the files beside BDMV and the "
+                           "titles whose picture is used as it is already take the whole "
+                           f"disc. {use}")
+    fit = usable / shared if shared else MAX_VIDEO_BPS
     if fit < MIN_VIDEO_BPS:
-        raise ProjectError(f"content does not fit: {total / 60:.1f} min would need a video "
-                           f"bitrate of {max(fit, 0) / 1e6:.2f} Mbit/s (minimum "
-                           f"{MIN_VIDEO_BPS / 1e6:.0f}). Use BD50 or shorter titles.")
+        raise ProjectError(f"content does not fit: {shared / 60:.1f} min would need a video "
+                           f"bitrate of {fit / 1e6:.2f} Mbit/s (minimum "
+                           f"{MIN_VIDEO_BPS / 1e6:.0f}). {use}")
     peak = int(min(MAX_VIDEO_BPS, fit))
-    est = sum(d * ((peak if v is None else v) + a) for d, a, v in items) / 8 * (1 + DISC_SAFETY)
     # the bit budget: each title at most (pictures are encoded at a constant
-    # quality, up to the peak rate)
+    # quality, up to the peak rate), the menus, the files beside BDMV
     titles = [int(d * ((peak if v is None else v) + a) / 8 * (1 + DISC_SAFETY))
               for d, a, v in items]
+    menus = int(menu_seconds * (peak + MENU_AUDIO_BPS) / 8 * (1 + DISC_SAFETY))
+    est = sum(titles) + menus + other_bytes
     return {"max_bps": peak, "estimated_bytes": int(min(est, capacity)), "capacity": capacity,
             "total_seconds": total, "warnings": [],
-            "budget": {"titles": titles, "menus": 0, "other": 0}}
+            "budget": {"titles": titles, "menus": menus, "other": int(other_bytes)}}
 
 
 # --------------------------------------------------------------------------
@@ -327,8 +340,10 @@ def encode_title(title, info, disc, max_bps, out_path, work, fast=False, on_prog
         raise OncemoreError(f"title {title.id!r}: {title.source} has no video stream")
     duration = info["duration"]
     hd = hd_frame(disc)
-    # film stays at 23.976; everything else becomes progressive frames
-    mode = "pulldown" if title.video_mode == "pulldown" else "progressive"
+    # film stays at 23.976; everything else becomes progressive frames (one
+    # per field of an interlaced source when 720p doubles the rate)
+    mode = "pulldown" if title.video_mode == "pulldown" else \
+        "fields" if bd_fps(disc.fps, disc) != disc.fps else "progressive"
     probes = dict(probes or {})
     probes.setdefault(title.source, info)
     # (the DVD LPCM framing does not apply: pcm_bluray frames itself)

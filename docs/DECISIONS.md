@@ -1782,7 +1782,7 @@ held. oncemore follows it where it has the same objects:
 * **Files from the Finder**: a layered Photoshop file dropped into the
   window becomes a menu, as it does in the classic apps. With Alt, it is
   only imported, as a picture.
-* `tests/test_encore_drag.py` checks each of these in a browser. Playwright
+* `tests/test_classic_drag.py` checks each of these in a browser. Playwright
   cannot hold Alt during its own drag, so those drops are sent as the
   browser would send them, with the key held.
 * The rest is listed in the ROADMAP; the Timeline viewer and resize
@@ -1822,7 +1822,7 @@ Timeline Viewer", "Keys for working in the Menu Viewer"):
   (each with its own in and out) played one after another. There are no
   gaps to close, because removing a clip already closes up the rest, and
   each clip's sound belongs to its picture, so there is nothing to slip.
-* `tests/test_encore_timeline.py` and `test_encore_drag.test_resize_handles`
+* `tests/test_classic_timeline.py` and `test_classic_drag.test_resize_handles`
   check each of these in a browser.
 
 ## 98. Flowchart drops, routing arrows, text in place and small keys (3)
@@ -1863,8 +1863,8 @@ routing", and the keyboard tables):
   * The Direct Select (A) and Move (M) tools: they pick a single layer
     inside a button's layer set. oncemore's buttons are single objects.
   * Resizing the preview with ⌘= / ⌘−: the preview follows the window.
-* `tests/test_encore_flow.py`, `tests/test_encore_keys.py` and
-  `test_encore_drag` (routing arrow, text in place) check these in a
+* `tests/test_classic_flow.py`, `tests/test_classic_keys.py` and
+  `test_classic_drag` (routing arrow, text in place) check these in a
   browser.
 
 ## 99. Reordering by drag, and handles on text and buttons (4)
@@ -1887,7 +1887,7 @@ routing", and the keyboard tables):
   selects a word and triple-click a paragraph, as the page does natively.
   The help's four and five clicks (paragraph, all) are not added: ⌘A / Ctrl+A
   selects all the text.
-* `tests/test_encore_reorder.py` and `test_encore_drag.test_type_handles`
+* `tests/test_classic_reorder.py` and `test_classic_drag.test_type_handles`
   check these in a browser.
 
 ## 100. Blu-ray at 720p, and AVCHD's 1440×1080 as it is
@@ -2878,3 +2878,82 @@ servers, so it is now inside the retry loop with stapling.
 * `tests/test_bundled_ffmpeg.py`: the lookup order, the pinned sources and
   configure flags, the app build, the smoke test without Homebrew, the
   sources on the release, and the documents.
+
+## 131. A review of everything, and what it found
+
+Six reviewers read the code, the app and the documents, each its own part:
+the build, the project model and its interfaces (command line, MCP), the
+page and its server, the page's English and Japanese, the documents, and
+the Mac app with the automation. Each finding was checked against the code
+before it was fixed; those that did not hold were dropped.
+
+The build:
+
+* A sound-only title with closed captions (or pulldown) muxed the still
+  instead of the patched picture: the disc had no picture and no captions.
+  The patched stream is now the input after all the others.
+* The DVD plan held a copied picture to the encoder's 8 Mbit/s cap, so a
+  copied 9 Mbit/s title was under-counted; it now keeps its own rate.
+* `disc.rom_files` were not counted against the disc in either plan, and
+  the DVD size check left them out; motion menus and link transitions were
+  budgeted at a still menu's rate; a Blu-ray budgeted its menus at nothing.
+  All are counted now, so a project that cannot fit says so before encoding.
+* The web version was planned against a BD25: a folder has no capacity.
+* Messages: copied titles that fill the disc no longer say "0.0 min would
+  need 0.00 Mbit/s"; a DVD9 or BD50 project is not told to use DVD9 or BD50;
+  passthrough on a source with no sound says there is none.
+* A Blu-ray's copied title is shown at its own rate, not the encoder's
+  peak, and a bare stream's rate is its size over its length.
+* 720p at 50 / 59.94 from an interlaced source now makes a picture of each
+  field (bwdif send_field), as it is for; before, it doubled frames.
+
+The project and its interfaces: the simulator's `select:` and `number:`
+keys, a chapter menu's `label_format` with other braces, and MCP tool
+arguments (now checked against each tool's schema) gave tracebacks instead
+of messages; schema patterns accepted a final newline and `true` passed for
+1; a template's `menu:<id>:<button>` link was dropped and a missing script
+kept; a Photoshop layer named "Audio 0" or "Chapter 0" made an action the
+schema refuses; MCP's `create_project` keeps the label it reports.
+
+The page and its server: with a media cache folder chosen, previews of
+titles made of clips and of slideshows were refused as "outside the
+project"; malformed requests (a body that is not an object, a cue with no
+time, a player state for a title since deleted) dropped the connection
+instead of answering; the page kept another title's seek, another
+project's previews and pages after Save As, and the old id after a rename;
+failed templates, a failed New Project and a subtitle cue that could not
+be saved said nothing. Seven strings were defined twice in each language
+(the later one won, so a menu button read "+ Add a picture…" and the
+playlist's "the end" read "Play to the end"); the Japanese now uses one
+word for each thing (フォルダー, ウィンドウ, 長方形, 音声, ビルド for
+building and 書き出し for exporting, ディスク挿入時 for first play); the
+frame's titles and labels are translated; a caption hint named a classic
+app's caption format by its program.
+
+The documents: title buttons stop a Blu-ray build (they are not left out);
+the menus table had lost its `buttons[]` row; the install notes list the
+folder variables, xorriso, and genisoimage as optional; subtitle formats,
+the Mac app's ffmpeg, the menu bar's View menu, the Rotate tool and DTS on
+a Blu-ray are described as they are; the five test files named after a
+classic app are `test_classic_*`.
+
+The Mac app and the automation: the app read the engine's output a chunk at
+a time and dropped a chunk that split a character, which could lose the
+URL it waits for (it now decodes leniently) and kept every line of output
+for the whole session (now the last 32 KB); the bundled Python is always
+checked against its release's checksums; `grep -q` at the end of a pipe
+under pipefail could fail on long output (three places); a library
+version pushed without its pull request was never offered again; a hand-run
+release now refuses a tag that points at another commit, and a version
+that differs between pyproject.toml and the package; vendor.py refuses a
+library it would copy incompletely; the smoke test stops the engine it
+started.
+
+Left as they are: the review's other suggestions were judged not worth
+their code (the Swift app's handling of a crashed engine already shows the
+log); cross-building the app for the other architecture was never
+possible (the build runs the app's Python and ffmpeg), and
+`macos/build_app.sh` now says so instead of offering it.
+
+* `tests/test_review_fixes.py`: one test per finding, each failing without
+  its fix.

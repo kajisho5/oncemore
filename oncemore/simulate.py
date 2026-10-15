@@ -78,6 +78,16 @@ class Simulator:
     def note(s, text):
         s["log"].append(text)
 
+    @staticmethod
+    def _pick(geoms, arg):
+        """select:<id or number>: the place (from 1) of that button here."""
+        ids = [g["id"] for g in geoms]
+        if arg in ids:
+            return ids.index(arg) + 1
+        if arg.isdigit() and 1 <= int(arg) <= len(ids):
+            return int(arg)
+        raise SimError(f"select:{arg}: no such button here ({', '.join(ids) or 'none'})")
+
     # -- start -----------------------------------------------------------------
     def start(self):
         s = {"domain": "stopped", "menu": None, "button": 1, "title": None, "chapter": 0,
@@ -326,7 +336,10 @@ class Simulator:
             # menu's offset), selected and run (a DVD player's "select and
             # activate"; a Blu-ray player only selects it, unless it runs on
             # selection)
-            key, arg = "number", int(key.split(":")[-1])
+            try:
+                key, arg = "number", int(key.split(":")[-1])
+            except ValueError:
+                raise SimError(f"{key}: a button number")
         elif key not in KEYS:
             raise SimError(f"unknown key {key!r}")
         if s["domain"] == "stopped":
@@ -352,8 +365,7 @@ class Simulator:
                 if geoms[s["button"] - 1]["auto"] and s["button"] != ids.index(cur["id"]) + 1:
                     self.activate(s, m, geoms)
             elif key == "select":
-                ids = [g["id"] for g in geoms]
-                s["button"] = ids.index(arg) + 1 if arg in ids else int(arg)
+                s["button"] = self._pick(geoms, arg)
             elif key == "number":
                 n = arg - m.button_offset
                 if 1 <= n <= len(geoms):
@@ -380,8 +392,7 @@ class Simulator:
             cur = shown[min(s["button"], len(shown)) - 1]
             s["button"] = ids.index(cur["nav"][key]) + 1
         elif key == "select":
-            ids = [g["id"] for g in shown]
-            s["button"] = ids.index(arg) + 1 if arg in ids else int(arg)
+            s["button"] = self._pick(shown, arg)
         elif key == "number":
             if 1 <= arg <= len(shown):
                 s["button"] = arg

@@ -198,13 +198,16 @@ class App:
 
     # -- paths -----------------------------------------------------------------
     def resolve(self, rel):
-        """Absolute path for a project-relative path; refuses anything outside."""
+        """Absolute path for a project-relative path; refuses anything outside
+        the project folder and its media cache (which may be elsewhere:
+        Preferences > Media cache)."""
         if not rel:
             raise ValueError("missing path")
         full = os.path.realpath(os.path.join(self.dir, rel))
-        if full != self.dir and not full.startswith(self.dir + os.sep):
-            raise PermissionError("path outside the project folder")
-        return full
+        for root in (self.dir, os.path.realpath(settings.cache_dir(self.dir))):
+            if full == root or full.startswith(root + os.sep):
+                return full
+        raise PermissionError("path outside the project folder")
 
     def rel(self, full):
         return os.path.relpath(full, self.dir).replace(os.sep, "/")
@@ -561,7 +564,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def body_json(self):
         n = int(self.headers.get("Content-Length") or 0)
-        return json.loads(self.rfile.read(n) or b"{}")
+        body = json.loads(self.rfile.read(n) or b"{}")
+        if not isinstance(body, dict):
+            raise ValueError("the request body must be a JSON object")
+        return body
 
     def host_ok(self):
         host = (self.headers.get("Host") or "").lower()
@@ -590,8 +596,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.fail(HTTPStatus.UNAUTHORIZED, "missing or wrong token")
         name = url.path[len("/api/"):]
         if name.startswith("jobs/"):
-            return self.api_job(name[5:], query)
-        fn = getattr(self, f"api_{method.lower()}_{name}", None)
+            fn = lambda q: self.api_job(name[5:], q)       # noqa: E731
+        else:
+            fn = getattr(self, f"api_{method.lower()}_{name}", None)
         if fn is None:
             return self.fail(HTTPStatus.NOT_FOUND, "no such endpoint")
         try:
@@ -606,6 +613,11 @@ class Handler(BaseHTTPRequestHandler):
             self.fail(HTTPStatus.UNPROCESSABLE_ENTITY, e.message, issues=e.issues)
         except OncemoreError as e:
             self.fail(HTTPStatus.UNPROCESSABLE_ENTITY, e.message, hint=e.hint, **e.details)
+        except (TypeError, AttributeError, IndexError) as e:
+            # a field of the wrong kind in the request (or a slip here): an
+            # answer all the same, never a dropped connection
+            traceback.print_exc()
+            self.fail(HTTPStatus.BAD_REQUEST, f"bad request: {e}")
 
     def do_GET(self):
         self.route("GET")
@@ -850,10 +862,15 @@ class Handler(BaseHTTPRequestHandler):
         if not full.lower().endswith(".srt"):
             raise ValueError("only .srt files are written; save as a new .srt")
         cues = []
-        for c in self.body_json().get("cues", []):
+        for i, c in enumerate(self.body_json().get("cues", []), 1):
+            if not isinstance(c, dict):
+                raise ValueError(f"cue {i}: not a cue")
             lines = [l for l in str(c.get("text", "")).split("\n") if l.strip()]
-            start, end = float(c["start"]), float(c["end"])
-            if lines and end > start >= 0:
+            try:
+                start, end = float(c["start"]), float(c["end"])
+            except (KeyError, TypeError, ValueError):
+                raise ValueError(f"cue {i}: its start and end must be times")
+            if lines and end > start >= 0:               # (an empty or zero-length cue is dropped)
                 cues.append(subtitles.Cue(start, end, lines, c.get("position") or None,
                                           c.get("color") or None))
         cues.sort(key=lambda c: c.start)
@@ -981,6 +998,11 @@ class Handler(BaseHTTPRequestHandler):
         clips.apply_all(project, encode.probe)
         sim = simulate.Simulator(project, layouts)
         state = body.get("state")
+        if state and (not isinstance(state, dict) or
+                      (state.get("domain") == "title" and not project.title(state.get("title"))) or
+                      (state.get("domain") == "menu" and not project.menu(state.get("menu")))):
+            raise ValueError("the player is on a title or menu that is no longer in the "
+                             "project; start the preview again")
         if not state:
             state = sim.start()
             if body.get("from_menu"):            # preview from the menu being edited
