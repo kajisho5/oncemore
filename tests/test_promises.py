@@ -53,6 +53,18 @@ class TestMacApp(unittest.TestCase):
         self.assertIn(f"Oncemore-{__version__}-arm64.zip", notes)
         self.assertNotIn("Open Anyway", notes)
 
+    def test_stapling_is_retried(self):
+        # Apple's ticket server can drop the connection after the app is
+        # accepted; stapling is tried again a bounded number of times
+        # (DECISIONS §129)
+        script = read("macos", "build_app.sh")
+        block = script.split('echo "==> notarizing"', 1)[1].split("\nfi\n", 1)[0]
+        self.assertIn("for try in 1 2 3 4 5; do", block)
+        self.assertIn('if xcrun stapler staple "$APP"; then break; fi', block)
+        self.assertIn("exit 1", block)
+        self.assertIn('xcrun stapler validate "$APP"', block)
+        self.assertNotRegex(block, r'(?m)^  xcrun stapler staple "\$APP"$')
+
     def test_release_run_by_hand_can_publish(self):
         # from 1.0 a release is a draft unless the run by hand says publish
         # (DECISIONS §128)

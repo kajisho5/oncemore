@@ -97,7 +97,7 @@ Releases ページを開けます（GitHub の **Watch › Custom › Releases**
 macOS 26 以降はレイヤー構成のアイコン（`macos/AppIcon.icon`。角丸なしの正方形で、角丸と光の効果、ダーク・クリア・ティントの見た目はシステムが付けます）、
 それより前の macOS では平面のアイコンを使います。
 自分でビルドする場合は `macos/build_app.sh`（レイヤー構成のアイコンのため Xcode 26 以降、古い Xcode なら `NO_LAYERED_ICON=1`。ほかに `gh` が必要）。Developer ID があれば
-`CODESIGN_IDENTITY` と `NOTARIZE=1` で署名・公証済みのアプリを作れます。
+`CODESIGN_IDENTITY` と `NOTARIZE=1` で署名・公証済みのアプリを作れます（公証の証明（チケット）の添付は、Apple のサーバーとの接続が切れることがあるため最大 5 回試します）。
 タグ `v<version>` を push すると `.github/workflows/release.yml` が両アーキテクチャをビルドし、
 それぞれサンプルプロジェクトで起動確認したうえで zip をリリースに添付します
 （ファイル冒頭に書いた署名用 secrets を設定すれば署名・公証済みになります。1.0 以降は secrets がないとリリースしません）。0.x のバージョンはその場で
