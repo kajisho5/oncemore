@@ -157,13 +157,18 @@ class Server:
             return {"schema": schema, "notes": INSTRUCTIONS}
 
         @tool("create_project", "Create a project",
-              "Make a new disc project in a folder (created if missing): an empty one, or "
-              "the sample disc (two titles, a menu, a chapter menu; needs ffmpeg).",
+              "Make a new disc project in a folder (created if missing): an empty one, "
+              "the sample disc (two titles, a menu, a chapter menu; needs ffmpeg), or the "
+              "player test disc (test_disc: every feature, with TEST-CHECKLIST.md saying "
+              "what to press on a set-top player and what should happen; needs ffmpeg).",
               _obj({"folder": FOLDER,
                     "label": {"type": "string", "description": "Disc label (A-Z, 0-9, _)."},
                     "standard": {"enum": ["NTSC", "PAL"], "default": "NTSC"},
                     "aspect": {"enum": ["16:9", "4:3"], "default": "16:9"},
                     "sample": {"type": "boolean", "default": False},
+                    "test_disc": {"enum": ["dvd", "bluray"],
+                                  "description": "Make the player test disc, as a DVD or a "
+                                                 "Blu-ray, instead."},
                     "overwrite": {"type": "boolean", "default": False,
                                   "description": "Replace a project already in the folder."}},
                    ["folder"]))
@@ -173,6 +178,14 @@ class Server:
             if os.path.exists(os.path.join(d, PROJECT_FILENAME)) and not args.get("overwrite"):
                 raise ToolError(f"{d} already has a project (read_project, or overwrite: true)")
             standard, aspect = args.get("standard", "NTSC"), args.get("aspect", "16:9")
+            if args.get("test_disc"):
+                from . import testdisc
+                try:
+                    res = testdisc.init(d, fmt=args["test_disc"], standard=standard,
+                                        aspect=aspect, force=True)
+                except OncemoreError as e:
+                    raise ToolError(e.message)
+                return dict(self.read(d), checklist=res["checklist"])
             if args.get("sample"):
                 try:
                     scaffold.init(d, standard=standard, aspect=aspect, force=True)

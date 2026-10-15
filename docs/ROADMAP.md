@@ -282,7 +282,7 @@ browser) and lands only with green CI.
 
 **P59 — Closed captions** (done)
 - [x] `titles[].captions`: line-21 captions (CEA-608) on NTSC DVDs, from a
-  Scenarist .scc file or any subtitle file (pop-on), in the video's GOP
+  .scc caption file or any subtitle file (pop-on), in the video's GOP
   user data, flagged in the IFO; read back by ffmpeg's caption decoder in
   the tests; a field in the app's title properties
 

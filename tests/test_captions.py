@@ -1,7 +1,7 @@
 """Closed captions (line 21, CEA-608) on a DVD.
 
 The caption bytes (parity, row addresses, characters), pop-on captions from
-subtitles, Scenarist files, the DVD user data in the video stream, and a
+subtitles, .scc files, the DVD user data in the video stream, and a
 built disc whose captions ffmpeg's caption decoder reads back as the text.
 """
 
@@ -157,7 +157,7 @@ class TestStream(unittest.TestCase):
 @unittest.skipUnless(DVD_OK, "needs ffmpeg (drawtext) and an ISO tool")
 class TestDisc(unittest.TestCase):
     """The sample disc: the first title captioned from SubRip, the second
-    from a Scenarist file."""
+    from an .scc file."""
 
     @classmethod
     def setUpClass(cls):

@@ -138,7 +138,8 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
 ```
 
 * **New project** → *Create sample project* gives you a working disc to explore,
-  or start empty and **drop your video files** onto the window.
+  or start empty and **drop your video files** onto the window. *Player test
+  disc* makes the disc for trying a set-top player (below).
 * **Titles**: pick a video in *Media* → *Add as title*. Scrub through it and
   press **◆ Add chapter here** wherever a chapter should start; **▶ Play** plays
   it (a small preview copy is made the first time). Tick *Generate a
@@ -374,6 +375,7 @@ sources — nothing large lives in this repository.
 
 ```
 oncemore init <dir> [--standard NTSC|PAL] [--aspect 16:9|4:3] [--force]
+oncemore testdisc <dir> [--format dvd|bluray] [--standard NTSC|PAL] [--aspect 16:9|4:3] [--force]   # a disc for trying a set-top player, with a checklist
 oncemore validate <project> [--no-media] [--format dvd|bluray|web]   # schema + references + media + size estimate
 oncemore build <project> -o out/               # out/VIDEO_TS (and out/AUDIO_TS), or out/BDMV for a Blu-ray project
 oncemore build <project> -o out/ --format bluray  # writes out/BDMV (Blu-ray, HD)
@@ -558,7 +560,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `audio.lang` | ISO 639-1 code of the (single) audio track | none |
 | `audio_tracks` | 1–8 `{source?, stream?, lang?, default?}`: several audio streams (below); `default: true` (one per title): the disc starts with that track, set once at first play so a viewer's later choice stays | one track from `source` |
 | `subtitles` | up to 32 `{file, lang?, default?}` subtitle files: SubRip, WebVTT, ASS/SSA or a text script (below) | none |
-| `captions` | closed captions (line 21, CEA-608) on an NTSC DVD: a Scenarist `.scc` file used as it is, or a subtitle file sent as pop-on captions; or `{file, offset}` (below) | none |
+| `captions` | closed captions (line 21, CEA-608) on an NTSC DVD: an `.scc` caption file used as it is, or a subtitle file sent as pop-on captions; or `{file, offset}` (below) | none |
 | `auto_chapter_menu` | `true` or object (below) | off |
 
 `auto_chapter_menu` object: `id` (default `chapters_<title id>`; extra pages get
@@ -882,8 +884,8 @@ differs from the frame; `fill` fills the frame and crops the edges.
   muxed into the title by vtskit; overlapping cues are shortened.
 * Closed captions (`captions`): line-21 captions (CEA-608, CC1) for TVs and
   players with a caption decoder, written into the DVD's MPEG-2 video (user
-  data after each GOP header, as DVDs carry them) and flagged in the IFO. A
-  Scenarist `.scc` file's byte pairs go in as they are; a subtitle file (any
+  data after each GOP header, as DVDs carry them) and flagged in the IFO. An
+  `.scc` caption file's byte pairs go in as they are; a subtitle file (any
   of the formats above) becomes pop-on captions: up to four centred rows of
   32 characters, Latin letters (other characters become spaces), loaded
   before their time, shown at their start and erased at their end. NTSC
@@ -1041,6 +1043,18 @@ By hand:
   choose *File → Open DVD Media…* and select the mounted `VIDEO_TS` folder
   (Apple documents opening VIDEO_TS folders for DVD Player 6.0 on macOS 26).
   Not yet verified by the authors with oncemore output — reports welcome.
+* **A set-top player** — `oncemore testdisc player-test` (add `--format
+  bluray` for a Blu-ray), or *Player test disc* in the app's New Project,
+  makes a disc that uses every feature a player has to get right: the menus
+  and the remote's Menu and Title keys, chapters and a chapter menu, two
+  sound tracks and two subtitle tracks, a 4:3 title, 5.1 sound that names
+  each speaker as it sounds, a motion menu with a loop point, and buttons
+  over a title (DVD) or a pop-up menu (Blu-ray). Every title says on screen
+  what you should see and hear. `TEST-CHECKLIST.md` beside the project lists
+  what to press and what should happen (English and Japanese); build the
+  image (`oncemore iso player-test -o player-test.iso`), burn it, follow the
+  list and [report the player and the
+  results](https://github.com/kajisho5/oncemore/issues/new?template=player-test.md).
 * **Burning** — `oncemore burn demo.iso` (or Build > Output: DVD disc) runs
   `hdiutil burn` on macOS and `growisofs -dvd-compat` on Linux; any other
   burning tool works on the ISO as well. A dual-layer image gets its layer

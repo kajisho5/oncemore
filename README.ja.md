@@ -113,7 +113,8 @@ oncemore gui my-disc          # ブラウザで http://127.0.0.1:…/ が開き�
 ```
 
 * **新しいプロジェクト** →「サンプル付きで作成」で動く見本ディスクを確認できます。
-  空で始めた場合は、**動画ファイルをウィンドウにドロップ**します。
+  空で始めた場合は、**動画ファイルをウィンドウにドロップ**します。「実機テスト用ディスク」は
+  家庭用プレーヤーで試すためのディスクを作ります（下記）。
 * **タイトル**：「素材」で動画を選び「タイトルとして追加」。スクラブして、チャプターを切りたい位置で
   **◆ ここにチャプター**。**▶ 再生**で再生できます（初回にプレビュー用の軽いコピーを作ります）。
   「サムネイル付きチャプターメニューを自動生成」にチェックするとチャプターメニューができます。
@@ -250,6 +251,7 @@ oncemore iso demo/project.oncemore.json -o demo.iso  # エンコード→オー�
 
 ```
 oncemore init <dir> [--standard NTSC|PAL] [--aspect 16:9|4:3] [--force]
+oncemore testdisc <dir> [--format dvd|bluray] [--standard NTSC|PAL] [--aspect 16:9|4:3] [--force]   # 家庭用プレーヤーで試すディスク（チェックリスト付き）
 oncemore validate <project> [--no-media] [--format dvd|bluray|web]   # スキーマ＋参照＋素材＋容量見積もり
 oncemore build <project> -o out/               # out/VIDEO_TS（と out/AUDIO_TS）、Blu-ray 向けのプロジェクトなら out/BDMV を生成
 oncemore build <project> -o out/ --format bluray  # out/BDMV（Blu-ray、HD）を生成
@@ -421,7 +423,7 @@ oncemore は標準ライブラリだけ・オフラインのままです。
 | `audio.lang` | 音声（1 トラック時）の ISO 639-1 言語コード | なし |
 | `audio_tracks` | 1〜8 個の `{source?, stream?, lang?, default?}`：複数音声（下記）。`default: true`（タイトルごとに 1 つ）：ディスクをその音声トラックで始めます。最初の再生で 1 回だけ設定するので、後で視聴者が選んだものはそのまま | `source` の音声 1 本 |
 | `subtitles` | 32 個までの `{file, lang?, default?}` 字幕ファイル：SubRip・WebVTT・ASS/SSA・テキストスクリプト（下記） | なし |
-| `captions` | NTSC の DVD のクローズドキャプション（Line 21、CEA-608）：Scenarist の `.scc` はそのまま、字幕ファイルはポップオン方式のキャプションとして。`{file, offset}` も可（下記） | なし |
+| `captions` | NTSC の DVD のクローズドキャプション（Line 21、CEA-608）：`.scc` のキャプションファイルはそのまま、字幕ファイルはポップオン方式のキャプションとして。`{file, offset}` も可（下記） | なし |
 | `auto_chapter_menu` | `true` またはオブジェクト（下記） | なし |
 
 `auto_chapter_menu` のオブジェクト：`id`（既定 `chapters_<タイトルid>`、2 ページ目以降は
@@ -665,7 +667,7 @@ DVD ではメニュー領域の独立したプログラムとして、Blu-ray �
   DVD の 4 色サブピクチャに減色して vtskit でタイトルに多重化します。時間が重なる字幕は前を短くします。
 * クローズドキャプション（`captions`）：キャプションデコーダー付きのテレビやプレーヤー向けの Line 21 キャプション
   （CEA-608、CC1）を、DVD の MPEG-2 映像（各 GOP ヘッダーのあとのユーザーデータ。DVD の方式）に書き込み、IFO にも記録します。
-  Scenarist の `.scc` はバイト列をそのまま、字幕ファイル（上記のどの形式でも）はポップオン方式のキャプション
+  `.scc` のキャプションファイルはバイト列をそのまま、字幕ファイル（上記のどの形式でも）はポップオン方式のキャプション
   （中央寄せで 32 文字×最大 4 行、ラテン文字。ほかの文字は空白）にし、時刻の前に読み込み、開始で表示、終了で消去します。
   NTSC のみ、29.97 コマ/秒の映像で（3:2 プルダウンのフィルムのタイトルはエラー：scan を interlaced に）。
   Blu-ray と Web 版には入りません。
@@ -790,6 +792,14 @@ DVD ナビゲーションライブラリ）でメニューのボタンを実際�
   「ファイル」→「DVD メディアを開く…」でマウントした `VIDEO_TS` フォルダを選びます
   （macOS 26 の DVD プレーヤー 6.0 で VIDEO_TS フォルダを開けることは Apple のガイドに記載）。
   oncemore の出力での動作は **まだ未確認** です。報告を歓迎します。
+* **家庭用プレーヤー** — `oncemore testdisc player-test`（Blu-ray なら `--format bluray` を付ける）、
+  またはアプリの新規プロジェクトの「実機テスト用ディスク」で、プレーヤーが正しく扱うべき機能をひととおり使う
+  ディスクを作ります。メニューとリモコンのメニュー／タイトルキー、チャプターとチャプターメニュー、2 つの音声トラックと
+  2 つの字幕トラック、4:3 のタイトル、鳴っているスピーカーの名前を出す 5.1ch、ループポイント付きのモーションメニュー、
+  タイトル上のボタン（DVD）またはポップアップメニュー（Blu-ray）です。各タイトルは見えるべきもの・聞こえるべきものを
+  画面に表示します。プロジェクトの隣の `TEST-CHECKLIST.md` に、押すボタンと期待する動きを英語と日本語で載せています。
+  イメージを作って（`oncemore iso player-test -o player-test.iso`）ディスクに焼き、リストの順に確かめて、
+  [プレーヤーの機種と結果を報告](https://github.com/kajisho5/oncemore/issues/new?template=player-test.md)してください。
 * **書き込み** — `oncemore burn demo.iso`（またはビルド > 出力：DVD ディスク）で、macOS は `hdiutil burn`、
   Linux は `growisofs -dvd-compat` を使って書き込みます。ISO は他の書き込みツールでも焼けます。
   2 層のイメージにはレイヤーブレーク（`-use-the-force-luke=break:N`）を指定します。`hdiutil burn` にはこの指定が無く、位置は hdiutil が決めます。

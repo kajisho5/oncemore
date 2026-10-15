@@ -966,11 +966,14 @@ class _Builder:
             n = m.loop_pgc + 1
         # DVD keeps one video/audio format per titleset: group titles by
         # (aspect, audio codec, channels); the first title's group is
-        # titleset 1, which also holds the menus.
+        # titleset 1, which also holds the menus. Buttons over a title are
+        # its first subpicture stream, which a subtitled title of the same
+        # titleset would describe as its subtitles: those titles get a
+        # titleset of their own (§135).
         groups = []
         for t in titles:
             t.aspect = t.aspect or disc.aspect
-            key = (t.aspect, t.audio_codec, t.audio_channels)
+            key = (t.aspect, t.audio_codec, t.audio_channels, bool(t.buttons))
             if key not in groups:
                 groups.append(key)
             t.titleset = groups.index(key) + 1
