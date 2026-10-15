@@ -12,8 +12,10 @@ are working on. **Help > Keyboard shortcuts** (or **?**) lists every key.
 ## Getting started {#start}
 
 1. **File > New project…** chooses a folder and a name. In the New Project
-   dialog, *Create sample project* gives you a small working disc to look
-   around in; or start empty.
+   dialog, the *Authoring mode* is DVD or Blu-ray: what Build and Check
+   project make (the disc's Properties change it later). *Create sample
+   project* gives you a small working disc to look around in; or start
+   empty.
 2. Drop your video files onto the window (or **File > Import as > Import
    files…**). They appear in the **Project** panel.
 3. Make a title from a video: select it and choose *Add as title*, or

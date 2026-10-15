@@ -501,6 +501,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `label` | string → A–Z 0–9 `_`, ≤ 32 chars | required |
 | `standard` | `NTSC` \| `PAL` | required |
 | `aspect` | `4:3` \| `16:9` | required |
+| `format` | `dvd` \| `bluray`: the authoring mode, what a build, an image and a check make when `--format` (or the app's Build panel) does not say | `dvd` |
 | `target` | `DVD5` \| `DVD9` | `DVD5` |
 | `layer_break` | DVD9: where the second layer starts: `auto` \| `<title id>:<chapter>` | `auto` (the first chapter past the middle) |
 | `first_play` | `menu:<id>` \| `title:<id>` \| `playall` | first menu, else first title |
@@ -906,7 +907,11 @@ from the button positions (with wrap-around within a row/column).
 The same project builds as a Blu-ray: `oncemore build <project> -o out/
 --format bluray` for the BDMV folder, `oncemore iso <project> -o bd.iso
 --format bluray` for a disc image, or Format: Blu-ray in the app's Build
-panel (image, folder, or the image burned to a blank BD). oncemore writes the
+panel (image, folder, or the image burned to a blank BD). A project made for
+a Blu-ray says so (`disc.format: "bluray"`: the app's New Project and the
+disc's Properties choose it as the Authoring mode); then building, Check
+project and `oncemore validate` make a Blu-ray without being told, and
+`--format dvd` still makes the DVD. oncemore writes the
 whole BDMV folder itself, and the image with its own UDF 2.50 writer (the
 file system of Blu-ray discs: the directory tree is stored twice, in a
 metadata file and its mirror):

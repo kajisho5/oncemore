@@ -2729,3 +2729,30 @@ channels: 0x85 above 6, else 0x82).
   code 14. Checked by hand with a real 7.1 Master Audio stream (FFmpeg's
   test sample, not in the repository): kept and decoded on the Blu-ray,
   its 5.1 core on the DVD.
+
+## 126. The authoring mode: a project made for a DVD or a Blu-ray
+
+New Project showed "Authoring mode: DVD" with nothing else to choose, and
+a Blu-ray was only a choice in the Build panel, forgotten when the app
+closed: a project meant for a Blu-ray still checked, and built, as a DVD
+by default. The classic apps choose the mode when the project is made.
+
+* `disc.format` (`dvd`, the default, or `bluray`) records it. New Project
+  offers DVD and Blu-ray (and says what each is encoded to); the disc's
+  Properties change it, and show the Blu-ray's size and picture instead of
+  the DVD's size and bitrate in Blu-ray mode.
+* It is the default, not a lock: the Build panel starts on it (a choice
+  made there wins for the session), Check project checks for it, and the
+  command line's `build`, `iso` and `validate` take it when `--format` is
+  not given (`validate --format` is new). The web version stays a Build
+  choice, not a mode.
+* The Build panel's Blu-ray note said menus and subtitles were DVD-only;
+  both have been on Blu-ray for a while. It now names what is DVD-only:
+  buttons over a title, angles, closed captions and navigation scripts.
+
+* `tests/test_authoring_mode.py`: the field and its refusal, the command
+  line's default left to the project, `validate` refusing a navigation
+  script once the project is for a Blu-ray (and not with `--format dvd`),
+  `/api/new` with a format, and the app: New Project for a Blu-ray (the
+  encoding said changes), the disc's Properties with the BD size, the Build
+  panel on Blu-ray, and back to DVD.

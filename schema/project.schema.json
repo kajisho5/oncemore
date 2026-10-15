@@ -227,6 +227,14 @@
           "default": false,
           "description": "Subtitles off from the start instead of leaving it to the player's language setting (a subtitle track marked default still wins). Set once at first play."
         },
+        "format": {
+          "enum": [
+            "dvd",
+            "bluray"
+          ],
+          "default": "dvd",
+          "description": "The authoring mode: what the project is made for. A build, an image and Check project make this unless told otherwise (the app's Build panel, the command line's --format)."
+        },
         "bluray": {
           "type": "object",
           "additionalProperties": false,
