@@ -3017,9 +3017,9 @@ As with `oncemore init`, the media are made with ffmpeg's test sources
 (`testsrc2`, `sine`, `aevalsrc`, `drawtext` reading its text from files),
 so nothing large is stored.
 
-Making it found two faults in oncemore, each fixed with its own entry:
-chapter menus on NTSC (§133, part of 1.2.1) and titlesets with buttons
-over a title (§135).
+Making it found three faults, each fixed with its own entry: chapter
+menus on NTSC (§133, part of 1.2.1), titlesets with buttons over a title
+(§135), and discs of three titlesets or more (§136, in vtskit).
 
 * `tests/test_testdisc.py`:
   * the project is valid as a DVD and as a Blu-ray, NTSC and PAL, 16:9 and
@@ -3051,3 +3051,21 @@ nothing a viewer sees changes.
   titles, one subtitled and one with buttons, at the same aspect and sound,
   get two titlesets; so do the test disc's movie and its buttons title.
   The test disc's DVD build (`TestDvd`) failed without this.
+
+## 136. Three titlesets and more again (vtskit 0.3.1)
+
+Titles of different aspects or sound go into titlesets of their own
+(§135 adds titles with buttons over them). Since oncemore wrote its DVDs
+with vtskit (0.4.0), a disc of three titlesets or more stopped at the end
+of the build: vtskit gave the VMG's titleset attributes one sector, and
+each titleset takes 780 bytes of it. The sample has two titlesets and the
+tests built no disc with more; the player test disc (§134) has four.
+
+vtskit 0.3.1 gives each VMG table the sectors its content needs, the same
+bytes dvdauthor writes for three titlesets (vtskit#31). This change was
+made in the vtskit repository from this project's session, at the
+maintainer's request, as an exception to vtskit having its own session.
+oncemore takes the release with `tools/vendor.py vtskit --pypi 0.3.1`.
+
+* `tests/test_testdisc.py` (`TestDvd`): the test disc's DVD, four titlesets,
+  builds and plays through libdvdnav; it failed with vtskit 0.3.0.
