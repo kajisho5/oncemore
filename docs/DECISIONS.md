@@ -2957,3 +2957,30 @@ possible (the build runs the app's Python and ffmpeg), and
 
 * `tests/test_review_fixes.py`: one test per finding, each failing without
   its fix.
+
+## 132. 1.2.1: the review's fixes released
+
+The fixes of §131 go out as 1.2.1, published by the release workflow run by
+hand (§128); notes in `docs/release-notes/v1.2.1.md`. A patch release: no
+new feature, no change to the project format.
+
+* `tests/test_promises.py` (`test_signed_and_notarised_from_1_0`): the notes
+  of the current version exist and name its zips.
+
+## 133. Chapter menu rows apart on NTSC
+
+A chapter menu made by `auto_chapter_menu` puts its thumbnails in two rows
+of three, each with its label below. On a 480-line disc (NTSC) the first
+row's labels reached four pixels into the second row's button areas, so with
+four or more chapters the menu was refused as overlapping and the build
+stopped, from the first version on. The tests only made chapter menus with
+three chapters or fewer, or on PAL. Found while making a test disc with four
+chapters.
+
+The rows now start at 72 and 248 (in 480-line units, scaled for PAL) and
+the labels sit 8 pixels below their pictures; on NTSC that leaves 8 pixels
+between the rows and 4 between the second row and BACK / NEXT (which
+used to touch). Part of 1.2.1.
+
+* `tests/test_e2e.py` (`test_chapter_menu_rows_apart`): chapter menus with
+  4, 6 and 8 chapters on NTSC and PAL lay out without overlapping buttons.
