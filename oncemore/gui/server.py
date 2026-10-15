@@ -870,9 +870,7 @@ class Handler(BaseHTTPRequestHandler):
                 start, end = float(c["start"]), float(c["end"])
             except (KeyError, TypeError, ValueError):
                 raise ValueError(f"cue {i}: its start and end must be times")
-            if not end > start >= 0:
-                raise ValueError(f"cue {i}: it must end after it starts")
-            if lines:                                    # (an emptied cue is removed)
+            if lines and end > start >= 0:               # (an empty or zero-length cue is dropped)
                 cues.append(subtitles.Cue(start, end, lines, c.get("position") or None,
                                           c.get("color") or None))
         cues.sort(key=lambda c: c.start)

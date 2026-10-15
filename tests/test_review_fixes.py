@@ -174,8 +174,10 @@ class TestInterfaces(unittest.TestCase):
 class TestServer(unittest.TestCase):
     def setUp(self):
         from .test_gui import GuiServer
-        self.dir = tempfile.mkdtemp()
-        self.cache = tempfile.mkdtemp()
+        # (real paths: macOS's /var is /private/var, and the cache folder's name
+        # comes from the project's path)
+        self.dir = os.path.realpath(tempfile.mkdtemp())
+        self.cache = os.path.realpath(tempfile.mkdtemp())
         with open(os.path.join(self.dir, PROJECT_FILENAME), "w") as f:
             json.dump({"version": 1, "disc": {"label": "T", "standard": "NTSC",
                                               "aspect": "16:9", "target": "DVD5"},
@@ -209,7 +211,7 @@ class TestServer(unittest.TestCase):
         self.assertIn("cue 1", body["error"])
         status, body = self.srv.call("/api/subtitles?path=media/s.srt", "PUT",
                                      body={"cues": [{"start": 2, "end": 1, "text": "a"}]})
-        self.assertEqual(status, 400)
+        self.assertEqual((status, body["cues"]), (200, 0))     # (dropped, as before)
 
 
 class TestPage(unittest.TestCase):
