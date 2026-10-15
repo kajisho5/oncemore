@@ -2869,6 +2869,7 @@ for it by `macos/build_ffmpeg.sh`:
   image with it.
 
 The app grows by the two programs (about 2 × 30 MB before compression).
+Released as 1.2.0 (notes in `docs/release-notes/v1.2.0.md`).
 
 * `tests/test_bundled_ffmpeg.py`: the lookup order, the pinned sources and
   configure flags, the app build, the smoke test without Homebrew, the
