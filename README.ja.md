@@ -376,6 +376,7 @@ oncemore は標準ライブラリだけ・オフラインのままです。
 | `label` | 文字列 → A–Z 0–9 `_`、32 字以内 | 必須 |
 | `standard` | `NTSC` \| `PAL` | 必須 |
 | `aspect` | `4:3` \| `16:9` | 必須 |
+| `format` | `dvd` \| `bluray`：オーサリングモード。`--format`（またはアプリのビルドパネル）で指定しないときに、ビルド・イメージ作成・チェックが作るもの | `dvd` |
 | `target` | `DVD5` \| `DVD9` | `DVD5` |
 | `layer_break` | DVD9：2 層目が始まる位置：`auto` \| `<タイトル id>:<チャプター>` | `auto`（中ほどより後の最初のチャプター） |
 | `first_play` | `menu:<id>` \| `title:<id>` \| `playall` | 最初のメニュー、無ければ最初のタイトル |
@@ -688,7 +689,10 @@ DVD ではメニュー領域の独立したプログラムとして、Blu-ray �
 同じプロジェクトを Blu-ray としてもビルドできます：BDMV フォルダは `oncemore build
 <project> -o out/ --format bluray`、ディスクイメージは `oncemore iso <project> -o
 bd.iso --format bluray`、またはアプリのビルドパネルで「フォーマット：Blu-ray」
-（イメージ・フォルダ・イメージを空の BD に書き込み）。BDMV フォルダは oncemore が
+（イメージ・フォルダ・イメージを空の BD に書き込み）。Blu-ray 向けのプロジェクトは
+そう記録します（`disc.format: "bluray"`。アプリの新規プロジェクトとディスクのプロパティの
+「オーサリングモード」で選びます）。するとビルド、プロジェクトのチェック、`oncemore validate` は
+指定しなくても Blu-ray を作り、`--format dvd` で DVD も作れます。BDMV フォルダは oncemore が
 丸ごと書き出し、イメージも内蔵の UDF 2.50 ライター（Blu-ray のファイルシステム。
 ディレクトリ構造をメタデータファイルとそのミラーに二重に記録）で作ります。
 

@@ -734,6 +734,7 @@ fieldset.group legend { padding: 0 var(--sp-1); color: var(--c-text); }
 .dlg-page { border: 1px solid var(--c-bg-0); padding: var(--sp-3); border-radius: 0 var(--r-md) var(--r-md) var(--r-md); }
 .np-dialog .frow { grid-template-columns: 150px minmax(0, 1fr); }
 .np-tx { font-size: var(--fs-sm); line-height: 1.4; }
+.np-modes { display: flex; gap: 18px; flex-wrap: nowrap; white-space: nowrap; }
 .np-info { display: flex; gap: var(--sp-3); align-items: center; margin-top: var(--sp-2); font-size: var(--fs-sm); }
 .np-info .i { flex: 0 0 22px; height: 22px; border-radius: 50%; background: var(--c-ui); color: var(--c-text-on-ui); display: flex; align-items: center; justify-content: center; font-weight: 700; font-style: italic; font-family: Georgia, serif; }
 .dlg-buttons { display: flex; gap: var(--sp-2); margin-top: var(--sp-4); }

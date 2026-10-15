@@ -325,15 +325,18 @@ class Server:
               "image (.iso) or folder (VIDEO_TS / BDMV) in <folder>/output, or (format web) "
               "a folder a browser plays as the disc. Returns a job id; follow it with "
               "build_status.",
-              _obj({"folder": FOLDER, "format": {"enum": ["dvd", "bluray", "web"], "default": "dvd"},
+              _obj({"folder": FOLDER, "format": {"enum": ["dvd", "bluray", "web"],
+                                                 "description": "Default: the project's "
+                                                                "disc.format (dvd unless it "
+                                                                "says bluray)."},
                     "output": {"enum": ["iso", "folder"], "default": "iso"},
                     "fast": {"type": "boolean", "default": False,
                              "description": "1-pass encoding (quicker, a little worse)."}},
                    ["folder"]))
         def build(args):
             d = self.project_dir(args)
-            fmt, kind = args.get("format", "dvd"), args.get("output", "iso")
-            if fmt not in ("dvd", "bluray", "web") or kind not in ("iso", "folder"):
+            fmt, kind = args.get("format"), args.get("output", "iso")
+            if fmt not in (None, "dvd", "bluray", "web") or kind not in ("iso", "folder"):
                 raise ToolError("format: dvd | bluray | web, output: iso | folder")
             try:
                 job = self.app(d).start_build(kind, bool(args.get("fast")), fmt=fmt)

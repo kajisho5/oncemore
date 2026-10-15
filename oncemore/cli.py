@@ -84,14 +84,15 @@ def cmd_validate(args, rep):
         data["navigation"] = _navigation(project, rep)
         rep.result(data, "Project is valid (media not checked).")
         return 0
-    infos, plan = build.inspect(project, rep)
+    bd = (getattr(args, "format", None) or project.disc.format) == "bluray"
+    infos, plan = build.inspect(project, rep, bd=bd)
     s = build.summary(project, infos, plan)
     s.update({"valid": True, "media_checked": True})
     for w in s["warnings"]:
         rep.warn(w)
     s["navigation"] = _navigation(project, rep)
     lines = [f"Project OK: {project.disc.label} ({project.disc.standard} {project.disc.aspect}, "
-             f"{project.disc.target})", ""]
+             f"{project.disc.bluray_target if bd else project.disc.target})", ""]
     sizes = {x["id"]: x for x in s["budget"]["titles"]}
     for t in s["titles"]:
         b = sizes[t["id"]]
@@ -223,6 +224,7 @@ def cmd_scenes(args, rep):
 
 def cmd_build(args, rep):
     project = load_project(args.project)
+    args.format = args.format or project.disc.format     # (the project's authoring mode)
     if args.format == "web":
         res = web.build_web(project, args.output, rep, fast=args.fast, keep_work=args.keep_work)
         rep.result(res, f"Web version written to {res['web']} (open {res['index']}, "
@@ -241,6 +243,7 @@ def cmd_build(args, rep):
 
 def cmd_iso(args, rep):
     project = load_project(args.project)
+    args.format = args.format or project.disc.format
     if args.format == "bluray":
         if args.iso_tool not in ("auto", "builtin"):
             raise OncemoreError("Blu-ray images are written by the built-in UDF 2.50 writer",
@@ -351,6 +354,8 @@ def make_parser():
     s = sub.add_parser("validate", parents=[common], help="check project, media and size")
     s.add_argument("project", help=proj_help)
     s.add_argument("--no-media", action="store_true", help="only check the JSON (no file checks, no ffprobe)")
+    s.add_argument("--format", choices=["dvd", "bluray"],
+                   help="check for a DVD or a Blu-ray (default: the project's disc.format)")
     s.set_defaults(func=cmd_validate)
 
     s = sub.add_parser("import-psd", parents=[common],
@@ -386,9 +391,10 @@ def make_parser():
                        help="author VIDEO_TS (or a Blu-ray BDMV) into a directory")
     s.add_argument("project", help=proj_help)
     s.add_argument("-o", "--output", required=True, help="output directory")
-    s.add_argument("--format", choices=["dvd", "bluray", "web"], default="dvd",
-                   help="dvd = VIDEO_TS (default); bluray = BDMV in HD; web = a folder a "
-                        "browser plays as the disc (index.html, MP4 titles, the menus)")
+    s.add_argument("--format", choices=["dvd", "bluray", "web"],
+                   help="dvd = VIDEO_TS; bluray = BDMV in HD; web = a folder a browser plays "
+                        "as the disc (index.html, MP4 titles, the menus). Default: the "
+                        "project's disc.format (dvd unless it says bluray)")
     build_opts(s)
     s.set_defaults(func=cmd_build)
 
@@ -399,8 +405,9 @@ def make_parser():
                    choices=["auto", "builtin", "hdiutil", "genisoimage", "mkisofs", "xorriso"],
                    help="auto = the built-in writer (UDF 1.02 + ISO 9660, nothing to install)")
     s.add_argument("--build-dir", help="where to author VIDEO_TS (default: next to the ISO)")
-    s.add_argument("--format", choices=["dvd", "bluray"], default="dvd",
-                   help="dvd (default) or bluray: a Blu-ray image (UDF 2.50, built-in writer)")
+    s.add_argument("--format", choices=["dvd", "bluray"],
+                   help="dvd or bluray: a Blu-ray image (UDF 2.50, built-in writer). Default: "
+                        "the project's disc.format")
     build_opts(s)
     s.set_defaults(func=cmd_iso)
 

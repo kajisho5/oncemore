@@ -9,7 +9,7 @@ const I18N = {
     add: "+ Add", add_files: "Drop files here or click to add",
     saved: "Saved", saving: "Saving…", unsaved: "Unsaved", save_error: "Save failed",
     issues: "{n} issue(s)", no_issues: "No issues", tools_missing: "Missing tools: {t}",
-    new_project: "New DVD project", new_hint: "No project in {dir} yet.",
+    new_project: "New project", new_hint: "No project in {dir} yet.",
     label: "Disc label", standard: "TV standard", aspect: "Aspect ratio", target: "Disc size",
     first_play: "When the disc starts", video_bitrate: "Video bitrate",
     auto: "Automatic", empty_project: "Create empty project", sample_project: "Create sample project",
@@ -140,7 +140,7 @@ const I18N = {
     build_iso: "Disc image (.iso)", build_folder: "VIDEO_TS folder", build_disc: "DVD disc (the image, then burned)",
     build_format: "Format", format_dvd: "DVD", format_bluray: "Blu-ray", format_web: "Web (HTML5)", build_web_folder: "A folder with index.html (open it in a browser, or put it on a web server)",
     web_note: "The disc for browsers: the menus with their buttons, the titles as MP4 with chapters and subtitles, and the links as on the disc. One sound track per title.", build_bdmv: "BDMV folder", build_bd_disc: "Blu-ray disc (the image, then burned)", bd_size: "Disc size",
-    bd_picture: "Picture", bd_1080: "1920×1080 (1080i 25 / 29.97, film 1080p 23.976)", bd_720: "1280×720 (720p 50 / 59.94: keeps 50 or 60 frames a second)", bd_note: "Blu-ray: titles in HD (1920×1080) with chapters, playlists and Play All. Menus and subtitles are DVD-only for now.",
+    bd_picture: "Picture", bd_1080: "1920×1080 (1080i 25 / 29.97, film 1080p 23.976)", bd_720: "1280×720 (720p 50 / 59.94: keeps 50 or 60 frames a second)", bd_note: "Blu-ray: titles in HD with chapters, playlists, Play All, menus (pop-up menus too) and subtitles. Buttons over a title, angles, closed captions and navigation scripts are DVD-only.",
     recorder: "Recorder", recorder_hint: "Empty: the first disc writer. Insert a blank disc (DVD, or BD for a Blu-ray) before you build.",
     burned: "Burned to the DVD", step_burn: "Burning the disc", fast: "Fast (1-pass) encoding",
     start_build: "Start", building: "Building…", build_done: "Done", build_failed: "Build failed",
@@ -198,6 +198,8 @@ const I18N = {
     prop_asset: "Asset", prop_playlist: "Chapter Playlist", prop_slideshow: "Slideshow",
     name_location: "Name and Location", project_settings: "Project Settings", location: "Location", transcode_settings: "Transcode Settings",
     np_transcode: "Codec: MPEG-2; Dimensions: {d}; Frame Rate: {f}; Audio: AC-3 / PCM; Maximum Audio/Video Bitrate: 9.8 Mbps",
+    np_transcode_bd: "Codec: H.264; Dimensions: 1920 × 1080; Frame Rate: {f}; Audio: AC-3 / LPCM / DTS; Maximum Video Bitrate: 40 Mbps",
+    authoring_mode_hint: "What the project is made for: Build, Check project and the disc settings follow it. The Build panel can still make the other.",
     np_info: "The disc's settings can be changed at any time in the Properties panel (select the disc in the Flowchart).",
     np_open_sample: "Open the sample project", advanced: "Advanced", cancel: "Cancel",
     build_source: "Source", current_project: "Current Project", destination: "Destination", disc_info: "Disc Info",
@@ -295,7 +297,7 @@ const I18N = {
     add: "＋追加", add_files: "ここにファイルをドロップ、またはクリックして追加",
     saved: "保存済み", saving: "保存中…", unsaved: "未保存", save_error: "保存に失敗",
     issues: "問題 {n} 件", no_issues: "問題なし", tools_missing: "不足ツール：{t}",
-    new_project: "新しい DVD プロジェクト", new_hint: "{dir} にはまだプロジェクトがありません。",
+    new_project: "新規プロジェクト", new_hint: "{dir} にはまだプロジェクトがありません。",
     label: "ディスクラベル", standard: "テレビ方式", aspect: "アスペクト比", target: "ディスク容量",
     first_play: "ディスク挿入時", video_bitrate: "映像ビットレート",
     auto: "自動", empty_project: "空のプロジェクトを作成", sample_project: "サンプル付きで作成",
@@ -426,7 +428,7 @@ const I18N = {
     build_iso: "ディスクイメージ（.iso）", build_folder: "VIDEO_TS フォルダ", build_disc: "DVD ディスク（イメージを作って書き込み）",
     build_format: "フォーマット", format_dvd: "DVD", format_bluray: "Blu-ray", format_web: "Web（HTML5）", build_web_folder: "index.html の入ったフォルダー（ブラウザで開くか、Web サーバーに置きます）",
     web_note: "ブラウザ向けのディスク：ボタン付きのメニュー、チャプターと字幕付きの MP4 のタイトル、ディスクと同じリンク。音声はタイトルごとに 1 本です。", build_bdmv: "BDMV フォルダ", build_bd_disc: "Blu-ray ディスク（イメージを作って書き込み）", bd_size: "ディスク容量",
-    bd_picture: "映像", bd_1080: "1920×1080（1080i 25／29.97、フィルムは 1080p 23.976）", bd_720: "1280×720（720p 50／59.94：毎秒 50／60 コマのまま）", bd_note: "Blu-ray: タイトルを HD（1920×1080）で、チャプター・プレイリスト・すべて再生付きで書き出します。メニューと字幕は今のところ DVD のみです。",
+    bd_picture: "映像", bd_1080: "1920×1080（1080i 25／29.97、フィルムは 1080p 23.976）", bd_720: "1280×720（720p 50／59.94：毎秒 50／60 コマのまま）", bd_note: "Blu-ray: タイトルを HD で、チャプター・プレイリスト・すべて再生・メニュー（ポップアップメニューも）・字幕付きで書き出します。タイトル上のボタン、アングル、クローズドキャプション、ナビゲーションスクリプトは DVD のみです。",
     recorder: "ドライブ", recorder_hint: "空欄なら最初のドライブ。ビルドの前に空のディスク（Blu-ray なら BD）を入れてください。",
     burned: "DVD に書き込みました", step_burn: "ディスクに書き込み", fast: "高速（1パス）エンコード",
     start_build: "開始", building: "ビルド中…", build_done: "完了", build_failed: "ビルドに失敗",
@@ -484,6 +486,8 @@ const I18N = {
     prop_asset: "アセット", prop_playlist: "チャプタープレイリスト", prop_slideshow: "スライドショー",
     name_location: "名前と場所", project_settings: "プロジェクト設定", location: "場所", transcode_settings: "トランスコード設定",
     np_transcode: "コーデック：MPEG-2、サイズ：{d}、フレームレート：{f}、音声：AC-3 / PCM、最大ビットレート：9.8 Mbps",
+    np_transcode_bd: "コーデック：H.264、サイズ：1920 × 1080、フレームレート：{f}、音声：AC-3 / LPCM / DTS、映像の最大ビットレート：40 Mbps",
+    authoring_mode_hint: "このプロジェクトで作るもの。ビルド、プロジェクトのチェック、ディスクの設定がこれに従います。ビルドパネルでもう一方を作ることもできます。",
     np_info: "ディスクの設定は、あとからいつでもプロパティパネルで変更できます（フローチャートでディスクを選択）。",
     np_open_sample: "サンプルプロジェクトを開く", advanced: "詳細", cancel: "キャンセル",
     build_source: "ソース", current_project: "現在のプロジェクト", destination: "保存先", disc_info: "ディスク情報",
@@ -1462,8 +1466,10 @@ function renderWelcome(m) {
   // File > New Project, over the empty workspace
   const tx = () => {
     const pal = $("#np-std")?.value === "PAL";
+    if (mode() === "bluray") return t("np_transcode_bd", { f: pal ? "25" : "23.976 / 29.97" });
     return t("np_transcode", { d: pal ? "720 × 576" : "720 × 480", f: pal ? "25" : "29.97" });
   };
+  const mode = () => document.querySelector("input[name=np-mode]:checked")?.value || "dvd";
   m.innerHTML = `<div class="welcome"><div class="dialog np-dialog" role="dialog" aria-label="${esc(t("new_project"))}">
     <div class="np-brand"><img src="brand-lockup.svg" alt="oncemore"></div>
     <div class="dlg-title">${esc(t("new_project"))}</div>
@@ -1475,7 +1481,7 @@ function renderWelcome(m) {
           <div class="frow"><span class="fl">${t("location")}:</span><input class="mono" readonly value="${esc(S.dir)}" title="${esc(S.dir)}"></div>
         </fieldset>
         <fieldset class="group"><legend>${t("project_settings")}</legend>
-          <div class="frow"><span class="fl">${t("authoring_mode")}:</span><label><input type="radio" name="np-mode" checked> DVD</label></div>
+          <div class="frow" title="${esc(t("authoring_mode_hint"))}"><span class="fl">${t("authoring_mode")}:</span><span class="np-modes"><label><input type="radio" name="np-mode" value="dvd" checked> ${t("format_dvd")}</label><label><input type="radio" name="np-mode" value="bluray"> ${t("format_bluray")}</label></span></div>
           <label class="frow"><span class="fl">${t("standard")}:</span><select id="np-std" class="shrink"><option>NTSC</option><option>PAL</option></select></label>
           <label class="frow"><span class="fl">${t("aspect")}:</span><select id="np-aspect" class="shrink"><option>16:9</option><option>4:3</option></select></label>
           <div class="frow top"><span class="fl">${t("transcode_settings")}:</span><span class="np-tx" id="np-tx"></span></div>
@@ -1486,8 +1492,9 @@ function renderWelcome(m) {
     </div></div></div>`;
   $("#np-tx").textContent = tx();
   $("#np-std").onchange = () => { $("#np-tx").textContent = tx(); };
+  for (const r of document.querySelectorAll("input[name=np-mode]")) r.onchange = () => { $("#np-tx").textContent = tx(); };
   const go = async (sample) => {
-    const r = await api("/api/new", { method: "POST", body: { sample, label: $("#np-label").value, standard: $("#np-std").value, aspect: $("#np-aspect").value } });
+    const r = await api("/api/new", { method: "POST", body: { sample, label: $("#np-label").value, standard: $("#np-std").value, aspect: $("#np-aspect").value, format: mode() } });
     applyState(r); S.sel = { view: "disc" }; renderAll(); refreshEncodeStatus();
   };
   $("#np-empty").onclick = () => go(false);
@@ -1505,17 +1512,21 @@ function thumbSrc(b) {
 }
 
 function renderDisc(m) {
-  const d = P().disc, ss = d.subtitle_style || {}, pal = d.standard === "PAL";
+  const d = P().disc, ss = d.subtitle_style || {}, pal = d.standard === "PAL", bd = d.format === "bluray";
   const fp = actionOptions({ forButton: false, allowStop: false, includeChapters: false, allowPlayAll: true, allowScripts: false });
   m.innerHTML = `<h2>${t("prop_disc")}</h2><div class="card">
     <label class="field"><span>${t("label")}</span><input data-k="label" value="${esc(d.label)}"></label>
     <div class="grid2">
       <label class="field"><span>${t("standard")}</span>${selectHtml("standard", [["NTSC", "NTSC (720×480, 29.97)"], ["PAL", "PAL (720×576, 25)"]], d.standard)}</label>
       <label class="field"><span>${t("aspect")}</span>${selectHtml("aspect", [["16:9", "16:9"], ["4:3", "4:3"]], d.aspect)}</label>
-      <label class="field"><span>${t("target")}</span>${selectHtml("target", [["DVD5", "DVD-5 (4.7 GB)"], ["DVD9", "DVD-9 (8.5 GB)"]], d.target || "DVD5")}</label>
-      <label class="field"><span>${t("video_bitrate")}</span>${selectHtml("video_bitrate", [["auto", t("auto")], ["4M", "4 Mbit/s"], ["5M", "5 Mbit/s"], ["6M", "6 Mbit/s"], ["7M", "7 Mbit/s"], ["8M", "8 Mbit/s"]], d.video_bitrate || "auto")}</label>
+      <label class="field"><span>${t("authoring_mode")}</span>${selectHtml("format", [["dvd", t("format_dvd")], ["bluray", t("format_bluray")]], d.format || "dvd", `title="${esc(t("authoring_mode_hint"))}"`)}</label>
+      ${bd ? `<label class="field"><span>${t("bd_size")}</span>${selectHtml("bluray.target", [["BD25", "BD-25 (25 GB)"], ["BD50", "BD-50 (50 GB)"]], d.bluray?.target || "BD25")}</label>
+      <label class="field"><span>${t("bd_picture")}</span>${selectHtml("bluray.video", [["1080", t("bd_1080")], ["720", t("bd_720")]], d.bluray?.video || "1080")}</label>` :
+      `<label class="field"><span>${t("target")}</span>${selectHtml("target", [["DVD5", "DVD-5 (4.7 GB)"], ["DVD9", "DVD-9 (8.5 GB)"]], d.target || "DVD5")}</label>
+      <label class="field"><span>${t("video_bitrate")}</span>${selectHtml("video_bitrate", [["auto", t("auto")], ["4M", "4 Mbit/s"], ["5M", "5 Mbit/s"], ["6M", "6 Mbit/s"], ["7M", "7 Mbit/s"], ["8M", "8 Mbit/s"]], d.video_bitrate || "auto")}</label>`}
     </div>
-    ${d.target === "DVD9" ? `<label class="field"><span>${t("layer_break")}</span>${selectHtml("layer_break", [["__none__", t("auto")], ...(P().titles || []).flatMap((ti) => chaptersOf(ti).map((_, k) => [`${ti.id}:${k + 1}`, t("layer_break_at", { t: ti.name || ti.id, n: k + 1 })]))], d.layer_break || "__none__")}<div class="hint">${esc(t("layer_break_hint"))}</div></label>` : ""}
+    ${bd ? `<div class="hint">${esc(t("bd_note"))}</div>` : ""}
+    ${!bd && d.target === "DVD9" ? `<label class="field"><span>${t("layer_break")}</span>${selectHtml("layer_break", [["__none__", t("auto")], ...(P().titles || []).flatMap((ti) => chaptersOf(ti).map((_, k) => [`${ti.id}:${k + 1}`, t("layer_break_at", { t: ti.name || ti.id, n: k + 1 })]))], d.layer_break || "__none__")}<div class="hint">${esc(t("layer_break_hint"))}</div></label>` : ""}
     <label class="field"><span>${t("first_play")} ${whipHtml("first_play")}</span>${selectHtml("first_play", [["__none__", t("auto")], ...fp], d.first_play || "__none__")}</label>
     <label class="field"><span>${t("title_key")}</span>${selectHtml("title_key", [["__none__", t("first_menu")], ...fp], d.title_key || "__none__")}</label>
     <label class="field"><span></span><label title="${esc(t("subtitles_off_hint"))}"><input type="checkbox" data-k="subtitles_off" ${d.subtitles_off ? "checked" : ""}> ${t("subtitles_off")}</label></label>
@@ -1539,6 +1550,10 @@ function renderDisc(m) {
       if (st && (key.endsWith(".color") || key.endsWith(".outline"))) st[key.split(".")[1]] = val.toUpperCase();
       if (st && !Object.keys(st).length) delete p.disc.subtitle_style;
       if (key === "subtitles_off" && !val) delete p.disc.subtitles_off;
+      if (key === "format" && val === "dvd") delete p.disc.format;          // (the default)
+      if (key === "format") S.buildFormat = null;                           // (Build follows it)
+      if ((key === "bluray.target" && val === "BD25") || (key === "bluray.video" && val === "1080")) delete p.disc.bluray[key.split(".")[1]];
+      if (p.disc.bluray && !Object.keys(p.disc.bluray).length) delete p.disc.bluray;
     },
   });
   $("#rom-files").onchange = (e) => commit((p) => {
@@ -3874,10 +3889,12 @@ window.addEventListener("drop", (e) => {
 });
 
 // ---------------------------------------------------------------- check & build
+// what Build makes: the format chosen in the Build panel, else the project's authoring mode
+function buildFormat() { return S.buildFormat || P()?.disc?.format || "dvd"; }
 async function runCheck() {
   openModal(`<h2>${t("check")}</h2><p class="muted">…</p>`);
   try {
-    const r = await api("/api/validate", { method: "POST" });
+    const r = await api("/api/validate", { method: "POST", body: { format: buildFormat() === "bluray" ? "bluray" : "dvd" } });
     const s = r.summary;
     openModal(`<h2>✓ ${t("check_ok")}</h2>
       <p>${t("estimated")}: <b>${fmtBytes(s.estimated_bytes)}</b> ${t("of")} ${fmtBytes(s.capacity_bytes)}</p>
@@ -3916,7 +3933,7 @@ function renderBuild(m) {
   }
   const result = evs.find((e) => e.event === "result"), error = evs.find((e) => e.event === "error");
   const logs = evs.filter((e) => e.event === "log").map((e) => `${e.level === "warn" ? "⚠ " : ""}${e.message}`);
-  const d = P().disc, fmt = S.buildFormat || "dvd", kind = S.buildKind || "iso";
+  const d = P().disc, fmt = buildFormat(), kind = S.buildKind || "iso";
   m.innerHTML = `<div class="build-panel">
     <div class="build-top"><button id="btn-check">${esc(t("check_project"))}</button><span class="spacer"></span>
       <button class="primary build-go" id="start" ${job && !job.done ? "disabled" : ""}>${job && !job.done ? t("building") : t("build")}</button></div>
@@ -3987,7 +4004,7 @@ const relPath = (abs) => abs.startsWith(S.dir) ? abs.slice(S.dir.length + 1) : a
 async function startBuild() {
   clearTimeout(S.saveTimer); await save();
   try {
-    const r = await api("/api/build", { method: "POST", body: { format: S.buildFormat || "dvd", kind: S.buildKind || "iso", fast: !!S.buildFast, no_cache: !!S.buildNoCache, device: S.recorder || undefined } });
+    const r = await api("/api/build", { method: "POST", body: { format: buildFormat(), kind: S.buildKind || "iso", fast: !!S.buildFast, no_cache: !!S.buildNoCache, device: S.recorder || undefined } });
     S.job = { id: r.job, done: false }; S.jobEvents = []; S.jobNext = 0;
     pollJob();
   } catch (e) { alert(e.message); }

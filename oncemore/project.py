@@ -327,6 +327,7 @@ class Disc:
     bluray_target: str = "BD25"   # disc size when building a Blu-ray
     bluray_video: str = "1080"    # the Blu-ray's picture: "1080" or "720" (50 / 59.94p)
     subtitles_off: bool = False   # subtitles off from the start (unless a track is the default)
+    format: str = "dvd"           # the authoring mode: what a build makes unless told otherwise
     layer_break: tuple = None     # DVD9: (title id, chapter); None = the first that works
 
     @property
@@ -886,6 +887,7 @@ class _Builder:
             bluray_target=dd.get("bluray", {}).get("target", "BD25"),
             bluray_video=dd.get("bluray", {}).get("video", "1080"),
             subtitles_off=bool(dd.get("subtitles_off")),
+            format=dd.get("format", "dvd"),
         )
         lb = dd.get("layer_break", "auto")
         if lb != "auto":

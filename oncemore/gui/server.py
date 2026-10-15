@@ -455,16 +455,18 @@ class App:
                 os.remove(tmp)
 
     # -- jobs --------------------------------------------------------------------
-    def start_build(self, kind, fast, cache=True, device=None, fmt="dvd"):
+    def start_build(self, kind, fast, cache=True, device=None, fmt=None):
+        """fmt: "dvd", "bluray" or "web"; None: the project's disc.format."""
         def work(project, rep):
             outdir = os.path.join(self.dir, "output")
-            if fmt == "web":
+            fmt_ = fmt or project.disc.format
+            if fmt_ == "web":
                 return web.build_web(project, os.path.join(outdir, f"{project.disc.label}_web"),
                                      rep, fast=fast)
-            if fmt == "bluray" and kind == "folder":
+            if fmt_ == "bluray" and kind == "folder":
                 return build.build_bluray(project, os.path.join(outdir, f"{project.disc.label}_BD"),
                                           rep, fast=fast, cache=cache)
-            if fmt == "bluray":
+            if fmt_ == "bluray":
                 res = build.build_bluray_iso(
                     project, os.path.join(outdir, f"{project.disc.label}_BD.iso"), rep,
                     fast=fast, cache=cache)
@@ -709,21 +711,29 @@ class Handler(BaseHTTPRequestHandler):
             raise OncemoreError("a project already exists in this folder")
         standard = body.get("standard", "NTSC")
         aspect = body.get("aspect", "16:9")
-        if standard not in ("NTSC", "PAL") or aspect not in ("4:3", "16:9"):
-            raise ValueError("bad standard/aspect")
+        fmt = body.get("format", "dvd")                 # (the authoring mode)
+        if standard not in ("NTSC", "PAL") or aspect not in ("4:3", "16:9") or \
+                fmt not in ("dvd", "bluray"):
+            raise ValueError("bad standard/aspect/format")
         if body.get("sample"):
             scaffold.init(self.app.dir, standard=standard, aspect=aspect, force=True)
+            if fmt == "bluray":
+                data = self.app.load()
+                data["disc"]["format"] = "bluray"
+                self.app.save(data)
         else:
             os.makedirs(os.path.join(self.app.dir, "media"), exist_ok=True)
-            self.app.save({"version": 1,
-                           "disc": {"label": body.get("label") or "MY_DISC", "standard": standard,
-                                    "aspect": aspect, "target": "DVD5"},
-                           "titles": [], "menus": []})
+            disc = {"label": body.get("label") or "MY_DISC", "standard": standard,
+                    "aspect": aspect, "target": "DVD5"}
+            if fmt == "bluray":
+                disc["format"] = "bluray"
+            self.app.save({"version": 1, "disc": disc, "titles": [], "menus": []})
         self.api_get_state(q)
 
     def api_post_validate(self, q):
         project = build_project(self.app.load(), self.app.path, check_files=True)
-        infos, plan = build.inspect(project)
+        fmt = self.body_json().get("format") or project.disc.format
+        infos, plan = build.inspect(project, bd=fmt == "bluray")
         self.json({"valid": True, "summary": build.summary(project, infos, plan)})
 
     def api_post_script_check(self, q):
@@ -1178,8 +1188,8 @@ class Handler(BaseHTTPRequestHandler):
         kind = body.get("kind", "iso")
         if kind not in ("iso", "folder", "disc"):
             raise ValueError("kind must be iso, folder or disc")
-        fmt = body.get("format", "dvd")
-        if fmt not in ("dvd", "bluray", "web"):
+        fmt = body.get("format")                      # (None: the project's disc.format)
+        if fmt not in (None, "dvd", "bluray", "web"):
             raise ValueError("format must be dvd, bluray or web")
         if fmt == "web":
             kind = "folder"
