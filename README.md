@@ -48,7 +48,9 @@ written by its own copy of [vtskit](https://github.com/kajisho5/vtskit), and
 the disc images by its copy of [udfkit](https://github.com/kajisho5/udfkit) and
 the closed captions by its copy of [dvdcc](https://github.com/kajisho5/dvdcc);
 the Blu-ray navigation files and subtitles by its copy of
-[bdmvkit](https://github.com/kajisho5/bdmvkit). It drives these programs:
+[bdmvkit](https://github.com/kajisho5/bdmvkit). It drives these programs (the
+[Mac app](#the-mac-app) carries its own ffmpeg and ffprobe, so it needs none of
+them installed):
 
 | Program | Used for |
 |---|---|
@@ -90,11 +92,11 @@ If something is missing, oncemore says what and prints the install command.
 
 **Oncemore.app** wraps the same authoring UI in a normal Mac window: double-click
 to start, *File › New Project… / Open Project…*, and it reopens your last
-project. Python is bundled; only ffmpeg comes from Homebrew:
-
-```sh
-brew install ffmpeg-full
-```
+project. Nothing else needs installing: Python and its own ffmpeg and ffprobe
+are inside the app (FFmpeg 9 with x264, FreeType and HarfBuzz, built by
+`macos/build_ffmpeg.sh` from pinned sources; GPL, with the sources attached to
+each release). The command line and the browser app still use the ffmpeg you
+install (below).
 
 Download `Oncemore-<version>-arm64.zip` (Apple silicon) or
 `Oncemore-<version>-x86_64.zip` (Intel) from the

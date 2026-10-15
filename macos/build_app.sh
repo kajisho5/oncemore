@@ -5,16 +5,19 @@
 #   CODESIGN_IDENTITY="Developer ID Application: Name (TEAMID)" macos/build_app.sh
 #
 # The app bundles a standalone CPython (python-build-standalone, pinned
-# release, checksum-verified) and the oncemore package, so users only need
-# Homebrew's ffmpeg-full. Needs: Xcode 26 or later (swiftc, codesign,
-# iconutil, sips, and actool for the layered icon) and `gh` (to fetch the
-# Python build).
+# release, checksum-verified), the oncemore package and its own ffmpeg and
+# ffprobe (macos/build_ffmpeg.sh), so users need nothing else. Needs: Xcode
+# 26 or later (swiftc, codesign, iconutil, sips, and actool for the layered
+# icon), `gh` (to fetch the Python build) and what build_ffmpeg.sh needs
+# (pkg-config, meson, ninja; nasm on Intel).
 #
 # Environment:
 #   ARCH=arm64|x86_64     target architecture (default: this machine)
 #   PY_TAG, PY_MINOR      python-build-standalone release and Python version
 #   CODESIGN_IDENTITY     signing identity (default "-" = ad-hoc)
 #   NO_LAYERED_ICON=1     leave out the macOS 26 layered icon (no Xcode 26)
+#   NO_FFMPEG=1           leave out ffmpeg (a development build: Homebrew's is used)
+#   FFMPEG_CACHE          where build_ffmpeg.sh keeps sources and builds
 #   NOTARIZE=1            notarize + staple (needs APPLE_ID, APPLE_TEAM_ID,
 #                         APPLE_APP_PASSWORD and a Developer ID identity)
 set -euo pipefail
@@ -109,6 +112,16 @@ if [ -z "${NO_PYTHON:-}" ]; then
          "$APP/Contents/Resources/python/share"
   find "$APP/Contents/Resources/python" -name '__pycache__' -prune -exec rm -rf {} +
   "$APP/Contents/Resources/python/bin/python3" -c "import sys, ssl, zlib, json; print(sys.version)"
+fi
+
+if [ -z "${NO_FFMPEG:-}" ]; then
+  echo "==> ffmpeg and ffprobe"
+  FF="$OUT/ffmpeg-$ARCH"
+  ARCH="$ARCH" FFMPEG_CACHE="${FFMPEG_CACHE:-$OUT/.cache/ffmpeg}" "$ROOT/macos/build_ffmpeg.sh" "$FF"
+  mkdir -p "$APP/Contents/Resources/ffmpeg"
+  cp "$FF/ffmpeg" "$FF/ffprobe" "$FF/README.txt" "$APP/Contents/Resources/ffmpeg/"
+  cp -R "$FF/licenses" "$APP/Contents/Resources/ffmpeg/licenses"
+  # (the sources stay in $FF/sources: a release attaches them)
 fi
 
 echo "==> oncemore package"

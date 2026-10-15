@@ -451,7 +451,8 @@ Every command of the menu bar, with its shortcut:
   an empty box. Choose a font that has it for that text (Properties > Font;
   add `.ttf` / `.otf` files to the project to use them).
 * **The build needs ffmpeg**: oncemore uses ffmpeg (with libx264 and
-  drawtext) to encode; install it (on a Mac: `brew install ffmpeg-full`).
+  drawtext) to encode. The Mac app carries its own; for the command line and
+  the browser app install it (on a Mac: `brew install ffmpeg-full`).
 * **A disc does not play in a player**: try the Project Preview first; then
   play the image with VLC. Burn at a low speed on good media.
 

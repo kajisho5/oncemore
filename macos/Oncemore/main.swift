@@ -26,7 +26,7 @@ final class ServerProcess {
         let appDir = res.appendingPathComponent("app")
         var env = ProcessInfo.processInfo.environment
         // Apps started from Finder get a minimal PATH; Homebrew's tools
-        // (ffmpeg-full, xorriso, mkisofs) live here.
+        // (xorriso, mkisofs; ffmpeg-full when the app's own is left out) live here.
         let extra = ["/opt/homebrew/bin", "/opt/homebrew/sbin", "/usr/local/bin", "/usr/local/sbin"]
         let current = (env["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin").split(separator: ":").map(String.init)
         env["PATH"] = (extra.filter { !current.contains($0) } + current).joined(separator: ":")
@@ -246,7 +246,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
         let html = """
         <html><body style="background:#15171c;color:#e6e8ee;font-family:-apple-system,sans-serif;padding:40px">
         <h2 style="color:#ff5f6d">\(escape(message))</h2>
-        <p>oncemore needs ffmpeg (with drawtext). Install it with Homebrew:</p>
+        <p>oncemore needs ffmpeg (with drawtext). The app carries its own; if it is
+        missing or damaged, download the app again, or install ffmpeg with Homebrew:</p>
         <pre style="background:#000;padding:12px;border-radius:6px">brew install ffmpeg-full</pre>
         <p>Then choose File › Open Project… again.</p>
         <pre style="white-space:pre-wrap;color:#98a0b3;font-size:11px">\(escape(String(detail.suffix(4000))))</pre>

@@ -55,14 +55,19 @@ jobs:
         run: python -m unittest -v
 
   macos-app:
-    timeout-minutes: 30
+    timeout-minutes: 45   # the first build of the app's ffmpeg, before the cache
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0   # CFBundleVersion = commit count
-      - name: External tools for the smoke test
-        run: brew install ffmpeg-full
+      - name: Tools to build the app's ffmpeg
+        run: brew install meson ninja pkgconf
+      - name: The app's ffmpeg, built before (macos/build_ffmpeg.sh)
+        uses: actions/cache@v4
+        with:
+          path: dist/.cache/ffmpeg
+          key: ffmpeg-${{ runner.os }}-arm64-${{ hashFiles('macos/build_ffmpeg.sh') }}
       - name: Xcode 26 or later (actool reads the layered icon)
         run: |
           x="$(ls -d /Applications/Xcode_26*.app /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1)"

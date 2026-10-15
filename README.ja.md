@@ -39,7 +39,7 @@ Intel ビルドのままです。一方、DVD-Video の必須コーデックは�
 
 ## インストール
 
-oncemore 本体は Python 3.11+ の標準ライブラリのみで動きます。DVD-Video の構造（IFO、ナビゲーションパック、ボタンと字幕のサブピクチャ）は同梱の [vtskit](https://github.com/kajisho5/vtskit) が、ディスクイメージは同梱の [udfkit](https://github.com/kajisho5/udfkit) が、クローズドキャプションは同梱の [dvdcc](https://github.com/kajisho5/dvdcc) が、Blu-ray のナビゲーションファイルと字幕は同梱の [bdmvkit](https://github.com/kajisho5/bdmvkit) が書きます。外部プログラムを呼び出します：
+oncemore 本体は Python 3.11+ の標準ライブラリのみで動きます。DVD-Video の構造（IFO、ナビゲーションパック、ボタンと字幕のサブピクチャ）は同梱の [vtskit](https://github.com/kajisho5/vtskit) が、ディスクイメージは同梱の [udfkit](https://github.com/kajisho5/udfkit) が、クローズドキャプションは同梱の [dvdcc](https://github.com/kajisho5/dvdcc) が、Blu-ray のナビゲーションファイルと字幕は同梱の [bdmvkit](https://github.com/kajisho5/bdmvkit) が書きます。外部プログラムを呼び出します（[Mac アプリ](#mac-アプリ)は ffmpeg と ffprobe を同梱しているので、どれも入れる必要はありません）：
 
 | プログラム | 用途 |
 |---|---|
@@ -80,11 +80,9 @@ oncemore doctor
 
 **Oncemore.app** は同じ編集画面を普通の Mac のウィンドウで開くアプリです。ダブルクリックで起動し、
 「File › New Project… / Open Project…」でプロジェクトを作成・オープン、次回は前回のプロジェクトを自動で開きます。
-Python は同梱しているので、Homebrew で入れるのは映像ツールだけです：
-
-```sh
-brew install ffmpeg-full
-```
+ほかに入れるものはありません。Python と専用の ffmpeg・ffprobe をアプリに同梱しています
+（x264・FreeType・HarfBuzz 入りの FFmpeg 9。`macos/build_ffmpeg.sh` が固定したソースからビルドします。
+GPL なので、ソースを各リリースに添付しています）。コマンドライン版とブラウザ版は、これまでどおり自分で入れた ffmpeg を使います（下記）。
 
 [Releases](https://github.com/kajisho5/oncemore/releases) ページ（または最新の CI 実行の成果物）から
 `Oncemore-<version>-arm64.zip`（Apple シリコン用）か `Oncemore-<version>-x86_64.zip`（Intel 用）を
