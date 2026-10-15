@@ -85,8 +85,7 @@ class TestTitleButtonsTitleset(unittest.TestCase):
 
     def test_own_titleset(self):
         d = sample_project()
-        d["titles"][1]["aspect"] = None
-        d["titles"][1].pop("aspect")
+        d["titles"][1].pop("aspect", None)                  # (both 16:9)
         d["titles"][0]["subtitles"] = [{"file": "media/a.srt", "lang": "en"}]
         d["titles"][1]["buttons"] = [{"id": "go", "start": 1, "end": 3, "x": 100, "y": 100,
                                       "width": 200, "height": 60, "action": "title:t1"}]
@@ -94,6 +93,10 @@ class TestTitleButtonsTitleset(unittest.TestCase):
         a, b = p.titles[0], p.titles[1]
         self.assertEqual((a.aspect, a.audio_codec), (b.aspect, b.audio_codec))
         self.assertNotEqual(a.titleset, b.titleset)
+        # without the subtitles they share one, as before
+        d["titles"][0].pop("subtitles")
+        p = built(d)
+        self.assertEqual(p.titles[0].titleset, p.titles[1].titleset)
 
     def test_test_disc(self):
         p = built(testdisc.test_project("dvd"))

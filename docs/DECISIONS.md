@@ -3042,15 +3042,19 @@ titles, so a subtitled title and a title with buttons in the same titleset
 the disc ("title 2 differs in its streams from title 1"), and the build
 stopped after encoding everything.
 
-Titles are now grouped into titlesets by aspect, sound and whether they
-have buttons over them. A title with buttons shares its titleset only with
-others that have them; it costs one titleset more (a disc may have 99), and
-nothing a viewer sees changes.
+Titles are still grouped into titlesets by aspect and sound, but a title
+with buttons does not join a group with a subtitled title, nor a subtitled
+title a group with a title with buttons: it starts a titleset of its own.
+Titles with neither join the first group of their format, as before, and a
+title with buttons shares its titleset with titles without subtitles (their
+jumps between them stay within the titleset). A disc may have 99
+titlesets; nothing a viewer sees changes.
 
 * `tests/test_testdisc.py` (`TestTitleButtonsTitleset`): the sample's two
   titles, one subtitled and one with buttons, at the same aspect and sound,
-  get two titlesets; so do the test disc's movie and its buttons title.
-  The test disc's DVD build (`TestDvd`) failed without this.
+  get two titlesets, and one titleset when the first has no subtitles; the
+  test disc's movie and its buttons title get two. The test disc's DVD
+  build (`TestDvd`) failed without this.
 
 ## 136. Three titlesets and more again (vtskit 0.3.1)
 

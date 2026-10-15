@@ -968,15 +968,21 @@ class _Builder:
         # (aspect, audio codec, channels); the first title's group is
         # titleset 1, which also holds the menus. Buttons over a title are
         # its first subpicture stream, which a subtitled title of the same
-        # titleset would describe as its subtitles: those titles get a
-        # titleset of their own (§135).
-        groups = []
+        # titleset would describe as its subtitles: a title with buttons
+        # and a subtitled one go to different titlesets (§135).
+        groups = []                      # [format, has buttons, has subtitles]
         for t in titles:
             t.aspect = t.aspect or disc.aspect
-            key = (t.aspect, t.audio_codec, t.audio_channels, bool(t.buttons))
-            if key not in groups:
-                groups.append(key)
-            t.titleset = groups.index(key) + 1
+            key = (t.aspect, t.audio_codec, t.audio_channels)
+            for n, g in enumerate(groups):
+                if g[0] == key and not (t.buttons and g[2]) and not (t.subtitles and g[1]):
+                    break
+            else:
+                n, g = len(groups), [key, False, False]
+                groups.append(g)
+            g[1] = g[1] or bool(t.buttons)
+            g[2] = g[2] or bool(t.subtitles)
+            t.titleset = n + 1
         offset = 0
         for ts in range(1, len(groups) + 1):
             members = [t for t in titles if t.titleset == ts]
