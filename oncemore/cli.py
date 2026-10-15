@@ -84,15 +84,17 @@ def cmd_validate(args, rep):
         data["navigation"] = _navigation(project, rep)
         rep.result(data, "Project is valid (media not checked).")
         return 0
-    bd = (getattr(args, "format", None) or project.disc.format) == "bluray"
-    infos, plan = build.inspect(project, rep, bd=bd)
+    fmt = getattr(args, "format", None) or project.disc.format
+    bd = fmt != "dvd"                       # (the web version is checked as it is built)
+    infos, plan = build.inspect(project, rep, bd=bd, web=fmt == "web")
     s = build.summary(project, infos, plan)
     s.update({"valid": True, "media_checked": True})
     for w in s["warnings"]:
         rep.warn(w)
     s["navigation"] = _navigation(project, rep)
+    size = "web" if fmt == "web" else project.disc.bluray_target if bd else project.disc.target
     lines = [f"Project OK: {project.disc.label} ({project.disc.standard} {project.disc.aspect}, "
-             f"{project.disc.bluray_target if bd else project.disc.target})", ""]
+             f"{size})", ""]
     sizes = {x["id"]: x for x in s["budget"]["titles"]}
     for t in s["titles"]:
         b = sizes[t["id"]]
@@ -276,7 +278,7 @@ def cmd_burn(args, rep):
     lb = args.layer_break
     lb = None if lb == "none" else lb if lb == "auto" else int(lb)
     res = burn.burn(args.iso, rep, device=args.device, layer_break=lb)
-    rep.result(res, f"{res['burned']} written to the DVD")
+    rep.result(res, f"{res['burned']} written to the disc")
     return 0
 
 
@@ -338,7 +340,7 @@ def make_parser():
 
     p = argparse.ArgumentParser(
         prog="oncemore", parents=[common],
-        description="DVD-Video authoring: menus, chapters, ISO - once more.")
+        description="DVD and Blu-ray authoring: menus, chapters, ISO - once more.")
     p.add_argument("--version", action="version", version=f"oncemore {__version__}")
     sub = p.add_subparsers(dest="command", metavar="<command>")
     sub.required = True
@@ -354,8 +356,9 @@ def make_parser():
     s = sub.add_parser("validate", parents=[common], help="check project, media and size")
     s.add_argument("project", help=proj_help)
     s.add_argument("--no-media", action="store_true", help="only check the JSON (no file checks, no ffprobe)")
-    s.add_argument("--format", choices=["dvd", "bluray"],
-                   help="check for a DVD or a Blu-ray (default: the project's disc.format)")
+    s.add_argument("--format", choices=["dvd", "bluray", "web"],
+                   help="check for a DVD, a Blu-ray or the web version (default: the project's "
+                        "disc.format)")
     s.set_defaults(func=cmd_validate)
 
     s = sub.add_parser("import-psd", parents=[common],
@@ -380,7 +383,9 @@ def make_parser():
     s.set_defaults(func=cmd_simulate)
 
     def build_opts(sp):
-        sp.add_argument("--fast", action="store_true", help="1-pass encoding (default: 2-pass)")
+        sp.add_argument("--fast", action="store_true",
+                        help="quicker encoding: 1 pass on a DVD (default 2), a faster preset on "
+                             "a Blu-ray or the web version")
         sp.add_argument("--keep-work", action="store_true",
                         help="keep intermediate files (.work/) after success")
         sp.add_argument("--no-cache", action="store_true",
@@ -404,16 +409,16 @@ def make_parser():
     s.add_argument("--iso-tool", default="auto",
                    choices=["auto", "builtin", "hdiutil", "genisoimage", "mkisofs", "xorriso"],
                    help="auto = the built-in writer (UDF 1.02 + ISO 9660, nothing to install)")
-    s.add_argument("--build-dir", help="where to author VIDEO_TS (default: next to the ISO)")
+    s.add_argument("--build-dir", help="where to author VIDEO_TS or BDMV (default: next to the ISO)")
     s.add_argument("--format", choices=["dvd", "bluray"],
                    help="dvd or bluray: a Blu-ray image (UDF 2.50, built-in writer). Default: "
                         "the project's disc.format")
     build_opts(s)
     s.set_defaults(func=cmd_iso)
 
-    s = sub.add_parser("burn", parents=[common], help="write a disc image to a blank DVD")
+    s = sub.add_parser("burn", parents=[common], help="write a disc image to a blank DVD or BD")
     s.add_argument("iso", help="the .iso made by `oncemore iso`")
-    s.add_argument("--device", help="DVD writer (macOS: as `hdiutil burn -list` names it; "
+    s.add_argument("--device", help="disc writer (macOS: as `hdiutil burn -list` names it; "
                                     "elsewhere e.g. /dev/sr0; default: the first one)")
     s.add_argument("--layer-break", default="auto", type=_layer_break_arg,
                    help="dual-layer disc: the sector where the second layer starts "

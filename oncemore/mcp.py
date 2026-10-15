@@ -288,7 +288,8 @@ class Server:
         @tool("simulate", "Press the remote",
               "Play the disc in a simulator without building it: start at first play, then "
               "press keys (up, down, left, right, enter, menu, title, next, prev, play, end, "
-              "timeout, select:<button id>). Returns where the disc is after each key.",
+              "timeout, select:<button id>, a number, seek:<seconds>). Returns where the disc is "
+              "after each key.",
               _obj({"folder": FOLDER,
                     "keys": {"type": "array", "items": {"type": "string"}, "default": []}},
                    ["folder"]), readonly=True)
@@ -331,7 +332,7 @@ class Server:
                                                                 "says bluray)."},
                     "output": {"enum": ["iso", "folder"], "default": "iso"},
                     "fast": {"type": "boolean", "default": False,
-                             "description": "1-pass encoding (quicker, a little worse)."}},
+                             "description": "Quicker encoding (1 pass on a DVD), a little worse."}},
                    ["folder"]))
         def build(args):
             d = self.project_dir(args)
@@ -372,7 +373,8 @@ class Server:
             return out
 
         @tool("doctor", "Check the tools",
-              "Which external tools oncemore finds (ffmpeg with drawtext, an ISO tool) "
+              "Which external tools oncemore finds (ffmpeg with drawtext; the ISO writer is "
+              "built in) "
               "and how to install what is missing.", _obj({}), readonly=True)
         def doctor(args):
             from .cli import cmd_doctor

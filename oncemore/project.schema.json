@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/kajisho5/oncemore/schema/project.schema.json",
   "title": "oncemore project",
-  "description": "Input file for the oncemore DVD-Video authoring tool (project.oncemore.json).",
+  "description": "Input file for the oncemore DVD and Blu-ray authoring tool (project.oncemore.json).",
   "type": "object",
   "required": [
     "version",
@@ -345,7 +345,7 @@
         },
         "source": {
           "type": "string",
-          "description": "Video file, relative to the project file."
+          "description": "Video or sound file (an MPEG-2 .m2v too), relative to the project file."
         },
         "slideshow": {
           "$ref": "#/$defs/slideshow",
@@ -371,7 +371,7 @@
             "required": ["source"],
             "additionalProperties": false,
             "properties": {
-              "source": {"type": "string", "description": "Video file or still picture (.png, .jpg, .jpeg, .bmp, .tif, .tiff, .webp), relative to the project file."},
+              "source": {"type": "string", "description": "Video file or still picture (.png, .jpg, .jpeg, .bmp, .tif, .tiff, .webp, .gif (its first picture), .tga), relative to the project file."},
               "in": {"$ref": "#/$defs/time", "description": "Start inside the video file (default: its beginning). Not for pictures."},
               "out": {"$ref": "#/$defs/time", "description": "End inside the video file (default: its end). Not for pictures."},
               "duration": {"$ref": "#/$defs/time", "description": "A still picture: how long it is shown, 0.5 s to 1 hour (default 5 s)."},
@@ -628,7 +628,7 @@
         "transcode": {
           "type": "boolean",
           "default": true,
-          "description": "false: the source is already DVD video (MPEG-2 at the disc's frame size and rate, at most 9.8 Mbit/s) and its picture is used as it is, not encoded again (DVD only; the sound is still made to the title's audio settings)."
+          "description": "false: the picture goes on the disc as it is when it already is disc video: on a DVD, MPEG-2 at the disc's frame size and rate (or NTSC 23.976 film), at most 9.8 Mbit/s; on a Blu-ray, H.264 that already is Blu-ray video. Otherwise it is encoded anyway, with a warning. The sound is still made to the title's audio settings."
         },
         "scan": {
           "enum": ["auto", "progressive", "interlaced", "pulldown", "ivtc"],

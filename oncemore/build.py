@@ -71,11 +71,12 @@ def script_issues(project, bd=False):
     return out
 
 
-def inspect(project, reporter=None, prepare=True, bd=False):
+def inspect(project, reporter=None, prepare=True, bd=False, web=False):
     """Probe every source and plan the bitrate. Used by validate and build.
     With prepare=False slideshows that are not rendered yet are planned from
     their settings instead of being rendered (for a quick status). bd: plan
-    for a Blu-ray instead of a DVD."""
+    for a Blu-ray instead of a DVD; web (with bd): for the web version, which
+    plays a title without its buttons over the picture."""
     tools.require(["ffprobe"])
     issues = []
     infos = {}
@@ -304,8 +305,11 @@ def inspect(project, reporter=None, prepare=True, bd=False):
                                           f"({info['duration']:.3f}s)"})
         for j, b in enumerate(t.buttons):
             if bd:
-                issues.append({"path": f"{where}.buttons", "message": "buttons over a title are for "
-                               "DVD; a Blu-ray title has none yet"})
+                # (the web version plays the title without them: web.build_web warns)
+                if not web:
+                    issues.append({"path": f"{where}.buttons",
+                                   "message": "buttons over a title are for DVD; a Blu-ray "
+                                              "title has none yet"})
                 break
             if b.start >= info["duration"]:
                 issues.append({"path": f"{where}.buttons[{j}].start",

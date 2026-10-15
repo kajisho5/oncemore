@@ -65,8 +65,9 @@ menus and subtitles you save as files).
   last 30). **File > Revert to a saved version…** goes back to one of them;
   Undo returns to where you were.
 * **File > Project settings…** shows the disc's settings: its name, the TV
-  standard (NTSC or PAL), the aspect ratio, the disc size, the video bitrate,
-  the layer break, first play, what the remote's Title key opens, and how
+  standard (NTSC or PAL), the aspect ratio, the authoring mode (DVD or
+  Blu-ray), the disc size and the video bitrate (on a Blu-ray: BD-25 / BD-50
+  and the 1080 / 720 picture), the disc font, the layer break, first play, what the remote's Title key opens, and how
   subtitles look.
 * **File > Show project folder** opens the folder in the Finder or the file
   manager.
@@ -140,7 +141,8 @@ together, or a slideshow.
 * Under the timeline, **Subtitles** edits the cues: start, end, text, top or
   bottom. *+ Add cue at playhead* times a new one from where you are.
 * A subtitle track marked *default* is shown when the title starts; without
-  one, subtitles start off.
+  one, a Blu-ray starts with subtitles off and a DVD leaves it to the player's
+  language setting.
 * **Timeline > Export subtitles** saves a track as SubRip or a text script
   in `exports/`.
 
@@ -408,12 +410,16 @@ The **Build** panel (next to Project) checks and builds the disc.
 
 ## Blu-ray {#bluray}
 
-The same project builds as a Blu-ray: choose Blu-ray in the Build panel. Titles
-are encoded in HD (1920 × 1080, or 1280 × 720 when the Picture setting says
-720p); subtitles become Blu-ray subtitle streams with smooth edges; menus are
-drawn at HD size with full-colour highlights; Play All, playlists and
-pop-up menus work as on the DVD. The disc size (BD-25 or BD-50) caps the
-video rate so the titles fit.
+A project is made for a Blu-ray when its *Authoring mode* is Blu-ray (New
+Project, or the disc's Properties); Build and Check project then make a
+Blu-ray, and the Build panel can still make the other. Titles are encoded in
+HD (1920 × 1080, or 1280 × 720 when the Picture setting says 720p);
+subtitles become Blu-ray subtitle streams with smooth edges; menus are drawn
+at HD size with highlights in any colour and opacity; Play All and playlists
+work as on the DVD, and a title's Menu-key menu becomes its pop-up menu. The
+disc size (BD-25 or BD-50) caps the video rate so the titles fit. Buttons
+over a title, angles, closed captions and navigation scripts are DVD-only:
+in a project made for a Blu-ray their settings say so.
 
 ## The web version {#web}
 
@@ -452,7 +458,8 @@ Every command of the menu bar, with its shortcut:
 ## Known limits {#limits}
 
 * Highlights on a DVD have hard edges and one colour for each state (normal,
-  selected, activated); a Blu-ray has full colour with smooth edges.
+  selected, activated); a Blu-ray shows the same shapes in any colour and
+  opacity.
 * Subtitles use one font and size for the whole disc; emoji are not drawn.
 * Sound track *n* and subtitle track *n* have one language on the whole disc.
 * Buttons over a title are for DVD, and not yet in a title with subtitles.

@@ -263,7 +263,7 @@ def build_web(project, out_dir, reporter, fast=False, keep_work=False):
     for d in ("menus", "titles", os.path.join(".work", "logs")):
         os.makedirs(os.path.join(out_dir, d), exist_ok=True)
     reporter.step("probe", "Checking sources")
-    infos, plan = build.inspect(project, reporter, bd=True)
+    infos, plan = build.inspect(project, reporter, bd=True, web=True)
     for w in project.warnings + plan["warnings"]:
         reporter.warn(w)
     probes = plan["_probes"]

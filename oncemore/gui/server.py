@@ -733,7 +733,9 @@ class Handler(BaseHTTPRequestHandler):
     def api_post_validate(self, q):
         project = build_project(self.app.load(), self.app.path, check_files=True)
         fmt = self.body_json().get("format") or project.disc.format
-        infos, plan = build.inspect(project, bd=fmt == "bluray")
+        if fmt not in ("dvd", "bluray", "web"):
+            raise ValueError("format must be dvd, bluray or web")
+        infos, plan = build.inspect(project, bd=fmt != "dvd", web=fmt == "web")
         self.json({"valid": True, "summary": build.summary(project, infos, plan)})
 
     def api_post_script_check(self, q):

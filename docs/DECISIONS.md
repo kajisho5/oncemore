@@ -2756,3 +2756,53 @@ by default. The classic apps choose the mode when the project is made.
   `/api/new` with a format, and the app: New Project for a Blu-ray (the
   encoding said changes), the disc's Properties with the BD size, the Build
   panel on Blu-ray, and back to DVD.
+
+## 127. The app and the documents as the authoring mode makes the disc
+
+With the authoring mode (§126) a project says what it is made for, but much
+of the app still assumed a DVD, some controls did nothing, and several texts
+had gone stale. Three read-throughs (the app's strings against the code,
+its controls against the mode, the documents against the code and this
+file) found them; each finding was checked in the code before it was
+changed.
+
+* In a project made for a Blu-ray the DVD-only parts of a title say so and
+  cannot be added: buttons over a title (a Blu-ray build stops on them),
+  angles and closed captions (left out), navigation scripts (links no
+  longer offer them). The per-title video bitrate (ignored there) and the
+  "interlaced" scan (a Blu-ray keeps no fields) are not offered; Transcode
+  now, which makes the DVD's MPEG-2, is off and the transcode status is not
+  shown, since a Blu-ray's titles are encoded when it is built. The Build
+  panel's disc info shows the Blu-ray's size and picture; Check project
+  checks the format Build makes (the web version too, `validate --format
+  web`), labels the Blu-ray's rate a peak, and the format chosen in Build is
+  forgotten when another project opens. DVD-mode playlists say Random and
+  Shuffle are for Blu-ray and the web version.
+* The web version plays a title without its buttons over the picture, as
+  §114 meant; `inspect(web=True)` no longer stops on them.
+* Controls that did nothing are gone or work: the panel menus (☰), the tabs'
+  close boxes, the Monitor's lone "Fit", the Build panel's one-choice
+  Source, the New Project dialog's single tab; the timeline tab's ▾ now
+  lists the titles to open. The disc's font (`disc.font`, which "Disc font"
+  meant) can be chosen in the disc's Properties. Page previews (Show
+  highlights, Exact preview) follow the page shown.
+* Wrong texts corrected (en and ja): DTS (DTS-HD kept on a Blu-ray), scan,
+  fast encoding (two passes only on a DVD), the layer break (only growisofs
+  is told it), files for computers (next to BDMV too), read-only subtitles,
+  the web version's note, the About text, "Authoring VIDEO_TS" and "Burned
+  to the DVD" after a Blu-ray. README, manual, ROADMAP, DESIGN, CLI and MCP
+  help and the schema descriptions: `--format` follows the project, subtitles
+  with no default track start off on a Blu-ray but follow the player's
+  language on a DVD, Blu-ray sound includes DTS-HD, the known limitations,
+  finished ROADMAP items ticked.
+
+Left as they are, for a later look: the preview simulator plays DVD
+navigation in a Blu-ray project; schema fields with no control yet
+(a slideshow's background colour, the chapter menu's colours).
+
+* `tests/test_mode_ui.py`: validate for DVD, Blu-ray and the web version
+  with buttons over a title; the app in a Blu-ray project (the notes,
+  disabled additions, scan choices, the hidden bitrate, no script links, no
+  Transcode now, the Build panel); in a DVD project (playlist order labels,
+  no inert panel menus or close boxes, the timeline's title list, Build back
+  on the project's mode); the New Project dialog; and the documents' facts.
