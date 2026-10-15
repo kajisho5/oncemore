@@ -2,7 +2,8 @@ name: Release
 
 # Push a tag "v<version>" (matching oncemore/__init__.py) to build the Mac app
 # for Apple silicon and Intel and attach both zips to a GitHub Release: a
-# pre-release published at once for 0.x versions, a draft from 1.0 on. Its
+# pre-release published at once for 0.x versions, a draft from 1.0 on (run by
+# hand with "publish": published at once). Its
 # notes are docs/release-notes/<tag>.md when that file exists.
 # Or run the workflow by hand with "tag" set (Actions > Release > Run
 # workflow): the same release, and the tag is made on the commit it ran on.
@@ -26,6 +27,11 @@ on:
         description: "Release this commit as tag v<version> (empty: only build the app)"
         required: false
         default: ""
+      publish:
+        description: "Publish it at once (from 1.0 a release is otherwise a draft to look over)"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -133,11 +139,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag || github.ref_name }}
+          PUBLISH: ${{ inputs.publish && 'yes' || '' }}
         run: |
-          # 0.x: a pre-release, published; 1.0 and later: a draft to look over first
+          # 0.x: a pre-release, published; 1.0 and later: a draft to look over
+          # first, or published at once when the run by hand says so
           case "$TAG" in
             v0.*) kind="--prerelease" ;;
-            *) kind="--draft" ;;
+            *) if [ -n "$PUBLISH" ]; then kind="--latest"; else kind="--draft"; fi ;;
           esac
           notes="docs/release-notes/$TAG.md"
           if [ -f "$notes" ]; then how=(--notes-file "$notes"); else how=(--generate-notes); fi

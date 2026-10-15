@@ -53,6 +53,19 @@ class TestMacApp(unittest.TestCase):
         self.assertIn(f"Oncemore-{__version__}-arm64.zip", notes)
         self.assertNotIn("Open Anyway", notes)
 
+    def test_release_run_by_hand_can_publish(self):
+        # from 1.0 a release is a draft unless the run by hand says publish
+        # (DECISIONS §128)
+        rel = read(".github", "workflows", "release.yml")
+        dispatch = rel.split("workflow_dispatch:", 1)[1].split("permissions:", 1)[0]
+        self.assertRegex(dispatch, r"publish:\n(\s+.*\n)*?\s+type: boolean")
+        self.assertRegex(dispatch, r"publish:\n(\s+.*\n)*?\s+default: false")
+        self.assertIn("PUBLISH: ${{ inputs.publish && 'yes' || '' }}", rel)
+        self.assertIn('if [ -n "$PUBLISH" ]; then kind="--latest"; else kind="--draft"; fi', rel)
+        self.assertIn('v0.*) kind="--prerelease"', rel)
+        self.assertIn("`publish`", read("README.md"))
+        self.assertIn("`publish`", read("README.ja.md"))
+
 
 class TestDiscImage(unittest.TestCase):
     def test_iso_and_folder_output(self):
