@@ -72,9 +72,11 @@ if [ ! -x "$PREFIX/bin/ffmpeg" ] || [ ! -x "$PREFIX/bin/ffprobe" ]; then
   rm -rf "$WORK"
   mkdir -p "$WORK/build" "$PREFIX"
   B="$WORK/build"
+  EXTRA_LIBS=""
   if [ "$(uname -s)" = Darwin ]; then
     export MACOSX_DEPLOYMENT_TARGET=12.0
     export CC="clang -arch $ARCH" CXX="clang++ -arch $ARCH"
+    EXTRA_LIBS="-liconv"   # macOS keeps iconv in libiconv, not in libSystem
   fi
   export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig"
   export PKG_CONFIG_LIBDIR="$PREFIX/lib/pkgconfig"   # only what is built here
@@ -110,6 +112,7 @@ if [ ! -x "$PREFIX/bin/ffmpeg" ] || [ ! -x "$PREFIX/bin/ffprobe" ]; then
   (cd "$B/ffmpeg-$FFMPEG_VERSION" &&
     ./configure --prefix="$PREFIX" ${CC:+--cc="$CC"} ${CXX:+--cxx="$CXX"} \
       --extra-cflags="-I$PREFIX/include" --extra-ldflags="-L$PREFIX/lib" \
+      ${EXTRA_LIBS:+--extra-libs="$EXTRA_LIBS"} \
       "${FFMPEG_CONFIGURE[@]}" &&
     make -j"$JOBS" && make install)
   strip "$PREFIX/bin/ffmpeg" "$PREFIX/bin/ffprobe"
@@ -127,10 +130,11 @@ if [ ! -x "$PREFIX/bin/ffmpeg" ] || [ ! -x "$PREFIX/bin/ffprobe" ]; then
 fi
 
 echo "==> checking the programs"
-"$PREFIX/bin/ffmpeg" -hide_banner -filters | grep -qE '^\s*\S+\s+drawtext\s' \
-  || { echo "ffmpeg has no drawtext" >&2; exit 1; }
-"$PREFIX/bin/ffmpeg" -hide_banner -encoders | grep -qE '^\s*V\S*\s+libx264\s' \
-  || { echo "ffmpeg has no libx264" >&2; exit 1; }
+# (the lists are read whole: grep -q would stop ffmpeg midway, and pipefail fails)
+filters="$("$PREFIX/bin/ffmpeg" -hide_banner -filters)"
+encoders="$("$PREFIX/bin/ffmpeg" -hide_banner -encoders)"
+grep -qE '^\s*\S+\s+drawtext\s' <<< "$filters" || { echo "ffmpeg has no drawtext" >&2; exit 1; }
+grep -qE '^\s*V\S*\s+libx264\s' <<< "$encoders" || { echo "ffmpeg has no libx264" >&2; exit 1; }
 if [ "$(uname -s)" = Darwin ]; then
   # only system libraries: nothing from Homebrew or this build's prefix
   if otool -L "$PREFIX/bin/ffmpeg" "$PREFIX/bin/ffprobe" | tail -n +2 \
