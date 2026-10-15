@@ -34,7 +34,7 @@ const I18N = {
     box_width: "Box width", box_height: "Column length", box_none: "none", vertical_text: "Vertical", underline: "Underline", strikethrough: "Strikethrough",
     box_hint: "With a box width (a column length when vertical), lines are broken to fit it, keeping stops, closing brackets and small kana off the start of a line.",
     paragraph: "Paragraph", para_align: "Lines", para_left: "Left", para_center: "Centre", para_right: "Right", line_spacing: "Line spacing", paragraph_hint: "Each line of the text is a line on the menu (Return starts a new one); X is the paragraph's left edge.",
-    text_style: "Text style", font: "Font", disc_font: "Disc font", outline: "Outline", shadow: "Shadow",
+    text_style: "Text style", font: "Font", disc_font: "Disc font", disc_font_hint: "The font of the menus' texts and buttons (unless they have their own) and of text subtitles. Auto picks one that has every character.", outline: "Outline", shadow: "Shadow",
     font_hint: "Add .ttf / .otf files to Media to use them here.",
     bold: "Bold", italic: "Italic", letter_spacing: "Letter spacing", kerning: "Kerning",
     faces_hint: "Bold and italic use those faces of the font's family: put their files next to the font (or install them). Letter spacing and kerning off draw the characters one by one.",
@@ -57,13 +57,13 @@ const I18N = {
     scan: "Picture", scan_auto: "Automatic", scan_progressive: "Progressive",
     scan_interlaced: "Interlaced (keep fields)", scan_pulldown: "Film, 3:2 pulldown (23.976)",
     scan_ivtc: "Telecined film (29.97i → 23.976 + pulldown)",
-    scan_hint: "Automatic keeps interlaced and 60p video as fields and stores 23.976 film with pulldown flags.",
-    no_transcode: "Don't transcode (the source already is DVD video)", no_transcode_hint: "MPEG-2 at the disc's frame size and rate goes on the disc as it is (on a Blu-ray: H.264 that already is Blu-ray video); the sound is still made to the settings below. The build says why when the file does not qualify.", status_no_transcode: "Don't transcode",
+    scan_hint: "Automatic: on a DVD, interlaced and 60p video stays as fields and 23.976 film gets pulldown flags; on a Blu-ray, film stays 23.976 and the rest becomes frames at the disc's rate (1080: 25 / 29.97 as 1080i; 720: 50 / 59.94).",
+    no_transcode: "Don't transcode (the source already is disc video)", no_transcode_hint: "MPEG-2 at the disc's frame size and rate goes on the disc as it is (on a Blu-ray: H.264 that already is Blu-ray video); the sound is still made to the settings below. The build says why when the file does not qualify.", status_no_transcode: "Don't transcode",
     auto_shared: "Automatic (share the disc)", passthrough: "Copy AC-3 unchanged",
     passthrough_hint: "For AC-3 (48 kHz) sources: no re-encoding. Channels must match the source.",
-    dts_copy: "DTS (copy)", dts_hint: "DTS is copied from the sources as it is (48 kHz; DTS-HD keeps its DTS core). Channels must match the source.",
-    layer_break: "Layer break", layer_break_hint: "Where a dual-layer disc goes on to its second layer: the start of a chapter past the middle of the disc. The built-in ISO writer puts it on an ECC block, and burning passes it to the writer.", layer_break_at: "{t}, chapter {n}",
-    rom_files: "DVD-ROM files", rom_hint: "Files or folders (one per line, relative to the project) put next to VIDEO_TS for computers.",
+    dts_copy: "DTS (copy)", dts_hint: "DTS is copied from the sources as it is: a Blu-ray keeps DTS-HD whole (48, 96 or 192 kHz), a DVD takes the 48 kHz DTS core. Channels: Stereo for a stereo source, 5.1 for 5.1 or more.",
+    layer_break: "Layer break", layer_break_hint: "Where a dual-layer disc goes on to its second layer: the start of a chapter past the middle of the disc. The built-in ISO writer puts it on an ECC block, and burning on Linux passes it to the writer (on a Mac, hdiutil chooses the place itself).", layer_break_at: "{t}, chapter {n}",
+    rom_files: "Files for computers", rom_hint: "Files or folders (one per line, relative to the project) put next to VIDEO_TS (BDMV on a Blu-ray) for computers.",
     no_cache: "Encode everything again (ignore the cache)",
     sub_bottom: "Bottom", sub_top: "Top", sub_color: "Own colour",
     add_slideshow: "+ Slideshow", slideshow: "Slideshow", slideshow_hint: "A title made from pictures",
@@ -86,7 +86,7 @@ const I18N = {
     cmd_distribute_h: "Distribute horizontally", cmd_distribute_v: "Distribute vertically", cmd_bring_front: "Bring to front", cmd_send_back: "Send to back",
     cmd_convert: "Convert text ⇄ button", cmd_new_timeline: "New title from a video…", cmd_prev_chapter: "Previous chapter", cmd_next_chapter: "Next chapter",
     new_timeline_hint: "Choose the video the title plays.", tools: "Tools", tool_select: "Selection", tool_text: "Text: click where the text goes", tool_zoom: "Zoom: click to zoom in, Alt-click to zoom out",
-    zoom_fit: "Fit", zoom_hint: "Zoom (+ / −)", safe_hint: "Action-safe and title-safe areas: TVs may cut off the edges",
+    zoom_fit: "Fit", menu_px: "DVD px", menu_px_bd: "px (scaled to HD on the Blu-ray)", zoom_hint: "Zoom (+ / −)", safe_hint: "Action-safe and title-safe areas: TVs may cut off the edges",
     subpictures: "Highlights:", subpictures_hint: "Show every button as it looks when not selected, selected or activated (the exact disc picture)",
     sp_normal: "Normal", sp_selected: "Selected", sp_activated: "Activated", overlap_hint: "This button's area overlaps another button: the remote may not reach one of them",
     whip_hint: "Drag to a title, menu or playlist (project panel or flowchart) to link it", flow_link_hint: "Drag from an item to another to link it: first play, end actions, a button of a menu.",
@@ -101,13 +101,13 @@ const I18N = {
     cmd_theme: "Light / dark theme", cmd_language: "日本語", cmd_shortcuts: "Keyboard shortcuts", cmd_about: "About oncemore",
     open: "Open", set_first_play: "Play first when the disc starts", copy_of: "{x} copy", reveal_file: "Show in folder",
     copy: "Copy", paste: "Paste", nudge: "Move selected elements (10 px with Shift)", copy_paste: "Copy / paste elements",
-    about_text: "Open-source DVD-Video authoring: menus, chapters, playlists and a disc image, on your own computer. No copy protection.",
+    about_text: "Open-source authoring for DVD-Video and Blu-ray (and a web version): menus, chapters, playlists and a disc image, on your own computer. No copy protection.",
     clips: "Clips", add_clip: "Add a clip…", clip_in: "In", clip_out: "Out", clip_end: "end",
     clips_hint: "The clips play one after another as one title. Without chapters of its own, every clip starts a chapter.",
     joining: "Joining the clips…", clip_whole: "whole file", clips_n: "{n} clips", clip_source_hint: "Add a clip to join more videos and still pictures into this title.",
     clip_still: "still", clip_duration: "Seconds the picture is shown", fit: "Scaling", fit_fit: "Fit (whole picture, bars around)", fit_fill: "Fill (crop the edges)", fit_own: "Slideshow's scaling",
     subtitle_editor: "Subtitle cues", no_sub_tracks: "No subtitle track yet.", new_srt: "+ New subtitle file",
-    sub_readonly: "WebVTT / ASS files are shown read-only.", convert_srt: "Convert to .srt to edit",
+    sub_readonly: "This file is shown read-only (only a SubRip file without an offset is edited here).", convert_srt: "Convert to .srt to edit",
     sub_track_pos: "Track", add_cue: "+ Cue at the playhead", new_cue_text: "New subtitle",
     image: "Image", width: "Width", highlight_style: "Highlight", hl_frame: "Frame around it", hl_shape: "Its own pixels", hl_underline: "Line under it", hl_drawn: "A shape I draw",
     hl_form: "Shape", hl_rect: "Rectangle", hl_ellipse: "Ellipse", hl_filled: "Filled", hl_drawn_hint: "Drag the dashed shape on the menu to move it, its corner to resize it. It is the button's whole highlight and the area it takes up.",
@@ -139,18 +139,18 @@ const I18N = {
     go_to_title: "Open title",
     build_iso: "Disc image (.iso)", build_folder: "VIDEO_TS folder", build_disc: "DVD disc (the image, then burned)",
     build_format: "Format", format_dvd: "DVD", format_bluray: "Blu-ray", format_web: "Web (HTML5)", build_web_folder: "A folder with index.html (open it in a browser, or put it on a web server)",
-    web_note: "The disc for browsers: the menus with their buttons, the titles as MP4 with chapters and subtitles, and the links as on the disc. One sound track per title.", build_bdmv: "BDMV folder", build_bd_disc: "Blu-ray disc (the image, then burned)", bd_size: "Disc size",
+    web_note: "The disc for browsers: the menus with their buttons, the titles as MP4 with chapters and subtitles, and the links as on the disc. One sound track per title; picture subtitles, angles and closed captions are left out, and so are buttons over a title (the title plays without them).", build_bdmv: "BDMV folder", build_bd_disc: "Blu-ray disc (the image, then burned)", bd_size: "Disc size",
     bd_picture: "Picture", bd_1080: "1920×1080 (1080i 25 / 29.97, film 1080p 23.976)", bd_720: "1280×720 (720p 50 / 59.94: keeps 50 or 60 frames a second)", bd_note: "Blu-ray: titles in HD with chapters, playlists, Play All, menus (pop-up menus too) and subtitles. Buttons over a title, angles, closed captions and navigation scripts are DVD-only.",
     recorder: "Recorder", recorder_hint: "Empty: the first disc writer. Insert a blank disc (DVD, or BD for a Blu-ray) before you build.",
-    burned: "Burned to the DVD", step_burn: "Burning the disc", fast: "Fast (1-pass) encoding",
+    burned: "Burned to the disc", step_burn: "Burning the disc", fast: "Fast encoding (DVD: one pass; a little lower quality)",
     start_build: "Start", building: "Building…", build_done: "Done", build_failed: "Build failed",
     reveal: "Show in Finder", reveal_other: "Open folder", output: "Output", warnings: "Warnings",
     step_probe: "Checking sources", step_menu: "Rendering menu “{i}”", step_encode: "Encoding title “{i}”",
-    step_subtitles: "Subtitles for “{i}”", step_author: "Authoring VIDEO_TS", step_iso: "Writing the disc image",
+    step_subtitles: "Subtitles for “{i}”", step_author: "Writing the disc's files", step_iso: "Writing the disc image",
     media_cache: "Media cache", cache_folder: "Folder", cache_in_project: "In the project folder (.oncemore-cache)", cache_use: "Use",
     cache_in_project_short: "In the project", cache_now: "This project's: {p}",
     cache_hint: "Encoded titles and menus, rendered slideshows and playback copies are kept here so builds go fast. A folder for every project (e.g. on a larger or faster drive): each project gets its own folder in it.",
-    check_ok: "Ready to build", estimated: "Estimated size", of: "of", video_avg: "Average video bitrate",
+    check_ok: "Ready to build", estimated: "Estimated size", of: "of", video_avg: "Average video bitrate", video_peak: "Video bitrate up to",
     budget: "Bit budget", budget_menus: "Menus", budget_other: "Disc files", budget_free: "Free", budget_video: "Video Mbit/s",
     budget_audio: "Audio", budget_size: "Size", budget_share: "Of the disc", col_length: "Length",
     menu_item: "Menu: {m}", menu_button_item: "Menu: {m} › {b}", title_item: "Title: {t}", chapter_item: "{t} › Chapter {n}",
@@ -177,10 +177,17 @@ const I18N = {
     to_end: "Play to the end", time_out: "Let the menu time out", now: "Now", chapter_n: "Chapter {n} of {m}",
     stopped: "Playback stopped.", audio_n: "Audio {n}", sub_off: "Subtitles off", sub_n: "Subtitles {n}",
     in_playall: "playing all", in_playlist: "playlist",
-    disc_tips: "Coordinates are DVD pixels (720 wide). Text is drawn with the font that oncemore picks to cover all characters.",
+    disc_tips: "Coordinates are on the menu's 720-wide grid (a Blu-ray scales the menu up to HD). Text uses the disc's font, or an element's own; Auto picks one that has every character.",
     tools: "Tools", ok: "OK", missing: "missing", tracks_hint: "Leave empty to use the video's own sound.",
     stream: "Stream", file: "File", add_track: "+ Track", add_sub: "+ Subtitle file",
-    tbtn: "Buttons over the title", tbtn_add: "+ Button", tbtn_hint: "Areas of the picture the viewer selects with the arrow keys and presses with OK while the title plays (DVD only; a Blu-ray build and the web version leave them out). Draw what they look like into the video; the disc lights the area. On the picture, drag a box to move it and its corner to resize it.", tbtn_from: "From", tbtn_to: "To", tbtn_to_end: "the end", tbtn_here: "Set to the playhead", tbtn_subs: "A title with subtitles cannot have buttons over it yet: the player lights the buttons in the subtitle stream it shows.", tbtn_hl: "Selected", tbtn_sel: "Pressed", tbtn_link: "Link", sim_time: "Time in the title",
+    tbtn: "Buttons over the title", tbtn_add: "+ Button", tbtn_hint: "Areas of the picture the viewer selects with the arrow keys and presses with OK while the title plays (DVD only: a Blu-ray build stops on them; the web version plays the title without them). Draw what they look like into the video; the disc lights the area. On the picture, drag a box to move it and its corner to resize it.", tbtn_from: "From", tbtn_to: "To", tbtn_to_end: "the end", tbtn_here: "Set to the playhead", tbtn_subs: "A title with subtitles cannot have buttons over it yet: the player lights the buttons in the subtitle stream it shows.", tbtn_hl: "Selected", tbtn_sel: "Pressed", tbtn_link: "Link", sim_time: "Time in the title",
+    tbtn_bd: "This project is made for a Blu-ray, which has no buttons over a title: a Blu-ray build stops on them (they still go on a DVD).",
+    angles_bd: "This project is made for a Blu-ray: its build leaves angles out (they still go on a DVD).",
+    cc_bd: "This project is made for a Blu-ray: its build leaves closed captions out (they still go on a DVD).",
+    scripts_bd: "This project is made for a Blu-ray, which has no navigation scripts yet: links cannot choose them, and a Blu-ray build stops on those that do (they still work on a DVD).",
+    transcode_bd: "Transcode now makes the DVD's video. A Blu-ray's titles are encoded when it is built.",
+    cs_dvd: "A DVD player has 16 levels of opacity.",
+    order_dvd: "{o} (Blu-ray / web; a DVD plays in order)",
     animate: "Comes in", anim_on: "Comes in on a motion of its own", anim_start: "From (s)", anim_duration: "Over (s)",
     anim_dx: "From x away", anim_dy: "From y away", anim_scale: "Grows from %", anim_fade: "Fades in",
     anim_hint: "Once, from that time into the menu: it moves from that far away (and grows, a picture) to where and as it is on the menu. The menu becomes a motion menu; set its loop point after it to play it once.",
@@ -197,7 +204,7 @@ const I18N = {
     prop_disc: "Disc", prop_title: "Timeline", prop_menu: "Menu", prop_button: "Button", prop_text: "Text", prop_shape: "Rectangle",
     prop_asset: "Asset", prop_playlist: "Chapter Playlist", prop_slideshow: "Slideshow",
     name_location: "Name and Location", project_settings: "Project Settings", location: "Location", transcode_settings: "Transcode Settings",
-    np_transcode: "Codec: MPEG-2; Dimensions: {d}; Frame Rate: {f}; Audio: AC-3 / PCM; Maximum Audio/Video Bitrate: 9.8 Mbps",
+    np_transcode: "Codec: MPEG-2; Dimensions: {d}; Frame Rate: {f}; Audio: AC-3 / LPCM / DTS; Maximum Audio/Video Bitrate: 9.8 Mbps",
     np_transcode_bd: "Codec: H.264; Dimensions: 1920 × 1080; Frame Rate: {f}; Audio: AC-3 / LPCM / DTS; Maximum Video Bitrate: 40 Mbps",
     authoring_mode_hint: "What the project is made for: Build, Check project and the disc settings follow it. The Build panel can still make the other.",
     np_info: "The disc's settings can be changed at any time in the Properties panel (select the disc in the Flowchart).",
@@ -219,7 +226,7 @@ const I18N = {
     ra_none: "The project uses no files yet.", psd_changed: "The Photoshop file of this menu has changed.", open_failed: "This system has no program to open the file with.",
     colour_set: "Colour set", cs_normal: "Normal", opacity: "Opacity",
     cs_normal_hint: "Show the buttons' highlight shapes in this colour while they are not selected",
-    cs_hint: "The colours of the buttons' highlight shapes: Normal (while not selected; optional), Highlight (selected) and Activated (pressed). A DVD player has 16 levels of opacity.",
+    cs_hint: "The colours of the buttons' highlight shapes: Normal (while not selected; optional), Highlight (selected) and Activated (pressed).",
     layer_hide: "Hide (not on the disc)", layer_show: "Show",
     cmd_revert_backup: "Revert to a saved version…", revert: "Revert", no_backups: "No earlier versions yet.",
     backups_hint: "oncemore keeps the project as it was before your changes, at most every {m} minutes (the last 30, in .oncemore-backup next to the project). Reverting is one more edit: Undo brings you back.",
@@ -322,7 +329,7 @@ const I18N = {
     box_width: "ボックスの幅", box_height: "列の長さ", box_none: "なし", vertical_text: "縦書き", underline: "下線", strikethrough: "取り消し線",
     box_hint: "ボックスの幅（縦書きでは列の長さ）を入れると、その中に収まるように改行します。句読点・閉じ括弧・小書きの仮名は行頭に来ないようにします。",
     paragraph: "段落", para_align: "行揃え", para_left: "左揃え", para_center: "中央揃え", para_right: "右揃え", line_spacing: "行間", paragraph_hint: "テキストの各行がメニューの 1 行になります（Return で改行）。X は段落の左端です。",
-    text_style: "文字のスタイル", font: "フォント", disc_font: "ディスクのフォント", outline: "縁取り", shadow: "影",
+    text_style: "文字のスタイル", font: "フォント", disc_font: "ディスクのフォント", disc_font_hint: "メニューのテキストとボタン（個別のフォントが無いもの）と文字の字幕のフォント。自動なら全文字を描けるフォントを選びます。", outline: "縁取り", shadow: "影",
     font_hint: ".ttf / .otf ファイルを素材に追加するとここで選べます。",
     bold: "太字", italic: "斜体", letter_spacing: "文字間隔", kerning: "カーニング",
     faces_hint: "太字・斜体には、同じフォントファミリーの太字・斜体のフォントを使います（フォントと同じ場所に置くか、インストールしてください）。文字間隔やカーニングを外したときは、1 文字ずつ描きます。",
@@ -345,13 +352,13 @@ const I18N = {
     scan: "走査方式", scan_auto: "自動", scan_progressive: "プログレッシブ",
     scan_interlaced: "インターレース（フィールドを保持）", scan_pulldown: "フィルム・3:2 プルダウン（23.976）",
     scan_ivtc: "テレシネ済みフィルム（29.97i → 23.976 + プルダウン）",
-    scan_hint: "自動では、インターレースと 60p の映像はフィールドのまま、23.976 のフィルム素材はプルダウン指定で収録します。",
-    no_transcode: "トランスコードしない（素材がすでに DVD ビデオ）", no_transcode_hint: "ディスクと同じフレームサイズ・フレームレートの MPEG-2 をそのまま収録します（Blu-ray では、すでに Blu-ray ビデオになっている H.264）。音声は下の設定で作り直します。条件を満たさないファイルはビルド時に理由を表示します。", status_no_transcode: "トランスコードしない",
+    scan_hint: "自動：DVD では、インターレースと 60p の映像はフィールドのまま、23.976 のフィルム素材はプルダウン指定で収録します。Blu-ray では、フィルムは 23.976 のまま、それ以外はディスクのレートのフレームにします（1080：25／29.97 を 1080i で、720：50／59.94）。",
+    no_transcode: "トランスコードしない（素材がすでにディスク用のビデオ）", no_transcode_hint: "ディスクと同じフレームサイズ・フレームレートの MPEG-2 をそのまま収録します（Blu-ray では、すでに Blu-ray ビデオになっている H.264）。音声は下の設定で作り直します。条件を満たさないファイルはビルド時に理由を表示します。", status_no_transcode: "トランスコードしない",
     auto_shared: "自動（ディスク全体で配分）", passthrough: "AC-3 をそのままコピー",
     passthrough_hint: "AC-3（48kHz）素材向け：再エンコードしません。チャンネル数は素材と同じにしてください。",
-    dts_copy: "DTS（コピー）", dts_hint: "DTS は素材からそのままコピーします（48kHz。DTS-HD はコア部分のみ）。チャンネル数は素材と同じにしてください。",
-    layer_break: "レイヤーブレーク", layer_break_hint: "2 層ディスクが 2 層目へ移る位置です。ディスクの中ほどより後のチャプターの先頭に置きます。内蔵の ISO 書き出しが ECC ブロック境界に合わせ、書き込み時にドライブへ渡します。", layer_break_at: "{t}、チャプター {n}",
-    rom_files: "DVD-ROM ファイル", rom_hint: "パソコン向けに VIDEO_TS と並べて入れるファイル／フォルダ（1 行に 1 つ、プロジェクトからの相対パス）。",
+    dts_copy: "DTS（コピー）", dts_hint: "DTS は素材からそのままコピーします。Blu-ray では DTS-HD を丸ごと（48／96／192kHz）、DVD では 48kHz の DTS コア部分を収録します。チャンネル：ステレオの素材はステレオ、5.1ch 以上の素材は 5.1ch。",
+    layer_break: "レイヤーブレーク", layer_break_hint: "2 層ディスクが 2 層目へ移る位置です。ディスクの中ほどより後のチャプターの先頭に置きます。内蔵の ISO 書き出しが ECC ブロック境界に合わせ、Linux での書き込みではドライブへ渡します（Mac では hdiutil が位置を自分で決めます）。", layer_break_at: "{t}、チャプター {n}",
+    rom_files: "パソコン向けのファイル", rom_hint: "パソコン向けに VIDEO_TS（Blu-ray では BDMV）と並べて入れるファイル／フォルダ（1 行に 1 つ、プロジェクトからの相対パス）。",
     no_cache: "すべてエンコードし直す（キャッシュを使わない）",
     sub_bottom: "下", sub_top: "上", sub_color: "色を指定",
     add_slideshow: "＋スライドショー", slideshow: "スライドショー", slideshow_hint: "写真から作るタイトル",
@@ -374,7 +381,7 @@ const I18N = {
     cmd_distribute_h: "左右に等間隔", cmd_distribute_v: "上下に等間隔", cmd_bring_front: "最前面へ", cmd_send_back: "最背面へ",
     cmd_convert: "テキスト ⇄ ボタンに変換", cmd_new_timeline: "動画から新規タイトル…", cmd_prev_chapter: "前のチャプター", cmd_next_chapter: "次のチャプター",
     new_timeline_hint: "タイトルで再生する動画を選んでください。", tools: "ツール", tool_select: "選択", tool_text: "テキスト：置きたい場所をクリック", tool_zoom: "ズーム：クリックで拡大、Alt+クリックで縮小",
-    zoom_fit: "全体", zoom_hint: "表示倍率（+ / −）", safe_hint: "アクションセーフ／タイトルセーフ：テレビでは端が切れることがあります",
+    zoom_fit: "全体", menu_px: "DVD ピクセル", menu_px_bd: "ピクセル（Blu-ray では HD に拡大）", zoom_hint: "表示倍率（+ / −）", safe_hint: "アクションセーフ／タイトルセーフ：テレビでは端が切れることがあります",
     subpictures: "ハイライト：", subpictures_hint: "全ボタンを通常・選択中・決定時の見え方で表示（ディスクと同じ画）",
     sp_normal: "通常", sp_selected: "選択中", sp_activated: "決定時", overlap_hint: "このボタンの範囲が他のボタンと重なっています：リモコンでどちらかに移れないことがあります",
     whip_hint: "タイトル・メニュー・プレイリスト（プロジェクトパネルかフローチャート）までドラッグしてリンク", flow_link_hint: "項目から別の項目へドラッグしてリンク：最初の再生、終了時の動作、メニューのボタン。",
@@ -389,13 +396,13 @@ const I18N = {
     cmd_theme: "ライト／ダーク", cmd_language: "English", cmd_shortcuts: "キーボードショートカット", cmd_about: "oncemore について",
     open: "開く", set_first_play: "ディスクの最初に再生", copy_of: "{x} のコピー", reveal_file: "フォルダで表示",
     copy: "コピー", paste: "ペースト", nudge: "選択した要素を移動（Shift で 10px）", copy_paste: "要素のコピー／ペースト",
-    about_text: "オープンソースの DVD-Video オーサリング。メニュー・チャプター・プレイリスト・ディスクイメージを自分のコンピュータで作れます。コピーガードはありません。",
+    about_text: "オープンソースの DVD-Video／Blu-ray オーサリング（Web 版も）。メニュー・チャプター・プレイリスト・ディスクイメージを自分のコンピュータで作れます。コピーガードはありません。",
     clips: "クリップ", add_clip: "クリップを追加…", clip_in: "イン", clip_out: "アウト", clip_end: "最後",
     clips_hint: "クリップは順番に続けて 1 つのタイトルとして再生されます。チャプターを指定しなければ、クリップごとにチャプターになります。",
     joining: "クリップをつないでいます…", clip_whole: "ファイル全体", clips_n: "{n} クリップ", clip_source_hint: "クリップを追加すると、複数の動画や静止画を 1 つのタイトルにつなげられます。",
     clip_still: "静止画", clip_duration: "静止画の表示秒数", fit: "拡大・縮小", fit_fit: "全体を表示（周囲に帯）", fit_fill: "画面いっぱい（端を切り抜き）", fit_own: "スライドショーの設定に従う",
     subtitle_editor: "字幕の編集", no_sub_tracks: "字幕トラックはまだありません。", new_srt: "＋新しい字幕ファイル",
-    sub_readonly: "WebVTT / ASS は表示のみです。", convert_srt: ".srt に変換して編集",
+    sub_readonly: "このファイルは表示のみです（ここで編集できるのはオフセットのない SubRip だけです）。", convert_srt: ".srt に変換して編集",
     sub_track_pos: "トラック設定", add_cue: "＋再生位置に字幕を追加", new_cue_text: "新しい字幕",
     image: "画像", width: "幅", highlight_style: "ハイライト", hl_frame: "周りに枠", hl_shape: "ボタン自身の形", hl_underline: "下線", hl_drawn: "描いた図形",
     hl_form: "図形", hl_rect: "四角形", hl_ellipse: "楕円", hl_filled: "塗りつぶし", hl_drawn_hint: "メニュー上の点線の図形をドラッグで移動、角のつまみで大きさを変えます。これがボタンのハイライト全体で、ボタンの範囲にもなります。",
@@ -427,18 +434,18 @@ const I18N = {
     go_to_title: "タイトルを開く",
     build_iso: "ディスクイメージ（.iso）", build_folder: "VIDEO_TS フォルダ", build_disc: "DVD ディスク（イメージを作って書き込み）",
     build_format: "フォーマット", format_dvd: "DVD", format_bluray: "Blu-ray", format_web: "Web（HTML5）", build_web_folder: "index.html の入ったフォルダー（ブラウザで開くか、Web サーバーに置きます）",
-    web_note: "ブラウザ向けのディスク：ボタン付きのメニュー、チャプターと字幕付きの MP4 のタイトル、ディスクと同じリンク。音声はタイトルごとに 1 本です。", build_bdmv: "BDMV フォルダ", build_bd_disc: "Blu-ray ディスク（イメージを作って書き込み）", bd_size: "ディスク容量",
-    bd_picture: "映像", bd_1080: "1920×1080（1080i 25／29.97、フィルムは 1080p 23.976）", bd_720: "1280×720（720p 50／59.94：毎秒 50／60 コマのまま）", bd_note: "Blu-ray: タイトルを HD で、チャプター・プレイリスト・すべて再生・メニュー（ポップアップメニューも）・字幕付きで書き出します。タイトル上のボタン、アングル、クローズドキャプション、ナビゲーションスクリプトは DVD のみです。",
+    web_note: "ブラウザ向けのディスク：ボタン付きのメニュー、チャプターと字幕付きの MP4 のタイトル、ディスクと同じリンク。音声はタイトルごとに 1 本です。画像の字幕、アングル、クローズドキャプション、タイトル上のボタンは省きます（タイトルはボタンなしで再生されます）。", build_bdmv: "BDMV フォルダ", build_bd_disc: "Blu-ray ディスク（イメージを作って書き込み）", bd_size: "ディスク容量",
+    bd_picture: "映像", bd_1080: "1920×1080（1080i 25／29.97、フィルムは 1080p 23.976）", bd_720: "1280×720（720p 50／59.94：毎秒 50／60 コマのまま）", bd_note: "Blu-ray: タイトルを HD で、チャプター・プレイリスト・全タイトル連続再生・メニュー（ポップアップメニューも）・字幕付きで書き出します。タイトル上のボタン、アングル、クローズドキャプション、ナビゲーションスクリプトは DVD のみです。",
     recorder: "ドライブ", recorder_hint: "空欄なら最初のドライブ。ビルドの前に空のディスク（Blu-ray なら BD）を入れてください。",
-    burned: "DVD に書き込みました", step_burn: "ディスクに書き込み", fast: "高速（1パス）エンコード",
+    burned: "ディスクに書き込みました", step_burn: "ディスクに書き込み", fast: "高速エンコード（DVD は 1 パス。画質はやや下がります）",
     start_build: "開始", building: "ビルド中…", build_done: "完了", build_failed: "ビルドに失敗",
     reveal: "Finder で表示", reveal_other: "フォルダを開く", output: "出力先", warnings: "警告",
     step_probe: "素材をチェック", step_menu: "メニュー「{i}」を作成", step_encode: "タイトル「{i}」をエンコード",
-    step_subtitles: "「{i}」の字幕を作成", step_author: "VIDEO_TS を構成", step_iso: "ディスクイメージを書き出し",
+    step_subtitles: "「{i}」の字幕を作成", step_author: "ディスクのファイルを書き出し", step_iso: "ディスクイメージを書き出し",
     media_cache: "メディアキャッシュ", cache_folder: "フォルダー", cache_in_project: "プロジェクトフォルダー内（.oncemore-cache）", cache_use: "使う",
     cache_in_project_short: "プロジェクト内", cache_now: "このプロジェクトの場所：{p}",
     cache_hint: "エンコード済みのタイトルとメニュー、書き出したスライドショー、再生用のコピーをここに置き、ビルドを速くします。全プロジェクト共通のフォルダー（容量の大きいドライブや速いドライブなど）を選ぶと、その中にプロジェクトごとのフォルダーを作ります。",
-    check_ok: "書き出しできます", estimated: "推定サイズ", of: "／", video_avg: "平均映像ビットレート",
+    check_ok: "書き出しできます", estimated: "推定サイズ", of: "／", video_avg: "平均映像ビットレート", video_peak: "映像ビットレートの上限",
     budget: "ビットバジェット", budget_menus: "メニュー", budget_other: "ディスクのファイル", budget_free: "空き", budget_video: "映像 Mbit/s",
     budget_audio: "音声", budget_size: "サイズ", budget_share: "ディスクに占める割合", col_length: "長さ",
     menu_item: "メニュー：{m}", menu_button_item: "メニュー：{m} › {b}", title_item: "タイトル：{t}", chapter_item: "{t} › チャプター {n}",
@@ -465,10 +472,17 @@ const I18N = {
     to_end: "最後まで再生", time_out: "メニューをタイムアウトさせる", now: "現在", chapter_n: "チャプター {n} / {m}",
     stopped: "再生が停止しました。", audio_n: "音声 {n}", sub_off: "字幕オフ", sub_n: "字幕 {n}",
     in_playall: "連続再生中", in_playlist: "プレイリスト",
-    disc_tips: "座標は DVD のピクセル（幅 720）です。文字は全文字を描けるフォントを oncemore が自動で選んで描きます。",
+    disc_tips: "座標はメニューの幅 720 の格子です（Blu-ray ではメニューを HD に拡大します）。文字はディスクのフォントか要素ごとのフォントで描きます。自動なら全文字を描けるフォントを選びます。",
     tools: "ツール", ok: "OK", missing: "不足", tracks_hint: "空なら動画自体の音声を使います。",
     stream: "ストリーム", file: "ファイル", add_track: "＋トラック", add_sub: "＋字幕ファイル",
-    tbtn: "タイトル上のボタン", tbtn_add: "＋ボタン", tbtn_hint: "タイトルの再生中に、矢印キーで選び OK で押せる映像上の領域です（DVD のみ。Blu-ray のビルドと Web 版では省きます）。見た目は映像に描いておき、ディスクはその領域を光らせます。映像上の枠はドラッグで移動、角のドラッグで大きさを変えられます。", tbtn_from: "開始", tbtn_to: "終了", tbtn_to_end: "最後まで", tbtn_here: "再生位置にする", tbtn_subs: "字幕のあるタイトルには、まだボタンを置けません（プレーヤーは表示中の字幕ストリームの上でボタンを光らせるため）。", tbtn_hl: "選択時", tbtn_sel: "決定時", tbtn_link: "リンク", sim_time: "タイトル内の時刻",
+    tbtn: "タイトル上のボタン", tbtn_add: "＋ボタン", tbtn_hint: "タイトルの再生中に、矢印キーで選び OK で押せる映像上の領域です（DVD のみ。Blu-ray のビルドはこれがあると止まり、Web 版はボタンなしで再生します）。見た目は映像に描いておき、ディスクはその領域を光らせます。映像上の枠はドラッグで移動、角のドラッグで大きさを変えられます。", tbtn_from: "開始", tbtn_to: "終了", tbtn_to_end: "最後まで", tbtn_here: "再生位置にする", tbtn_subs: "字幕のあるタイトルには、まだボタンを置けません（プレーヤーは表示中の字幕ストリームの上でボタンを光らせるため）。", tbtn_hl: "選択時", tbtn_sel: "決定時", tbtn_link: "リンク", sim_time: "タイトル内の時刻",
+    tbtn_bd: "このプロジェクトは Blu-ray 向けで、Blu-ray にはタイトル上のボタンがありません。Blu-ray のビルドはこれがあると止まります（DVD には入ります）。",
+    angles_bd: "このプロジェクトは Blu-ray 向けです。Blu-ray のビルドではアングルを省きます（DVD には入ります）。",
+    cc_bd: "このプロジェクトは Blu-ray 向けです。Blu-ray のビルドではクローズドキャプションを省きます（DVD には入ります）。",
+    scripts_bd: "このプロジェクトは Blu-ray 向けで、Blu-ray にはナビゲーションスクリプトがまだありません。リンクからは選べず、選んでいるものがあると Blu-ray のビルドは止まります（DVD では動きます）。",
+    transcode_bd: "「今すぐトランスコード」は DVD 用の映像を作ります。Blu-ray のタイトルはビルドのときにエンコードします。",
+    cs_dvd: "DVD プレーヤーの不透明度は 16 段階です。",
+    order_dvd: "{o}（Blu-ray／Web 版。DVD は並び順に再生）",
     animate: "登場", anim_on: "動いて登場する", anim_start: "開始（秒）", anim_duration: "長さ（秒）",
     anim_dx: "開始時の横のずれ", anim_dy: "開始時の縦のずれ", anim_scale: "開始時の大きさ %", anim_fade: "フェードイン",
     anim_hint: "メニュー開始からその時刻に一度だけ、ずらした位置から（画像は小さい大きさから）メニュー上の位置と大きさへ動きます。メニューはモーションメニューになります。一度だけ再生するには、ループポイントをその後に置いてください。",
@@ -485,7 +499,7 @@ const I18N = {
     prop_disc: "ディスク", prop_title: "タイムライン", prop_menu: "メニュー", prop_button: "ボタン", prop_text: "テキスト", prop_shape: "長方形",
     prop_asset: "アセット", prop_playlist: "チャプタープレイリスト", prop_slideshow: "スライドショー",
     name_location: "名前と場所", project_settings: "プロジェクト設定", location: "場所", transcode_settings: "トランスコード設定",
-    np_transcode: "コーデック：MPEG-2、サイズ：{d}、フレームレート：{f}、音声：AC-3 / PCM、最大ビットレート：9.8 Mbps",
+    np_transcode: "コーデック：MPEG-2、サイズ：{d}、フレームレート：{f}、音声：AC-3 / LPCM / DTS、最大ビットレート：9.8 Mbps",
     np_transcode_bd: "コーデック：H.264、サイズ：1920 × 1080、フレームレート：{f}、音声：AC-3 / LPCM / DTS、映像の最大ビットレート：40 Mbps",
     authoring_mode_hint: "このプロジェクトで作るもの。ビルド、プロジェクトのチェック、ディスクの設定がこれに従います。ビルドパネルでもう一方を作ることもできます。",
     np_info: "ディスクの設定は、あとからいつでもプロパティパネルで変更できます（フローチャートでディスクを選択）。",
@@ -507,7 +521,7 @@ const I18N = {
     ra_none: "プロジェクトはまだファイルを使っていません。", psd_changed: "このメニューの Photoshop ファイルが変更されました。", open_failed: "このシステムにはファイルを開くプログラムがありません。",
     colour_set: "カラーセット", cs_normal: "通常時の色", opacity: "不透明度",
     cs_normal_hint: "選択されていないボタンのハイライト形状をこの色で表示します",
-    cs_hint: "ボタンのハイライト形状の色：通常時（選択されていないとき・任意）、選択中、決定時。DVD プレーヤーの不透明度は 16 段階です。",
+    cs_hint: "ボタンのハイライト形状の色：通常時（選択されていないとき・任意）、選択中、決定時。",
     layer_hide: "非表示にする（ディスクに入れない）", layer_show: "表示する",
     cmd_revert_backup: "保存済みの版に戻す…", revert: "戻す", no_backups: "まだ以前の版はありません。",
     backups_hint: "oncemore は変更前のプロジェクトを最大 {m} 分ごとに保存しています（直近 30 版、プロジェクトの隣の .oncemore-backup）。戻すのも 1 つの編集なので、取り消すで今の状態に戻れます。",
@@ -795,6 +809,7 @@ function uniqueId(prefix, existing) {
   return `${prefix}${n}`;
 }
 function actionOptions({ forButton = true, allowStop = true, includeChapters = forButton, allowPlayAll = forButton, allowLast = false, allowScripts = true } = {}) {
+  allowScripts = allowScripts && !isBD();      // (a Blu-ray has no navigation scripts yet)
   const p = P(), opts = [];
   const here = forButton && S.sel.view === "menu" ? curMenu() : null;
   if (here && pagesOf(here) > 1) {
@@ -997,7 +1012,8 @@ async function save() {
 function refreshEncodeStatus() {
   clearTimeout(S.encTimer);
   S.encTimer = setTimeout(async () => {
-    if (!P() || S.check?.issues?.length) { S.encStatus = null; renderSidebar(); return; }
+    // (a Blu-ray's titles are encoded when it is built: no status to show)
+    if (!P() || S.check?.issues?.length || isBD()) { S.encStatus = null; renderSidebar(); return; }
     try { S.encStatus = (await api("/api/encode_status", { method: "POST", body: { project: S.project } })).titles; }
     catch (e) { S.encStatus = null; }
     renderSidebar();
@@ -1120,7 +1136,6 @@ const ICONS = {
   eyeOff: svg('<path d="M1 8s2.6-4.5 7-4.5S15 8 15 8s-2.6 4.5-7 4.5S1 8 1 8z" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".45"/><path d="M2.5 13.5l11-11" stroke="currentColor" stroke-width="1.4"/>'),
   mtnS: svg('<path d="M3 12l3-4 2 2 2-3 3 5z" fill="currentColor"/>'),
   mtnL: svg('<path d="M0.5 14l4.5-7 3 3.5 3-5 4.5 8.5z" fill="currentColor"/>'),
-  panel: svg('<path d="M3 5l2.5 3L8 5z" fill="currentColor"/><path d="M9.5 4.5h4M9.5 7.5h4M9.5 10.5h4" stroke="currentColor" stroke-width="1.3"/>', 'width="18" height="14"'),
 };
 // the panel being worked in gets an amber outline
 function markFrame() {
@@ -1405,7 +1420,7 @@ function renderMain() {
 // the Monitor with nothing open in it
 function renderMonitorEmpty(m) {
   m.innerHTML = `<div class="monitor empty"><div class="monitor-screen"><span class="hint">${esc(t("no_timeline_open"))}</span></div>
-    <div class="monitor-bar"><select disabled class="shrink"><option>${esc(t("fit"))}</option></select><span class="spacer"></span><span class="tc-amber">00:00:00.000</span></div></div>`;
+    <div class="monitor-bar"><span class="spacer"></span><span class="tc-amber">00:00:00.000</span></div></div>`;
 }
 // File > Preview: the disc played with a remote, in a window of its own
 function renderPreviewWindow() {
@@ -1474,7 +1489,6 @@ function renderWelcome(m) {
     <div class="np-brand"><img src="brand-lockup.svg" alt="oncemore"></div>
     <div class="dlg-title">${esc(t("new_project"))}</div>
     <div class="dlg-body">
-      <div class="dlg-tabs"><span class="tab active">${t("basic")}</span></div>
       <div class="dlg-page">
         <fieldset class="group"><legend>${t("name_location")}</legend>
           <label class="frow"><span class="fl">${t("name")}:</span><input id="np-label" value="MY_DISC"></label>
@@ -1488,14 +1502,14 @@ function renderWelcome(m) {
         </fieldset>
         <div class="np-info"><span class="i" aria-hidden="true">i</span><span>${esc(t("np_info"))}</span></div>
       </div>
-      <div class="dlg-buttons"><button id="np-sample">${t("np_open_sample")}</button><span class="spacer"></span><button id="np-empty" class="primary">OK</button></div>
+      <div class="dlg-buttons"><button id="np-sample">${t("sample_project")}</button><span class="spacer"></span><button id="np-empty" class="primary">OK</button></div>
     </div></div></div>`;
   $("#np-tx").textContent = tx();
   $("#np-std").onchange = () => { $("#np-tx").textContent = tx(); };
   for (const r of document.querySelectorAll("input[name=np-mode]")) r.onchange = () => { $("#np-tx").textContent = tx(); };
   const go = async (sample) => {
     const r = await api("/api/new", { method: "POST", body: { sample, label: $("#np-label").value, standard: $("#np-std").value, aspect: $("#np-aspect").value, format: mode() } });
-    applyState(r); S.sel = { view: "disc" }; renderAll(); refreshEncodeStatus();
+    applyState(r); S.buildFormat = null; S.sel = { view: "disc" }; renderAll(); refreshEncodeStatus();
   };
   $("#np-empty").onclick = () => go(false);
   $("#np-sample").onclick = () => go(true);
@@ -1517,7 +1531,7 @@ function renderDisc(m) {
   m.innerHTML = `<h2>${t("prop_disc")}</h2><div class="card">
     <label class="field"><span>${t("label")}</span><input data-k="label" value="${esc(d.label)}"></label>
     <div class="grid2">
-      <label class="field"><span>${t("standard")}</span>${selectHtml("standard", [["NTSC", "NTSC (720×480, 29.97)"], ["PAL", "PAL (720×576, 25)"]], d.standard)}</label>
+      <label class="field"><span>${t("standard")}</span>${selectHtml("standard", bd ? [["NTSC", "NTSC (29.97, film 23.976)"], ["PAL", "PAL (25)"]] : [["NTSC", "NTSC (720×480, 29.97)"], ["PAL", "PAL (720×576, 25)"]], d.standard)}</label>
       <label class="field"><span>${t("aspect")}</span>${selectHtml("aspect", [["16:9", "16:9"], ["4:3", "4:3"]], d.aspect)}</label>
       <label class="field"><span>${t("authoring_mode")}</span>${selectHtml("format", [["dvd", t("format_dvd")], ["bluray", t("format_bluray")]], d.format || "dvd", `title="${esc(t("authoring_mode_hint"))}"`)}</label>
       ${bd ? `<label class="field"><span>${t("bd_size")}</span>${selectHtml("bluray.target", [["BD25", "BD-25 (25 GB)"], ["BD50", "BD-50 (50 GB)"]], d.bluray?.target || "BD25")}</label>
@@ -1527,6 +1541,7 @@ function renderDisc(m) {
     </div>
     ${bd ? `<div class="hint">${esc(t("bd_note"))}</div>` : ""}
     ${!bd && d.target === "DVD9" ? `<label class="field"><span>${t("layer_break")}</span>${selectHtml("layer_break", [["__none__", t("auto")], ...(P().titles || []).flatMap((ti) => chaptersOf(ti).map((_, k) => [`${ti.id}:${k + 1}`, t("layer_break_at", { t: ti.name || ti.id, n: k + 1 })]))], d.layer_break || "__none__")}<div class="hint">${esc(t("layer_break_hint"))}</div></label>` : ""}
+    <label class="field"><span>${t("disc_font")}</span>${selectHtml("font", [["__none__", t("auto")], ...mediaOf("font").map((x) => [x, x.replace(/^media\//, "")])], d.font || "__none__")}<div class="hint">${esc(t("disc_font_hint"))}</div></label>
     <label class="field"><span>${t("first_play")} ${whipHtml("first_play")}</span>${selectHtml("first_play", [["__none__", t("auto")], ...fp], d.first_play || "__none__")}</label>
     <label class="field"><span>${t("title_key")}</span>${selectHtml("title_key", [["__none__", t("first_menu")], ...fp], d.title_key || "__none__")}</label>
     <label class="field"><span></span><label title="${esc(t("subtitles_off_hint"))}"><input type="checkbox" data-k="subtitles_off" ${d.subtitles_off ? "checked" : ""}> ${t("subtitles_off")}</label></label>
@@ -1567,6 +1582,7 @@ function scriptsHtml() {
   const sc = P().scripts || {};
   return `<h2>${t("scripts")}</h2><div class="card" id="scripts" data-nobind>
     <div class="hint">${esc(t("scripts_hint"))}</div>
+    ${isBD() ? `<div class="hint warn">${esc(t("scripts_bd"))}</div>` : ""}
     ${Object.entries(sc).map(([id, text]) => `<div class="script-row" data-script="${esc(id)}" style="margin:10px 0">
       <div class="row"><input class="mono" data-sid value="${esc(id)}" aria-label="id">
         <button class="small danger shrink" data-del-script title="${esc(t("delete"))}">✕</button></div>
@@ -2234,13 +2250,14 @@ function anglesHtml(ti) {
   const vids = angleChoices(ti);
   return `<h3>${t("angles")}</h3>
     <div class="hint">${esc(t("angles_hint"))}</div>
+    ${isBD() ? `<div class="hint warn">${esc(t("angles_bd"))}</div>` : ""}
     <div class="row" style="margin:6px 0"><span class="shrink hint">${esc(t("angle_n", { n: 1 }))}</span><span class="mono">${esc(ti.source || "")}</span></div>
     ${angles.map((a, i) => `<div class="row" style="margin:6px 0" data-angle="${i}" data-nobind>
       <span class="shrink hint">${esc(t("angle_n", { n: i + 2 }))}</span>
       ${selectHtml("angle", vids.map((v) => [v, v.replace(/^media\//, "")]), a)}
       <button class="small shrink" data-angle-up="${i}" ${i ? "" : "disabled"} title="▲">▲</button>
       <button class="small danger shrink" data-del-angle="${i}">✕</button></div>`).join("")}
-    <button class="small" id="add-angle" ${ok && vids.length && angles.length < 8 ? "" : "disabled"}>${t("add_angle")}</button>`;
+    <button class="small" id="add-angle" ${ok && vids.length && angles.length < 8 && !isBD() ? "" : "disabled"}>${t("add_angle")}</button>`;
 }
 function bindAngles(el, find) {
   el.querySelectorAll("[data-angle]").forEach((row) => {
@@ -2273,6 +2290,7 @@ function titleButtonsHtml(ti) {
   return `<h3>${t("tbtn")}</h3>
     <div class="hint">${esc(t("tbtn_hint"))}</div>
     ${subs ? `<div class="hint warn">${esc(t("tbtn_subs"))}</div>` : ""}
+    ${isBD() ? `<div class="hint warn">${esc(t("tbtn_bd"))}</div>` : ""}
     ${list.map((b, i) => `<div class="tbtn-row" data-tbtn="${i}" data-nobind>
       <div class="row"><input class="mono shrink" style="width:90px" data-k="id" value="${esc(b.id)}" title="${esc(t("id"))}">
         ${selectHtml("action", acts, b.action)}
@@ -2282,7 +2300,7 @@ function titleButtonsHtml(ti) {
         <span class="shrink hint">${t("tbtn_to")}</span><input class="mono" data-k="end" value="${b.end == null ? "" : esc(fmtTime(Number(b.end)))}" placeholder="${esc(t("tbtn_to_end"))}">
         <button class="small shrink" data-here="end" title="${esc(t("tbtn_here"))}">⏱</button></div>
       <div class="row">${["x", "y", "width", "height"].map((k) => `<input type="number" min="0" class="shrink" style="width:64px" data-k="${k}" value="${b[k]}" title="${k}">`).join("")}</div></div>`).join("")}
-    <button class="small" id="add-tbtn" ${subs ? "disabled" : ""}>${t("tbtn_add")}</button>
+    <button class="small" id="add-tbtn" ${subs || isBD() ? "disabled" : ""}>${t("tbtn_add")}</button>
     ${list.length ? `<div class="row" style="margin-top:6px" data-nobind>
       <label class="shrink">${t("tbtn_hl")} <input type="color" data-tbtn-color="highlight" value="${esc((cols.highlight || "#FFD400").slice(0, 7))}"></label>
       <label class="shrink">${t("tbtn_sel")} <input type="color" data-tbtn-color="select" value="${esc((cols.select || "#FF5A00").slice(0, 7))}"></label></div>` : ""}`;
@@ -2370,15 +2388,15 @@ function renderTitleInspector(el) {
     ${mediaOf("audio").includes(ti.source) ? `<label class="field"><span>${t("sound_picture")}</span>${selectHtml("picture", [["__none__", t("black")], ...mediaOf("image").map((v) => [v, v.replace(/^media\//, "")])], ti.picture || "__none__")}<div class="hint">${esc(t("sound_picture_hint"))}</div></label>` : ""}
     <label class="field"><span>${t("aspect")}</span>${selectHtml("aspect", [["__none__", `${t("auto")} (${P().disc.aspect})`], ["16:9", "16:9"], ["4:3", "4:3"]], ti.aspect || "__none__")}</label>
     ${ti.slideshow || ti.clips ? "" : `<label class="field"><span></span><label><input type="checkbox" id="ti-copy" ${ti.transcode === false ? "checked" : ""}> ${t("no_transcode")}</label><div class="hint">${esc(t("no_transcode_hint"))}</div></label>`}
-    ${ti.transcode === false ? "" : `<label class="field"><span>${t("scan")}</span>${selectHtml("scan", [["__none__", t("scan_auto")], ["progressive", t("scan_progressive")], ["interlaced", t("scan_interlaced")], ...(P().disc.standard === "NTSC" ? [["pulldown", t("scan_pulldown")], ["ivtc", t("scan_ivtc")]] : [])], ti.scan || "__none__")}<div class="hint">${esc(t("scan_hint"))}</div></label>`}
+    ${ti.transcode === false ? "" : `<label class="field"><span>${t("scan")}</span>${selectHtml("scan", scanOptions(ti), ti.scan || "__none__")}<div class="hint">${esc(t("scan_hint"))}</div></label>`}
     <label class="field"><span>${t("end_action")} ${whipHtml("end_action")}</span>${selectHtml("end_action", [["__none__", t("auto")], ...ends], ti.end_action || "__none__")}</label>
-    <label class="field"><span>${t("menu_key")}</span>${selectHtml("remote_menu", [["__none__", t("first_menu")], ...allMenuIds().map((id) => [id, t("menu_item", { m: id })])], ti.remote_menu || "__none__")}<div class="hint">${esc(t("menu_key_hint"))}</div></label>
+    <label class="field"><span>${t("menu_key")}</span>${selectHtml("remote_menu", [["__none__", t("first_menu")], ...allMenuIds().map((id) => [id, t("menu_item", { m: id })])], ti.remote_menu || "__none__")}<div class="hint" ${isBD() ? "" : "hidden"}>${esc(t("menu_key_hint"))}</div></label>
     <h3>${t("audio")}</h3>
     <div class="grid2">
       <label class="field"><span>${t("codec")}</span>${selectHtml("audio.codec", [["ac3", "AC-3"], ["lpcm", "LPCM"], ["dts", t("dts_copy")]], audio.codec || "ac3")}${audio.codec === "dts" ? `<div class="hint">${esc(t("dts_hint"))}</div>` : ""}</label>
       <label class="field"><span>${t("bitrate")}</span>${selectHtml("audio.bitrate", [["128k", "128k"], ["192k", "192k"], ["224k", "224k"], ["256k", "256k"], ["384k", "384k"], ["448k", "448k"]], audio.bitrate || (audio.channels === 6 ? "448k" : "192k"), audio.codec === "lpcm" || audio.codec === "dts" ? "disabled" : "")}</label>
       <label class="field"><span>${t("channels")}</span>${selectHtml("audio.channels", [["2", t("stereo")], ["6", t("surround")]], String(audio.channels || (audio.codec === "dts" ? 6 : 2)), audio.codec === "lpcm" ? "disabled" : "")}</label>
-      <label class="field"><span>${t("video_bitrate")}</span>${selectHtml("video_bitrate", [["__none__", t("auto_shared")], ...["3M", "4M", "5M", "6M", "7M", "8M"].map((b) => [b, b.replace("M", " Mbit/s")])], ti.video_bitrate || "__none__", ti.transcode === false ? "disabled" : "")}</label>
+      <label class="field" ${isBD() ? "hidden" : ""}><span>${t("video_bitrate")}</span>${selectHtml("video_bitrate", [["__none__", t("auto_shared")], ...["3M", "4M", "5M", "6M", "7M", "8M"].map((b) => [b, b.replace("M", " Mbit/s")])], ti.video_bitrate || "__none__", ti.transcode === false ? "disabled" : "")}</label>
       <label class="field"><span></span><label title="${esc(t("passthrough_hint"))}"><input type="checkbox" data-k="audio.passthrough" ${audio.passthrough || audio.codec === "dts" ? "checked" : ""} ${audio.codec === "lpcm" || audio.codec === "dts" ? "disabled" : ""}> ${t("passthrough")}</label></label>
     </div>
     ${tracks.length ? "" : `<label class="field"><span>${t("language")}</span>${selectHtml("audio.lang", langs, audio.lang || "")}</label>`}
@@ -2409,10 +2427,11 @@ function renderTitleInspector(el) {
     <button class="small" id="add-sub" ${mediaOf("subtitle").length ? "" : "disabled"}>${t("add_sub")}</button>
     <h3>${t("captions")}</h3>
     <div class="row" style="margin:6px 0 4px" data-nobind>
-      ${selectHtml("captions_file", [["", t("none")], ...mediaOf("subtitle").map((f) => [f, f.replace(/^media\//, "")])], cap.file || "", `id="cc-file" ${P().disc.standard === "PAL" ? "disabled" : ""}`)}</div>
+      ${selectHtml("captions_file", [["", t("none")], ...mediaOf("subtitle").map((f) => [f, f.replace(/^media\//, "")])], cap.file || "", `id="cc-file" ${P().disc.standard === "PAL" || (isBD() && !cap.file) ? "disabled" : ""}`)}</div>
     ${cap.file ? `<div class="row" style="margin:0 0 4px" data-nobind><span class="shrink hint">${t("sub_offset")}</span>
       <input class="mono" id="cc-offset" value="${esc(cap.offset ?? "")}" placeholder="0" title="${esc(t("sub_offset_hint"))}"></div>` : ""}
     <div class="hint">${esc(t(P().disc.standard === "PAL" ? "cc_pal" : "cc_hint"))}</div>
+    ${isBD() ? `<div class="hint warn">${esc(t("cc_bd"))}</div>` : ""}
     <h3>${t("chapter_menu")}</h3>
     <label><input type="checkbox" id="cm-on" ${cm ? "checked" : ""}> ${t("chapter_menu_on")}</label>
     ${cm ? `<div style="margin-top:8px" data-nobind><label class="field"><span>BACK → </span>${selectHtml("back", [["__none__", t("auto")], ...actionOptions({ forButton: false, includeChapters: false })], (cm === true ? null : cm.back) || "__none__", 'id="cm-back"')}</label>
@@ -2605,7 +2624,7 @@ function renderPlaylist(m) {
         <button class="small danger shrink" data-item-del ${pl.items.length > 1 ? "" : "disabled"}>✕</button></div>`;
     }).join("")}
     <button class="small" id="add-item">${t("add_item")}</button>
-    <label class="field" style="margin-top:12px"><span>${t("playlist_order")}</span>${selectHtml("order", [["sequential", t("order_sequential")], ["random", t("order_random")], ["shuffle", t("order_shuffle")]], pl.order || "sequential")}<div class="hint">${esc(t("order_hint"))}</div></label>
+    <label class="field" style="margin-top:12px"><span>${t("playlist_order")}</span>${selectHtml("order", [["sequential", t("order_sequential")], ...["random", "shuffle"].map((o) => [o, isBD() ? t("order_" + o) : t("order_dvd", { o: t("order_" + o) })])], pl.order || "sequential")}<div class="hint">${esc(t("order_hint"))}</div></label>
     <label class="field"><span>${t("playlist_end")}</span>${selectHtml("end_action", ends, pl.end_action || "stop")}</label>
     <h3></h3><button class="danger" id="del-playlist">${t("delete")}</button></div>`;
   const find = (p) => p.playlists.find((x) => x.id === pl.id);
@@ -2753,7 +2772,7 @@ function renderMenu(m) {
       <span class="spacer"></span>
       <button id="exact" class="small ${S.preview && !S.spView ? "" : "primary"}">${S.preview && !S.spView ? t("hide_preview") : t("exact_preview")}</button>
     </div>
-    <div class="hint" style="text-align:center;margin-top:6px">${w}×${h} · 720×${H} DVD px · ${esc(P().disc.aspect)} · ${esc(t("stage_keys"))}</div>
+    <div class="hint" style="text-align:center;margin-top:6px">${w}×${h} · 720×${H} ${esc(t(isBD() ? "menu_px_bd" : "menu_px"))} · ${esc(P().disc.aspect)} · ${esc(t("stage_keys"))}</div>
     <div class="hint" style="text-align:center">${esc(t("link_hint"))}</div>
     </div></div>`;
   if ($("#psd-reimport")) $("#psd-reimport").onclick = () => { S.psdChanged = null; importPsd(menu.psd, menu.id); };
@@ -3229,7 +3248,7 @@ function colourSetHtml(menu) {
       <input type="color" class="shrink" data-cs="${k}" value="${c.rgb}" ${on ? "" : "disabled"}>
       <input type="range" min="0" max="100" step="1" data-cs-a="${k}" value="${c.pct}" ${on ? "" : "disabled"} title="${esc(t("opacity"))}">
       <span class="shrink pct mono" data-cs-p="${k}">${c.pct}%</span></div></label>`;
-  }).join("")}<div class="hint">${esc(t("cs_hint"))}</div>`;
+  }).join("")}<div class="hint">${esc(t("cs_hint"))}${isBD() ? "" : " " + esc(t("cs_dvd"))}</div>`;
 }
 function bindColourSet(root, menu) {
   const write = (k) => {
@@ -3891,15 +3910,25 @@ window.addEventListener("drop", (e) => {
 // ---------------------------------------------------------------- check & build
 // what Build makes: the format chosen in the Build panel, else the project's authoring mode
 function buildFormat() { return S.buildFormat || P()?.disc?.format || "dvd"; }
+// a title's scan choices: a Blu-ray keeps no fields (interlaced becomes frames), so
+// it offers that choice only when the title already has it
+function scanOptions(ti) {
+  return [["__none__", t("scan_auto")], ["progressive", t("scan_progressive")],
+    ...(!isBD() || ti.scan === "interlaced" ? [["interlaced", t("scan_interlaced")]] : []),
+    ...(P().disc.standard === "NTSC" ? [["pulldown", t("scan_pulldown")], ["ivtc", t("scan_ivtc")]] : [])];
+}
+// the project is made for a Blu-ray (its authoring mode): DVD-only settings say so
+function isBD() { return P()?.disc?.format === "bluray"; }
 async function runCheck() {
   openModal(`<h2>${t("check")}</h2><p class="muted">…</p>`);
+  const fmt = buildFormat();       // (checked as it is built: DVD, Blu-ray or the web version)
   try {
-    const r = await api("/api/validate", { method: "POST", body: { format: buildFormat() === "bluray" ? "bluray" : "dvd" } });
+    const r = await api("/api/validate", { method: "POST", body: { format: fmt } });
     const s = r.summary;
     openModal(`<h2>✓ ${t("check_ok")}</h2>
       <p>${t("estimated")}: <b>${fmtBytes(s.estimated_bytes)}</b> ${t("of")} ${fmtBytes(s.capacity_bytes)}</p>
       ${budgetHtml(s)}
-      <p>${t("video_avg")}: <b>${(s.video_bps / 1e6).toFixed(2)} Mbit/s</b></p>
+      <p>${t(fmt === "dvd" ? "video_avg" : "video_peak")}: <b>${(s.video_bps / 1e6).toFixed(2)} Mbit/s</b></p>
       ${s.warnings.length ? `<h3>${t("warnings")}</h3><ul class="issues">${s.warnings.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}`);
   } catch (e) {
     if (e.data?.issues) showIssues(e.data.issues);
@@ -3937,8 +3966,6 @@ function renderBuild(m) {
   m.innerHTML = `<div class="build-panel">
     <div class="build-top"><button id="btn-check">${esc(t("check_project"))}</button><span class="spacer"></span>
       <button class="primary build-go" id="start" ${job && !job.done ? "disabled" : ""}>${job && !job.done ? t("building") : t("build")}</button></div>
-    <fieldset class="group"><legend>${t("build_source")}</legend>
-      <div class="frow"><span class="fl">${t("build_source")}</span><select disabled><option>${esc(t("current_project"))}</option></select></div></fieldset>
     <fieldset class="group"><legend>${t("build_format")}</legend>
       <label class="frow"><span class="fl">${t("build_format")}</span><select id="bformat">
         <option value="dvd" ${fmt === "dvd" ? "selected" : ""}>${t("format_dvd")}</option>
@@ -3963,7 +3990,7 @@ function renderBuild(m) {
       <label class="frow"><span class="fl"></span><span><input type="checkbox" id="nocache" ${S.buildNoCache ? "checked" : ""}> ${t("no_cache")}</span></label></fieldset>
     <fieldset class="group"><legend>${t("disc_info")}</legend>
       <div class="frow"><span class="fl">${t("label")}</span><span>${esc(d.label)}</span></div>
-      <div class="frow"><span class="fl">${t("standard")}</span><span>${esc(d.standard)} · ${esc(d.aspect)} · ${esc(d.target || "DVD5")}</span></div></fieldset>
+      <div class="frow"><span class="fl">${t("standard")}</span><span>${esc(d.standard)} · ${esc(d.aspect)} · ${esc(fmt === "bluray" ? `${d.bluray?.target || "BD25"} · ${d.bluray?.video === "720" ? "1280×720" : "1920×1080"}` : fmt === "web" ? t("format_web") : d.target || "DVD5")}</span></div></fieldset>
   </div>
   ${steps.length ? `<div class="card" style="max-width:720px"><ul class="steps">${steps.map((s, i) => {
     const f = progress[`${s.step}:${s.item ?? ""}`];
@@ -4046,7 +4073,7 @@ function renderWorkspaces() {
 }
 // a tab strip of a frame: a grip, the tabs (the front one with its close
 // box), then the panel menu on the right
-const tabStrip = (tabs, cur, attr) => `<span class="grip" aria-hidden="true"></span><div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${cur === k ? "active" : ""}" ${attr}="${k}">${esc(l)}${cur === k ? `<span class="x" aria-hidden="true">×</span>` : ""}</button>`).join("")}</div><span class="spacer"></span><button class="panel-menu" title="${esc(t("panel_menu"))}">${ICONS.panel}</button>`;
+const tabStrip = (tabs, cur, attr) => `<span class="grip" aria-hidden="true"></span><div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${cur === k ? "active" : ""}" ${attr}="${k}">${esc(l)}</button>`).join("")}</div><span class="spacer"></span>`;
 function renderLeft() {
   const tab = S.leftTab || "project";
   $("#left-tabs").innerHTML = P() ? tabStrip([["project", t("project")], ["menus", t("menus")], ["timelines", t("timelines")], ["build", t("build")]], tab, "data-lt") : "";
@@ -4063,13 +4090,13 @@ function renderCenterHead() {
   const mn = S.lastMenu && ((P().menus || []).some((x) => x.id === S.lastMenu) || generatedMenus().some((g) => g.id === S.lastMenu)) ? S.lastMenu : null;
   const pl = S.lastPlaylist && (P().playlists || []).some((x) => x.id === S.lastPlaylist) ? S.lastPlaylist : null;
   const cur = v === "menu" ? "menu" : v === "flow" ? "flow" : v === "playlist" ? "playlist" : "monitor";
-  const tab = (k, label, attrs) => `<button class="tab vtab ${cur === k ? "active" : ""}" ${attrs}>${esc(label)}${cur === k ? `<span class="x" aria-hidden="true">×</span>` : ""}</button>`;
+  const tab = (k, label, attrs) => `<button class="tab vtab ${cur === k ? "active" : ""}" ${attrs}>${esc(label)}</button>`;
   h.innerHTML = `<span class="grip" aria-hidden="true"></span><div class="tabs">
     ${tab("monitor", ti ? `${t("monitor")}` : t("monitor"), 'data-ctab="monitor"')}
     ${tab("menu", mn ? `${t("menu")}: ${mn}` : t("no_menus"), `data-ctab="menu" ${mn ? "" : "disabled"}`)}
     ${pl ? tab("playlist", `${t("playlist")}: ${pl}`, 'data-ctab="playlist"') : ""}
     ${tab("flow", t("flowchart"), 'data-view="flow" data-id="" data-ctab="flow"').replace('class="tab vtab', 'class="tab nav-item vtab')}
-    </div><span class="spacer"></span><button class="panel-menu" title="${esc(t("panel_menu"))}">${ICONS.panel}</button>`;
+    </div><span class="spacer"></span>`;
   h.querySelectorAll("[data-ctab]").forEach((b) => (b.onclick = () => {
     const k = b.dataset.ctab;
     if (k === "monitor") { if (ti) select("title", ti.id); else select("disc"); }
@@ -4251,7 +4278,7 @@ async function renderTimeline() {
     // the Timeline panel stays in its place, empty, as long as no timeline is open
     S.tl = null;
     if (!P()) return;
-    $("#tl-head").innerHTML = `<span class="grip" aria-hidden="true"></span><div class="tabs"><button class="tab active" disabled>${esc(t("no_timelines"))}</button></div><span class="spacer"></span><button class="panel-menu" title="${esc(t("panel_menu"))}">${ICONS.panel}</button>`;
+    $("#tl-head").innerHTML = `<span class="grip" aria-hidden="true"></span><div class="tabs"><button class="tab active" disabled>${esc(t("no_timelines"))}</button></div><span class="spacer"></span>`;
     $("#tl").innerHTML = `<div class="tl-empty"><div class="tl-row"><span class="tl-label tl-tcs"><span>${esc(t("timeline"))}:</span><span>${esc(t("tc_source"))}:</span></span><div class="tl-track tl-ruler"></div></div></div>`;
     return;
   }
@@ -4264,10 +4291,16 @@ async function renderTimeline() {
   if (tlOf() !== ti) return;
   const dur = join ? join.duration : info?.duration || 0;
   const zoom = S.tlZoom || 1;
-  $("#tl-head").innerHTML = `<span class="grip" aria-hidden="true"></span><div class="tabs"><button class="tab active">${esc(ti.name || ti.id)}<span class="dd" aria-hidden="true">▾</span><span class="x" aria-hidden="true">×</span></button></div>
+  $("#tl-head").innerHTML = `<span class="grip" aria-hidden="true"></span><div class="tabs"><button class="tab active" id="tl-pick" title="${esc(t("timelines"))}">${esc(ti.name || ti.id)}<span class="dd" aria-hidden="true">▾</span></button></div>
     <span class="spacer"></span>
-    <button class="tlz" id="tl-out" title="${esc(t("zoom_hint"))}">${ICONS.mtnS}</button><button class="tlz" id="tl-in" title="${esc(t("zoom_hint"))}">${ICONS.mtnL}</button>
-    <button class="panel-menu" title="${esc(t("panel_menu"))}">${ICONS.panel}</button>`;
+    <button class="tlz" id="tl-out" title="${esc(t("zoom_hint"))}">${ICONS.mtnS}</button><button class="tlz" id="tl-in" title="${esc(t("zoom_hint"))}">${ICONS.mtnL}</button>`;
+  // the tab's ▾: the other timelines (titles) to open
+  $("#tl-pick").onclick = (e) => {
+    e.stopPropagation();                 // (a click elsewhere closes popups)
+    const r = e.currentTarget.getBoundingClientRect();
+    openPopup(r.left, r.bottom, (P().titles || []).map((x) => ({ label: x.name || x.id, checkable: true,
+      checked: x.id === ti.id, run: () => select("title", x.id) })));
+  };
   $("#tl-out").onclick = () => { S.tlZoom = Math.max(1, zoom / 2); renderTimeline(); };
   $("#tl-in").onclick = () => { S.tlZoom = Math.min(64, zoom * 2); renderTimeline(); };
   const box = $("#tl"), LABEL = 170;
@@ -4929,8 +4962,8 @@ const COMMANDS = {
   replace_asset: { run: () => replaceAssetBox(), when: hasProject },
   locate_asset: { run: () => replaceAssetBox(missingAssets()[0]), when: () => hasProject() && missingAssets().length > 0 },
   interpret_footage: { run: () => titleFieldsBox("interpret_footage"), when: () => inTitle() && !curTitle().slideshow },
-  transcode_title: { run: () => transcode([S.sel.id]), when: () => S.sel.view === "title" && editing() && !S.transcoding },
-  transcode_all: { run: () => transcode(null), when: () => hasProject() && (P().titles || []).length > 0 && !S.transcoding },
+  transcode_title: { run: () => transcode([S.sel.id]), when: () => S.sel.view === "title" && editing() && !S.transcoding && !isBD() },
+  transcode_all: { run: () => transcode(null), when: () => hasProject() && (P().titles || []).length > 0 && !S.transcoding && !isBD() },
   transcode_settings: { run: () => titleFieldsBox("transcode_settings"), when: () => inTitle() && !curTitle().slideshow },
   render_slideshows: { run: renderSlideshows, when: () => hasProject() && (P().titles || []).some((x) => x.slideshow) && !S.rendering },
   project_settings: { run: () => { S.leftTab = S.leftTab === "build" ? "project" : S.leftTab; S.activeFrame = "props"; select("disc"); }, when: hasProject },
@@ -5040,7 +5073,7 @@ const COMMANDS = {
   new_guide: { run: newGuideBox, when: inMenu },
   snap_guides: { key: "mod+shift+;", run: () => { S.snapGuides = S.snapGuides === false; renderMain(); }, when: inMenu, on: () => S.snapGuides !== false },
   view_normal: spCmd("normal"), view_selected: spCmd("highlight"), view_activated: spCmd("select"),
-  exact_preview: { run: () => $("#exact")?.click(), when: () => inMenu() && !!$("#exact"), on: () => !!S.preview && !S.spView && S.previewFor === S.sel.id },
+  exact_preview: { run: () => $("#exact")?.click(), when: () => inMenu() && !!$("#exact"), on: () => !!S.preview && !S.spView && S.previewFor === pageId(curMenu()) },
   // -- Window
   ws_author: { key: "alt+shift+1", run: WS("author"), when: hasProject },
   ws_flow: { key: "alt+shift+2", run: WS("flow"), when: hasProject },
@@ -5144,6 +5177,7 @@ async function loadRecent() {
 function projectSwitched(r) {
   applyState(r);
   S.undo = []; S.redo = []; S.probes = {}; S.preview = null; S.encStatus = null; S.job = null; S.jobEvents = [];
+  S.buildFormat = null;      // (Build starts on the project's authoring mode)
   S.element = null; S.sels = []; S.clip = null; S.clipItem = null; S.psdWatch = null; S.routing = {};
   const first = P()?.menus?.[0];
   S.sel = first ? { view: "menu", id: first.id } : { view: "disc" };
@@ -5168,7 +5202,7 @@ async function folderBox(mode) {
   const named = mode !== "open";
   // (the dialog is named as its command is: New project, Open project, Save as)
   openModal(`<h2>${t({ new: "cmd_new_project", open: "cmd_open_project" }[mode] || "cmd_" + mode).replace(/…$/, "")}</h2>
-    ${named ? `<label class="field"><span>${t("name")}</span><input id="fb-name" value="${esc(mode === "save_as" ? `${S.dir.split(/[\\/]/).pop()} copy` : "My DVD")}"></label>` : ""}
+    ${named ? `<label class="field"><span>${t("name")}</span><input id="fb-name" value="${esc(mode === "save_as" ? `${S.dir.split(/[\\/]/).pop()} copy` : "My Disc")}"></label>` : ""}
     <label class="field"><span>${t(named ? "location" : "folder")}</span><div class="row"><input id="fb-path" class="mono"><button class="small shrink" id="fb-up" title="${esc(t("fb_up"))}">↑</button><button class="small shrink" id="fb-home">${t("fb_home")}</button></div></label>
     <div class="fb-list" id="fb-list" role="listbox" aria-label="${esc(t("folders"))}"></div>
     <div class="hint">${esc(t("fb_hint_" + mode))}</div>
@@ -5230,11 +5264,11 @@ const missingAssets = () => { const have = new Set(S.media.map((m) => m.path)); 
 // Interpret footage / Transcode settings: the title's own settings in a dialog
 function titleFieldsBox(which) {
   const ti = curTitle(), audio = ti.audio || {}, copy = ti.transcode === false;
-  const scan = copy ? "" : `<label class="field"><span>${t("scan")}</span>${selectHtml("scan", [["__none__", t("scan_auto")], ["progressive", t("scan_progressive")], ["interlaced", t("scan_interlaced")], ...(P().disc.standard === "NTSC" ? [["pulldown", t("scan_pulldown")], ["ivtc", t("scan_ivtc")]] : [])], ti.scan || "__none__")}<div class="hint">${esc(t("scan_hint"))}</div></label>`;
+  const scan = copy ? "" : `<label class="field"><span>${t("scan")}</span>${selectHtml("scan", scanOptions(ti), ti.scan || "__none__")}<div class="hint">${esc(t("scan_hint"))}</div></label>`;
   const body = which === "interpret_footage"
     ? `<label class="field"><span>${t("aspect")}</span>${selectHtml("aspect", [["__none__", `${t("auto")} (${P().disc.aspect})`], ["16:9", "16:9"], ["4:3", "4:3"]], ti.aspect || "__none__")}</label>${scan}`
     : `${ti.clips ? "" : `<label class="field"><span></span><label><input type="checkbox" id="tf-copy" ${copy ? "checked" : ""}> ${t("no_transcode")}</label><div class="hint">${esc(t("no_transcode_hint"))}</div></label>`}
-      <label class="field"><span>${t("video_bitrate")}</span>${selectHtml("video_bitrate", [["__none__", t("auto_shared")], ...["3M", "4M", "5M", "6M", "7M", "8M"].map((b) => [b, b.replace("M", " Mbit/s")])], ti.video_bitrate || "__none__", copy ? "disabled" : "")}</label>
+      <label class="field" ${isBD() ? "hidden" : ""}><span>${t("video_bitrate")}</span>${selectHtml("video_bitrate", [["__none__", t("auto_shared")], ...["3M", "4M", "5M", "6M", "7M", "8M"].map((b) => [b, b.replace("M", " Mbit/s")])], ti.video_bitrate || "__none__", copy ? "disabled" : "")}</label>
       <label class="field"><span>${t("codec")}</span>${selectHtml("audio.codec", [["ac3", "AC-3"], ["lpcm", "LPCM"], ["dts", t("dts_copy")]], audio.codec || "ac3")}${audio.codec === "dts" ? `<div class="hint">${esc(t("dts_hint"))}</div>` : ""}</label>
       <label class="field"><span>${t("bitrate")}</span>${selectHtml("audio.bitrate", [["128k", "128k"], ["192k", "192k"], ["224k", "224k"], ["256k", "256k"], ["384k", "384k"], ["448k", "448k"]], audio.bitrate || (audio.channels === 6 ? "448k" : "192k"), audio.codec === "lpcm" || audio.codec === "dts" ? "disabled" : "")}</label>
       <label class="field"><span>${t("channels")}</span>${selectHtml("audio.channels", [["2", t("stereo")], ["6", t("surround")]], String(audio.channels || (audio.codec === "dts" ? 6 : 2)), audio.codec === "lpcm" ? "disabled" : "")}</label>`;
@@ -5554,7 +5588,7 @@ function saveFrame() { const f = frameSource(); exportFile({ kind: "frame", path
 // ---------------------------------------------------------------- View, Window, Help
 function spCmd(state) {
   return {
-    run: () => { S.spView = S.spView === state ? null : state; S.preview = null; if (S.spView) requestPreview(S.sel.id, null, false, { every: true, state }); renderMain(); },
+    run: () => { S.spView = S.spView === state ? null : state; S.preview = null; if (S.spView) requestPreview(pageId(curMenu()), null, false, { every: true, state }); renderMain(); },
     when: inMenu, on: () => S.spView === state,
   };
 }
@@ -6107,7 +6141,7 @@ function itemMenu(kind, id) {
   return [
     { label: t("open"), run: () => select(kind, id) },
     ...(kind !== "playlist" ? [{ label: t("cmd_duplicate"), run: () => duplicateItem(kind, id) }] : []),
-    ...(kind === "title" ? [{ label: t("cmd_transcode_title"), disabled: !!S.transcoding, run: () => transcode([id]) }] : []),
+    ...(kind === "title" ? [{ label: t("cmd_transcode_title"), disabled: !!S.transcoding || isBD(), run: () => transcode([id]) }] : []),
     "-",
     { label: t("move_up"), disabled: i === 0, run: () => moveItem(kind, id, -1) },
     { label: t("move_down"), disabled: i === list.length - 1, run: () => moveItem(kind, id, 1) },

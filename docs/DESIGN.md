@@ -127,8 +127,10 @@ the underline is not what tells them apart).
   menu or a playlist, and deletes. The search field in the Tools panel
   filters it. Clicking the preview selects the disc (its settings appear in
   Properties).
-* **Build** is a panel in the Project frame: Check Project, output (disc
-  image or VIDEO_TS folder), settings, disc info and the Build button.
+* **Build** is a panel in the Project frame: Check Project, the format (DVD,
+  Blu-ray or the web version; it starts on the project's authoring mode),
+  the output (disc image, VIDEO_TS or BDMV folder, or a burned disc),
+  settings, disc info and the Build button.
 * **Monitor** plays the open timeline: zoom, safe area, ±1 s, frame steps,
   play, chapter navigation with the chapter number, add chapter, timecode.
 * **Timeline** stays across the bottom with the last opened timeline, also

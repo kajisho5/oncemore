@@ -206,7 +206,8 @@ oncemore gui my-disc          # opens http://127.0.0.1:…/ in your browser
   keys go between the buttons shown at the time; a link plays a title or
   chapter, opens a menu (Resume comes back, as from the Menu key) or
   switches the sound or subtitles. Preview plays them (*Time in the title*;
-  `seek:<seconds>` for `oncemore simulate`); the web version leaves them out.
+  `seek:<seconds>` for `oncemore simulate`); the web version leaves them out
+  (a Blu-ray build stops on them).
 * **Navigation scripts** (the disc's Properties > Navigation scripts, DVD):
   a few lines of navigation for what a link cannot do (count presses,
   remember a choice, pick at random); **+ Script** adds one, the app says
@@ -363,8 +364,8 @@ sources — nothing large lives in this repository.
 
 ```
 oncemore init <dir> [--standard NTSC|PAL] [--aspect 16:9|4:3] [--force]
-oncemore validate <project> [--no-media]       # schema + references + media + size estimate
-oncemore build <project> -o out/               # writes out/VIDEO_TS (and out/AUDIO_TS)
+oncemore validate <project> [--no-media] [--format dvd|bluray|web]   # schema + references + media + size estimate
+oncemore build <project> -o out/               # out/VIDEO_TS (and out/AUDIO_TS), or out/BDMV for a Blu-ray project
 oncemore build <project> -o out/ --format bluray  # writes out/BDMV (Blu-ray, HD)
 oncemore iso <project> -o bd.iso --format bluray   # a Blu-ray image (UDF 2.50, built-in writer)
 oncemore build <project> -o web/ --format web     # the disc for browsers: web/index.html
@@ -373,8 +374,8 @@ oncemore preview-menu <project> --menu main -o main.png [--button id] [--state h
 oncemore simulate <project> --keys down,enter,menu   # press remote keys, no encoding
 oncemore import-psd <project> design.psd --menu main [--first-play]   # a menu from Photoshop
 oncemore gui [<dir>] [--port N] [--no-browser] # the authoring app
-oncemore transcode <project> [--title ID] [--fast] [--status]  # encode titles ahead of the build
-oncemore burn out.iso [--device DEV] [--layer-break auto|none|SECTOR]   # write the image to a blank DVD (macOS: hdiutil, else growisofs)
+oncemore transcode <project> [--title ID] [--fast] [--status]  # encode a DVD's titles ahead of the build
+oncemore burn out.iso [--device DEV] [--layer-break auto|none|SECTOR]   # write the image to a blank DVD or BD (macOS: hdiutil, else growisofs)
 oncemore clean <project>                       # delete the encode cache (made again by the next build)
 oncemore scenes video.mp4 [--sensitivity low|medium|high] [--min-gap S]   # scene changes: chapter suggestions
 oncemore doctor                                # external tools, versions, ISO backend
@@ -385,7 +386,12 @@ oncemore mcp [--root DIR]                      # tools for AI assistants (MCP, b
 * `validate` also checks the navigation: titles, menus and playlists nothing
   leads to, and menus without a way out, are reported as warnings
   (`navigation` in `--json` output).
-* `build` and `iso` encode in **2 passes** by default; `--fast` uses 1 pass.
+* `build`, `iso` and `validate` make the project's `disc.format` (DVD unless
+  it says `bluray`) when `--format` does not say; `validate --format web`
+  checks for the web version.
+* A DVD is encoded in **2 passes** by default (`--fast`: 1 pass); a Blu-ray
+  and the web version at a constant quality (`--fast`: a quicker, slightly
+  worse encode).
 * Intermediate files go to `out/.work/` (for `iso`: a hidden build directory
   next to the ISO) and are deleted on success unless `--keep-work` is given.
   Every external command's log is in `.work/logs/`.
@@ -460,7 +466,7 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
     "standard": "NTSC",          // NTSC (720x480, 29.97) | PAL (720x576, 25)
     "aspect": "16:9",            // 4:3 | 16:9
     "target": "DVD5",            // DVD5 (4.37 GiB) | DVD9 (7.95 GiB)
-    "first_play": "menu:main",   // menu:<id> | title:<id> | playall; default: first menu
+    "first_play": "menu:main",   // menu:<id> | title:<id> | playall | playlist:<id>; default: first menu
     "font": null,                // font file for menu text; null = auto
     "video_bitrate": "auto"      // "auto" = fit the disc, or e.g. "6M"
   },
@@ -504,8 +510,8 @@ the project file. Example: [examples/basic/project.oncemore.json](examples/basic
 | `format` | `dvd` \| `bluray`: the authoring mode, what a build, an image and a check make when `--format` (or the app's Build panel) does not say | `dvd` |
 | `target` | `DVD5` \| `DVD9` | `DVD5` |
 | `layer_break` | DVD9: where the second layer starts: `auto` \| `<title id>:<chapter>` | `auto` (the first chapter past the middle) |
-| `first_play` | `menu:<id>` \| `title:<id>` \| `playall` | first menu, else first title |
-| `title_key` | what the remote's Title / Top Menu key opens: `menu:<id>` \| `title:<id>` \| `playall` | first menu |
+| `first_play` | `menu:<id>` \| `title:<id>` \| `playall` \| `playlist:<id>` | first menu, else first title |
+| `title_key` | what the remote's Title / Top Menu key opens: `menu:<id>` \| `title:<id>` \| `playall` \| `playlist:<id>` | first menu |
 | `subtitles_off` | `true`: the disc starts with subtitles off instead of leaving it to the player's language setting (a subtitle track marked `default` still wins); set once at first play | `false` |
 | `font` | path or `null` | auto: Hiragino (macOS) → Noto Sans CJK → DejaVu Sans |
 | `video_bitrate` | `"auto"` or bitrate (`"6M"`, `5500000`), 1–8 Mbit/s | `auto` |
@@ -894,7 +900,9 @@ differs from the frame; `fill` fills the frame and crops the edges.
   alignment, `{\c&HBBGGRR&}` or `<font color="#RRGGBB">`. A title can use 16
   subpicture colours in all, about 7 different text colours.
 * `"default": true` turns that subtitle stream on when the disc starts
-  (players keep the viewer's later choice). Without it subtitles start off.
+  (players keep the viewer's later choice). Without one, a Blu-ray starts with
+  subtitles off and a DVD leaves it to the player's language setting
+  (`disc.subtitles_off: true` starts it with them off).
 
 **Coordinates** are DVD pixels: 720 × 480 (NTSC) or 720 × 576 (PAL), whatever
 the aspect ratio. oncemore draws text on a square-pixel canvas and squeezes it,
@@ -918,7 +926,9 @@ metadata file and its mirror):
 
 * every title in HD (1920×1080, H.264 with x264's Blu-ray settings; film at
   23.976p, NTSC video as 29.97 and PAL as 25 frames per second in a 1080i
-  stream), with its audio tracks (AC-3 or LPCM) and their languages. With
+  stream), with its audio tracks (AC-3, LPCM, or DTS copied from the source:
+  DTS-HD Master Audio or High Resolution kept whole, 7.1 too) and their
+  languages. With
   `disc.bluray.video: "720"` (Build > Picture) the whole disc is 1280×720
   progressive at 59.94 (NTSC) or 50 (PAL) frames a second instead, so 60p
   and 50p sources and the fields of 1080i ones keep their motion (film stays
@@ -1045,13 +1055,16 @@ own folder in it, named after the project folder.
 
 ## Known limitations
 
-* Motion menus loop one video (with an optional intro); only chapter thumbnails
-  animate, and there are no transitions between menus.
-* Audio is stereo or 5.1 (AC-3), re-encoded unless `audio.passthrough` copies
-  48 kHz AC-3 sources; DTS is copied only (`audio.codec: "dts"`), and a title's
-  tracks share one format (no DTS track beside an AC-3 one).
-  Subtitles: one font and size per disc, lines centred at the top or bottom
-  (no free positioning); at most 16 subpicture colours per title.
+* Motion menus loop one video (with an optional intro). Thumbnails play, and
+  texts and pictures can come in once (`animate`), but there are no keyframed
+  animations; a button's link transition is the way from one menu to another.
+* Audio is stereo or 5.1 (AC-3 or LPCM), re-encoded unless `audio.passthrough`
+  copies 48 kHz AC-3 sources; DTS is copied only (`audio.codec: "dts"`, 5.1 or
+  more: a Blu-ray keeps DTS-HD whole, a DVD its core), and a title's tracks
+  share one format (no DTS track beside an AC-3 one).
+  Text subtitles: one font and size per disc, lines centred at the top or
+  bottom (image subtitles can be placed anywhere); at most 16 subpicture
+  colours per DVD title.
 * Audio/subtitle stream *n* has one language for the whole disc. Menus have
   one aspect ratio (`disc.aspect`); titles may differ.
 * Frame rates: 23.976p film on NTSC gets soft 3:2 pulldown; interlaced
@@ -1067,9 +1080,10 @@ own folder in it, named after the project folder.
   -udf` (same sector for every file on the test discs, files placed where
   the IFOs say, UDF 1.02 + ISO 9660 bridge). It keeps one timestamp for the
   whole disc, not each file's.
-* Highlights are hard-edged (2-bit subpictures); labels use one font per disc.
-  Every character must exist in that font (drawtext has no fallback); oncemore
-  checks the font's character map and stops instead of drawing empty boxes.
+* Highlights on a DVD are hard-edged (2-bit subpictures). Each text and button
+  uses one font (the disc's or its own); every character must exist in it
+  (drawtext has no fallback): oncemore checks the font's character map and
+  stops instead of drawing empty boxes.
   Emoji are not supported.
 * With `hdiutil` images, libdvdnav-based players (e.g. VLC) show no disc
   *title metadata*: libdvdnav reads the title raw from sector 32, where real

@@ -312,6 +312,7 @@ browser) and lands only with green CI.
   core of a DTS-HD source), on DVD (its own titleset; a warning that DVD
   players need not decode DTS) and Blu-ray; checked at build time (48 kHz
   DTS, the channels, 1536k at most on a DVD); DTS in the app's codec list
+  (a Blu-ray keeps DTS-HD whole since §125)
 
 **P54 — Button numbers** (done)
 - [x] Properties > Number renumbers a button (the others close up); a menu's
@@ -399,9 +400,9 @@ against their published help, not from memory)
   the next, previous or a given page; each page a menu of its own on the
   disc (DVD, Blu-ray and the web version). The chapter index was already
   spread over pages
-- [ ] Multi-page menus from a Photoshop file, a layer group per page (each
-  page with its own artwork)
-- [ ] DTS-HD kept as it is on Blu-ray (today DTS is cut down to its core)
+- [x] Multi-page menus from a Photoshop file, a layer group per page (each
+  page with its own artwork) (§122)
+- [x] DTS-HD kept as it is on Blu-ray (§125)
 - [x] Chapter playlists played in random order or shuffled, on Blu-ray and
   the web version (DVD keeps the order, as the classic apps did) (P65)
 - [x] Slideshows of more than 99 pictures (the rest in the last chapter on
@@ -418,17 +419,20 @@ against their published help, not from memory)
 
 - [x] Angles in the app's editor: add, order and remove a title's angle
   videos in its Properties
-- [ ] Buttons over a title's video (DVD): buttons shown for a stretch of the
+- [x] Buttons over a title's video (DVD): buttons shown for a stretch of the
   title and pressed while it plays; an invisible one leads to a hidden extra
+  (§114, §115)
 - [ ] Jacket picture: the still a DVD player shows when Stop is pressed
-- [ ] Commands of one's own: a few lines in the navigation command language
+- [x] Commands of one's own: a few lines in the navigation command language
   (registers, conditions, jumps) on a button, a menu or an end action, for
-  quizzes, a random pick or a passcode; and menu sets chosen by the
-  player's menu language
-- [ ] Animated menu objects: position, size, crop and fade over time
-  (keyframes) up to the loop point, e.g. buttons that fly or fade in
-- [ ] Crop and adjust a menu's pictures: crop, brightness, contrast
-- [ ] Masks for button thumbnails (the shape of a frame, a circle)
+  quizzes, a random pick or a passcode (DVD, §118, §119)
+- [ ] Menu sets chosen by the player's menu language
+- [x] Menu objects that come in once: texts and pictures moving, growing and
+  fading in (§123)
+- [ ] Animated menu objects with keyframes: crop over time, buttons that fly
+  in
+- [x] Crop and adjust a menu's pictures: crop, brightness, contrast (§120)
+- [x] Masks for button thumbnails (the shape of a frame, a circle) (§121)
 - [ ] A flicker filter for menus on interlaced TVs (thin horizontal lines)
 - [ ] Operation as the classic apps' help lists it, part 5 (parts 1–4:
   DECISIONS §96–99): a Library panel of templates and parts to drag onto a
@@ -547,22 +551,24 @@ Done (as a local web app, `oncemore gui`):
 * Check (size estimate, issues) and Build (ISO / folder) with live progress
 * Autosave, undo/redo, English/Japanese UI
 * Oncemore.app: a native macOS window around the same UI with bundled Python,
-  built for Apple silicon and Intel by the release workflow (notarised once a
-  Developer ID is configured)
+  built for Apple silicon and Intel by the release workflow, signed and
+  notarised from 1.0 (§124)
 * Title playback (cached H.264/WebM proxy), ▲/▼ ordering of titles and menus,
   image buttons (frame or shape highlight)
 
 Next:
 
-* Playback preview of menu navigation (titles play since the proxy preview)
-* Multi-select, alignment guides and snapping in the menu editor
-* Drag-and-drop reordering in the sidebar (▲/▼ buttons exist)
+* Drag-and-drop reordering of titles and menus in the sidebar (▲/▼ buttons
+  exist; slides, clips, playlist items and layers are dragged, §99)
+
+(Done since: Preview of the menu navigation and the remote-control simulator,
+§33; multi-select, alignment guides and snapping, P3.)
 
 ## Phase 3 — richer discs
 
 Done:
 
-* Subtitles: SRT → 4-colour subpictures via spumux, several languages, default-on track
+* Subtitles: SRT → 4-colour subpictures (spumux then, vtskit since §92), several languages, default-on track
 * Multiple audio tracks with language tags (other files or other streams)
 * Menu buttons that switch audio / subtitle streams (`audio:<n>`, `subtitle:<n|off>`)
 * Motion menus (video background, its sound or separate music)
@@ -570,23 +576,22 @@ Done:
 * "Play all" (`playall` buttons / first play) that keeps single-title returns
 * 5.1 AC-3 audio (`audio.channels: 6`)
 
+Since then: link transitions between particular menus (P45), animated
+thumbnails (P3) and objects that come in (§123).
+
 Still to do:
 
-* Transitions between particular menus (dissolves), animated buttons
+* Keyframed animated buttons
 
 ## Phase 4 — web version
 
 ffmpeg.wasm plus the authoring core compiled to WebAssembly, so a browser can
-produce the ISO locally without uploading anything. Needs the built-in writers
-below.
+produce the ISO locally without uploading anything. The built-in UDF / ISO
+writers it needs exist (P8, P29); a web version that plays the disc in a
+browser is built today (`--format web`, P58).
 
 ## Phase 5 — Blu-ray
 
 Menu-less BDMV with titles, chapters and playlists (P28) and its UDF 2.50
 image (P29), PGS subtitles (P30) and menus (P33), menu loop counts and
 overrides (P38), pop-up menus (P42): done.
-
-## Later
-
-* Built-in UDF 1.02 + ISO 9660 bridge writer, so no external ISO tool is
-  needed on any platform (xorriso cannot write UDF; see DECISIONS.md).
