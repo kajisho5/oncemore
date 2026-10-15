@@ -25,6 +25,9 @@ from .menu import (MenuBuilder, check_element_fonts, display_width, find_font, l
 # DTS without extensions (the source's bitrate is the core's); a DVD takes
 # DTS up to 1536 kbit/s (1509.75k "full rate" is the usual)
 DTS_PLAIN = ("DTS", "DTS-ES", "DTS 96/24")
+# DTS-HD as ffprobe names it, and what a Blu-ray declares it as
+DTS_HD = {"DTS-HD MA": "dtshd_ma", "DTS-HD MA + DTS:X": "dtshd_ma",
+          "DTS-HD MA + DTS:X IMAX": "dtshd_ma", "DTS-HD HRA": "dtshd"}
 DVD_DTS_MAX = 1_536_000
 DVD_CHAPTERS = 99          # chapters (parts of title) a DVD title can have
 
@@ -140,6 +143,8 @@ def inspect(project, reporter=None, prepare=True, bd=False):
             if info.get("has_video") and info.get("fps"):
                 t.video_mode = encode.video_mode(t, info, project.disc)
         infos[t.id] = info
+        t.dts_hd, t.audio_peak_bps = [None] * len(t.audio_tracks), 0
+        peaks = [None] * len(t.audio_tracks)
         for j, tr in enumerate(t.audio_tracks):
             have = probe(tr.source).get("audio_streams", 0)
             if tr.stream >= have and not (tr.source == t.source and tr.stream == 0):
@@ -149,19 +154,44 @@ def inspect(project, reporter=None, prepare=True, bd=False):
             elif t.audio_passthrough:
                 a = (probe(tr.source).get("audio") or [{}] * (tr.stream + 1))[tr.stream]
                 name = "DTS" if t.audio_codec == "dts" else "AC-3"
-                if a.get("codec") != t.audio_codec or a.get("rate") != 48000:
+                # a Blu-ray keeps DTS-HD whole (at 48, 96 or 192 kHz, over its
+                # 48 kHz core); elsewhere a DTS source gives its core
+                hd = bd and t.audio_codec == "dts" and DTS_HD.get(a.get("profile"))
+                multi = t.audio_codec == "dts"        # (DTS: 6 is "5.1 or more")
+                if t.audio_codec == "dts" and a.get("profile") == "DTS Express":
+                    issues.append({"path": f"{where}.audio_tracks[{j}]",
+                                   "message": f"{os.path.basename(tr.source)} audio stream "
+                                              f"{tr.stream} is DTS Express, which has no DTS "
+                                              "core to copy (choose AC-3 or LPCM to encode it)"})
+                elif a.get("codec") != t.audio_codec or \
+                        a.get("rate") not in ((48000, 96000, 192000) if hd else (48000,)):
                     issues.append({"path": f"{where}.audio_tracks[{j}]",
                                    "message": f"{os.path.basename(tr.source)} audio stream "
                                               f"{tr.stream} is {a.get('codec')} "
                                               f"{a.get('rate')} Hz; only 48 kHz {name} can be "
-                                              "copied" + (" (choose AC-3 or LPCM to encode it)"
+                                              "copied" + (" (DTS-HD at 96 or 192 kHz too, on a "
+                                                          "Blu-ray; choose AC-3 or LPCM to "
+                                                          "encode it)"
                                                           if t.audio_codec == "dts" else
                                                           " (turn off audio.passthrough)")})
-                elif a.get("channels") != t.audio_channels:
+                elif (a.get("channels") != t.audio_channels) if not multi else \
+                        ((a.get("channels") or 0) > 2) != (t.audio_channels > 2):
+                    want = a.get("channels") if not multi else \
+                        (6 if (a.get("channels") or 0) > 2 else 2)
                     issues.append({"path": f"{where}.audio.channels",
                                    "message": f"the {name} source has {a.get('channels')} "
                                               f"channel(s); set audio.channels to "
-                                              f"{a.get('channels')} to copy it"})
+                                              f"{want} to copy it"})
+                elif hd:
+                    rates = encode.audio_rates(tr.source, tr.stream)
+                    if not rates:
+                        issues.append({"path": f"{where}.audio_tracks[{j}]",
+                                       "message": f"{os.path.basename(tr.source)}: the DTS-HD "
+                                                  "stream's packets cannot be read"})
+                        continue
+                    t.dts_hd[j] = (hd, a["rate"])
+                    t.audio_bitrate = max(t.audio_bitrate, rates[0])
+                    peaks[j] = rates[1]
                 elif t.audio_codec == "dts":
                     # (the DTS core is what goes on the disc: DTS-HD extensions
                     # are dropped, encode.DTS_CORE)
@@ -179,6 +209,10 @@ def inspect(project, reporter=None, prepare=True, bd=False):
                 warnings.append(f"{where}.audio_tracks[{j}]: {os.path.basename(tr.source)} has "
                                 f"{probe(tr.source)['audio_channels']} channel(s); the 5.1 "
                                 "track will only use the front speakers")
+        if any(t.dts_hd):
+            # (with DTS-HD the picture leaves room for the sound's peaks:
+            # bluray.title_max_bps)
+            t.audio_peak_bps = sum(p or t.audio_bitrate for p in peaks)
         if t.captions and bd:
             warnings.append(f"{where}.captions: closed captions are for DVD and are left out here")
         elif t.captions:
@@ -237,6 +271,13 @@ def inspect(project, reporter=None, prepare=True, bd=False):
                 src["fields"] = bluray.coded_for_fields(t.source)
             why = bluray.copy_compliance(src, title_fps(t, project.disc), project.disc)
             t.bd_copy = not why
+            room = bluray.title_max_bps(t, bluray.MAX_VIDEO_BPS)
+            if t.bd_copy and t.audio_peak_bps and encode.source_video_bps(info) > room:
+                warnings.append(f"{where}.audio: the copied picture "
+                                f"({encode.source_video_bps(info) / 1e6:.1f} Mbit/s) and the "
+                                f"DTS-HD sound (up to {t.audio_peak_bps / 1e6:.1f}) may be more "
+                                "than a player reads; set transcode to encode the picture "
+                                f"at up to {room / 1e6:.1f} Mbit/s")
             if why:
                 warnings.append(f"{where}.transcode: the picture is encoded for the Blu-ray "
                                 f"anyway: {'; '.join(why)}")
@@ -553,6 +594,7 @@ def title_cache_key(project, title, info, vbps, fast):
         "ivtc": encode.is_ivtc(title),
         "audio": [title.audio_codec, title.audio_bitrate, title.audio_channels,
                   title.audio_passthrough],
+        **({"dts_hd": title.dts_hd} if any(title.dts_hd) else {}),
         **({"captions": [_file_sig(title.captions), title.captions_offset]}
            if title.captions else {}),
         **({} if title.transcode else {"copy": True}),
@@ -827,8 +869,9 @@ def build_bluray(project, out_dir, reporter, fast=False, keep_work=False, work=N
         out = os.path.join(work, "titles", f"{t.id}.m2ts")
         sups = bluray_subtitles(project, t, plan, work, reporter) if t.subtitles else []
         popup = popups.get(t.remote_menu)
+        vbps = bluray.title_max_bps(t, plan["max_bps"])      # (room for DTS-HD's peaks)
         key = _cache_key("bluray-title", {
-            "title": title_cache_key(project, t, infos[t.id], plan["max_bps"], fast),
+            "title": title_cache_key(project, t, infos[t.id], vbps, fast),
             "frame": project.disc.bluray_video,
             "subtitles": [_digest(p) for p in sups],
             **({"popup": _digest(popup)} if popup else {})})
@@ -838,7 +881,7 @@ def build_bluray(project, out_dir, reporter, fast=False, keep_work=False, work=N
             reporter.step("encode", f"Encoding title '{t.id}' in HD "
                           f"({infos[t.id]['duration']:.1f}s"
                           f"{', picture copied' if t.bd_copy else ''})", item=t.id)
-            bluray.encode_title(t, infos[t.id], project.disc, plan["max_bps"], out, work,
+            bluray.encode_title(t, infos[t.id], project.disc, vbps, out, work,
                                 fast=fast, probes=plan["_probes"], sups=sups, popup=popup,
                                 on_progress=lambda f, tid=t.id: reporter.progress("encode", f, tid))
             if popup:

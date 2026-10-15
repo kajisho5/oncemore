@@ -6,6 +6,7 @@ and the clip's stream attributes, read back by libbluray).
 """
 
 import hashlib
+import io
 import json
 import os
 import shutil
@@ -13,7 +14,10 @@ import subprocess
 import tempfile
 import unittest
 
-from oncemore import author, bluray, encode, tools
+from unittest import mock
+
+from oncemore import author, bluray, build, encode, report, tools
+from oncemore._vendor.bdmvkit.m2ts import stream_pids
 from oncemore.errors import ProjectError
 from oncemore.project import build_project
 from oncemore.scaffold import sample_project
@@ -94,7 +98,7 @@ class TestProject(unittest.TestCase):
         p = project(d)
         self.assertEqual([t.titleset for t in p.titles], [1, 2])
         self.assertEqual(author.audio_tags(p, [p.titles[0]]), ['<audio format="dts" channels="6"/>'])
-        self.assertEqual(bluray.audio_streams(p.titles[0]), [(bluray.CODING_DTS, 6, "und")])
+        self.assertEqual(bluray.audio_streams(p.titles[0]), [(bluray.CODING_DTS, 6, "und", 48000)])
         self.assertEqual(encode.copy_args(p.titles[0]), ["-c:a", "copy", "-bsf:a", "dca_core"])
         self.assertEqual(encode.copy_args(p.titles[1]), ["-c:a", "copy"])
 
@@ -226,6 +230,131 @@ class TestBluray(unittest.TestCase):
             disc.info()
             # DTS (0x82), multi-channel (6), the language unknown
             self.assertEqual(disc.playlist(1)["audio"], [(bluray.CODING_DTS, 6, "und")])
+
+
+
+def as_dts_hd(sources, profile="DTS-HD MA", rate=48000, channels=None, rates=(3_000_000,
+                                                                          9_000_000)):
+    """encode.probe and encode.audio_rates telling of DTS-HD in `sources`
+    (file names): ffmpeg encodes no DTS-HD, so the core it does encode stands
+    in for it, and what oncemore does with a DTS-HD source is what is tested."""
+    real_probe = encode.probe
+
+    def probe(path, *a, **k):
+        info = real_probe(path, *a, **k)
+        if os.path.basename(path) in sources:
+            info = dict(info, audio=[dict(x, profile=profile, rate=rate,
+                                          channels=channels or x["channels"])
+                                     for x in info["audio"]])
+        return info
+    return mock.patch.multiple(encode, probe=probe,
+                               audio_rates=lambda path, stream=0: rates)
+
+
+@unittest.skipUnless(DTS_OK, "needs ffmpeg (dca, dca_core)")
+class TestDtsHdChecked(unittest.TestCase):
+    """What a DTS-HD source may be, on a DVD and on a Blu-ray."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix="oncemore-dtshd-check-")
+        Sources.make(cls.tmp, "1280x720", "24000/1001")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def inspect(self, bd, audio=None, **kw):
+        d = {"version": 1, "disc": {"label": "X", "standard": "NTSC", "aspect": "16:9",
+                                    "first_play": "title:a"},
+             "titles": [{"id": "a", "source": "surround.mkv",
+                         "audio": audio or {"codec": "dts"}}]}
+        p = build_project(d, os.path.join(self.tmp, "project.oncemore.json"))
+        with as_dts_hd({"surround.mkv"}, **kw):
+            try:
+                build.inspect(p, bd=bd, prepare=False)
+            except ProjectError as e:
+                return p.titles[0], {i["path"]: i["message"] for i in e.issues}
+        return p.titles[0], {}
+
+    def test_kept_on_a_bluray(self):
+        t, issues = self.inspect(True, rate=96000, channels=8)        # (7.1 at 96 kHz)
+        self.assertEqual(issues, {})
+        self.assertEqual(t.dts_hd, [("dtshd_ma", 96000)])
+        self.assertEqual((t.audio_bitrate, t.audio_peak_bps), (3_000_000, 9_000_000))
+        self.assertEqual(bluray.audio_streams(t), [(bluray.CODECS["dtshd_ma"], 6, "und", 96000)])
+        self.assertEqual(bluray.audio_codec_args(t, 0), ["-c:a:0", "copy"])   # (not its core)
+        # the picture leaves room for the sound's peaks
+        self.assertEqual(bluray.title_max_bps(t, 40_000_000),
+                         bluray.STREAMS_BPS - 9_000_000)
+        self.assertEqual(bluray.title_max_bps(t, 20_000_000), 20_000_000)
+        t, _ = self.inspect(True, profile="DTS-HD HRA")
+        self.assertEqual(t.dts_hd, [("dtshd", 48000)])
+
+    def test_dvd_takes_the_core(self):
+        t, issues = self.inspect(False, channels=8)                   # (7.1: a 5.1 core)
+        self.assertEqual(issues, {})
+        self.assertEqual((t.dts_hd, t.audio_peak_bps), ([None], 0))
+        self.assertEqual(encode.copy_args(t), ["-c:a", "copy", "-bsf:a", "dca_core"])
+        _, issues = self.inspect(False, rate=96000)
+        self.assertIn("DTS-HD at 96 or 192 kHz too, on a Blu-ray",
+                      issues["titles[0].audio_tracks[0]"])
+
+    def test_refused(self):
+        _, issues = self.inspect(True, profile="DTS Express")
+        self.assertIn("DTS Express, which has no DTS core", issues["titles[0].audio_tracks[0]"])
+        _, issues = self.inspect(True, audio={"codec": "dts", "channels": 2}, channels=8)
+        self.assertIn("set audio.channels to 6", issues["titles[0].audio.channels"])
+        _, issues = self.inspect(True, profile="DTS", rate=96000)    # (plain DTS: 48 kHz)
+        self.assertIn("only 48 kHz DTS", issues["titles[0].audio_tracks[0]"])
+
+    def test_cache_tells_it_apart(self):
+        from oncemore import build as b
+        t, _ = self.inspect(True)
+        p = build_project({"version": 1, "disc": {"label": "X", "standard": "NTSC",
+                                                  "aspect": "16:9"},
+                           "titles": [{"id": "a", "source": "surround.mkv",
+                                       "audio": {"codec": "dts"}}]},
+                          os.path.join(self.tmp, "project.oncemore.json"))
+        info = encode.probe(os.path.join(self.tmp, "surround.mkv"))
+        core = b.title_cache_key(p, p.titles[0], info, 1, True)
+        self.assertNotEqual(b.title_cache_key(p, t, info, 1, True), core)
+
+
+@unittest.skipUnless(DTS_OK and ffmpeg_has("encoders", "libx264") and LIBBLURAY,
+                     "needs ffmpeg (dca, dca_core, libx264) and libbluray")
+class TestDtsHdBluray(unittest.TestCase):
+    """A Blu-ray with a DTS-HD Master Audio track at 96 kHz: copied whole,
+    and declared so in the clip, its PMT and its playlist (libbluray)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = d = tempfile.mkdtemp(prefix="oncemore-bddtshd-")
+        Sources.make(d, "1280x720", "24000/1001")
+        p = build_project({"version": 1,
+                           "disc": {"label": "BD_DTSHD", "standard": "NTSC", "aspect": "16:9",
+                                    "first_play": "title:dts"},
+                           "titles": [{"id": "dts", "source": "surround.mkv",
+                                       "audio": {"codec": "dts", "lang": "en"}}]},
+                          os.path.join(d, "project.oncemore.json"))
+        cls.out = os.path.join(d, "out")
+        with as_dts_hd({"surround.mkv"}, rate=96000):
+            build.build_bluray(p, cls.out, report.Reporter(out=io.StringIO(), err=io.StringIO()),
+                               fast=True, cache=False)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def test_declared_dts_hd(self):
+        m2ts = os.path.join(self.out, "BDMV", "STREAM", "00001.m2ts")
+        self.assertEqual(dts_digest(m2ts), dts_digest(os.path.join(self.tmp, "s51.dts")))
+        self.assertEqual(stream_pids(m2ts)[bluray.AUDIO_PID], bluray.CODECS["dtshd_ma"])
+        with bluray_sim.Disc(LIBBLURAY, self.out) as disc:
+            disc.info()
+            pl = disc.playlist(1)
+        self.assertEqual(pl["audio"], [(bluray.CODECS["dtshd_ma"], 6, "eng")])
+        self.assertEqual(pl["audio_rate"], [14])             # (96 kHz over a 48 kHz core)
 
 
 if __name__ == "__main__":

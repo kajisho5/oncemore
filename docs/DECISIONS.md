@@ -2690,3 +2690,42 @@ played on set-top players.
 * `tests/test_promises.py` `test_signed_and_notarised_from_1_0`: the
   workflow's refusal, a 1.x version, READMEs without the old advice, and
   release notes for this version without it.
+
+## 125. DTS-HD kept whole on a Blu-ray
+
+A Blu-ray carries DTS-HD as it is: a DTS core with the extensions that make
+it DTS-HD High Resolution Audio or DTS-HD Master Audio (lossless). Until now
+`audio.codec: "dts"` gave every disc the core (`dca_core`), since bdmvkit
+could not mark the rest; bdmvkit 0.7.0 (taken from PyPI) declares the two
+(stream types 0x85 and 0x86, as libbluray's `bluray.h` names them), with
+their sampling rate, and marks the clip's PMT so (ffmpeg marks DTS by its
+channels: 0x85 above 6, else 0x82).
+
+* What a track is comes from ffprobe's profile of its source: "DTS-HD MA"
+  (with DTS:X too) is Master Audio, "DTS-HD HRA" High Resolution; it is
+  copied whole (no `dca_core`), at 48, 96 or 192 kHz (a DTS-HD stream above
+  48 kHz is declared over its 48 kHz core). Plain DTS, DTS-ES and DTS 96/24
+  give their core as before. "DTS Express" has no core to give and is
+  refused. A DVD still takes the core, and only at 48 kHz.
+* `audio.channels` 6 means "5.1 or more" with DTS, so a 7.1 source is
+  usable (a Blu-ray keeps its 7.1, a DVD gets its 5.1 core); before, a 7.1
+  source could not be copied at all.
+* A player reads 48 Mbit/s. Master Audio's rate varies, so the source's
+  packets are read once (`encode.audio_rates`: the average and the highest
+  over a second, kept per file) and the title's picture is capped at what
+  is left (`bluray.title_max_bps`: 48 Mbit/s less the transport stream's
+  packet overhead and about 1 % for headers, less the sound's peak). A
+  picture used as it is cannot be capped: the check warns when it and the
+  sound's peak may be more than that.
+* The encode cache keys a title by what its sound became, so a cached core
+  is not reused for DTS-HD.
+
+* `tests/test_dts.py`: ffmpeg encodes no DTS-HD, so ffprobe and the packet
+  reading are made to tell of DTS-HD for a DTS core: kept on a Blu-ray (the
+  coding, the 96 kHz core-combination rate, copied without `dca_core`, the
+  video cap), the core on a DVD (7.1 accepted, 96 kHz refused), DTS Express
+  and the channel and rate refusals, the cache key; and a Blu-ray built
+  with it: the stream copied, its PMT 0x86, libbluray reading 0x86 at rate
+  code 14. Checked by hand with a real 7.1 Master Audio stream (FFmpeg's
+  test sample, not in the repository): kept and decoded on the Blu-ray,
+  its 5.1 core on the DVD.

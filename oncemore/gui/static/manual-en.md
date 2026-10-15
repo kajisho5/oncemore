@@ -102,8 +102,8 @@ together, or a slideshow.
   action*: a menu, another title, the last menu, stop…), the menu the
   remote's Menu key opens, and the remote keys it turns off.
 * **File > Transcode > Transcode settings…**: the title's video bitrate (or
-  a share of the disc's), its sound (AC-3, LPCM, or DTS copied as it is;
-  stereo or 5.1), or using a disc-ready video as it is.
+  a share of the disc's), its sound (AC-3, LPCM, or DTS copied as it is,
+  DTS-HD kept whole on a Blu-ray; stereo or 5.1), or using a disc-ready video as it is.
 * **Transcode**: titles are encoded when the disc is built, or ahead of time
   with **File > Transcode > Transcode this title now** or *Transcode all
   titles now*; the build then reuses them. A filled dot next to a title in

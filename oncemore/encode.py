@@ -534,6 +534,44 @@ def longest_gop(path, seconds=60):
     return max([b - a for a, b in zip(keys, keys[1:])] or [len(flags) - keys[0]])
 
 
+_RATES = {}
+_RATES_LOCK = threading.Lock()
+
+
+def audio_rates(path, stream=0):
+    """(average, highest over a second) bit rate of audio stream `stream` of
+    a file, from its packets' sizes (nothing is decoded; the whole file is
+    read, so it is kept per file and its size and time); None when ffprobe
+    cannot tell."""
+    st = os.stat(path)
+    key = (os.path.abspath(path), st.st_size, st.st_mtime_ns, stream)
+    with _RATES_LOCK:
+        if key in _RATES:
+            return _RATES[key]
+    cmd = [tools.find("ffprobe"), "-v", "error", "-select_streams", f"a:{stream}",
+           "-show_entries", "packet=pts_time,size", "-of", "csv=p=0", path]
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
+    except subprocess.TimeoutExpired:
+        return None
+    seconds, first, last = {}, None, None
+    for line in p.stdout.splitlines():
+        f = line.split(",")
+        t, size = (_float(f[0]), int(f[1])) if len(f) >= 2 and f[1].strip().isdigit() \
+            else (None, 0)
+        if t is None:
+            continue
+        seconds[int(t)] = seconds.get(int(t), 0) + size * 8
+        first = t if first is None else min(first, t)
+        last = t if last is None else max(last, t)
+    if p.returncode != 0 or not seconds or last <= first:
+        return None
+    out = (int(sum(seconds.values()) / (last - first)), max(seconds.values()))
+    with _RATES_LOCK:
+        _RATES[key] = out
+    return out
+
+
 def dvd_compliance(info, disc, audio_bps=0):
     """Why the picture of `info` (probe) cannot go on a `disc` DVD as it is
     (an empty list when it can): MPEG-2 4:2:0 at a DVD frame size of the
