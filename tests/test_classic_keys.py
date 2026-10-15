@@ -18,7 +18,7 @@ except ImportError:  # pragma: no cover
 
 
 @unittest.skipUnless(PLAYWRIGHT, "needs playwright")
-class TestEncoreKeys(unittest.TestCase):
+class TestClassicKeys(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp(prefix="oncemore-ekeys-")
         self.addCleanup(shutil.rmtree, self.dir, True)

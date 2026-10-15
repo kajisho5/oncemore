@@ -21,7 +21,7 @@ except ImportError:  # pragma: no cover
 
 
 @unittest.skipUnless(PLAYWRIGHT, "needs playwright")
-class TestEncoreFlow(unittest.TestCase):
+class TestClassicFlow(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp(prefix="oncemore-eflow-")
         self.addCleanup(shutil.rmtree, self.dir, True)

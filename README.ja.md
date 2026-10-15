@@ -6,10 +6,10 @@
 
 **紹介サイト：[kajisho5.github.io/oncemore](https://kajisho5.github.io/oncemore/ja/)** · [English README](README.md)
 
-oncemore は、動画ファイルから **メニュー付きの DVD-Video ディスクイメージ** を作るツールです。
+oncemore は、動画ファイルから **メニュー付きの DVD-Video・Blu-ray のディスクイメージ** を作るツールです。
 ボタン付きの静止メニュー、サムネイル付きチャプターメニューの自動生成、チャプタージャンプ、
 「本編が終わったらメニューに戻る」を、JSON ファイル 1 つで記述して `.iso` を書き出します。
-できた ISO は VLC で再生・マウント・書き込みができます。
+できた `.iso` は VLC で再生でき、マウントやディスクへの書き込みもできます（ブラウザでディスクのように再生できる Web 版も作れます）。
 
 **自分の Mac 上でブラウザから使うオーサリングアプリ**（`oncemore gui`）として動き、
 その下にスクリプトからも使えるコマンドライン版があります。アプリは手元のマシンから配信され、
@@ -44,7 +44,7 @@ oncemore 本体は Python 3.11+ の標準ライブラリのみで動きます。
 | プログラム | 用途 |
 |---|---|
 | `ffmpeg` / `ffprobe`（`drawtext` フィルタ入り） | MPEG-2/AC-3 エンコード、メニュー描画、解析 |
-| *（不要）* — UDF + ISO 9660 のディスクイメージは oncemore 自身が書き出します。`hdiutil`・`genisoimage`・`mkisofs` を選ぶこともできます | ディスクイメージ |
+| *（不要）* — UDF + ISO 9660 のディスクイメージは oncemore 自身が書き出します。`hdiutil`・`genisoimage`・`mkisofs`・`xorriso`（ISO 9660 のみ）を選ぶこともできます | ディスクイメージ |
 | *（任意）* `growisofs`（dvd+rw-tools。macOS は標準の `hdiutil` を使用） | DVD への書き込み |
 
 ### macOS（Homebrew）
@@ -65,15 +65,19 @@ oncemore doctor
 ### Debian / Ubuntu
 
 ```sh
-sudo apt-get install ffmpeg genisoimage
+sudo apt-get install ffmpeg
 pip install git+https://github.com/kajisho5/oncemore
 oncemore doctor
 ```
+
+（`genisoimage` と `dvd+rw-tools` は任意です。別の ISO 作成ツールと、ディスクへの書き込みに使います。）
 
 インストールせずにチェックアウトから `python -m oncemore ...` でも実行できます。
 
 ツールの場所は `ONCEMORE_FFMPEG`、`ONCEMORE_FFPROBE`、`ONCEMORE_GENISOIMAGE`、
 `ONCEMORE_MKISOFS`、`ONCEMORE_XORRISO`、メニューのフォントは `ONCEMORE_FONT` で上書きできます。
+フォルダーは `ONCEMORE_CACHE`（メディアキャッシュ）、`ONCEMORE_TEMPLATES`（マイテンプレート）、
+`ONCEMORE_STYLES`（マイスタイル）、`ONCEMORE_CONFIG`（最近のプロジェクトと設定）で変えられます。
 足りないツールがあれば、何が無いかとインストールコマンドを表示して終了します。
 
 ## Mac アプリ
@@ -113,7 +117,7 @@ oncemore gui my-disc          # ブラウザで http://127.0.0.1:…/ が開き�
 * **タイトル**：「素材」で動画を選び「タイトルとして追加」。スクラブして、チャプターを切りたい位置で
   **◆ ここにチャプター**。**▶ 再生**で再生できます（初回にプレビュー用の軽いコピーを作ります）。
   「サムネイル付きチャプターメニューを自動生成」にチェックするとチャプターメニューができます。
-  再生終了後の動作・音声トラック・字幕（`.srt`・`.vtt`・`.ass`）は右のパネルで設定します。
+  再生終了後の動作・音声トラック・字幕（`.srt`・`.vtt`・`.ass` / `.ssa`・テキストスクリプト）は右のパネルで設定します。
   タイムラインの下の**字幕の編集**で、各字幕の開始・終了・本文・上下の位置を編集できます。
   「＋再生位置に字幕を追加」で今の位置から新しい字幕を作れます。他形式のファイルは新しい `.srt` として保存して編集します。
 * **＋スライドショー**で「素材」の写真からタイトルを作れます。写真ごとの表示秒数と順番、クロスフェードかカット、
@@ -416,7 +420,7 @@ oncemore は標準ライブラリだけ・オフラインのままです。
 | `aspect` | このタイトルの `4:3` \| `16:9` | `disc.aspect` |
 | `audio.lang` | 音声（1 トラック時）の ISO 639-1 言語コード | なし |
 | `audio_tracks` | 1〜8 個の `{source?, stream?, lang?, default?}`：複数音声（下記）。`default: true`（タイトルごとに 1 つ）：ディスクをその音声トラックで始めます。最初の再生で 1 回だけ設定するので、後で視聴者が選んだものはそのまま | `source` の音声 1 本 |
-| `subtitles` | 32 個までの `{file, lang?, default?}` SRT ファイル（下記） | なし |
+| `subtitles` | 32 個までの `{file, lang?, default?}` 字幕ファイル：SubRip・WebVTT・ASS/SSA・テキストスクリプト（下記） | なし |
 | `captions` | NTSC の DVD のクローズドキャプション（Line 21、CEA-608）：Scenarist の `.scc` はそのまま、字幕ファイルはポップオン方式のキャプションとして。`{file, offset}` も可（下記） | なし |
 | `auto_chapter_menu` | `true` またはオブジェクト（下記） | なし |
 
@@ -457,6 +461,7 @@ oncemore は標準ライブラリだけ・オフラインのままです。
 | `shapes[]` | `{x, y, w, h, color}` 塗りつぶしの四角形（帯やパネル。`#RRGGBBAA` で半透明）。テキストとボタンの下に描画 | `[]` |
 | `images[]` | `{file, x, y, w, h, opacity, adjust}` ボタンではない画像（ロゴ・写真。PNG は透明部分を保持）。四角形の上、テキストとボタンの下に描画。`adjust` は `background_adjust` と同じで、切り抜いた部分が `w` × `h` に収まります。アプリでは ツール > 画像、または画像を右クリック > メニューに配置 | `[]` |
 | `animate`（テキスト・画像） | `{start, duration, dx, dy, scale, fade}`：オブジェクトがメニュー開始から `start` 秒の時点で `duration` 秒かけて（既定 0 と 1）一度だけ**登場**します。`dx`・`dy` ピクセルずれた位置から、`scale` の大きさから大きくなりながら（画像のみ、0.05〜1）、`fade` でフェードインしながら、メニュー上の位置と大きさへ動きます。メニューはモーションメニューになります（DVD・Blu-ray・Web 版）。一度だけ再生するには `loop_point` をアニメーションの後に置いてください（プロジェクトのチェックでも知らせます）。プレビューは止まった状態を表示します。アプリではテキストや画像のプロパティ > 登場 | なし |
+| `buttons[]` | 1〜36 個 | 必須 |
 
 文字スタイル（テキストと文字ボタン）：`font`（この要素用のフォントファイル。全文字を含む必要あり）、
 `outline` と `outline_width`（縁取り）、`shadow` と `shadow_offset`（影）、`bold` と `italic`（フォントファミリーの太字・斜体のフォント。フォントと同じ場所に置くかインストールしておく）、
@@ -474,12 +479,11 @@ oncemore は標準ライブラリだけ・オフラインのままです。
 `pages`（2 以上）のあるメニューでは、`page` を持つボタン・テキスト・長方形・画像はそのページだけに、持たないものはすべてのページに表示されます。
 アクション `page:next`・`page:prev`・`page:<n>` でページをめくります（最後のページの次は最初のページ）。
 ページ *n* は `<id>~<n>` という別のメニューになり、`menu:<id>:<ボタン>` はそのボタンがあるページを開きます。
-| `buttons[]` | 1〜36 個 | 必須 |
 
-**buttons[]**：`id`、`label`、`x`、`y`（ラベルの左上）、`action`、
-`auto_activate`（選んだだけで実行）、
+**buttons[]**：`id`、`label`、`x`、`y`（ラベルの左上）、`action`
 （`menu:<id>` \| `title:<id>` \| `chapter:<タイトルid>:<番号>` \| `playall` \| `audio:<n>` \|
-`subtitle:<n>` \| `subtitle:off` \| `page:next` \| `page:prev` \| `page:<n>` \| `resume` \| `stop`）、任意で `size`、`color`、自動ナビゲーションを
+`subtitle:<n>` \| `subtitle:off` \| `page:next` \| `page:prev` \| `page:<n>` \| `resume` \| `stop`）、
+`auto_activate`（選んだだけで実行）、任意で `size`、`color`、自動ナビゲーションを
 上書きする `nav`（`{"up": id, "down": id, "left": id, "right": id}`）。
 `audio:<n>` / `subtitle:<n>`（1 始まり）はストリームを切り替えてメニューに留まるので、
 「音声・字幕設定」メニューはこれらのボタンと BACK ボタンを並べるだけで作れます。
@@ -803,7 +807,7 @@ DVD ナビゲーションライブラリ）でメニューのボタンを実際�
 ## 既知の制限
 
 * モーションメニューは動画 1 本のループ（イントロ付きも可）。サムネイルの再生と、テキスト・画像の一度だけの登場（`animate`）はできますが、キーフレームのアニメーションはありません。メニュー間はボタンのリンクトランジションでつなぎます。
-* 音声はステレオまたは 5.1ch（AC-3 または LPCM）。`audio.passthrough` で 48kHz の AC-3 素材をそのままコピーする場合以外は再エンコード。DTS はコピーのみ（`audio.codec: "dts"`、5.1ch 以上。Blu-ray は DTS-HD を丸ごと、DVD はコア部分）で、1 タイトルの音声トラックはすべて同じ形式（AC-3 と DTS の併記は不可）。
+* エンコードする音声はステレオまたは 5.1ch（AC-3 または LPCM）。`audio.passthrough` で 48kHz の AC-3 素材をそのままコピーすることもできます。DTS はコピーのみ（`audio.codec: "dts"`、5.1ch 以上。Blu-ray は DTS-HD を丸ごと、DVD はコア部分）で、1 タイトルの音声トラックはすべて同じ形式（AC-3 と DTS の併記は不可）。
   文字の字幕のフォントとサイズはディスク全体で 1 つ、行は上か下の中央（画像の字幕は位置を指定できます）。字幕の色は DVD の 1 タイトルで 16 色（サブピクチャ）まで。
 * 音声・字幕の n 番目のストリームの言語はディスク全体で 1 つ。メニューのアスペクト比は
   1 種類（`disc.aspect`）で、タイトルは個別に指定できます。
@@ -831,7 +835,7 @@ DVD ナビゲーションライブラリ）でメニューのボタンを実際�
   入ります。BD への書き込みは DVD と同じツールを使います。growisofs は
   BD メディア対応を明記していますが、BD ドライブでの `hdiutil burn` は未確認です。
 * ナビゲーションスクリプト（`commands:<id>`）は DVD のみで、Blu-ray と Web 版のビルドはメッセージを出して止まります。
-* タイトル上のボタンは DVD のみで、同じタイトルの字幕とはまだ併用できません（プレーヤーは表示中の字幕ストリームの上でボタンを光らせるため）。Web 版と Blu-ray では省かれます。
+* タイトル上のボタンは DVD のみで、同じタイトルの字幕とはまだ併用できません（プレーヤーは表示中の字幕ストリームの上でボタンを光らせるため）。Web 版ではボタンなしで再生し、Blu-ray のビルドはメッセージを出して止まります。
 * コピーガードなし（設計方針として今後も入れません）。
 
 ## ライブラリ

@@ -58,6 +58,14 @@ jobs:
         run: |
           v="$(sed -n 's/^__version__ = "\(.*\)"/\1/p' oncemore/__init__.py)"
           [ "$TAG" = "v$v" ] || { echo "tag $TAG != v$v"; exit 1; }
+          p="$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml)"
+          [ "$p" = "$v" ] || { echo "pyproject.toml has $p, oncemore/__init__.py $v"; exit 1; }
+          # a tag that is there already must be this commit: the app is built
+          # from it, and the release carries the tag's source
+          if git rev-parse -q --verify "refs/tags/$TAG" > /dev/null; then
+            at="$(git rev-list -n 1 "$TAG")"
+            [ "$at" = "$GITHUB_SHA" ] || { echo "tag $TAG is $at, not $GITHUB_SHA"; exit 1; }
+          fi
       - name: Tools to build the app's ffmpeg
         run: brew install meson ninja pkgconf nasm
       - name: The app's ffmpeg, built before (macos/build_ffmpeg.sh)

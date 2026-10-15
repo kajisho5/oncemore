@@ -21,6 +21,19 @@ _TYPES = {
 }
 
 
+def _same(a, b):
+    """JSON equality: true and 1 are different values (Python's == says not)."""
+    return isinstance(a, bool) == isinstance(b, bool) and a == b
+
+
+def _matches(pattern, text):
+    """re.search, but a pattern ending in $ means the end of the string, as in
+    JSON Schema (Python's $ also matches before a final newline)."""
+    if pattern.endswith("$") and not pattern.endswith("\\$"):
+        pattern = pattern[:-1] + r"\Z"
+    return re.search(pattern, text) is not None
+
+
 def _resolve(root, ref):
     if not ref.startswith("#/"):
         raise ValueError(f"unsupported $ref {ref!r}")
@@ -50,9 +63,9 @@ def validate(instance, schema, root=None, path=()):
         if not any(_TYPES[t](instance) for t in types):
             return errors + [(_path(path), f"expected {' or '.join(types)}, got {_typename(instance)}")]
 
-    if "const" in schema and instance != schema["const"]:
+    if "const" in schema and not _same(instance, schema["const"]):
         errors.append((_path(path), f"must be {schema['const']!r}"))
-    if "enum" in schema and instance not in schema["enum"]:
+    if "enum" in schema and not any(_same(instance, e) for e in schema["enum"]):
         errors.append((_path(path), f"must be one of {', '.join(map(repr, schema['enum']))}"))
 
     if isinstance(instance, str):
@@ -60,7 +73,7 @@ def validate(instance, schema, root=None, path=()):
             errors.append((_path(path), f"must have at least {schema['minLength']} characters"))
         if "maxLength" in schema and len(instance) > schema["maxLength"]:
             errors.append((_path(path), f"must have at most {schema['maxLength']} characters"))
-        if "pattern" in schema and not re.search(schema["pattern"], instance):
+        if "pattern" in schema and not _matches(schema["pattern"], instance):
             errors.append((_path(path), f"{instance!r} does not match {schema['pattern']}"))
 
     if _TYPES["number"](instance):

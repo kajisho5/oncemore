@@ -48,15 +48,21 @@ jobs:
           while read -r name have latest <&3; do
             branch="library/$name-$latest"
             if git ls-remote --exit-code --heads origin "$branch" > /dev/null; then
-              echo "$branch: there already"
-              continue
+              # (pushed before: done only if its pull request was opened too)
+              prs="$(gh pr list --head "$branch" --state all --json number --jq length)"
+              if [ "$prs" != "0" ]; then
+                echo "$branch: there already"
+                continue
+              fi
+              echo "$branch: pushed earlier without a pull request; opening it"
+            else
+              git checkout -q -B "$branch" "$base"
+              python tools/vendor.py "$name" --pypi "$latest"
+              git add -A "oncemore/_vendor/$name"
+              git commit -q -m "Take $name $latest from PyPI" \
+                -m "python tools/vendor.py $name --pypi $latest (oncemore had $have)."
+              git push -q origin "$branch"
             fi
-            git checkout -q -B "$branch" "$base"
-            python tools/vendor.py "$name" --pypi "$latest"
-            git add -A "oncemore/_vendor/$name"
-            git commit -q -m "Take $name $latest from PyPI" \
-              -m "python tools/vendor.py $name --pypi $latest (oncemore had $have)."
-            git push -q origin "$branch"
             gh pr create --draft --base main --head "$branch" \
               --title "Take $name $latest from PyPI" \
               --body "$(printf '%s\n' \

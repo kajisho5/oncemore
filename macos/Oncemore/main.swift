@@ -51,7 +51,10 @@ final class ServerProcess {
     func start() throws {
         errPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
-            guard let self = self, !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
+            guard let self = self, !data.isEmpty else { return }
+            // (lossy: a character split between two reads must not drop the
+            // whole read, and with it the URL the engine prints)
+            let text = String(decoding: data, as: UTF8.self)
             DispatchQueue.main.async { self.consume(text) }
         }
         process.terminationHandler = { [weak self] p in
@@ -65,13 +68,15 @@ final class ServerProcess {
 
     private func consume(_ text: String) {
         log += text
-        buffer += text
+        if log.count > 65536 { log = String(log.suffix(32768)) }   // (only the end is ever shown)
         guard onURL != nil else { return }
+        buffer += text
         let pattern = "http://127\\.0\\.0\\.1:[0-9]+/#token=[A-Za-z0-9_-]+"
         if let range = buffer.range(of: pattern, options: .regularExpression),
            let url = URL(string: String(buffer[range])) {
             let callback = onURL
             onURL = nil
+            buffer = ""
             callback?(url)
         }
     }

@@ -14,7 +14,8 @@ missing=${ONCEMORE_HOOK_FORCE_INSTALL:-0}
 for bin in ffmpeg ffprobe genisoimage xorriso; do
   command -v "$bin" >/dev/null 2>&1 || missing=1
 done
-ldconfig -p 2>/dev/null | grep -q libdvdnav || missing=1
+libs="$(ldconfig -p 2>/dev/null || true)"   # (read whole: grep -q in a pipe trips pipefail)
+grep -q libdvdnav <<< "$libs" || missing=1
 [ -e /usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc ] || missing=1
 
 if [ "$missing" = 1 ]; then

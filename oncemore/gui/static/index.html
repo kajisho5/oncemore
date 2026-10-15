@@ -11,18 +11,18 @@
 <body>
 <header id="topbar">
   <div id="menurow" class="menurow">
-    <nav id="menubar" class="menubar" role="menubar" aria-label="Menu bar"></nav>
+    <nav id="menubar" class="menubar" role="menubar" aria-label="Menu bar" data-i18n-aria="menu_bar"></nav>
     <div class="spacer"></div>
     <div id="disc-name" class="disc-name"></div>
     <div id="save-state" class="save-state"></div>
   </div>
   <div id="toolbar" class="toolbar">
     <span class="grip" aria-hidden="true"></span>
-    <div id="tools" class="tools" role="toolbar" aria-label="Tools"></div>
+    <div id="tools" class="tools" role="toolbar" aria-label="Tools" data-i18n-aria="tools"></div>
     <div class="spacer"></div>
     <label class="ws-label" for="workspaces"><span data-i18n="workspace">Workspace</span>:</label>
-    <select id="workspaces" class="ws-select" aria-label="Workspace"></select>
-    <input id="search" class="search" type="search" aria-label="Search" placeholder="⌕">
+    <select id="workspaces" class="ws-select" aria-label="Workspace" data-i18n-aria="workspace"></select>
+    <input id="search" class="search" type="search" aria-label="Search" data-i18n-aria="search" placeholder="⌕">
   </div>
 </header>
 <div id="layout" class="workspace">
@@ -30,12 +30,12 @@
     <header class="panel-head tabbar" id="left-tabs"></header>
     <nav id="sidebar" class="panel-body"></nav>
   </section>
-  <div class="splitter v" data-split="left" title="Drag to resize"></div>
+  <div class="splitter v" data-split="left" title="Drag to resize" data-i18n-title="drag_resize"></div>
   <section id="p-center" class="panel center frame" data-frame="center">
     <header class="panel-head tabbar" id="center-head"></header>
     <main id="main" class="panel-body"></main>
   </section>
-  <div class="splitter v" data-split="right" title="Drag to resize"></div>
+  <div class="splitter v" data-split="right" title="Drag to resize" data-i18n-title="drag_resize"></div>
   <section id="p-right" class="panel frame-column">
     <section id="p-props" class="frame" data-frame="props">
       <header class="panel-head tabbar" id="right-head"></header>
@@ -55,7 +55,7 @@
 </div>
 <footer id="statusbar"></footer>
 <div id="pv-window" class="float-window" role="dialog" hidden>
-  <div class="fw-title"><span id="pv-title"></span><span class="spacer"></span><button class="icon fw-close" id="pv-close" title="Close">✕</button></div>
+  <div class="fw-title"><span id="pv-title"></span><span class="spacer"></span><button class="icon fw-close" id="pv-close" title="Close" data-i18n-title="close_window">✕</button></div>
   <div id="pv-body" class="fw-body"></div>
 </div>
 <div id="drop-overlay" hidden><div data-i18n="drop_here">Drop files to add them to the project</div></div>

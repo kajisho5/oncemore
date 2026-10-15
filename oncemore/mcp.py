@@ -30,7 +30,7 @@ import types
 
 from . import __version__
 from .errors import OncemoreError, ProjectError
-from .project import PROJECT_FILENAME, build_project, read_json
+from .project import PROJECT_FILENAME, build_project, normalize_label, read_json
 from .report import Reporter
 
 MODERN = ("2026-07-28",)
@@ -181,7 +181,7 @@ class Server:
             else:
                 os.makedirs(os.path.join(d, "media"), exist_ok=True)
                 self.save(d, {"version": 1,
-                              "disc": {"label": args.get("label") or "MY_DISC",
+                              "disc": {"label": normalize_label(args.get("label") or "MY_DISC"),
                                        "standard": standard, "aspect": aspect,
                                        "target": "DVD5"},
                               "titles": [], "menus": []}, check=False)
@@ -412,6 +412,12 @@ class Server:
         args = params.get("arguments") or {}
         if not isinstance(args, dict):
             raise RpcError(-32602, "arguments must be an object")
+        from . import schemalite
+        wrong = schemalite.validate(args, self.tools[name]["inputSchema"])
+        if wrong:
+            # (a tool error the model can read and correct, not a protocol error)
+            return {"content": [{"type": "text", "text": "; ".join(
+                f"{p}: {m}" for p, m in wrong)}], "isError": True}
         try:
             out = self.tools[name]["fn"](args)
         except ToolError as e:

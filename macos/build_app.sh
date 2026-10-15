@@ -12,7 +12,8 @@
 # (pkg-config, meson, ninja; nasm on Intel).
 #
 # Environment:
-#   ARCH=arm64|x86_64     target architecture (default: this machine)
+#   ARCH=arm64|x86_64     this machine's architecture (the default; the build runs
+#                         the app's Python and ffmpeg, so it cannot cross-build)
 #   PY_TAG, PY_MINOR      python-build-standalone release and Python version
 #   CODESIGN_IDENTITY     signing identity (default "-" = ad-hoc)
 #   NO_LAYERED_ICON=1     leave out the macOS 26 layered icon (no Xcode 26)
@@ -78,8 +79,9 @@ if [ -z "${NO_LAYERED_ICON:-}" ]; then
     --platform macosx
   # (only the asset catalog: actool's own AppIcon.icns is smaller than ours)
   cp "$ICONTMP/Assets.car" "$APP/Contents/Resources/Assets.car"
-  xcrun assetutil --info "$APP/Contents/Resources/Assets.car" | grep -q 'AppIcon' \
-    || { echo "Assets.car has no AppIcon" >&2; exit 1; }
+  # (read whole: grep -q would stop assetutil midway, and pipefail fails)
+  info="$(xcrun assetutil --info "$APP/Contents/Resources/Assets.car")"
+  grep -q 'AppIcon' <<< "$info" || { echo "Assets.car has no AppIcon" >&2; exit 1; }
   rm -rf "$ICONTMP"
 else
   /usr/libexec/PlistBuddy -c "Delete :CFBundleIconName" "$APP/Contents/Info.plist"
@@ -93,15 +95,16 @@ if [ -z "${NO_PYTHON:-}" ]; then
   if ! ls "$CACHE"/$PATTERN >/dev/null 2>&1; then
     gh release download "$PY_TAG" -R astral-sh/python-build-standalone -D "$CACHE" \
       -p "$PATTERN" --clobber
+  fi
+  # (the checksums are fetched until they are there: never an unchecked interpreter)
+  SUMS="$CACHE/SHA256SUMS-$PY_TAG"
+  if [ ! -s "$SUMS" ]; then
     gh release download "$PY_TAG" -R astral-sh/python-build-standalone -D "$CACHE" \
-      -p "SHA256SUMS" --clobber || true
+      -p "SHA256SUMS" --clobber
+    mv "$CACHE/SHA256SUMS" "$SUMS"
   fi
   TARBALL="$(ls "$CACHE"/$PATTERN | head -1)"
-  if [ -f "$CACHE/SHA256SUMS" ]; then
-    (cd "$CACHE" && grep " $(basename "$TARBALL")\$" SHA256SUMS | shasum -a 256 -c -)
-  else
-    echo "warning: no SHA256SUMS in release $PY_TAG; checksum not verified" >&2
-  fi
+  (cd "$CACHE" && grep " $(basename "$TARBALL")\$" "$SUMS" | shasum -a 256 -c -)
   tar -xzf "$TARBALL" -C "$APP/Contents/Resources"
   PYLIB="$APP/Contents/Resources/python/lib/python$PY_MINOR"
   # trim what a DVD tool never uses (~40 MB)
@@ -137,7 +140,7 @@ if [ "$IDENTITY" != "-" ]; then
 fi
 # nested Mach-O files first (inside-out), then the bundle
 while IFS= read -r -d '' f; do
-  if file -b "$f" | grep -q 'Mach-O'; then
+  if [[ "$(file -b "$f")" == *Mach-O* ]]; then
     codesign "${SIGN_OPTS[@]}" "$f"
   fi
 done < <(find "$APP/Contents/Resources" -type f \( -perm -u+x -o -name '*.so' -o -name '*.dylib' \) -print0)

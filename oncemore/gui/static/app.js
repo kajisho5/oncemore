@@ -69,8 +69,8 @@ const I18N = {
     add_slideshow: "+ Slideshow", slideshow: "Slideshow", slideshow_hint: "A title made from pictures",
     slideshow_need_images: "Add some pictures to Media first (drop them onto the window).",
     slideshow_preview_hint: "Render & play shows the slideshow as it will be on the disc.",
-    render_play: "Render & play", rendering: "Rendering…", add_picture: "+ Add a picture…", seconds: "Seconds on screen",
-    transition: "Transition", crossfade: "Cross-fade", cut: "Cut", transition_duration: "Transition length (s)",
+    render_play: "Render & play", rendering: "Rendering…", ss_add_picture: "+ Add a picture…", seconds: "Seconds on screen",
+    ss_transition: "Transition", crossfade: "Cross-fade", cut: "Cut", transition_duration: "Transition length (s)",
     tr_dissolve: "Dissolve", tr_fadeblack: "Through black", tr_fadewhite: "Through white", tr_wipeleft: "Wipe left", tr_wiperight: "Wipe right", tr_wipeup: "Wipe up", tr_wipedown: "Wipe down",
     tr_slideleft: "Slide left", tr_slideright: "Slide right", tr_slideup: "Slide up", tr_slidedown: "Slide down", tr_circleopen: "Circle open", tr_circleclose: "Circle close", tr_radial: "Radial", tr_pixelize: "Pixelate", tr_random: "Random", tr_own: "Slideshow's transition", tr_next: "To the next picture",
     pan_zoom: "Slow zoom in / out (pan & zoom)", slideshow_chapters: "Every picture starts a chapter.",
@@ -92,12 +92,12 @@ const I18N = {
     whip_hint: "Drag to a title, menu or playlist (project panel or flowchart) to link it", flow_link_hint: "Drag from an item to another to link it: first play, end actions, a button of a menu.",
     pick_button: "Which button links there?", unused: "Not used",
     type_clips: "Timeline (clips)", type_timeline: "Timeline", type_chapter_menu: "Chapter menu", n_buttons: "{n} buttons", n_items: "{n} items", kind_video: "Video", kind_audio: "Audio", kind_image: "Still image", kind_subtitle: "Subtitles", kind_design: "Photoshop design", kind_font: "Font", col_name: "Name", col_type: "Type", col_duration: "Duration", col_buttons: "Buttons", col_first: "First play", col_chapters: "Chapters", col_transcode: "Transcode", buttons_of: "Buttons of {m}", chapters_of: "Chapters of {t}", status_transcoded: "Transcoded", status_untranscoded: "Untranscoded", add_menu_short: "+ Menu", add_playlist_short: "+ Playlist", panel_menu: "Panel menu", menu_viewer: "Menu Viewer", layers_hint: "Open a menu to see its layers.", timelines: "Timelines", preferences: "Preferences", cmd_preferences: "Preferences…", appearance: "Appearance", brightness: "Brightness", brightness_hint: "Lighter or darker interface greys (the menu and video pictures are not changed).", darker: "Darker", lighter: "Lighter", default: "Default", welcome: "Welcome", new_project_basic: "Basic", authoring_mode: "Authoring mode",
-    m_file: "File", m_edit: "Edit", m_disc: "Disc", m_view: "View", m_help: "Help",
+    m_file: "File", m_edit: "Edit", m_disc: "Disc", m_help: "Help",
     cmd_import_files: "Import files…", cmd_import_psd: "Import Photoshop design…", cmd_check: "Check project",
     cmd_build: "Build disc…", cmd_reveal: "Show project folder", cmd_undo: "Undo", cmd_redo: "Redo",
     cmd_duplicate: "Duplicate", cmd_delete: "Delete", cmd_new_slideshow: "New slideshow", cmd_new_menu: "New menu…",
     cmd_new_playlist: "New playlist", cmd_add_chapter: "Add chapter at playhead", cmd_play: "Play / pause",
-    cmd_ws_author: "Workspace: Default", cmd_ws_flow: "Workspace: Flowchart", cmd_ws_sim: "Project Preview", cmd_ws_build: "Build",
+    cmd_ws_author: "Workspace: Default", cmd_ws_flow: "Workspace: Flowchart", cmd_ws_sim: "Workspace: Project Preview", cmd_ws_build: "Workspace: Build",
     cmd_theme: "Light / dark theme", cmd_language: "日本語", cmd_shortcuts: "Keyboard shortcuts", cmd_about: "About oncemore",
     open: "Open", set_first_play: "Play first when the disc starts", copy_of: "{x} copy", reveal_file: "Show in folder",
     copy: "Copy", paste: "Paste", nudge: "Move selected elements (10 px with Shift)", copy_paste: "Copy / paste elements",
@@ -108,7 +108,7 @@ const I18N = {
     clip_still: "still", clip_duration: "Seconds the picture is shown", fit: "Scaling", fit_fit: "Fit (whole picture, bars around)", fit_fill: "Fill (crop the edges)", fit_own: "Slideshow's scaling",
     subtitle_editor: "Subtitle cues", no_sub_tracks: "No subtitle track yet.", new_srt: "+ New subtitle file",
     sub_readonly: "This file is shown read-only (only a SubRip file without an offset is edited here).", convert_srt: "Convert to .srt to edit",
-    sub_track_pos: "Track", add_cue: "+ Cue at the playhead", new_cue_text: "New subtitle",
+    sub_track_pos: "Track", add_cue: "+ Cue at the playhead", new_cue_text: "New subtitle", cue_bad_time: "Subtitle {n}: its start and end must be times, and it must end after it starts. Not saved.",
     image: "Image", width: "Width", highlight_style: "Highlight", hl_frame: "Frame around it", hl_shape: "Its own pixels", hl_underline: "Line under it", hl_drawn: "A shape I draw",
     hl_form: "Shape", hl_rect: "Rectangle", hl_ellipse: "Ellipse", hl_filled: "Filled", hl_drawn_hint: "Drag the dashed shape on the menu to move it, its corner to resize it. It is the button's whole highlight and the area it takes up.",
     image_hint: "An image button shows the picture instead of the text (PNG with transparency works best).",
@@ -174,11 +174,11 @@ const I18N = {
     sim_hint: "Play the disc with a remote before building: arrows, OK, Menu, Title, next / previous chapter. Nothing is encoded; the pictures are the exact menu previews. Keyboard: arrow keys, Enter, M, T, N, P.",
     fp: "First play", title_key_node: "Title key", stop_node: "Stop", play_all: "Play all",
     nav_ok: "No navigation problems.", restart: "Insert disc again", play_chapter: "Play chapter",
-    to_end: "Play to the end", time_out: "Let the menu time out", now: "Now", chapter_n: "Chapter {n} of {m}",
+    sim_to_end: "Play to the end", time_out: "Let the menu time out", now: "Now", chapter_n: "Chapter {n} of {m}",
     stopped: "Playback stopped.", audio_n: "Audio {n}", sub_off: "Subtitles off", sub_n: "Subtitles {n}",
     in_playall: "playing all", in_playlist: "playlist",
     disc_tips: "Coordinates are on the menu's 720-wide grid (a Blu-ray scales the menu up to HD). Text uses the disc's font, or an element's own; Auto picks one that has every character.",
-    tools: "Tools", ok: "OK", missing: "missing", tracks_hint: "Leave empty to use the video's own sound.",
+    ok: "OK", missing: "missing", tracks_hint: "Leave empty to use the video's own sound.",
     stream: "Stream", file: "File", add_track: "+ Track", add_sub: "+ Subtitle file",
     tbtn: "Buttons over the title", tbtn_add: "+ Button", tbtn_hint: "Areas of the picture the viewer selects with the arrow keys and presses with OK while the title plays (DVD only: a Blu-ray build stops on them; the web version plays the title without them). Draw what they look like into the video; the disc lights the area. On the picture, drag a box to move it and its corner to resize it.", tbtn_from: "From", tbtn_to: "To", tbtn_to_end: "the end", tbtn_here: "Set to the playhead", tbtn_subs: "A title with subtitles cannot have buttons over it yet: the player lights the buttons in the subtitle stream it shows.", tbtn_hl: "Selected", tbtn_sel: "Pressed", tbtn_link: "Link", sim_time: "Time in the title",
     tbtn_bd: "This project is made for a Blu-ray, which has no buttons over a title: a Blu-ray build stops on them (they still go on a DVD).",
@@ -198,14 +198,14 @@ const I18N = {
     angles: "Angles", add_angle: "+ Angle", angle_n: "Angle {n}", angles_hint: "Other views of the same scene, switched with the remote's Angle key (DVD only; a Blu-ray build leaves them out). Each video must be at least as long as the title's; it is encoded with the title's settings and sound.", angles_none: "Angles need a single video file as the title's source.",
     frame_err: "Cannot show this frame", preview_err: "Preview failed",
     confirm_delete: "Delete “{x}”?", chapter_at: "Chapter {n}", playhead: "Playhead",
-    workspace: "Workspace", ws_default: "Default", monitor: "Monitor", no_menus: "(no Menus)", no_timelines: "(no Timelines)",
-    project_preview: "Project Preview", search: "Search", fit: "Fit", step_back: "Step Backward", step_fwd: "Step Forward",
+    workspace: "Workspace", menu_bar: "Menu bar", drag_resize: "Drag to resize", close_window: "Close", ws_default: "Default", monitor: "Monitor", no_menus: "(no Menus)", no_timelines: "(no Timelines)",
+    project_preview: "Project Preview", search: "Search", step_back: "Step Backward", step_fwd: "Step Forward",
     prev_ch: "Previous Chapter", next_ch: "Next Chapter", tc_source: "Source", no_timeline_open: "Open a timeline from the Project panel to see it here.",
     prop_disc: "Disc", prop_title: "Timeline", prop_menu: "Menu", prop_button: "Button", prop_text: "Text", prop_shape: "Rectangle",
     prop_asset: "Asset", prop_playlist: "Chapter Playlist", prop_slideshow: "Slideshow",
     name_location: "Name and Location", project_settings: "Project Settings", location: "Location", transcode_settings: "Transcode Settings",
     np_transcode: "Codec: MPEG-2; Dimensions: {d}; Frame Rate: {f}; Audio: AC-3 / LPCM / DTS; Maximum Audio/Video Bitrate: 9.8 Mbps",
-    np_transcode_bd: "Codec: H.264; Dimensions: 1920 × 1080; Frame Rate: {f}; Audio: AC-3 / LPCM / DTS; Maximum Video Bitrate: 40 Mbps",
+    np_transcode_bd: "Codec: H.264; Dimensions: 1920 × 1080 (or 1280 × 720); Frame Rate: {f}; Audio: AC-3 / LPCM / DTS; Maximum Video Bitrate: 40 Mbps",
     authoring_mode_hint: "What the project is made for: Build, Check project and the disc settings follow it. The Build panel can still make the other.",
     np_info: "The disc's settings can be changed at any time in the Properties panel (select the disc in the Flowchart).",
     np_open_sample: "Open the sample project", advanced: "Advanced", cancel: "Cancel",
@@ -224,7 +224,7 @@ const I18N = {
     no_source_chapters: "The source has no chapter markers.", ra_what: "Replace", ra_with: "With", ra_uses: "Used {n} time(s) in the project.", ra_missing: "missing",
     ra_hint: "Every use in the project then points to the new file: titles, clips, audio and subtitle tracks, menu backgrounds, buttons, slideshows, music.",
     ra_none: "The project uses no files yet.", psd_changed: "The Photoshop file of this menu has changed.", open_failed: "This system has no program to open the file with.",
-    colour_set: "Colour set", cs_normal: "Normal", opacity: "Opacity",
+    colour_set: "Colour set", cs_normal: "Normal", 
     cs_normal_hint: "Show the buttons' highlight shapes in this colour while they are not selected",
     cs_hint: "The colours of the buttons' highlight shapes: Normal (while not selected; optional), Highlight (selected) and Activated (pressed).",
     layer_hide: "Hide (not on the disc)", layer_show: "Show",
@@ -286,7 +286,7 @@ const I18N = {
     fmt_srt: "SubRip (.srt)", fmt_script: "Text script (.txt)", script_import: "Import subtitles (text script)",
     script_hint: "A text script has a number, the start and end timecode and the text for each subtitle; its look comes from the subtitle style. Timecode hh;mm;ss;ff is NTSC drop frame. In an image script the text is a picture file next to the script (import them together); the pictures keep their own colours. Display_Area and Directory lines, FAB image scripts (each picture with its place) and UTF-16 files are read too.",
     tc_absolute: "Absolute: the timecode is the title's", tc_relative: "Relative to", sub_offset: "Offset",
-    captions: "Closed captions", cc_hint: "Line-21 captions for TVs and players with a caption decoder: a Scenarist .scc file as it is, or a subtitle file sent as pop-on captions (32 characters a row, Latin letters). DVD only.", cc_pal: "Closed captions (line 21) are for NTSC discs.",
+    captions: "Closed captions", cc_hint: "Line-21 captions for TVs and players with a caption decoder: an .scc caption file as it is, or a subtitle file sent as pop-on captions (32 characters a row, Latin letters). DVD only.", cc_pal: "Closed captions (line 21) are for NTSC discs.",
     sub_offset_hint: "Taken off every subtitle's time: the start of the source's own timecode (e.g. 01;00;00;00)",
     cmd_chapter_names: "Show chapter names", chapter_label: "Chapter {n}",
     button_number: "Number", number_on_remote: "{n} (number key {k})",
@@ -317,7 +317,7 @@ const I18N = {
     chapter_menu: "チャプターメニュー", chapter_menu_on: "サムネイル付きチャプターメニューを自動生成",
     subtitles: "字幕", audio_tracks: "音声トラック", audio_default: "最初はこの音声", audio_default_hint: "ディスクをこの音声トラックで始めます（最初の再生で 1 回だけ。後で視聴者が選んだものはそのまま）", subtitles_off: "最初は字幕オフ", subtitles_off_hint: "プレーヤーの言語設定に任せず、字幕オフで始めます（「最初から表示」の字幕トラックがあればそちらが優先）", default_on: "最初から表示",
     add_chapter: "ここにチャプター", chapters: "チャプター", delete: "削除",
-    add_shape: "＋四角形", add_picture: "＋画像", picture: "画像", pictures: "画像",
+    add_shape: "＋長方形", add_picture: "＋画像", picture: "画像", pictures: "画像",
     place_on_menu: "メニューに配置", picture_hint: "ボタンではない画像（ロゴ・写真）。PNG は透明部分がそのまま残ります。",
     pick_picture: "プロジェクトのファイルから画像を選んでください（先にファイル > 読み込み）。", keep_ratio: "縦横比を保つ", snap: "スナップ", align: "整列", n_selected: "{n} 個選択中",
     align_left: "左揃え", align_hcenter: "左右中央揃え", align_right: "右揃え",
@@ -325,7 +325,7 @@ const I18N = {
     distribute_h: "左右に等間隔", distribute_v: "上下に等間隔",
     stage_keys: "Shift+クリックか範囲ドラッグで複数選択・矢印キーで移動・Shift+ドラッグで直線移動・Alt(⌥)+ドラッグで複製・⌘+ドラッグでスナップなし・⌘D 複製・⌘C/⌘V",
     multi_hint: "ドラッグでまとめて移動、またはメニュー上の整列ボタンを使えます。",
-    shape: "四角形", height: "高さ", fill: "塗り", opacity: "不透明度",
+    shape: "長方形", height: "高さ", fill: "塗り", opacity: "不透明度",
     box_width: "ボックスの幅", box_height: "列の長さ", box_none: "なし", vertical_text: "縦書き", underline: "下線", strikethrough: "取り消し線",
     box_hint: "ボックスの幅（縦書きでは列の長さ）を入れると、その中に収まるように改行します。句読点・閉じ括弧・小書きの仮名は行頭に来ないようにします。",
     paragraph: "段落", para_align: "行揃え", para_left: "左揃え", para_center: "中央揃え", para_right: "右揃え", line_spacing: "行間", paragraph_hint: "テキストの各行がメニューの 1 行になります（Return で改行）。X は段落の左端です。",
@@ -357,22 +357,22 @@ const I18N = {
     auto_shared: "自動（ディスク全体で配分）", passthrough: "AC-3 をそのままコピー",
     passthrough_hint: "AC-3（48kHz）素材向け：再エンコードしません。チャンネル数は素材と同じにしてください。",
     dts_copy: "DTS（コピー）", dts_hint: "DTS は素材からそのままコピーします。Blu-ray では DTS-HD を丸ごと（48／96／192kHz）、DVD では 48kHz の DTS コア部分を収録します。チャンネル：ステレオの素材はステレオ、5.1ch 以上の素材は 5.1ch。",
-    layer_break: "レイヤーブレーク", layer_break_hint: "2 層ディスクが 2 層目へ移る位置です。ディスクの中ほどより後のチャプターの先頭に置きます。内蔵の ISO 書き出しが ECC ブロック境界に合わせ、Linux での書き込みではドライブへ渡します（Mac では hdiutil が位置を自分で決めます）。", layer_break_at: "{t}、チャプター {n}",
-    rom_files: "パソコン向けのファイル", rom_hint: "パソコン向けに VIDEO_TS（Blu-ray では BDMV）と並べて入れるファイル／フォルダ（1 行に 1 つ、プロジェクトからの相対パス）。",
+    layer_break: "レイヤーブレーク", layer_break_hint: "2 層ディスクが 2 層目へ移る位置です。ディスクの中ほどより後のチャプターの先頭に置きます。内蔵の ISO 作成が ECC ブロック境界に合わせ、Linux での書き込みではドライブへ渡します（Mac では hdiutil が位置を自分で決めます）。", layer_break_at: "{t}、チャプター {n}",
+    rom_files: "パソコン向けのファイル", rom_hint: "パソコン向けに VIDEO_TS（Blu-ray では BDMV）と並べて入れるファイル／フォルダー（1 行に 1 つ、プロジェクトからの相対パス）。",
     no_cache: "すべてエンコードし直す（キャッシュを使わない）",
     sub_bottom: "下", sub_top: "上", sub_color: "色を指定",
     add_slideshow: "＋スライドショー", slideshow: "スライドショー", slideshow_hint: "写真から作るタイトル",
     slideshow_need_images: "先に写真を素材に追加してください（ウィンドウにドロップ）。",
     slideshow_preview_hint: "「書き出して再生」でディスクと同じ見え方を確認できます。",
-    render_play: "書き出して再生", rendering: "書き出し中…", add_picture: "＋写真を追加…", seconds: "表示秒数",
-    transition: "切り替え", crossfade: "クロスフェード", cut: "カット", transition_duration: "切り替えの長さ（秒）",
+    render_play: "書き出して再生", rendering: "書き出し中…", ss_add_picture: "＋写真を追加…", seconds: "表示秒数",
+    ss_transition: "切り替え", crossfade: "クロスフェード", cut: "カット", transition_duration: "切り替えの長さ（秒）",
     tr_dissolve: "ディゾルブ", tr_fadeblack: "黒を経由", tr_fadewhite: "白を経由", tr_wipeleft: "ワイプ（左へ）", tr_wiperight: "ワイプ（右へ）", tr_wipeup: "ワイプ（上へ）", tr_wipedown: "ワイプ（下へ）",
     tr_slideleft: "スライド（左へ）", tr_slideright: "スライド（右へ）", tr_slideup: "スライド（上へ）", tr_slidedown: "スライド（下へ）", tr_circleopen: "円形（開く）", tr_circleclose: "円形（閉じる）", tr_radial: "放射状", tr_pixelize: "ピクセル化", tr_random: "ランダム", tr_own: "スライドショーの設定に従う", tr_next: "次の写真への切り替え",
     pan_zoom: "ゆっくりズーム（パン＆ズーム）", slideshow_chapters: "写真ごとにチャプターになります。",
     routing: "ルーティング", routing_hint: "各ボタンからリモコンの矢印キーで移る先を表示（実線：指定、破線：自動）",
     link_hint: "プロジェクトパネルのタイトル・メニュー・プレイリストをボタンにドラッグするとリンク、メニューの空いた所にドラッグするとそのボタンを追加します。",
     cmd_transcode_title: "このタイトルを今すぐトランスコード", cmd_transcode_all: "すべてのタイトルを今すぐトランスコード",
-    transcoding: "トランスコード中", transcoded: "トランスコード済み（書き出し時に再利用）", not_transcoded: "未トランスコード（書き出し時にエンコード）",
+    transcoding: "トランスコード中", transcoded: "トランスコード済み（ビルド時に再利用）", not_transcoded: "未トランスコード（ビルド時にエンコード）",
     m_object: "オブジェクト", m_menu: "メニュー", m_timeline: "タイムライン", m_view: "表示", m_window: "ウィンドウ",
     cmd_preview: "プレビュー", cmd_set_link: "リンクを設定…", cmd_routing: "ボタンのルーティングを表示", cmd_safe_area: "セーフエリアを表示",
     cmd_tool_select: "選択ツール", cmd_tool_text: "テキストツール", cmd_tool_zoom: "ズームツール", cmd_zoom_in: "ズームイン", cmd_zoom_out: "ズームアウト",
@@ -381,20 +381,20 @@ const I18N = {
     cmd_distribute_h: "左右に等間隔", cmd_distribute_v: "上下に等間隔", cmd_bring_front: "最前面へ", cmd_send_back: "最背面へ",
     cmd_convert: "テキスト ⇄ ボタンに変換", cmd_new_timeline: "動画から新規タイトル…", cmd_prev_chapter: "前のチャプター", cmd_next_chapter: "次のチャプター",
     new_timeline_hint: "タイトルで再生する動画を選んでください。", tools: "ツール", tool_select: "選択", tool_text: "テキスト：置きたい場所をクリック", tool_zoom: "ズーム：クリックで拡大、Alt+クリックで縮小",
-    zoom_fit: "全体", menu_px: "DVD ピクセル", menu_px_bd: "ピクセル（Blu-ray では HD に拡大）", zoom_hint: "表示倍率（+ / −）", safe_hint: "アクションセーフ／タイトルセーフ：テレビでは端が切れることがあります",
+    zoom_fit: "全体表示", menu_px: "DVD ピクセル", menu_px_bd: "ピクセル（Blu-ray では HD に拡大）", zoom_hint: "表示倍率（+ / −）", safe_hint: "アクションセーフ／タイトルセーフ：テレビでは端が切れることがあります",
     subpictures: "ハイライト：", subpictures_hint: "全ボタンを通常・選択中・決定時の見え方で表示（ディスクと同じ画）",
     sp_normal: "通常", sp_selected: "選択中", sp_activated: "決定時", overlap_hint: "このボタンの範囲が他のボタンと重なっています：リモコンでどちらかに移れないことがあります",
     whip_hint: "タイトル・メニュー・プレイリスト（プロジェクトパネルかフローチャート）までドラッグしてリンク", flow_link_hint: "項目から別の項目へドラッグしてリンク：最初の再生、終了時の動作、メニューのボタン。",
     pick_button: "どのボタンからリンクしますか？", unused: "未使用",
-    type_clips: "タイムライン（クリップ）", type_timeline: "タイムライン", type_chapter_menu: "チャプターメニュー", n_buttons: "ボタン {n}", n_items: "{n} 項目", kind_video: "ビデオ", kind_audio: "オーディオ", kind_image: "静止画", kind_subtitle: "字幕", kind_design: "Photoshop デザイン", kind_font: "フォント", col_name: "名前", col_type: "種類", col_duration: "デュレーション", col_buttons: "ボタン", col_first: "最初に再生", col_chapters: "チャプター", col_transcode: "トランスコード", buttons_of: "{m} のボタン", chapters_of: "{t} のチャプター", status_transcoded: "トランスコード済み", status_untranscoded: "未トランスコード", add_menu_short: "＋メニュー", add_playlist_short: "＋プレイリスト", panel_menu: "パネルメニュー", menu_viewer: "メニュービューア", layers_hint: "メニューを開くとレイヤーが表示されます。", timelines: "タイムライン", preferences: "環境設定", cmd_preferences: "環境設定…", appearance: "アピアランス", brightness: "明るさ", brightness_hint: "インターフェイスのグレーを明るく／暗くします（メニューや映像の画は変わりません）。", darker: "暗く", lighter: "明るく", default: "初期設定", welcome: "ようこそ", new_project_basic: "基本", authoring_mode: "オーサリングモード",
-    m_file: "ファイル", m_edit: "編集", m_disc: "ディスク", m_view: "表示", m_help: "ヘルプ",
+    type_clips: "タイムライン（クリップ）", type_timeline: "タイムライン", type_chapter_menu: "チャプターメニュー", n_buttons: "ボタン {n}", n_items: "{n} 項目", kind_video: "動画", kind_audio: "音声", kind_image: "静止画", kind_subtitle: "字幕", kind_design: "Photoshop デザイン", kind_font: "フォント", col_name: "名前", col_type: "種類", col_duration: "デュレーション", col_buttons: "ボタン", col_first: "ディスク挿入時", col_chapters: "チャプター", col_transcode: "トランスコード", buttons_of: "{m} のボタン", chapters_of: "{t} のチャプター", status_transcoded: "トランスコード済み", status_untranscoded: "未トランスコード", add_menu_short: "＋メニュー", add_playlist_short: "＋プレイリスト", panel_menu: "パネルメニュー", menu_viewer: "メニュービューア", layers_hint: "メニューを開くとレイヤーが表示されます。", timelines: "タイムライン", preferences: "環境設定", cmd_preferences: "環境設定…", appearance: "アピアランス", brightness: "明るさ", brightness_hint: "インターフェイスのグレーを明るく／暗くします（メニューや映像の画は変わりません）。", darker: "暗く", lighter: "明るく", default: "初期設定", welcome: "ようこそ", new_project_basic: "基本", authoring_mode: "オーサリングモード",
+    m_file: "ファイル", m_edit: "編集", m_disc: "ディスク", m_help: "ヘルプ",
     cmd_import_files: "ファイルを読み込む…", cmd_import_psd: "Photoshop デザインを読み込む…", cmd_check: "プロジェクトをチェック",
-    cmd_build: "ディスクをビルド…", cmd_reveal: "プロジェクトのフォルダを表示", cmd_undo: "取り消す", cmd_redo: "やり直す",
+    cmd_build: "ディスクをビルド…", cmd_reveal: "プロジェクトのフォルダーを表示", cmd_undo: "取り消す", cmd_redo: "やり直す",
     cmd_duplicate: "複製", cmd_delete: "削除", cmd_new_slideshow: "新規スライドショー", cmd_new_menu: "新規メニュー…",
     cmd_new_playlist: "新規プレイリスト", cmd_add_chapter: "再生位置にチャプターを追加", cmd_play: "再生／一時停止",
-    cmd_ws_author: "ワークスペース：初期設定", cmd_ws_flow: "ワークスペース：フローチャート", cmd_ws_sim: "プロジェクトプレビュー", cmd_ws_build: "ビルド",
+    cmd_ws_author: "ワークスペース：初期設定", cmd_ws_flow: "ワークスペース：フローチャート", cmd_ws_sim: "ワークスペース：プロジェクトプレビュー", cmd_ws_build: "ワークスペース：ビルド",
     cmd_theme: "ライト／ダーク", cmd_language: "English", cmd_shortcuts: "キーボードショートカット", cmd_about: "oncemore について",
-    open: "開く", set_first_play: "ディスクの最初に再生", copy_of: "{x} のコピー", reveal_file: "フォルダで表示",
+    open: "開く", set_first_play: "ディスク挿入時に再生", copy_of: "{x} のコピー", reveal_file: "フォルダーで表示",
     copy: "コピー", paste: "ペースト", nudge: "選択した要素を移動（Shift で 10px）", copy_paste: "要素のコピー／ペースト",
     about_text: "オープンソースの DVD-Video／Blu-ray オーサリング（Web 版も）。メニュー・チャプター・プレイリスト・ディスクイメージを自分のコンピュータで作れます。コピーガードはありません。",
     clips: "クリップ", add_clip: "クリップを追加…", clip_in: "イン", clip_out: "アウト", clip_end: "最後",
@@ -403,11 +403,11 @@ const I18N = {
     clip_still: "静止画", clip_duration: "静止画の表示秒数", fit: "拡大・縮小", fit_fit: "全体を表示（周囲に帯）", fit_fill: "画面いっぱい（端を切り抜き）", fit_own: "スライドショーの設定に従う",
     subtitle_editor: "字幕の編集", no_sub_tracks: "字幕トラックはまだありません。", new_srt: "＋新しい字幕ファイル",
     sub_readonly: "このファイルは表示のみです（ここで編集できるのはオフセットのない SubRip だけです）。", convert_srt: ".srt に変換して編集",
-    sub_track_pos: "トラック設定", add_cue: "＋再生位置に字幕を追加", new_cue_text: "新しい字幕",
+    sub_track_pos: "トラック設定", add_cue: "＋再生位置に字幕を追加", new_cue_text: "新しい字幕", cue_bad_time: "字幕 {n}：開始と終了は時刻で、終了は開始より後にしてください。保存していません。",
     image: "画像", width: "幅", highlight_style: "ハイライト", hl_frame: "周りに枠", hl_shape: "ボタン自身の形", hl_underline: "下線", hl_drawn: "描いた図形",
-    hl_form: "図形", hl_rect: "四角形", hl_ellipse: "楕円", hl_filled: "塗りつぶし", hl_drawn_hint: "メニュー上の点線の図形をドラッグで移動、角のつまみで大きさを変えます。これがボタンのハイライト全体で、ボタンの範囲にもなります。",
+    hl_form: "図形", hl_rect: "長方形", hl_ellipse: "楕円", hl_filled: "塗りつぶし", hl_drawn_hint: "メニュー上の点線の図形をドラッグで移動、角のつまみで大きさを変えます。これがボタンのハイライト全体で、ボタンの範囲にもなります。",
     image_hint: "画像ボタンは文字の代わりに画像を表示します（透過 PNG がおすすめ）。",
-    chapter_name: "チャプターメニューに出す名前", poster: "サムネイル", poster_hint: "再生位置のフレームをこのチャプターのサムネイルにする（もう一度押すと解除）",
+    chapter_name: "チャプターメニューに出す名前", poster: "ポスターフレーム", poster_hint: "再生位置のフレームをこのチャプターのポスターフレームにする（もう一度押すと解除）",
     playlists: "プレイリスト", playlist: "プレイリスト", playlist_item: "プレイリスト：{p}", items: "再生する内容", add_item: "＋追加",
     from_chapter: "開始チャプター", to_chapter: "終了チャプター", to_end: "最後まで", playlist_end: "最後まで再生したら",
     playlist_order: "再生順", order_sequential: "並び順", order_random: "ランダム", order_shuffle: "シャッフル",
@@ -426,26 +426,26 @@ const I18N = {
     advance_manual: "手動で送る（次へ／再生を押すまで写真を表示）",
     add_music: "＋BGM を追加…", fit_to_music: "写真の表示時間を BGM の長さに合わせる（秒数は比率になります）", fitted_to: "調整後：{d}",
     font_size: "文字サイズ", text_color: "文字色", highlight: "選択中の色", select_color: "決定時の色",
-    add_button: "＋ボタン", add_text: "＋テキスト", exact_preview: "実レンダリング確認", hide_preview: "確認を閉じる",
+    add_button: "＋ボタン", add_text: "＋テキスト", exact_preview: "正確なプレビュー", hide_preview: "プレビューを閉じる",
     safe_area: "セーフエリア", button: "ボタン", text: "テキスト", action: "リンク先", size: "サイズ", color: "色",
     nav: "リモコンの移動先", nav_auto: "自動", none: "なし", stop: "停止",
     playall: "全タイトルを連続再生", resume: "再生再開（メニューキーで中断したタイトル）", channels: "チャンネル", stereo: "ステレオ", surround: "5.1ch サラウンド",
     generated_menu: "このメニューは「{t}」のチャプターから自動生成されます。変更はそのタイトルの設定で行います。",
     go_to_title: "タイトルを開く",
-    build_iso: "ディスクイメージ（.iso）", build_folder: "VIDEO_TS フォルダ", build_disc: "DVD ディスク（イメージを作って書き込み）",
+    build_iso: "ディスクイメージ（.iso）", build_folder: "VIDEO_TS フォルダー", build_disc: "DVD ディスク（イメージを作って書き込み）",
     build_format: "フォーマット", format_dvd: "DVD", format_bluray: "Blu-ray", format_web: "Web（HTML5）", build_web_folder: "index.html の入ったフォルダー（ブラウザで開くか、Web サーバーに置きます）",
-    web_note: "ブラウザ向けのディスク：ボタン付きのメニュー、チャプターと字幕付きの MP4 のタイトル、ディスクと同じリンク。音声はタイトルごとに 1 本です。画像の字幕、アングル、クローズドキャプション、タイトル上のボタンは省きます（タイトルはボタンなしで再生されます）。", build_bdmv: "BDMV フォルダ", build_bd_disc: "Blu-ray ディスク（イメージを作って書き込み）", bd_size: "ディスク容量",
-    bd_picture: "映像", bd_1080: "1920×1080（1080i 25／29.97、フィルムは 1080p 23.976）", bd_720: "1280×720（720p 50／59.94：毎秒 50／60 コマのまま）", bd_note: "Blu-ray: タイトルを HD で、チャプター・プレイリスト・全タイトル連続再生・メニュー（ポップアップメニューも）・字幕付きで書き出します。タイトル上のボタン、アングル、クローズドキャプション、ナビゲーションスクリプトは DVD のみです。",
+    web_note: "ブラウザ向けのディスク：ボタン付きのメニュー、チャプターと字幕付きの MP4 のタイトル、ディスクと同じリンク。音声はタイトルごとに 1 本です。画像の字幕、アングル、クローズドキャプション、タイトル上のボタンは省きます（タイトルはボタンなしで再生されます）。", build_bdmv: "BDMV フォルダー", build_bd_disc: "Blu-ray ディスク（イメージを作って書き込み）", bd_size: "ディスク容量",
+    bd_picture: "映像", bd_1080: "1920×1080（1080i 25／29.97、フィルムは 1080p 23.976）", bd_720: "1280×720（720p 50／59.94：毎秒 50／60 コマのまま）", bd_note: "Blu-ray: タイトルを HD で、チャプター・プレイリスト・全タイトルの連続再生・メニュー（ポップアップメニューも）・字幕付きでビルドします。タイトル上のボタン、アングル、クローズドキャプション、ナビゲーションスクリプトは DVD のみです。",
     recorder: "ドライブ", recorder_hint: "空欄なら最初のドライブ。ビルドの前に空のディスク（Blu-ray なら BD）を入れてください。",
     burned: "ディスクに書き込みました", step_burn: "ディスクに書き込み", fast: "高速エンコード（DVD は 1 パス。画質はやや下がります）",
     start_build: "開始", building: "ビルド中…", build_done: "完了", build_failed: "ビルドに失敗",
-    reveal: "Finder で表示", reveal_other: "フォルダを開く", output: "出力先", warnings: "警告",
+    reveal: "Finder で表示", reveal_other: "フォルダーを開く", output: "出力先", warnings: "警告",
     step_probe: "素材をチェック", step_menu: "メニュー「{i}」を作成", step_encode: "タイトル「{i}」をエンコード",
-    step_subtitles: "「{i}」の字幕を作成", step_author: "ディスクのファイルを書き出し", step_iso: "ディスクイメージを書き出し",
+    step_subtitles: "「{i}」の字幕を作成", step_author: "ディスクのファイルを作成", step_iso: "ディスクイメージを作成",
     media_cache: "メディアキャッシュ", cache_folder: "フォルダー", cache_in_project: "プロジェクトフォルダー内（.oncemore-cache）", cache_use: "使う",
     cache_in_project_short: "プロジェクト内", cache_now: "このプロジェクトの場所：{p}",
-    cache_hint: "エンコード済みのタイトルとメニュー、書き出したスライドショー、再生用のコピーをここに置き、ビルドを速くします。全プロジェクト共通のフォルダー（容量の大きいドライブや速いドライブなど）を選ぶと、その中にプロジェクトごとのフォルダーを作ります。",
-    check_ok: "書き出しできます", estimated: "推定サイズ", of: "／", video_avg: "平均映像ビットレート", video_peak: "映像ビットレートの上限",
+    cache_hint: "エンコード済みのタイトルとメニュー、レンダリングしたスライドショー、再生用のコピーをここに置き、ビルドを速くします。全プロジェクト共通のフォルダー（容量の大きいドライブや速いドライブなど）を選ぶと、その中にプロジェクトごとのフォルダーを作ります。",
+    check_ok: "ビルドできます", estimated: "推定サイズ", of: "／", video_avg: "平均映像ビットレート", video_peak: "映像ビットレートの上限",
     budget: "ビットバジェット", budget_menus: "メニュー", budget_other: "ディスクのファイル", budget_free: "空き", budget_video: "映像 Mbit/s",
     budget_audio: "音声", budget_size: "サイズ", budget_share: "ディスクに占める割合", col_length: "長さ",
     menu_item: "メニュー：{m}", menu_button_item: "メニュー：{m} › {b}", title_item: "タイトル：{t}", chapter_item: "{t} › チャプター {n}",
@@ -457,7 +457,7 @@ const I18N = {
     lib_templates: "メニューテンプレート", lib_backgrounds: "背景", lib_text_styles: "文字スタイル",
     lib_style_hint: "メニューのボタンやテキストを選んでからスタイルをクリックします。",
     style_plain: "なし", style_outline: "縁取り", style_shadow: "影", style_outline_shadow: "縁取り＋影",
-    layers: "レイヤー", buttons: "ボタン", texts: "テキスト", shapes: "四角形", rectangle: "四角形",
+    layers: "レイヤー", buttons: "ボタン", texts: "テキスト", shapes: "長方形", rectangle: "長方形",
     timeline: "タイムライン", video: "映像",
     import_psd: "Photoshop から読み込み", import: "読み込む", importing: "レイヤーを読み込んでいます…",
     import_psd_hint: "レイヤー付きの .psd / .psb：「(+) 名前」のグループがボタン、その中の「(=1)」レイヤーがハイライト、「(%)」レイヤーがサムネイルの位置になり、それ以外の表示中のレイヤーが背景になります。ファイルはウィンドウにドロップして追加します。",
@@ -466,16 +466,16 @@ const I18N = {
     reimport: "読み込み直す", reimport_hint: "Photoshop で編集した後に：画像を更新し、ボタンのリンク先はそのまま残します。",
     make_menu_from_psd: "このデザインからメニューを作る",
     flow_hint: "ディスクで視聴者ができることの全体図です（ボタン、再生後の動作、タイムアウト、プレイリスト、リモコンのメニュー／タイトルキー）。箱をクリックすると編集できます。赤い箱はたどり着けないか、抜け出せない場所です。",
-    sim_hint: "書き出す前にリモコンでディスクを操作できます（矢印・決定・メニュー・タイトル・前後のチャプター）。エンコードはせず、メニューは実レンダリングの画像です。キーボード：矢印、Enter、M、T、N、P。",
-    fp: "ディスク挿入時", title_key_node: "タイトルキー", stop_node: "停止", play_all: "全タイトル連続再生",
+    sim_hint: "ビルドする前にリモコンでディスクを操作できます（矢印・決定・メニュー・タイトル・前後のチャプター）。エンコードはせず、メニューは実レンダリングの画像です。キーボード：矢印、Enter、M、T、N、P。",
+    fp: "ディスク挿入時", title_key_node: "タイトルキー", stop_node: "停止", play_all: "全タイトルを連続再生",
     nav_ok: "ナビゲーションの問題はありません。", restart: "ディスクを入れ直す", play_chapter: "チャプターを再生",
-    to_end: "最後まで再生", time_out: "メニューをタイムアウトさせる", now: "現在", chapter_n: "チャプター {n} / {m}",
+    sim_to_end: "最後まで再生", time_out: "メニューをタイムアウトさせる", now: "現在", chapter_n: "チャプター {n} / {m}",
     stopped: "再生が停止しました。", audio_n: "音声 {n}", sub_off: "字幕オフ", sub_n: "字幕 {n}",
     in_playall: "連続再生中", in_playlist: "プレイリスト",
     disc_tips: "座標はメニューの幅 720 の格子です（Blu-ray ではメニューを HD に拡大します）。文字はディスクのフォントか要素ごとのフォントで描きます。自動なら全文字を描けるフォントを選びます。",
-    tools: "ツール", ok: "OK", missing: "不足", tracks_hint: "空なら動画自体の音声を使います。",
+    ok: "OK", missing: "不足", tracks_hint: "空なら動画自体の音声を使います。",
     stream: "ストリーム", file: "ファイル", add_track: "＋トラック", add_sub: "＋字幕ファイル",
-    tbtn: "タイトル上のボタン", tbtn_add: "＋ボタン", tbtn_hint: "タイトルの再生中に、矢印キーで選び OK で押せる映像上の領域です（DVD のみ。Blu-ray のビルドはこれがあると止まり、Web 版はボタンなしで再生します）。見た目は映像に描いておき、ディスクはその領域を光らせます。映像上の枠はドラッグで移動、角のドラッグで大きさを変えられます。", tbtn_from: "開始", tbtn_to: "終了", tbtn_to_end: "最後まで", tbtn_here: "再生位置にする", tbtn_subs: "字幕のあるタイトルには、まだボタンを置けません（プレーヤーは表示中の字幕ストリームの上でボタンを光らせるため）。", tbtn_hl: "選択時", tbtn_sel: "決定時", tbtn_link: "リンク", sim_time: "タイトル内の時刻",
+    tbtn: "タイトル上のボタン", tbtn_add: "＋ボタン", tbtn_hint: "タイトルの再生中に、矢印キーで選び 決定で押せる映像上の領域です（DVD のみ。Blu-ray のビルドはこれがあると止まり、Web 版はボタンなしで再生します）。見た目は映像に描いておき、ディスクはその領域を光らせます。映像上の枠はドラッグで移動、角のドラッグで大きさを変えられます。", tbtn_from: "開始", tbtn_to: "終了", tbtn_to_end: "最後まで", tbtn_here: "再生位置にする", tbtn_subs: "字幕のあるタイトルには、まだボタンを置けません（プレーヤーは表示中の字幕ストリームの上でボタンを光らせるため）。", tbtn_hl: "選択時", tbtn_sel: "決定時", tbtn_link: "リンク", sim_time: "タイトル内の時刻",
     tbtn_bd: "このプロジェクトは Blu-ray 向けで、Blu-ray にはタイトル上のボタンがありません。Blu-ray のビルドはこれがあると止まります（DVD には入ります）。",
     angles_bd: "このプロジェクトは Blu-ray 向けです。Blu-ray のビルドではアングルを省きます（DVD には入ります）。",
     cc_bd: "このプロジェクトは Blu-ray 向けです。Blu-ray のビルドではクローズドキャプションを省きます（DVD には入ります）。",
@@ -493,14 +493,14 @@ const I18N = {
     angles: "アングル", add_angle: "＋アングル", angle_n: "アングル {n}", angles_hint: "同じ場面の別の映像で、リモコンのアングルキーで切り替えます（DVD のみ。Blu-ray のビルドでは省きます）。各動画はタイトルの長さ以上が必要で、タイトルと同じ設定・音声でエンコードします。", angles_none: "アングルを使うには、タイトルのソースが 1 本の動画ファイルである必要があります。",
     frame_err: "このフレームを表示できません", preview_err: "プレビューに失敗",
     confirm_delete: "「{x}」を削除しますか？", chapter_at: "チャプター {n}", playhead: "再生位置",
-    workspace: "ワークスペース", ws_default: "初期設定", monitor: "モニター", no_menus: "（メニューなし）", no_timelines: "（タイムラインなし）",
-    project_preview: "プロジェクトプレビュー", search: "検索", fit: "全体表示", step_back: "1 フレーム戻る", step_fwd: "1 フレーム進む",
+    workspace: "ワークスペース", menu_bar: "メニューバー", drag_resize: "ドラッグしてサイズを変更", close_window: "閉じる", ws_default: "初期設定", monitor: "モニター", no_menus: "（メニューなし）", no_timelines: "（タイムラインなし）",
+    project_preview: "プロジェクトプレビュー", search: "検索", step_back: "1 フレーム戻る", step_fwd: "1 フレーム進む",
     prev_ch: "前のチャプター", next_ch: "次のチャプター", tc_source: "ソース", no_timeline_open: "プロジェクトパネルでタイムラインを開くとここに表示されます。",
     prop_disc: "ディスク", prop_title: "タイムライン", prop_menu: "メニュー", prop_button: "ボタン", prop_text: "テキスト", prop_shape: "長方形",
     prop_asset: "アセット", prop_playlist: "チャプタープレイリスト", prop_slideshow: "スライドショー",
     name_location: "名前と場所", project_settings: "プロジェクト設定", location: "場所", transcode_settings: "トランスコード設定",
     np_transcode: "コーデック：MPEG-2、サイズ：{d}、フレームレート：{f}、音声：AC-3 / LPCM / DTS、最大ビットレート：9.8 Mbps",
-    np_transcode_bd: "コーデック：H.264、サイズ：1920 × 1080、フレームレート：{f}、音声：AC-3 / LPCM / DTS、映像の最大ビットレート：40 Mbps",
+    np_transcode_bd: "コーデック：H.264、サイズ：1920 × 1080（または 1280 × 720）、フレームレート：{f}、音声：AC-3 / LPCM / DTS、映像の最大ビットレート：40 Mbps",
     authoring_mode_hint: "このプロジェクトで作るもの。ビルド、プロジェクトのチェック、ディスクの設定がこれに従います。ビルドパネルでもう一方を作ることもできます。",
     np_info: "ディスクの設定は、あとからいつでもプロパティパネルで変更できます（フローチャートでディスクを選択）。",
     np_open_sample: "サンプルプロジェクトを開く", advanced: "詳細", cancel: "キャンセル",
@@ -519,13 +519,13 @@ const I18N = {
     ci_preview: "{d} の中にチャプターが {n} 個になります。", ra_what: "置き換えるファイル", ra_with: "新しいファイル", ra_uses: "プロジェクト内で {n} か所で使われています。", ra_missing: "見つかりません",
     ra_hint: "プロジェクト内のすべての使用箇所（タイトル、クリップ、音声・字幕トラック、メニューの背景、ボタン、スライドショー、BGM）が新しいファイルを指すようになります。",
     ra_none: "プロジェクトはまだファイルを使っていません。", psd_changed: "このメニューの Photoshop ファイルが変更されました。", open_failed: "このシステムにはファイルを開くプログラムがありません。",
-    colour_set: "カラーセット", cs_normal: "通常時の色", opacity: "不透明度",
+    colour_set: "カラーセット", cs_normal: "通常時の色", 
     cs_normal_hint: "選択されていないボタンのハイライト形状をこの色で表示します",
     cs_hint: "ボタンのハイライト形状の色：通常時（選択されていないとき・任意）、選択中、決定時。",
     layer_hide: "非表示にする（ディスクに入れない）", layer_show: "表示する",
     cmd_revert_backup: "保存済みの版に戻す…", revert: "戻す", no_backups: "まだ以前の版はありません。",
-    backups_hint: "oncemore は変更前のプロジェクトを最大 {m} 分ごとに保存しています（直近 30 版、プロジェクトの隣の .oncemore-backup）。戻すのも 1 つの編集なので、取り消すで今の状態に戻れます。",
-    backup_counts: "タイトル {t}・メニュー {m}", confirm_revert: "プロジェクトをこの版に置き換えますか？（取り消すで今の状態に戻せます）",
+    backups_hint: "oncemore は変更前のプロジェクトを最大 {m} 分ごとに保存しています（直近 30 版、プロジェクトの隣の .oncemore-backup）。戻すのも 1 つの編集なので、「取り消す」で今の状態に戻れます。",
+    backup_counts: "タイトル {t}・メニュー {m}", confirm_revert: "プロジェクトをこの版に置き換えますか？（「取り消す」で今の状態に戻せます）",
     cmd_save_template: "メニューをテンプレートとして保存…", cmd_chapter_index: "チャプターインデックスを作成…", cmd_add_page: "新規ページを追加", cmd_delete_page: "ページを削除",
     pages: "ページ", pages_hint: "メニューのページ（一度に 1 ページを表示）。ディスクではページごとに別のメニューになります。ボタンでページをめくります（次のページ・前のページ・ページ n）。",
     page_field: "ページ", page_all: "すべてのページ", page_item: "ページ {n}", page_next: "次のページ", page_prev: "前のページ", page_of: "ページ {n} / {m}",
@@ -544,18 +544,18 @@ const I18N = {
     cmd_locate_asset: "アセットを探す…", cmd_interpret_footage: "フッテージを変換…", cmd_transcode_settings: "トランスコード設定…",
     cmd_render_slideshows: "スライドショー", cmd_rom_folder: "DVD-ROM コンテンツ…",
     cmd_build_dvd_iso: "DVD イメージ…", cmd_build_dvd_folder: "DVD フォルダー…", cmd_build_dvd_disc: "DVD ディスク…",
-    cmd_build_bd_iso: "Blu-ray イメージ…", cmd_build_bd_folder: "Blu-ray フォルダー…", cmd_build_bd_disc: "Blu-ray ディスク…", cmd_build_web: "Web（HTML5）…", cmd_close_window: "ウインドウを閉じる",
+    cmd_build_bd_iso: "Blu-ray イメージ…", cmd_build_bd_folder: "Blu-ray フォルダー…", cmd_build_bd_disc: "Blu-ray ディスク…", cmd_build_web: "Web（HTML5）…", cmd_close_window: "ウィンドウを閉じる",
     cmd_cut: "カット", cmd_copy: "コピー", cmd_paste: "ペースト", cmd_select_all: "すべてを選択", cmd_deselect_all: "選択を解除",
     cmd_rename: "名前を変更…", cmd_edit_original: "オリジナルを編集",
     cmd_bring_forward: "前面へ", cmd_send_backward: "背面へ", cmd_convert_button: "ボタンに変換", cmd_convert_object: "オブジェクトに変換",
     cmd_drop_shadow: "ドロップシャドウと境界線…",
     cmd_add_button: "ボタンを追加", cmd_add_text: "テキストを追加", cmd_add_rectangle: "長方形を追加", cmd_add_picture: "画像を追加…",
     cmd_default_button: "デフォルトのボタンに設定", cmd_colour_set: "メニューカラーセットを編集…", cmd_save_menu_file: "メニューをファイルとして保存",
-    cmd_set_first_play: "ファーストプレイに設定",
-    cmd_chapter_playlist: "新規チャプタープレイリスト…", cmd_add_audio_track: "オーディオトラックを追加…", cmd_add_subtitle_track: "字幕トラックを追加…",
+    cmd_set_first_play: "ディスク挿入時に再生",
+    cmd_chapter_playlist: "新規チャプタープレイリスト…", cmd_add_audio_track: "音声トラックを追加…", cmd_add_subtitle_track: "字幕トラックを追加…",
     cmd_import_subtitles: "字幕を読み込み…", cmd_export_subtitles: "SubRip…", cmd_export_subtitles_script: "テキストスクリプト…", cmd_clear_chapters: "すべてのチャプターポイントを消去",
     cmd_set_poster: "再生ヘッドの位置をポスターフレームに設定", cmd_save_frame: "フレームをファイルとして保存",
-    cmd_zoom_fit: "ウインドウに合わせる", cmd_zoom_actual: "実際のサイズ", cmd_snap: "オブジェクトとセーフエリアにスナップ",
+    cmd_zoom_fit: "ウィンドウに合わせる", cmd_zoom_actual: "実際のサイズ", cmd_snap: "オブジェクトとセーフエリアにスナップ",
     cmd_show_guides: "ガイドを表示", cmd_lock_guides: "ガイドをロック", cmd_clear_guides: "ガイドを消去", cmd_new_guide: "新規ガイド…",
     cmd_snap_guides: "ガイドにスナップ", cmd_rotate_180: "180°", cmd_rotate_cw: "90°（時計回り）", cmd_rotate_ccw: "90°（反時計回り）",
     cmd_flip_h: "水平方向に反転", cmd_flip_v: "垂直方向に反転", cmd_tool_rotate: "回転ツール",
@@ -581,7 +581,7 @@ const I18N = {
     fmt_srt: "SubRip（.srt）", fmt_script: "テキストスクリプト（.txt）", script_import: "字幕を読み込み（テキストスクリプト）",
     script_hint: "テキストスクリプトは字幕ごとに番号・開始と終了のタイムコード・テキストを並べたファイルです。見た目は字幕スタイルに従います。タイムコード hh;mm;ss;ff は NTSC のドロップフレームです。画像スクリプトではテキストの代わりにスクリプトと同じ場所の画像ファイル名を書きます（スクリプトと一緒に読み込んでください）。画像は自分の色のまま使われます。Display_Area・Directory 行、FAB 画像スクリプト（画像ごとに位置を持つ形式）、UTF-16 のファイルも読み込めます。",
     tc_absolute: "絶対：タイムコードがそのままタイトルの時間", tc_relative: "相対：基準", sub_offset: "オフセット",
-    captions: "クローズドキャプション", cc_hint: "キャプションデコーダー付きのテレビやプレーヤー向けの Line 21 キャプション：Scenarist の .scc はそのまま、字幕ファイルはポップオン方式で送ります（1 行 32 文字、ラテン文字のみ）。DVD のみ。", cc_pal: "クローズドキャプション（Line 21）は NTSC のディスク用です。",
+    captions: "クローズドキャプション", cc_hint: "キャプションデコーダー付きのテレビやプレーヤー向けの Line 21 キャプション：.scc ファイルはそのまま、字幕ファイルはポップオン方式で送ります（1 行 32 文字、ラテン文字のみ）。DVD のみ。", cc_pal: "クローズドキャプション（Line 21）は NTSC のディスク用です。",
     sub_offset_hint: "各字幕の時間から引く値：素材自身のタイムコードの開始（例 01;00;00;00）",
     cmd_chapter_names: "チャプター名を表示", chapter_label: "チャプター {n}",
     button_number: "番号", number_on_remote: "{n}（数字キー {k}）",
@@ -1064,6 +1064,8 @@ async function refreshMedia() {
 function renderAll() {
   document.documentElement.lang = LANG;
   document.querySelectorAll("[data-i18n]").forEach((el) => (el.textContent = t(el.dataset.i18n)));
+  document.querySelectorAll("[data-i18n-title]").forEach((el) => (el.title = t(el.dataset.i18nTitle)));
+  document.querySelectorAll("[data-i18n-aria]").forEach((el) => el.setAttribute("aria-label", t(el.dataset.i18nAria)));
   renderMenubar(); renderTopbar(); renderToolbar(); renderWorkspaces(); renderLeft(); renderCenterHead(); renderMain();
   renderInspector(); renderTimeline(); renderStatus(); markFrame();
 }
@@ -1399,7 +1401,9 @@ function select(view, id) {
 function renderMainLater() {
   const a = document.activeElement, m = $("#main");
   if (a && m && m.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) {
-    a.addEventListener("blur", () => setTimeout(() => { if (a.isConnected) renderMainLater(); }, 0), { once: true });
+    if (S.renderPending === a) return;          // (one redraw waits on the field, however many asked)
+    S.renderPending = a;
+    a.addEventListener("blur", () => setTimeout(() => { S.renderPending = null; if (a.isConnected) renderMainLater(); }, 0), { once: true });
     return;
   }
   renderMain();
@@ -1508,7 +1512,9 @@ function renderWelcome(m) {
   $("#np-std").onchange = () => { $("#np-tx").textContent = tx(); };
   for (const r of document.querySelectorAll("input[name=np-mode]")) r.onchange = () => { $("#np-tx").textContent = tx(); };
   const go = async (sample) => {
-    const r = await api("/api/new", { method: "POST", body: { sample, label: $("#np-label").value, standard: $("#np-std").value, aspect: $("#np-aspect").value, format: mode() } });
+    let r;
+    try { r = await api("/api/new", { method: "POST", body: { sample, label: $("#np-label").value, standard: $("#np-std").value, aspect: $("#np-aspect").value, format: mode() } }); }
+    catch (e) { alert(e.message); return; }
     applyState(r); S.buildFormat = null; S.sel = { view: "disc" }; renderAll(); refreshEncodeStatus();
   };
   $("#np-empty").onclick = () => go(false);
@@ -1641,6 +1647,7 @@ async function probe(path) {
 const curTitle = () => (P().titles || []).find((x) => x.id === S.sel.id);
 
 function renderTitle(m) {
+  S.titleSeek = null;      // (set again below for a title with a timeline: never another title's)
   const ti = curTitle();
   if (!ti) return select("disc");
   if (ti.slideshow) return renderSlideshow(m, ti);
@@ -1677,7 +1684,7 @@ function renderTitle(m) {
       <input type="range" id="scrub" min="0" max="${dur}" step="${(1 / fps).toFixed(5)}" value="${ph}">
     </div>
     <div class="monitor-bar transport">
-      <select id="mon-zoom" class="shrink" title="${esc(t("zoom_hint"))}">${[["fit", t("fit")], ["0.5", "50%"], ["1", "100%"]].map(([v, l]) => `<option value="${v}" ${v === zoom ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>
+      <select id="mon-zoom" class="shrink" title="${esc(t("zoom_hint"))}">${[["fit", t("zoom_fit")], ["0.5", "50%"], ["1", "100%"]].map(([v, l]) => `<option value="${v}" ${v === zoom ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>
       <button class="micon ${S.showSafe ? "on" : ""}" id="mon-safe" title="${esc(t("toggle_safe"))}">${ICONS.safe}</button>
       <span class="sep"></span>
       <button class="micon" data-step="-1" title="−1s">−1s</button>
@@ -1830,7 +1837,13 @@ async function renderSubEditor(ti, playhead, seek) {
       <td><button class="small" data-go="${i}" title="${esc(t("playhead"))}">▶</button>${data.editable ? `<button class="small danger" data-delcue="${i}">✕</button>` : ""}</td></tr>`).join("")}</tbody></table>
     ${data.editable ? `<button class="small" id="sub-add">${t("add_cue")}</button>` : ""}`;
   const save = async (list) => {
-    await api("/api/subtitles?" + new URLSearchParams({ path }), { method: "PUT", body: { cues: list } });
+    // (a time that is not a time, or a cue ending before it starts, is not saved: said, then shown as it is)
+    const bad = list.findIndex((c) => !(Number.isFinite(c.start) && Number.isFinite(c.end) && c.end > c.start && c.start >= 0));
+    if (bad >= 0) alert(t("cue_bad_time", { n: bad + 1 }));
+    else {
+      try { await api("/api/subtitles?" + new URLSearchParams({ path }), { method: "PUT", body: { cues: list } }); }
+      catch (e) { alert(e.message); }
+    }
     renderSubEditor(ti, playhead, seek);
   };
   box.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => seek(cues[Number(b.dataset.go)].start)));
@@ -1893,10 +1906,10 @@ function renderSlideshow(m, ti) {
         <div class="row">${selectHtml("sfit", [["", t("fit_own")], ["fit", t("fit_fit")], ["fill", t("fit_fill")]], s.fit || "", `data-f="fit" title="${esc(t("fit"))}"`)}</div>
         ${i + 1 < slides.length && !manual ? `<div class="row">${selectHtml("str", [["", t("tr_own")], ...transitionOptions()], s.transition || "", `data-f="transition" title="${esc(t("tr_next"))}"`)}</div>` : ""}
         <div class="row"><button class="small" data-mv="-1" ${i ? "" : "disabled"}>◀</button><button class="small" data-mv="1" ${i + 1 < slides.length ? "" : "disabled"}>▶</button><button class="small danger" data-rm ${slides.length > 1 ? "" : "disabled"}>✕</button></div></div>`).join("")}
-      <div class="slide add">${selectHtml("addimg", [["", t("add_picture")], ...mediaOf("image").map((x) => [x, x.replace(/^media\//, "")])], "", 'id="ss-add"')}</div></div>
+      <div class="slide add">${selectHtml("addimg", [["", t("ss_add_picture")], ...mediaOf("image").map((x) => [x, x.replace(/^media\//, "")])], "", 'id="ss-add"')}</div></div>
     <label style="display:block;margin-top:12px"><input type="checkbox" id="ss-manual" ${manual ? "checked" : ""}> ${t("advance_manual")}</label>
     <div class="grid2" style="margin-top:12px${manual ? ";display:none" : ""}">
-      <label class="field"><span>${t("transition")}</span>${selectHtml("transition", transitionOptions(), sh.transition || "crossfade", 'id="ss-tr"')}</label>
+      <label class="field"><span>${t("ss_transition")}</span>${selectHtml("transition", transitionOptions(), sh.transition || "crossfade", 'id="ss-tr"')}</label>
       <label class="field"><span>${t("transition_duration")}</span><input type="number" id="ss-td" min="0.1" max="5" step="0.1" value="${sh.transition_duration || 1}"></label>
       <div class="field"><span>${t("music")}</span><div>${music.map((x, i) => `<div class="row ss-music"><span class="mono">${esc(x.replace(/^media\//, ""))}</span><span class="spacer"></span><button class="small danger" data-rmmusic="${i}">✕</button></div>`).join("")}
         ${selectHtml("addmusic", [["", t("add_music")], ...mediaOf("audio").map((x) => [x, x.replace(/^media\//, "")])], "", 'id="ss-audio"')}
@@ -2147,7 +2160,7 @@ async function renderSim(m) {
           <span></span><button data-key="down">▼</button><span></span></div>
         <div class="keys"><button data-key="menu">MENU</button><button data-key="title">TITLE</button></div>
         <div class="keys"><button data-key="prev" title="⏮">⏮</button><button data-key="play" title="${esc(t("play_chapter"))}">▶</button><button data-key="next" title="⏭">⏭</button></div>
-        <div class="keys"><button data-key="end" title="${esc(t("to_end"))}">⏭⏭</button><button data-key="timeout" title="${esc(t("time_out"))}">⏱</button></div>
+        <div class="keys"><button data-key="end" title="${esc(t("sim_to_end"))}">⏭⏭</button><button data-key="timeout" title="${esc(t("time_out"))}">⏱</button></div>
       </div>
     </div>
     <div class="sim-status" id="sim-status"></div></div>`;
@@ -2174,7 +2187,7 @@ async function renderSim(m) {
   if (S.simFrom) { S.simProject = JSON.stringify(S.project); S.sim = null; S.simMenus = {}; await simCall(); }
   else if (!S.sim || S.simProject !== JSON.stringify(S.project)) { S.simProject = JSON.stringify(S.project); S.sim = null; S.simMenus = {}; await simCall(); }
   else renderSimScreen();
-  $("#sim-screen").focus();
+  $("#sim-screen")?.focus();      // (the window may have closed while the player answered)
 }
 async function simMenu(id) {
   S.simMenus = S.simMenus || {};
@@ -2526,8 +2539,9 @@ function renderTitleInspector(el) {
   $("#ti-id").onchange = (e) => {
     const nid = e.target.value.trim().replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 40);
     if (!nid || nid === ti.id || P().titles.some((x) => x.id === nid)) { e.target.value = ti.id; return; }
-    commit((p) => { renameRefs(p, "title", ti.id, nid); find(p).id = nid; });
-    S.sel.id = nid; renderAll();
+    const old = ti.id;
+    commit((p) => { renameRefs(p, "title", old, nid); find(p).id = nid; });
+    renameState("title", old, nid); S.sel.id = nid; renderAll();
   };
   bindUops(el, find);
   bindOrder(el, "titles", ti.id);
@@ -2555,7 +2569,9 @@ async function addMenu() {
     const id = uniqueId(b.dataset.template || "menu", allMenuIds());
     if (!b.dataset.template) return addBlankMenu(id);
     const first = (P().menus || [])[0];
-    const r = await api("/api/template", { method: "POST", body: { template: b.dataset.template, id, project: S.project, back: first ? `menu:${first.id}` : null } });
+    let r;
+    try { r = await api("/api/template", { method: "POST", body: { template: b.dataset.template, id, project: S.project, back: first ? `menu:${first.id}` : null } }); }
+    catch (e) { alert(e.message); return; }
     commit((p) => { (p.menus = p.menus || []).push(r.menu); });
     select("menu", id);
   }));
@@ -3777,8 +3793,9 @@ function renderMenuInspector(el) {
   $("#menu-id").onchange = (e) => {
     const nid = e.target.value.trim().replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 40);
     if (!nid || nid === menu.id || allMenuIds().includes(nid)) { e.target.value = menu.id; return; }
-    commit((p) => { renameRefs(p, "menu", menu.id, nid); find(p).id = nid; });
-    S.sel.id = nid; renderAll();
+    const old = menu.id;
+    commit((p) => { renameRefs(p, "menu", old, nid); find(p).id = nid; });
+    renameState("menu", old, nid); S.sel.id = nid; renderAll();
   };
   $("#del-menu").onclick = () => deleteItem("menu", menu.id);
 }
@@ -4141,7 +4158,9 @@ async function renderLibrary() {
     <div class="lib-section"><h4>Photoshop</h4>${mediaOf("design").length ? `<div class="lib-grid">${mediaOf("design").map((x) => `<button class="lib-item" data-psd="${esc(x)}"><b>PSD</b><span>${esc(x.replace(/^media\//, ""))}</span></button>`).join("")}</div>` : `<div class="hint">${esc(t("no_psd"))}</div>`}</div>`;
   el.querySelectorAll("[data-tpl]").forEach((b) => (b.onclick = async () => {
     const id = uniqueId(b.dataset.tpl, allMenuIds()), first = (P().menus || [])[0];
-    const r = await api("/api/template", { method: "POST", body: { template: b.dataset.tpl, id, project: S.project, back: first ? `menu:${first.id}` : null } });
+    let r;
+    try { r = await api("/api/template", { method: "POST", body: { template: b.dataset.tpl, id, project: S.project, back: first ? `menu:${first.id}` : null } }); }
+    catch (e) { alert(e.message); return; }
     commit((p) => { (p.menus = p.menus || []).push(r.menu); });
     select("menu", id);
   }));
@@ -5179,6 +5198,9 @@ function projectSwitched(r) {
   S.undo = []; S.redo = []; S.probes = {}; S.preview = null; S.encStatus = null; S.job = null; S.jobEvents = [];
   S.buildFormat = null;      // (Build starts on the project's authoring mode)
   S.element = null; S.sels = []; S.clip = null; S.clipItem = null; S.psdWatch = null; S.routing = {};
+  // (previews and places that belong to the project left behind)
+  S.clipJoins = {}; S.simMenus = {}; S.sim = null; S.pages = {}; S.playhead = {}; S.chapterNames = {};
+  S.lastAuthor = S.lastTitle = S.lastMenu = S.lastPlaylist = null; S.titleSeek = null;
   const first = P()?.menus?.[0];
   S.sel = first ? { view: "menu", id: first.id } : { view: "disc" };
   renderAll(); refreshEncodeStatus(); loadRecent();
@@ -5365,6 +5387,15 @@ function selectAllElements() {
 }
 // Edit > Rename: a title's or playlist's name and id, a menu's id (what
 // points at it follows)
+// the page's own notes about an item follow it to its new id
+function renameState(kind, id, nid) {
+  const last = { title: "lastTitle", menu: "lastMenu", playlist: "lastPlaylist" }[kind];
+  if (last && S[last] === id) S[last] = nid;
+  if (S.lastAuthor?.view === kind && S.lastAuthor.id === id) S.lastAuthor = { view: kind, id: nid };
+  for (const k of ["pages", "playhead", "chapterNames"]) {
+    if (S[k] && id in S[k]) { S[k][nid] = S[k][id]; delete S[k][id]; }
+  }
+}
 function renameBox() {
   const { kind, id } = curItem(), x = (P()[LISTS[kind]] || []).find((y) => y.id === id), named = kind !== "menu";
   openModal(`<h2>${t("cmd_rename")}</h2>
@@ -5382,6 +5413,7 @@ function renameBox() {
       if (named) { if (name) y.name = name; else delete y.name; }
       if (nid !== id) { renameRefs(p, kind, id, nid); y.id = nid; }
     });
+    if (nid !== id) renameState(kind, id, nid);
     S.sel = { view: kind, id: nid }; renderAll();
   };
 }

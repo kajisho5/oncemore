@@ -87,7 +87,7 @@ browser) and lands only with green CI.
 - [x] Sound waveforms on the timeline
 
 **P13 — Working like a disc authoring app** (done)
-- [x] Menu bar order File / Edit / Object / Menu / Timeline / Window / Help
+- [x] Menu bar order File / Edit / Object / Menu / Timeline / View / Window / Help
   (also in the Mac app), Object commands (align, distribute, arrange, convert)
 - [x] Tools strip (selection, text, zoom, preview) and a viewer bar (zoom,
   safe area, routing, highlight states of all buttons, overlap outlines)
@@ -308,11 +308,11 @@ browser) and lands only with green CI.
   naming why; the disc plan keeps the copied picture's own rate
 
 **P55 — DTS sound** (done)
-- [x] `audio.codec: "dts"`: DTS copied from the sources unchanged (the DTS
-  core of a DTS-HD source), on DVD (its own titleset; a warning that DVD
-  players need not decode DTS) and Blu-ray; checked at build time (48 kHz
-  DTS, the channels, 1536k at most on a DVD); DTS in the app's codec list
-  (a Blu-ray keeps DTS-HD whole since §125)
+- [x] `audio.codec: "dts"`: DTS copied from the sources unchanged: the DTS
+  core of a DTS-HD source on a DVD (its own titleset; a warning that DVD
+  players need not decode DTS), DTS-HD whole on a Blu-ray (§125); checked at
+  build time (the rate, the channels, 1536k at most on a DVD); DTS in the
+  app's codec list
 
 **P54 — Button numbers** (done)
 - [x] Properties > Number renumbers a button (the others close up); a menu's
@@ -550,9 +550,9 @@ Done (as a local web app, `oncemore gui`):
   colours, remote navigation; exact server-side preview with hit areas
 * Check (size estimate, issues) and Build (ISO / folder) with live progress
 * Autosave, undo/redo, English/Japanese UI
-* Oncemore.app: a native macOS window around the same UI with bundled Python,
-  built for Apple silicon and Intel by the release workflow, signed and
-  notarised from 1.0 (§124)
+* Oncemore.app: a native macOS window around the same UI with bundled Python
+  and its own ffmpeg (§130), built for Apple silicon and Intel by the release
+  workflow, signed and notarised from 1.0 (§124)
 * Title playback (cached H.264/WebM proxy), ▲/▼ ordering of titles and menus,
   image buttons (frame or shape highlight)
 
@@ -583,10 +583,10 @@ Still to do:
 
 * Keyframed animated buttons
 
-## Phase 4 — web version
+## Phase 4 — building in the browser (not planned yet)
 
 ffmpeg.wasm plus the authoring core compiled to WebAssembly, so a browser can
-produce the ISO locally without uploading anything. The built-in UDF / ISO
+produce the ISO locally without uploading anything (an idea, not scheduled). The built-in UDF / ISO
 writers it needs exist (P8, P29); a web version that plays the disc in a
 browser is built today (`--format web`, P58).
 

@@ -44,6 +44,7 @@ for _ in $(seq 1 120); do
   [ -s "$TMP/result.json" ] && break
   sleep 1
 done
+pkill -P "$PID" 2>/dev/null || true   # (the engine it started: SIGTERM skips the app's own clean-up)
 kill "$PID" 2>/dev/null || true
 if [ ! -s "$TMP/result.json" ]; then
   echo "no result from the app"; cat "$TMP/app.log"; exit 1

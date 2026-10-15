@@ -823,6 +823,15 @@ def load_project(path, check_files=True):
     return build_project(data, path, check_files=check_files)
 
 
+
+def _chapter_label(fmt, n):
+    """auto_chapter_menu.label_format with the chapter number: {n} (with a
+    format spec such as {n:02d}); other braces are kept as written."""
+    try:
+        return fmt.format(n=n)
+    except (KeyError, IndexError, ValueError):
+        return fmt.replace("{n}", str(n))
+
 def build_project(data, path, check_files=True):
     base = os.path.dirname(os.path.abspath(path))
     issues = [{"path": p, "message": m} for p, m in schemalite.validate(data, load_schema())]
@@ -1579,7 +1588,7 @@ class _Builder:
                 poster = title.chapter_posters[ci] if ci < len(title.chapter_posters) else None
                 name = title.chapter_names[ci] if ci < len(title.chapter_names) else None
                 buttons.append(Button(
-                    id=f"ch{ci + 1}", label=name or fmt.format(n=ci + 1), x=x,
+                    id=f"ch{ci + 1}", label=name or _chapter_label(fmt, ci + 1), x=x,
                     y=y + thumb_h + 10, action=f"chapter:{title.id}:{ci + 1}", size=22,
                     color=color,
                     thumb=Thumb(title.id,

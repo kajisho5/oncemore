@@ -18,7 +18,7 @@ except ImportError:  # pragma: no cover
 
 
 @unittest.skipUnless(PLAYWRIGHT, "needs playwright")
-class TestEncoreReorder(unittest.TestCase):
+class TestClassicReorder(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp(prefix="oncemore-ereorder-")
         self.addCleanup(shutil.rmtree, self.dir, True)
