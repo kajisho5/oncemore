@@ -2822,3 +2822,17 @@ authoring mode (§126) and the app and documents that follow it (§127).
 * `tests/test_promises.py`: the release workflow has the `publish` input,
   publishes with `--latest` only when it is set and otherwise drafts; the
   release notes for the current version exist and name its zips.
+
+## 129. Stapling is tried again when Apple's servers drop the connection
+
+The first run of the 1.1.0 release failed on the Intel app after Apple had
+accepted it: `stapler staple` lost its connection to Apple's ticket server
+(NSURLErrorDomain -1005, "The network connection was lost") and stopped
+with error 68. Re-running the job worked. `macos/build_app.sh` now tries
+stapling up to five times, waiting 20, 40, 60 and 80 seconds between tries,
+fails the build if all five fail, and checks the result with
+`stapler validate`. Notarisation itself is not retried: `notarytool --wait`
+already waits for Apple's answer, and a rejection is a real error.
+
+* `tests/test_promises.py`: the build script retries stapling with a
+  bounded loop, fails after the last try and validates the staple.

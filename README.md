@@ -112,7 +112,9 @@ unmasked: the system rounds it and adds its light, and makes the dark,
 clear and tinted looks), on earlier macOS the flat one. Build it yourself
 with `macos/build_app.sh` (Xcode 26 or later, for the layered icon; older
 Xcode with `NO_LAYERED_ICON=1` + `gh`); with a Developer ID
-set `CODESIGN_IDENTITY` and `NOTARIZE=1` to produce a signed, notarised app.
+set `CODESIGN_IDENTITY` and `NOTARIZE=1` to produce a signed, notarised app
+(stapling the ticket is tried up to five times, as Apple's servers sometimes
+drop the connection).
 Pushing a tag `v<version>` runs `.github/workflows/release.yml`, which builds
 both architectures, launches each on a sample project and attaches the zips to a
 release (signed and notarised when the signing secrets listed in that file are

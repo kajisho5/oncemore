@@ -139,7 +139,15 @@ if [ -n "${NOTARIZE:-}" ]; then
   echo "==> notarizing"
   xcrun notarytool submit "$ZIP" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
     --password "$APPLE_APP_PASSWORD" --wait
-  xcrun stapler staple "$APP"
+  # the ticket is fetched from Apple's servers, which sometimes drop the
+  # connection right after the submission is accepted: try a few times
+  for try in 1 2 3 4 5; do
+    if xcrun stapler staple "$APP"; then break; fi
+    if [ "$try" = 5 ]; then echo "stapling failed $try times" >&2; exit 1; fi
+    echo "stapling failed (try $try); trying again in $((try * 20)) s"
+    sleep $((try * 20))
+  done
+  xcrun stapler validate "$APP"
   rm -f "$ZIP"
   ditto -c -k --keepParent "$APP" "$ZIP"
 fi
