@@ -995,6 +995,30 @@ class TestTemplates(unittest.TestCase):
                     geoms = mb.layout(p.menu("tpl"))           # raises on overlaps / empty labels
                     self.assertGreaterEqual(len(geoms), 2, (standard, tpl))
 
+    def test_chapter_menu_rows_apart(self):
+        """A generated chapter menu with a second row of thumbnails (four or
+        more chapters) has no overlapping buttons on NTSC either: the first
+        row's labels used to reach into the second row's frames (§133)."""
+        from oncemore import menu as menu_mod
+        from oncemore.project import build_project
+        from oncemore.scaffold import sample_project
+        tmp = tempfile.mkdtemp(prefix="oncemore-e2e-chap-")
+        self.addCleanup(shutil.rmtree, tmp, True)
+        for standard in ("NTSC", "PAL"):
+            for n in (4, 6, 8):
+                data = json.loads(json.dumps(sample_project()))
+                data["disc"]["standard"] = standard
+                data["menus"] = [m for m in data["menus"] if m["id"] != "chapters"]
+                data["titles"][0]["chapters"] = [10 * i for i in range(n)]
+                data["titles"][0]["auto_chapter_menu"] = {"id": "chapters", "back": "menu:main"}
+                p = build_project(data, "/v/project.oncemore.json", check_files=False)
+                mb = menu_mod.MenuBuilder(p, os.path.join(tmp, f"{standard}-{n}"))
+                for m in p.menus:
+                    if m.id.startswith("chapters"):
+                        overlaps = []
+                        mb.layout(m, overlaps)
+                        self.assertEqual(overlaps, [], (standard, n, m.id))
+
 
 @unittest.skipUnless(TOOLS_OK, SKIP_REASON)
 class TestCacheRomPassthrough(unittest.TestCase):

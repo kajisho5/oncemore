@@ -1566,7 +1566,9 @@ class _Builder:
         thumb_w, thumb_h = disc.width // 4, H // 4
         cols = 3
         gap = (disc.width - 2 * 54 - cols * thumb_w) // (cols - 1)
-        row_y = [round(84 * k), round(250 * k)]
+        # (rows far enough apart that a first-row label, below its picture,
+        # stays clear of the second row's frame on NTSC too)
+        row_y = [round(72 * k), round(248 * k)]
         nav_y = round(420 * k)
         n = len(title.chapters)
         pages = [list(range(s, min(s + CHAPTERS_PER_PAGE, n)))
@@ -1589,7 +1591,7 @@ class _Builder:
                 name = title.chapter_names[ci] if ci < len(title.chapter_names) else None
                 buttons.append(Button(
                     id=f"ch{ci + 1}", label=name or _chapter_label(fmt, ci + 1), x=x,
-                    y=y + thumb_h + 10, action=f"chapter:{title.id}:{ci + 1}", size=22,
+                    y=y + thumb_h + 8, action=f"chapter:{title.id}:{ci + 1}", size=22,
                     color=color,
                     thumb=Thumb(title.id,
                                 poster if poster is not None else thumb_time(title.chapters, ci),
