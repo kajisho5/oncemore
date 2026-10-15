@@ -13,6 +13,8 @@ const I18N = {
     label: "Disc label", standard: "TV standard", aspect: "Aspect ratio", target: "Disc size",
     first_play: "When the disc starts", video_bitrate: "Video bitrate",
     auto: "Automatic", empty_project: "Create empty project", sample_project: "Create sample project",
+    testdisc_project: "Player test disc", testdisc_hint: "A disc for trying a DVD or Blu-ray player: every feature, each title saying what you should see and hear, and a checklist (TEST-CHECKLIST.md in the project folder)",
+    testdisc_done: "Made the player test disc. Build the image (Build menu), burn it, play it on the player and follow TEST-CHECKLIST.md in the project folder: {path}",
     title_props: "Title", name: "Name", id: "ID", source: "Video file", audio: "Audio",
     codec: "Codec", bitrate: "Bitrate", language: "Language", end_action: "When it ends",
     title_key: "Title / Top Menu key opens", menu_key: "Menu key opens", menu_key_hint: "On a Blu-ray, a menu chosen here is this title's pop-up menu: the Pop-up key shows its buttons over the picture.", first_menu: "First menu",
@@ -308,6 +310,8 @@ const I18N = {
     label: "ディスクラベル", standard: "テレビ方式", aspect: "アスペクト比", target: "ディスク容量",
     first_play: "ディスク挿入時", video_bitrate: "映像ビットレート",
     auto: "自動", empty_project: "空のプロジェクトを作成", sample_project: "サンプル付きで作成",
+    testdisc_project: "実機テスト用ディスク", testdisc_hint: "DVD・Blu-ray プレーヤーで試すためのディスク。機能をひととおり使い、各タイトルに見えるもの・聞こえるものを表示します。チェックリスト（プロジェクトのフォルダーの TEST-CHECKLIST.md）付き",
+    testdisc_done: "実機テスト用ディスクを作りました。イメージを書き出して（ビルドメニュー）ディスクに焼き、プレーヤーで再生して、プロジェクトのフォルダーにある TEST-CHECKLIST.md の順に確かめてください：{path}",
     title_props: "タイトル", name: "名前", id: "ID", source: "動画ファイル", audio: "音声",
     codec: "形式", bitrate: "ビットレート", language: "言語", end_action: "再生終了後",
     title_key: "タイトル／トップメニューキーで開く", menu_key: "メニューキーで開く", menu_key_hint: "Blu-ray では、ここで選んだメニューがこのタイトルのポップアップメニューになり、ポップアップキーで映像の上にボタンが表示されます。", first_menu: "最初のメニュー",
@@ -1506,7 +1510,7 @@ function renderWelcome(m) {
         </fieldset>
         <div class="np-info"><span class="i" aria-hidden="true">i</span><span>${esc(t("np_info"))}</span></div>
       </div>
-      <div class="dlg-buttons"><button id="np-sample">${t("sample_project")}</button><span class="spacer"></span><button id="np-empty" class="primary">OK</button></div>
+      <div class="dlg-buttons"><button id="np-sample">${t("sample_project")}</button><button id="np-test" title="${esc(t("testdisc_hint"))}">${t("testdisc_project")}</button><span class="spacer"></span><button id="np-empty" class="primary">OK</button></div>
     </div></div></div>`;
   $("#np-tx").textContent = tx();
   $("#np-std").onchange = () => { $("#np-tx").textContent = tx(); };
@@ -1516,9 +1520,11 @@ function renderWelcome(m) {
     try { r = await api("/api/new", { method: "POST", body: { sample, label: $("#np-label").value, standard: $("#np-std").value, aspect: $("#np-aspect").value, format: mode() } }); }
     catch (e) { alert(e.message); return; }
     applyState(r); S.buildFormat = null; S.sel = { view: "disc" }; renderAll(); refreshEncodeStatus();
+    if (sample === "testdisc") alert(t("testdisc_done", { path: S.dir }));
   };
   $("#np-empty").onclick = () => go(false);
   $("#np-sample").onclick = () => go(true);
+  $("#np-test").onclick = () => go("testdisc");
 }
 
 // ---------------------------------------------------------------- disc

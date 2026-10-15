@@ -1389,7 +1389,7 @@ written that fails before the fix, and then the fix:
   after each GOP header, and the stream is muxed with the sound. The
   titleset's video attributes say "line 21, field 1" (dvdauthor's
   caption="field1").
-* A Scenarist file is the format caption tools write: CEA-608 byte pairs
+* An .scc file is the format caption tools write: CEA-608 byte pairs
   with a timecode, used as they are. Anything else is read as subtitles
   and made into pop-on captions, the usual way for prerecorded video: each
   is loaded into the hidden memory after the previous one went up (its
@@ -2144,7 +2144,7 @@ change was made there first, §105), so oncemore carries it
   opens with `Display_Area` or `Directory` gave no captions without a word
   and is now refused at that line. A FAB script is refused the same way.
 * Checked by loading SubRip, WebVTT, ASS, drop-frame and non-drop text
-  scripts, a Scenarist file, a UTF-16 and a Shift_JIS file, each with and
+  scripts, an .scc file, a UTF-16 and a Shift_JIS file, each with and
   without an offset and at the top and the bottom, through the old module
   and through dvdcc: the same frames and the same notes. The same schedules
   written into one MPEG-2 stream give byte-identical files.
@@ -2984,3 +2984,92 @@ used to touch). Part of 1.2.1.
 
 * `tests/test_e2e.py` (`test_chapter_menu_rows_apart`): chapter menus with
   4, 6 and 8 chapters on NTSC and PAL lay out without overlapping buttons.
+
+## 134. A player test disc
+
+Every feature is tested on each change and the discs are played through
+libdvdnav and libbluray, but not on set-top players, which is where a disc
+is finally judged. The people who own players are the users, so oncemore
+makes the disc for them to test with: `oncemore testdisc <dir> [--format
+dvd|bluray] [--standard] [--aspect]`, *Player test disc* in the app's New
+Project dialog, and `create_project` with `test_disc` for AI assistants.
+
+The disc uses what a player has to get right:
+
+* a main menu that opens by itself, with the Menu and Title keys set;
+* a 40-second movie with four chapters, a chapter menu, two sound tracks
+  (a steady tone and short beeps, told apart by ear) and two subtitle
+  tracks (English and Japanese, or French when no Japanese font is found);
+* a 4:3 title on a 16:9 disc;
+* 5.1 sound that names each speaker on screen while only that speaker
+  sounds;
+* a motion menu with a fade-in and a loop point, its buttons appearing at
+  the loop point;
+* Play All;
+* on a DVD, buttons over a title; on a Blu-ray, the movie's Menu-key menu as
+  a pop-up over the picture.
+
+Every title says on screen what the viewer should see and hear, with the
+time, so a report can say where something went wrong. `TEST-CHECKLIST.md`
+beside the project lists what to press and what should happen, in English
+and Japanese, and links to an issue template (`player-test`) for the report.
+As with `oncemore init`, the media are made with ffmpeg's test sources
+(`testsrc2`, `sine`, `aevalsrc`, `drawtext` reading its text from files),
+so nothing large is stored.
+
+Making it found three faults, each fixed with its own entry: chapter
+menus on NTSC (§133, part of 1.2.1), titlesets with buttons over a title
+(§135), and discs of three titlesets or more (§136, in vtskit).
+
+* `tests/test_testdisc.py`:
+  * the project is valid as a DVD and as a Blu-ray, NTSC and PAL, 16:9 and
+    4:3;
+  * the checklist has the same rows in both languages and the report link;
+  * the issue template exists;
+  * the command, the app and the MCP tool make the project;
+  * the DVD, through libdvdnav: eight menu buttons, the movie's streams and
+    chapters, the chapter menu, 5.1 sound, and the buttons over a title
+    jumping to chapter 3;
+  * the Blu-ray, through libbluray: the movie's chapters and streams, and
+    its pop-up (seven buttons over the movie) switching the sound to track 2.
+
+## 135. A title with buttons over it has a titleset of its own
+
+Buttons over a title (§114) are drawn by the title's first subpicture
+stream. A titleset describes its subpicture streams once for all its
+titles, so a subtitled title and a title with buttons in the same titleset
+(the same aspect and sound) could not both be described. vtskit refused
+the disc ("title 2 differs in its streams from title 1"), and the build
+stopped after encoding everything.
+
+Titles are still grouped into titlesets by aspect and sound, but a title
+with buttons does not join a group with a subtitled title, nor a subtitled
+title a group with a title with buttons: it starts a titleset of its own.
+Titles with neither join the first group of their format, as before, and a
+title with buttons shares its titleset with titles without subtitles (their
+jumps between them stay within the titleset). A disc may have 99
+titlesets; nothing a viewer sees changes.
+
+* `tests/test_testdisc.py` (`TestTitleButtonsTitleset`): the sample's two
+  titles, one subtitled and one with buttons, at the same aspect and sound,
+  get two titlesets, and one titleset when the first has no subtitles; the
+  test disc's movie and its buttons title get two. The test disc's DVD
+  build (`TestDvd`) failed without this.
+
+## 136. Three titlesets and more again (vtskit 0.3.1)
+
+Titles of different aspects or sound go into titlesets of their own
+(§135 adds titles with buttons over them). Since oncemore wrote its DVDs
+with vtskit (0.4.0), a disc of three titlesets or more stopped at the end
+of the build: vtskit gave the VMG's titleset attributes one sector, and
+each titleset takes 780 bytes of it. The sample has two titlesets and the
+tests built no disc with more; the player test disc (§134) has four.
+
+vtskit 0.3.1 gives each VMG table the sectors its content needs, the same
+bytes dvdauthor writes for three titlesets (vtskit#31). This change was
+made in the vtskit repository from this project's session, at the
+maintainer's request, as an exception to vtskit having its own session.
+oncemore takes the release with `tools/vendor.py vtskit --pypi 0.3.1`.
+
+* `tests/test_testdisc.py` (`TestDvd`): the test disc's DVD, four titlesets,
+  builds and plays through libdvdnav; it failed with vtskit 0.3.0.

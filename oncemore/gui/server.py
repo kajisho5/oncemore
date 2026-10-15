@@ -9,7 +9,7 @@ read or written inside the project directory.
 API (all JSON unless noted):
   GET  /api/state                    project JSON, paths, media list, tools
   PUT  /api/project                  save the project; returns validation issues
-  POST /api/new                      create a project (empty or sample)
+  POST /api/new                      create a project (empty, sample or player test)
   POST /api/validate                 full check incl. media probe and size plan
   POST /api/upload?name=FILE         raw body -> media/FILE
   GET  /api/probe?path=REL           duration, size, streams of a media file
@@ -58,8 +58,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 
 from .. import (__version__, build, burn, clips, encode, graph, navscript, png4, scaffold, simulate,
-               slideshow, scenes, settings, subtitles, templates, tools, userstyles, usertemplates,
-               web)
+               slideshow, scenes, settings, subtitles, templates, testdisc, tools, userstyles,
+               usertemplates, web)
 from ..errors import OncemoreError, ProjectError
 from ..project import (PROJECT_FILENAME, Adjust, build_project, clip_starts, parse_time,
                        read_json, source_at)
@@ -727,7 +727,10 @@ class Handler(BaseHTTPRequestHandler):
         if standard not in ("NTSC", "PAL") or aspect not in ("4:3", "16:9") or \
                 fmt not in ("dvd", "bluray"):
             raise ValueError("bad standard/aspect/format")
-        if body.get("sample"):
+        if body.get("sample") == "testdisc":
+            # the player test disc (its checklist beside the project)
+            testdisc.init(self.app.dir, fmt=fmt, standard=standard, aspect=aspect, force=True)
+        elif body.get("sample"):
             scaffold.init(self.app.dir, standard=standard, aspect=aspect, force=True)
             if fmt == "bluray":
                 data = self.app.load()

@@ -15,7 +15,10 @@ are working on. **Help > Keyboard shortcuts** (or **?**) lists every key.
    dialog, the *Authoring mode* is DVD or Blu-ray: what Build and Check
    project make (the disc's Properties change it later). *Create sample
    project* gives you a small working disc to look around in; or start
-   empty.
+   empty. *Player test disc* makes a disc for trying a set-top player:
+   every title says what you should see and hear, and TEST-CHECKLIST.md in
+   the project folder lists what to press and what should happen. Build it,
+   burn it and follow the list.
 2. Drop your video files onto the window (or **File > Import as > Import
    files…**). They appear in the **Project** panel.
 3. Make a title from a video: select it and choose *Add as title*, or

@@ -7,7 +7,7 @@ import shutil
 import sys
 import tempfile
 
-from . import __version__, build, burn, graph, scaffold, scenes, settings, tools, web
+from . import __version__, build, burn, graph, scaffold, scenes, settings, testdisc, tools, web
 from .errors import OncemoreError, ProjectError
 from .project import PROJECT_FILENAME, load_project
 from .report import Reporter
@@ -62,6 +62,19 @@ def cmd_init(args, rep):
         rel = res["project"]
     rep.result(res, f"Created {rel}\n\nNext:\n  oncemore iso {rel} -o "
                     f"{os.path.basename(os.path.abspath(args.dir)) or 'disc'}.iso")
+    return 0
+
+
+def cmd_testdisc(args, rep):
+    res = testdisc.init(args.dir, fmt=args.format, standard=args.standard, aspect=args.aspect,
+                        force=args.force, reporter=rep)
+    rel = os.path.relpath(res["project"])
+    if rel.startswith(".."):
+        rel = res["project"]
+    name = os.path.basename(os.path.abspath(args.dir)) or "player-test"
+    rep.result(res, f"Created {rel} and {os.path.relpath(res['checklist'])}\n\nNext:\n"
+                    f"  oncemore iso {rel} -o {name}.iso\n"
+                    "then burn it, play it on a set-top player and follow the checklist.")
     return 0
 
 
@@ -351,6 +364,15 @@ def make_parser():
     s.add_argument("--aspect", choices=["16:9", "4:3"], default="16:9")
     s.add_argument("--force", action="store_true", help="overwrite an existing project file")
     s.set_defaults(func=cmd_init)
+
+    s = sub.add_parser("testdisc", parents=[common],
+                       help="create a disc project for testing a set-top player, with a checklist")
+    s.add_argument("dir")
+    s.add_argument("--format", choices=["dvd", "bluray"], default="dvd")
+    s.add_argument("--standard", choices=["NTSC", "PAL"], default="NTSC")
+    s.add_argument("--aspect", choices=["16:9", "4:3"], default="16:9")
+    s.add_argument("--force", action="store_true", help="overwrite an existing project file")
+    s.set_defaults(func=cmd_testdisc)
 
     proj_help = f"project file or directory containing {PROJECT_FILENAME}"
     s = sub.add_parser("validate", parents=[common], help="check project, media and size")
