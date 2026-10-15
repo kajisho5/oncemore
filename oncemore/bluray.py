@@ -17,7 +17,8 @@ import subprocess
 from . import encode, tools
 from ._vendor.bdmvkit import m2ts as _bd_m2ts, nav as _nav, program as _program
 from ._vendor.bdmvkit.errors import BdmvError
-from ._vendor.bdmvkit.formats import (AUDIO_PID, CODING_AC3, CODING_DTS, CODING_LPCM, FORMATS,
+from ._vendor.bdmvkit.formats import (AUDIO_PID, CODECS, CODING_AC3, CODING_DTS, CODING_LPCM,
+                                      FORMATS, TS_RATE,
                                       FORMATS_720, FRAMES, HEIGHT, IG_PID, MAX_VIDEO_BPS, PG_PID,
                                       PMT_PID, VBV_BUFFER, VIDEO_PID, WIDTH, lang3)
 from ._vendor.bdmvkit.nav import parts_items
@@ -265,10 +266,11 @@ def copy_compliance(info, fps, disc=None):
 
 
 def audio_codec_args(title, k):
-    """Encoder options for audio output stream k of a title."""
+    """Encoder options for audio output stream k of a title (DTS: its core,
+    or the whole of a DTS-HD stream, build.inspect's title.dts_hd)."""
     if title.audio_passthrough:
-        return [f"-c:a:{k}", "copy"] + ([f"-bsf:a:{k}", "dca_core"] if title.audio_codec == "dts"
-                                        else [])
+        core = title.audio_codec == "dts" and not dts_hd(title, k)
+        return [f"-c:a:{k}", "copy"] + ([f"-bsf:a:{k}", "dca_core"] if core else [])
     if title.audio_codec == "lpcm":
         return [f"-c:a:{k}", "pcm_bluray", f"-sample_fmt:a:{k}", "s16", f"-ar:a:{k}", "48000",
                 f"-ac:a:{k}", "2"]
@@ -413,7 +415,13 @@ def encode_transition(path, info, disc, max_bps, out_path, work, fast=False, on_
 # the disc: the project as a bdmvkit Program
 # --------------------------------------------------------------------------
 
+def dts_hd(title, k):
+    """("dtshd" or "dtshd_ma", rate) when sound track k keeps its DTS-HD."""
+    return title.dts_hd[k] if k < len(title.dts_hd) else None
+
+
 def audio_streams(title):
+    """[(coding, channels, lang3, rate)] of a title's sound tracks."""
     if title.audio_codec == "lpcm" and not title.audio_passthrough:
         coding, channels = CODING_LPCM, 2
     elif title.audio_codec == "dts":
@@ -421,8 +429,28 @@ def audio_streams(title):
     else:
         coding, channels = CODING_AC3, title.audio_channels
     n = 1 if title.clips else len(title.audio_tracks)
-    return [(coding, channels, lang3(title.audio_tracks[k].lang if title.audio_tracks else None))
-            for k in range(n)]
+    out = []
+    for k in range(n):
+        hd = dts_hd(title, k)
+        out.append((CODECS[hd[0]] if hd else coding, channels,
+                    lang3(title.audio_tracks[k].lang if title.audio_tracks else None),
+                    hd[1] if hd else 48000))
+    return out
+
+
+# what of a player's 48 Mbit/s the streams themselves may take: a 192-byte
+# packet carries 184 bytes of them, and PES headers, PCR and the tables take
+# about another 1 %
+STREAMS_BPS = TS_RATE * 8 * 184 // 192 * 99 // 100
+
+
+def title_max_bps(title, max_bps):
+    """The highest video rate of a title: the plan's, less what its DTS-HD
+    sound may take at its peak (title.audio_peak_bps), so that the two stay
+    within what a player reads."""
+    if not title.audio_peak_bps:
+        return max_bps
+    return min(max_bps, STREAMS_BPS - title.audio_peak_bps)
 
 
 def scan_m2ts(path, video_pid=VIDEO_PID):
@@ -445,8 +473,8 @@ def program(project, clips=None, menus=None, popups=(), transitions=None):
         titles.append(_program.Title(
             t.id, clips.get(t.id), title_fps(t, disc), list(t.chapters),
             [_program.Audio(coding, channels, lang,
-                            k < len(t.audio_tracks) and bool(t.audio_tracks[k].default))
-             for k, (coding, channels, lang) in enumerate(audio_streams(t))],
+                            k < len(t.audio_tracks) and bool(t.audio_tracks[k].default), rate)
+             for k, (coding, channels, lang, rate) in enumerate(audio_streams(t))],
             [_program.Subtitle(lang3(s.lang), bool(s.default)) for s in t.subtitles],
             t.end_action, list(t.prohibit), popup=t.id in popups,
             hold=bool(t.slideshow and t.slideshow.advance == "manual")))

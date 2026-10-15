@@ -435,6 +435,11 @@ class Title:
     clip_chapters: bool = False   # a chapter at every clip (set once clip lengths are known)
     video_mode: str = None   # what `scan` resolved to for the source (set by build.inspect)
     bd_copy: bool = False    # Blu-ray: the source's H.264 picture is used as it is (build.inspect)
+    # Blu-ray: per sound track, ("dtshd" or "dtshd_ma", sampling rate) of DTS-HD
+    # copied with its extensions, else None; and the tracks' highest rate over
+    # a second when one is (build.inspect)
+    dts_hd: list = field(default_factory=list)
+    audio_peak_bps: int = 0
     captions: str = None     # DVD line-21 closed captions: a .scc file, or subtitles sent as captions
     captions_offset: float = 0.0   # taken off the captions' times (a file timed from 01;00;00;00)
     prohibit: list = field(default_factory=list)   # remote keys the title does not allow (uops.NAMES)

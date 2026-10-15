@@ -415,7 +415,7 @@
                 "dts"
               ],
               "default": "ac3",
-              "description": "ac3 and lpcm are encoded (or AC-3 copied, passthrough); dts is always copied from the sources (48 kHz DTS; a DTS-HD source gives its DTS core)."
+              "description": "ac3 and lpcm are encoded (or AC-3 copied, passthrough); dts is always copied from the sources: a Blu-ray keeps DTS-HD whole (48, 96 or 192 kHz), a DVD takes the 48 kHz DTS core."
             },
             "bitrate": {
               "$ref": "#/$defs/bitrate",
@@ -427,7 +427,7 @@
                 6
               ],
               "default": 2,
-              "description": "2 = stereo (sources are down-mixed), 6 = 5.1 (AC-3 or DTS). Default 2 (DTS: 6); copied sound must match its source."
+              "description": "2 = stereo (sources are down-mixed), 6 = 5.1 (AC-3; DTS: 5.1 or more). Default 2 (DTS: 6); copied sound must match its source."
             },
             "lang": {
               "$ref": "#/$defs/lang"
