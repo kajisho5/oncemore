@@ -3073,3 +3073,14 @@ oncemore takes the release with `tools/vendor.py vtskit --pypi 0.3.1`.
 
 * `tests/test_testdisc.py` (`TestDvd`): the test disc's DVD, four titlesets,
   builds and plays through libdvdnav; it failed with vtskit 0.3.0.
+
+## 137. 1.3.0: the player test disc released
+
+The player test disc (§134) and the fixes it led to (§135, §136: discs of
+three titlesets or more, which every DVD build since 0.4.0 refused) go out
+as 1.3.0, published by the release workflow run by hand (§128); notes in
+`docs/release-notes/v1.3.0.md`. A minor release: a new command and a New
+Project option; projects of 1.2 open unchanged.
+
+* `tests/test_promises.py` (`test_signed_and_notarised_from_1_0`): the notes
+  of the current version exist and name its zips.
