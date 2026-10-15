@@ -2957,3 +2957,12 @@ possible (the build runs the app's Python and ffmpeg), and
 
 * `tests/test_review_fixes.py`: one test per finding, each failing without
   its fix.
+
+## 132. 1.2.1: the review's fixes released
+
+The fixes of §131 go out as 1.2.1, published by the release workflow run by
+hand (§128); notes in `docs/release-notes/v1.2.1.md`. A patch release: no
+new feature, no change to the project format.
+
+* `tests/test_promises.py` (`test_signed_and_notarised_from_1_0`): the notes
+  of the current version exist and name its zips.
