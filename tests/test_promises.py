@@ -60,9 +60,11 @@ class TestMacApp(unittest.TestCase):
         script = read("macos", "build_app.sh")
         block = script.split('echo "==> notarizing"', 1)[1].split("\nfi\n", 1)[0]
         self.assertIn("for try in 1 2 3 4 5; do", block)
-        self.assertIn('if xcrun stapler staple "$APP"; then break; fi', block)
+        # validating asks the same servers, so it is tried again with stapling
+        self.assertIn('if xcrun stapler staple "$APP" && xcrun stapler validate "$APP"; '
+                      'then break; fi', block)
         self.assertIn("exit 1", block)
-        self.assertIn('xcrun stapler validate "$APP"', block)
+        self.assertNotRegex(block, r'(?m)^  xcrun stapler validate "\$APP"$')
         self.assertNotRegex(block, r'(?m)^  xcrun stapler staple "\$APP"$')
 
     def test_release_run_by_hand_can_publish(self):

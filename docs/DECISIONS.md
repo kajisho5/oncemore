@@ -2871,6 +2871,10 @@ for it by `macos/build_ffmpeg.sh`:
 The app grows by the two programs (about 2 × 30 MB before compression).
 Released as 1.2.0 (notes in `docs/release-notes/v1.2.0.md`).
 
+While building it, `stapler validate` (§129) failed on an Intel runner with
+the same lost connection to Apple's ticket server; validating asks the same
+servers, so it is now inside the retry loop with stapling.
+
 * `tests/test_bundled_ffmpeg.py`: the lookup order, the pinned sources and
   configure flags, the app build, the smoke test without Homebrew, the
   sources on the release, and the documents.
