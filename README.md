@@ -119,7 +119,8 @@ release (signed and notarised when the signing secrets listed in that file are
 set; from 1.0 on it refuses to release without them): 0.x versions are published as pre-releases right away, 1.0 and later as
 drafts; the notes come from `docs/release-notes/<tag>.md`. Running the
 workflow by hand (Actions > Release > Run workflow) with `tag` set does the
-same and makes the tag on the commit it ran on.
+same and makes the tag on the commit it ran on; with `publish` ticked as well,
+a 1.0-or-later release is published at once as the latest instead of a draft.
 
 ## Quick start: the app in a browser
 

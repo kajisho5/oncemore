@@ -2806,3 +2806,19 @@ navigation in a Blu-ray project; schema fields with no control yet
   Transcode now, the Build panel); in a DVD project (playlist order labels,
   no inert panel menus or close boxes, the timeline's title list, Build back
   on the project's mode); the New Project dialog; and the documents' facts.
+
+## 128. A release run by hand can be published at once
+
+From 1.0 a release is a draft (§124), to be looked over and published by
+hand on GitHub. When the maintainer hands the whole release over, that last
+step has no one to do it, so the workflow run by hand takes a `publish`
+input (off by default): ticked, a 1.0-or-later release is created published
+and marked as the latest, with the same signed, notarised zips, checksums
+and notes. A pushed tag still makes a draft; 0.x is still a pre-release.
+
+1.1.0 is the first release made this way: DTS-HD on a Blu-ray (§125), the
+authoring mode (§126) and the app and documents that follow it (§127).
+
+* `tests/test_promises.py`: the release workflow has the `publish` input,
+  publishes with `--latest` only when it is set and otherwise drafts; the
+  release notes for the current version exist and name its zips.
