@@ -5,6 +5,8 @@ set -euo pipefail
 APP="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+# away from the checkout: `python -m oncemore` must load the app's own package
+cd "$TMP"
 PY="$APP/Contents/Resources/python/bin/python3"
 export PYTHONPATH="$APP/Contents/Resources/app"
 # only macOS's own programs: the app must work without Homebrew
@@ -19,6 +21,8 @@ import json, sys
 d = json.load(open(sys.argv[1]))
 d = d.get("result", d)
 paths = {t["name"]: t["path"] for t in d["tools"]}
+import oncemore
+assert oncemore.__file__.startswith(sys.argv[2] + "/"), oncemore.__file__
 for name in ("ffmpeg", "ffprobe"):
     assert paths[name] == sys.argv[2] + "/Contents/Resources/ffmpeg/" + name, paths
 assert d["ready"], d

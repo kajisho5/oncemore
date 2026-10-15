@@ -93,6 +93,7 @@ class TestBuild(unittest.TestCase):
     def test_tested_without_homebrew(self):
         smoke = read("macos", "smoke_test.sh")
         self.assertIn('export PATH="/usr/bin:/bin:/usr/sbin:/sbin"', smoke)
+        self.assertIn('cd "$TMP"', smoke)       # the app's package, not the checkout's
         self.assertNotIn("/opt/homebrew", smoke)
         self.assertIn('"/Contents/Resources/ffmpeg/" + name', smoke)
         self.assertIn("--format bluray", smoke)
