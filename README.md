@@ -445,6 +445,13 @@ narrow it). Nothing leaves your computer except through the assistant you
 connected. Both protocol eras are spoken: revision 2026-07-28 and the earlier
 ones that open with `initialize`.
 
+The repository's root [`SKILL.md`](SKILL.md) is the same as a skill: when to
+use oncemore, every command and MCP tool with its options, the exit codes,
+what needs macOS (the app, `hdiutil`, burning) and what to be careful with.
+An assistant that loads skills (or the AI Video Production OS marketplace)
+reads it; `tests/test_skill.py` keeps it to commands, options and tools that
+exist.
+
 ### With ffmpeg-skill: getting the videos ready first
 
 oncemore makes the disc from the videos it is given; it does not edit them.
