@@ -23,7 +23,7 @@ Not reachable from the agent.
 
 - [x] **1. Contract in the OS schema**
   - Done when: validates against the OS schema
-- [ ] **2. Root SKILL.md over the existing MCP/CLI**
+- [x] **2. Root SKILL.md over the existing MCP/CLI** — [#146](https://github.com/kajisho5/oncemore/pull/146)
   - Done when: marketplace-ready
 - [ ] **3. (agent side) handoff-only SkillSpec disc_author** — names oncemore when a plan asks for a disc
   - Done when: handoff test

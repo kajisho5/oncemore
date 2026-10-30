@@ -3084,3 +3084,39 @@ Project option; projects of 1.2 open unchanged.
 
 * `tests/test_promises.py` (`test_signed_and_notarised_from_1_0`): the notes
   of the current version exist and name its zips.
+
+## 138. A root SKILL.md over the CLI and the MCP server
+
+The AI Video Production OS lists oncemore as an optional component
+(納品, disc authoring) and its marketplace loads a repository with a
+`SKILL.md` at its root as a single skill; oncemore had the commands, the MCP
+server and `oncemore contract --json`, but nothing an assistant reads to
+know when to use them (ECOSYSTEM_ROADMAP.md step 2).
+
+`SKILL.md` adds no command and changes none. It says when to use oncemore
+and when not (editing the videos, copy protection), lists every CLI command
+with its options and every MCP tool, the JSON Lines output and the exit
+codes, what needs macOS (Oncemore.app; `--iso-tool hdiutil`; `burn` through
+`hdiutil` on macOS, `growisofs` on Linux, refused on Windows) and what to
+be careful with (burning writes and closes a physical disc, so only on
+request; `build` replaces the disc folders in its output). The frontmatter
+is `name` (the contract's `skill_id`, `oncemore`) and `description`, kept
+to plain YAML scalars without `: ` so a strict parser reads it; no
+`.claude-plugin/plugin.json`, which the marketplace does not need for a
+single skill and which would add a version to keep in step.
+
+A skill file that names a command or option that does not exist sends the
+assistant into an error, so the test reads the names from the code rather
+than from a list kept by hand. The repository has no PyYAML (standard
+library only), so the frontmatter is checked with a small strict reader, as
+ffmpeg-skill does.
+
+* `tests/test_skill.py`:
+  * the frontmatter has only `name` and `description`, `name` is the
+    contract's `skill_id`, the description is 20 to 1024 characters with no
+    `<` or `>`, and no unquoted value would break a strict YAML parser;
+  * every `` `oncemore <command> ...` `` names a subcommand of the CLI's
+    parser and every option on it is one of that subcommand's options;
+  * every subcommand and every command in the contract is named;
+  * the MCP tools table lists exactly the server's tools;
+  * the exit codes of the error classes are given.
