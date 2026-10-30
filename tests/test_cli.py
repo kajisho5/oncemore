@@ -29,6 +29,27 @@ class TestCli(unittest.TestCase):
         self.assertIn("iso_tool", events[-1])
         self.assertIn("ok", events[-1]["drawtext_render"])
 
+    def test_contract_json(self):
+        rc, out, _ = run_cli("contract", "--json")
+        self.assertEqual(rc, 0)
+        c = json_lines(out)[-1]
+        for k in ("skill_id", "version", "contract_version", "provides", "dependencies",
+                  "not_provided"):
+            self.assertIn(k, c)
+        from oncemore import __version__
+        self.assertEqual((c["skill_id"], c["version"]), ("oncemore", __version__))
+        tool_ids = [t["tool_id"] for t in c["tools"]]
+        ids = [p["id"] for p in c["provides"]]
+        self.assertEqual(len(ids), len(set(ids)))
+        for p in c["provides"]:
+            self.assertEqual(set(p), {"id", "lifecycle", "tool_id"})
+            self.assertIn(p["lifecycle"], ("PROPOSED", "EXPERIMENTAL", "STABLE", "DEPRECATED",
+                                           "RETIRED"))
+            self.assertIn(p["tool_id"], tool_ids)
+        rc, out, _ = run_cli("--help")
+        for t in c["tools"]:
+            self.assertIn(t["command"], out)
+
     def test_missing_project_no_traceback(self):
         rc, out, err = run_cli("validate", "/nonexistent/project.oncemore.json")
         self.assertEqual(rc, 2)

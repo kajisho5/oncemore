@@ -392,6 +392,7 @@ oncemore clean <project>                       # delete the encode cache (made a
 oncemore scenes video.mp4 [--sensitivity low|medium|high] [--min-gap S]   # scene changes: chapter suggestions
 oncemore doctor                                # external tools, versions, ISO backend
 oncemore mcp [--root DIR]                      # tools for AI assistants (MCP, below)
+oncemore contract [--json]                     # machine-readable contract (AI Video Production OS)
 ```
 
 * `<project>` is a `project.oncemore.json` file or the directory containing it.

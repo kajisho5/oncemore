@@ -340,6 +340,14 @@ def cmd_gui(args, rep):
     return serve(path, port=args.port, open_browser=not args.no_browser, reporter=rep)
 
 
+def cmd_contract(args, rep):
+    from .contract import contract
+
+    doc = contract()
+    rep.result(doc, json.dumps(doc, indent=2, ensure_ascii=False))
+    return 0
+
+
 def cmd_mcp(args, rep):
     from .mcp import serve
     return serve(args.root)
@@ -492,6 +500,10 @@ def make_parser():
 
     s = sub.add_parser("doctor", parents=[common], help="check external tools")
     s.set_defaults(func=cmd_doctor)
+
+    s = sub.add_parser("contract", parents=[common],
+                       help="print the machine-readable contract (JSON)")
+    s.set_defaults(func=cmd_contract)
 
     s = sub.add_parser("mcp", parents=[common],
                        help="serve oncemore's tools to AI assistants (MCP over stdio)")

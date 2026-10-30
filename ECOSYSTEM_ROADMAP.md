@@ -21,7 +21,7 @@ Not reachable from the agent.
 
 ## Steps
 
-- [ ] **1. Contract in the OS schema**
+- [x] **1. Contract in the OS schema**
   - Done when: validates against the OS schema
 - [ ] **2. Root SKILL.md over the existing MCP/CLI**
   - Done when: marketplace-ready

@@ -268,6 +268,7 @@ oncemore clean <プロジェクト>                   # エンコードキャッ
 oncemore scenes video.mp4 [--sensitivity low|medium|high] [--min-gap 秒]   # シーンチェンジ（チャプター候補）
 oncemore doctor                                # 外部ツールの有無・バージョン・ISO バックエンド
 oncemore mcp [--root DIR]                      # AI アシスタント向けのツール（MCP、下記）
+oncemore contract [--json]                     # 機械可読な契約（AI Video Production OS）
 ```
 
 * `<project>` は `project.oncemore.json` かそれを含むディレクトリ。
