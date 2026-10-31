@@ -12,7 +12,7 @@ import unittest
 from .test_gui import GuiServer
 
 try:
-    from playwright.sync_api import sync_playwright
+    from playwright.sync_api import expect, sync_playwright
     PLAYWRIGHT = True
 except ImportError:  # pragma: no cover
     PLAYWRIGHT = False
@@ -85,7 +85,7 @@ class TestTitleButtonsEditor(unittest.TestCase):
             self.assertEqual(page.locator("#timeline .tbtn-bar").count(), 1)
             page.fill("#tc-input", "00:00:07.000")
             page.press("#tc-input", "Enter")
-            page.wait_for_function("document.querySelectorAll('#tbtn-layer .tbtn-box').length === 0")
+            expect(page.locator("#tbtn-layer .tbtn-box")).to_have_count(0)   # the page's CSP forbids eval
             # its colours, then gone
             page.locator("[data-tbtn-color=highlight]").evaluate(
                 "(e) => { e.value = '#00ff00'; e.dispatchEvent(new Event('change')); }")
@@ -128,8 +128,7 @@ class TestTitleButtonsEditor(unittest.TestCase):
             self.assertEqual(page.locator("#sim-screen .tbtn-sim").count(), 0)     # at 0 s
             page.locator("#sim-seek").evaluate(
                 "(e) => { e.value = '3'; e.dispatchEvent(new Event('change')); }")
-            page.wait_for_function("document.querySelectorAll('#sim-screen .tbtn-sim').length === 2",
-                                   timeout=60000)
+            expect(page.locator("#sim-screen .tbtn-sim")).to_have_count(2, timeout=60000)
             page.locator("#sim-screen").press("ArrowDown")       # back
             page.locator("#sim-screen").press("Enter")
             page.locator("#sim-status", has_text="main").wait_for(timeout=120000)
