@@ -17,7 +17,7 @@ v1.3.0, Mac disc app: init, testdisc, validate, import-psd, simulate, build, iso
 
 ## Wiring
 
-Not reachable from the agent.
+The agent names oncemore in a handoff when a plan asks for a disc (step 3, video-production-agent#109); it authors nothing itself.
 
 ## Steps
 
@@ -33,4 +33,4 @@ Not reachable from the agent.
 The four kits are listed separately in ecosystem.json for library use only.
 
 ---
-Engine for every media operation: [ffmpeg-skill](https://github.com/kajisho5/ffmpeg-skill) (42 tools, treated as complete). Orchestrator: [video-production-agent](https://github.com/kajisho5/video-production-agent).
+Engine for every media operation: [ffmpeg-skill](https://github.com/kajisho5/ffmpeg-skill) (3.x, 42 tools, contract_version 2.0; treated as complete, proposals go to Velisa's ROADMAP). Orchestrator: [video-production-agent](https://github.com/kajisho5/video-production-agent).
