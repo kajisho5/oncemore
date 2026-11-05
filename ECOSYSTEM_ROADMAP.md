@@ -25,7 +25,7 @@ Not reachable from the agent.
   - Done when: validates against the OS schema
 - [x] **2. Root SKILL.md over the existing MCP/CLI** — [#146](https://github.com/kajisho5/oncemore/pull/146)
   - Done when: marketplace-ready
-- [ ] **3. (agent side) handoff-only SkillSpec disc_author** — names oncemore when a plan asks for a disc
+- [x] **3. (agent side) handoff-only SkillSpec disc_author** — names oncemore when a plan asks for a disc ([video-production-agent#109](https://github.com/kajisho5/video-production-agent/pull/109), its ADR-094: `job.disc_author=true` → a BLOCKED step whose handoff names oncemore; no adapter, nothing authored by the agent)
   - Done when: handoff test
 
 ## Boundaries
