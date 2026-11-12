@@ -88,12 +88,56 @@ class TestSessions(unittest.TestCase):
         self.assertTrue(any(i["path"].startswith("row 1 (ok): titles[0].source")
                             for i in cm.exception.issues), cm.exception.issues)
 
+    @unittest.skipUnless(have("ffprobe"), "needs ffprobe")
+    def test_media_probed_before_anything_is_built(self):
+        # a file that is there but is no video: found in the plan, by row
+        with open(self._media("bad.mp4"), "w") as f:
+            f.write("not a video")
+        path = self.write("name,label,speaker,talk,video\nok,A,X,T,bad.mp4\n")
+        with self.assertRaises(ProjectError) as cm:
+            batch.plan(self.dir, path)
+        self.assertEqual([i["path"] for i in cm.exception.issues], ["row 1 (ok)"])
+        self.assertIn("bad.mp4", cm.exception.issues[0]["message"])
+
+    def _media(self, name):
+        os.makedirs(os.path.join(self.dir, "media"), exist_ok=True)
+        return os.path.join(self.dir, "media", name)
+
+    def test_template_is_an_object(self):
+        with open(os.path.join(self.dir, "project.oncemore.json"), "w") as f:
+            f.write("[]")
+        with self.assertRaises(ProjectError):
+            batch.plan(self.dir, os.path.join(self.dir, "sessions.csv"), check_files=False)
+
+    def test_manifest_written_before_the_builds(self):
+        # an earlier run's manifest does not outlive a run whose first image fails
+        out = os.path.join(self.tmp, "out")
+        os.makedirs(out)
+        with open(os.path.join(out, "manifest.json"), "w") as f:
+            f.write('{"images": [{"name": "stale"}]}')
+        orig_plan, orig_build = batch.plan, batch.build.build_iso
+
+        def failing(*a, **k):
+            raise OncemoreError("encoder failed")
+        batch.plan = lambda *a, **k: orig_plan(*a, **dict(k, check_files=False))
+        batch.build.build_iso = failing
+        try:
+            with self.assertRaises(OncemoreError):
+                batch.run(self.dir, os.path.join(self.dir, "sessions.csv"), out,
+                          Reporter(json_mode=True, out=io.StringIO()))
+        finally:
+            batch.plan, batch.build.build_iso = orig_plan, orig_build
+        with open(os.path.join(out, "manifest.json")) as f:
+            self.assertEqual(json.load(f)["images"], [])
+
     def test_csv_needs_name_and_rows(self):
         with self.assertRaises(OncemoreError):
             batch.read_sessions(self.write("label,video\nA,a.mp4\n"))
         with self.assertRaises(OncemoreError):
             batch.read_sessions(self.write("name,label\n"))
-        cols, rows = batch.read_sessions(self.write("﻿name, label\nx , X\n\n"))
+        with self.assertRaises(OncemoreError):                  # (a row is not left out)
+            batch.read_sessions(self.write("name,label\nok,A\n,,bad\n"))
+        cols, rows = batch.read_sessions(self.write("\ufeffname, label\nx , X\n\n"))
         self.assertEqual((cols, rows), (["name", "label"], [{"name": "x", "label": "X"}]))
 
     def test_dvd_only(self):

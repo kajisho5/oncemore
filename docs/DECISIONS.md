@@ -3162,9 +3162,10 @@ template project and a CSV with a row per session.
 * The `name` column is required and names each image (`<name>.iso`): file
   name characters only, and unique without regard to case (images of two
   rows may otherwise land on the same file on macOS).
-* Every row is built into a project (with its media checked) before
-  anything is encoded, and every problem is reported with its row, so a
-  missing video in the last row does not stop a batch an hour in.
+* Every row is built into a project and its media probed as a build would
+  (on a copy of the project) before anything is encoded, and every problem
+  is reported with its row, so a missing or unreadable video in the last
+  row does not stop a batch an hour in.
 * Paths stay relative to the template's folder, so every row shares its
   `.oncemore-cache`: a menu that is the same on every disc is encoded once.
 * Only DVD: the verification reads the image's ISO 9660 directory, which a
@@ -3175,8 +3176,9 @@ template project and a CSV with a row per session.
   independently of the writer) has the size and SHA-256 of the authored
   file. A difference stops the batch.
 * `manifest.json` lists each image (row, name, label, bytes, SHA-256, what was
-  verified) and is rewritten after each one, so a batch that stops still
-  says what it finished.
+  verified). It is written empty when the builds start (an earlier run's
+  list does not stay) and again after each image, so a batch that stops
+  still says what it finished.
 * The contract gains `disc.batch_images` (`oncemore/batch`); nothing else in
   it changes.
 * `examples/batch` is a three-session template; `tests/test_batch.py` builds

@@ -9,12 +9,14 @@ text, the disc label...) is replaced by that row's value. The `name` column
 is required: the image is `<folder>/<name>.iso`. Paths stay relative to the
 template's folder, so encoded menus are shared through its cache.
 
-Every row is checked (with its media) before anything is encoded. Each image
-is then built, read back and verified: its volume name is the disc label,
+Every row is checked and its media probed before anything is encoded.
+Each image is then built, read back and verified: its volume name is the
+disc label,
 and every VIDEO_TS file in the image (found through its ISO 9660 directory)
 has the size and SHA-256 of the file that was authored. `manifest.json` in
-the folder lists the images with their size and SHA-256, rewritten after
-each one, so a stopped batch still says what it finished.
+the folder lists the images with their size and SHA-256. It is written
+empty when the builds start and again after each image, so a stopped batch
+still says what it finished.
 """
 
 import csv
@@ -44,11 +46,11 @@ def read_sessions(path):
             columns = [c.strip() for c in (reader.fieldnames or [])]
             rows = []
             for raw in reader:
-                if not any((v or "").strip() for v in raw.values() if isinstance(v, str)):
-                    continue                                  # (a blank line)
                 if None in raw:
                     raise OncemoreError(f"{path}: line {reader.line_num} has more fields "
                                         "than the header")
+                if not any((v or "").strip() for v in raw.values()):
+                    continue                                  # (a blank line)
                 rows.append({k.strip(): (v or "").strip() for k, v in raw.items()})
     except FileNotFoundError:
         raise OncemoreError(f"{path}: file not found")
@@ -93,6 +95,8 @@ def plan(template, sessions, check_files=True):
     problems."""
     path = resolve_project_path(template)
     data = read_json(path)
+    if not isinstance(data, dict):
+        raise ProjectError(f"{path}: a project file is a JSON object")
     fmt = data.get("disc", {}).get("format", "dvd") if isinstance(data.get("disc"), dict) else "dvd"
     if fmt not in (None, "dvd"):
         raise OncemoreError(f"{path}: batch writes DVD images; this project is {fmt}",
@@ -116,9 +120,15 @@ def plan(template, sessions, check_files=True):
             continue
         try:
             project = build_project(filled, path, check_files=check_files)
+            if check_files:
+                # (the media probed as the build will, on a copy: nothing encoded yet)
+                build.inspect(build_project(filled, path), prepare=False)
         except ProjectError as e:
             issues += [{"path": f"{where}: {i['path']}", "message": i["message"]}
                        for i in e.issues] or [{"path": where, "message": e.message}]
+            continue
+        except OncemoreError as e:                   # (ffprobe cannot read a file...)
+            issues.append({"path": where, "message": e.message})
             continue
         out.append((n, row, project))
     if issues:
@@ -227,6 +237,7 @@ def run(template, sessions, out_dir, reporter, fast=False, cache=True):
                 "template": resolve_project_path(template),
                 "sessions": os.path.abspath(sessions),
                 "images": []}
+    _write_manifest(manifest_path, manifest)          # (no earlier run's list stays)
     warnings = []
     for k, (n, row, project) in enumerate(jobs, 1):
         name = row["name"]

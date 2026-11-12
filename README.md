@@ -414,12 +414,12 @@ oncemore contract [--json]                     # machine-readable contract (AI V
   `{{column}}` in any of its texts (the disc label, a title's source or name,
   a menu text) takes the value of that column in each row of the CSV (a
   header row, UTF-8). The `name` column is required: each image is
-  `out/<name>.iso`. Every row is checked, with its media, before anything is
-  encoded. Each image is read back and verified (its volume name is the
+  `out/<name>.iso`. Every row is checked and its media probed before anything
+  is encoded. Each image is read back and verified (its volume name is the
   label; every VIDEO_TS file in it, found through the image's ISO 9660
   directory, has the size and SHA-256 of the authored file), and
-  `out/manifest.json` lists the images with their size and SHA-256 (rewritten
-  after each one). `examples/batch` is a three-session template.
+  `out/manifest.json` lists the images with their size and SHA-256 (written
+  empty when the builds start, then after each image). `examples/batch` is a three-session template.
 * `--json` (before or after the command) switches to **JSON Lines** on stdout
   for GUIs and scripts: `step`, `progress` (`fraction` 0–1), `log`, and a final
   `result` or `error` object. Exit codes: 0 ok, 1 error, 2 invalid project,
