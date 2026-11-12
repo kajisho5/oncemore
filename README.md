@@ -896,7 +896,11 @@ differs from the frame; `fill` fills the frame and crops the edges.
   `.scc` caption file's byte pairs go in as they are; a subtitle file (any
   of the formats above) becomes pop-on captions: up to four centred rows of
   32 characters, Latin letters (other characters become spaces), loaded
-  before their time, shown at their start and erased at their end. NTSC
+  before their time, shown at their start and erased at their end. What a
+  caption cannot carry as written is warned about cue by cue, with the
+  cue's number and time (`cue 3 at 00:00:06.500: ...`): characters that
+  become spaces, lines wrapped, rows past the fourth left out, vertical
+  text, a caption shown late. NTSC
   only, on 29.97 fps pictures (a film title with 3:2 pulldown is refused:
   set its scan to interlaced); Blu-ray and web builds leave them out.
 * Image scripts: a text script whose subtitle text is a picture file next to
