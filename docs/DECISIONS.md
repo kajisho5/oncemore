@@ -3141,3 +3141,48 @@ per finding, as before; nothing in oncemore parsed the old text.
   notes of a subtitle file through oncemore name their cue and time, and
   `check` finds the cue that has characters with no caption character;
   both fail with dvdcc 0.1.1.
+
+## 140. One disc per session, in batch
+
+A congress that hands each speaker the recording of their talk needs one
+disc per session, each with the same menu; with `iso` that was one project
+per session, kept in step by hand (ECOSYSTEM_ROADMAP.md step 5).
+
+`oncemore batch <template> sessions.csv -o <folder>` builds them all from one
+template project and a CSV with a row per session.
+
+* The template is an ordinary DVD project. `{{column}}` in any of its texts
+  takes the row's value of that column, so the disc label, a title's source
+  and name and the menu texts can change per session while everything else
+  stays the same. Placeholders are plain text replacement in strings only
+  (numbers, chapter lists and the like are the template's); a placeholder
+  with no column is an error, a column no placeholder uses is ignored.
+  `{{` `}}` are used, not `{ }`, because chapter-menu `label_format` already
+  uses `{n}`.
+* The `name` column is required and names each image (`<name>.iso`): file
+  name characters only, and unique without regard to case (images of two
+  rows may otherwise land on the same file on macOS).
+* Every row is built into a project and its media probed as a build would
+  (on a copy of the project) before anything is encoded, and every problem
+  is reported with its row, so a missing or unreadable video in the last
+  row does not stop a batch an hour in.
+* Paths stay relative to the template's folder, so every row shares its
+  `.oncemore-cache`: a menu that is the same on every disc is encoded once.
+* Only DVD: the verification reads the image's ISO 9660 directory, which a
+  Blu-ray image (UDF 2.50 only) has not; a Blu-ray template is refused.
+* Each image is written by the built-in writer and verified before its
+  build folder is deleted: its UDF volume name is the label, and every
+  VIDEO_TS file in the image (found through its ISO 9660 directory, read
+  independently of the writer) has the size and SHA-256 of the authored
+  file. A difference stops the batch.
+* `manifest.json` lists each image (row, name, label, bytes, SHA-256, what was
+  verified). It is written empty when the builds start (an earlier run's
+  list does not stay) and again after each image, so a batch that stops
+  still says what it finished.
+* The contract gains `disc.batch_images` (`oncemore/batch`); nothing else in
+  it changes.
+* `examples/batch` is a three-session template; `tests/test_batch.py` builds
+  it into three verified images and one manifest, checks that a changed byte
+  in an image or another session's label fails verification, and that the
+  CSV's problems are named by row before anything is built.
+

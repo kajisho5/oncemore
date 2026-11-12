@@ -39,6 +39,7 @@ the install hint from the output.
 | Encode titles ahead of the build | `oncemore transcode <project> [--title ID] [--fast] [--status] --json` |
 | Disc folder (VIDEO_TS, BDMV, or web) | `oncemore build <project> -o out/ [--format dvd\|bluray\|web] [--fast] [--keep-work] [--no-cache] --json` |
 | Disc image | `oncemore iso <project> -o disc.iso [--format dvd\|bluray] [--iso-tool auto\|builtin\|hdiutil\|genisoimage\|mkisofs\|xorriso] [--build-dir DIR] [--fast] [--keep-work] [--no-cache] --json` |
+| One verified DVD image per CSV row (`{{column}}` in the template's texts), with `manifest.json` | `oncemore batch <template> sessions.csv -o out/ [--fast] [--no-cache] --json` |
 | Burn the image (only on request) | `oncemore burn disc.iso [--device DEV] [--layer-break auto\|none\|SECTOR] --json` |
 | Delete the encode cache | `oncemore clean <project> --json` |
 | What this skill declares | `oncemore contract --json` |
@@ -86,7 +87,9 @@ project (or bad arguments), `3` missing tools (also `doctor` not ready),
 
 `validate` puts navigation problems (titles or menus nothing leads to, menus
 with no way out) in `navigation`, and size warnings in `warnings`; `iso`
-returns `iso`, `iso_bytes` and, for a dual-layer DVD, `layer_break`.
+returns `iso`, `iso_bytes` and, for a dual-layer DVD, `layer_break`; `batch`
+returns `manifest` (the path of `manifest.json`) and `images` (each `name`,
+`image`, `label`, `bytes`, `sha256` and what `verified` read back).
 
 ## What needs macOS
 
@@ -110,7 +113,8 @@ returns `iso`, `iso_bytes` and, for a dual-layer DVD, `layer_break`.
   user asked for a disc to be burned, with a blank disc in the writer; name
   the device when there is more than one. The MCP server has no burn tool.
 * `build` replaces `VIDEO_TS` / `AUDIO_TS` (or `BDMV`) inside its output
-  folder, and `iso` writes its output file: point them at a folder or file
+  folder, `iso` writes its output file and `batch` writes `<name>.iso` and
+  `manifest.json` into its output folder: point them at a folder or file
   that may be replaced. `init` / `testdisc` refuse an existing project
   unless `--force`; `create_project` unless `overwrite: true`.
 * `clean` deletes only `<project>/.oncemore-cache`; the next build encodes

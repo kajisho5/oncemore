@@ -263,6 +263,7 @@ oncemore simulate <project> --keys down,enter,menu   # リモコン操作を再�
 oncemore import-psd <project> design.psd --menu main [--first-play]   # Photoshop からメニューを作成
 oncemore gui [<dir>] [--port N] [--no-browser] # オーサリングアプリ
 oncemore transcode <project> [--title ID] [--fast] [--status]  # DVD のタイトルを書き出し前にエンコード
+oncemore batch <template> sessions.csv -o out/ [--fast] [--no-cache]   # CSV の 1 行ごとに検証済みの DVD イメージ＋マニフェスト
 oncemore burn out.iso [--device DEV] [--layer-break auto|none|SECTOR]   # イメージを空の DVD／BD に書き込み（macOS は hdiutil、他は growisofs）
 oncemore clean <プロジェクト>                   # エンコードキャッシュを削除（次のビルドで作り直し）
 oncemore scenes video.mp4 [--sensitivity low|medium|high] [--min-gap 秒]   # シーンチェンジ（チャプター候補）
@@ -279,6 +280,13 @@ oncemore contract [--json]                     # 機械可読な契約（AI Vide
 * DVD は既定で **2 パス**エンコード（`--fast` で 1 パス）。Blu-ray と Web 版は品質一定でエンコードします（`--fast` で速く、画質はやや下がります）。
 * 中間ファイルは `out/.work/`（`iso` では ISO の隣の隠しビルドディレクトリ）に置き、
   `--keep-work` が無ければ成功時に削除します。各外部コマンドのログは `.work/logs/`。
+* `batch` はセッションごとに 1 枚のディスクを作ります（学会で演者ごとに講演の記録ディスクを配るときなど）。
+  テンプレートは普通の DVD プロジェクトで、そのテキスト（ディスクラベル、タイトルの素材や名前、メニューの文字）の
+  `{{列名}}` が CSV（1 行目が見出し、UTF-8）の各行のその列の値になります。`name` 列は必須で、イメージは
+  `out/<name>.iso` です。エンコードの前に全行を素材ごと確認します。各イメージは読み戻して検証し
+  （ボリューム名がラベルであること、イメージの ISO 9660 ディレクトリから見つけた VIDEO_TS の各ファイルが
+  書き出したファイルと同じサイズと SHA-256 であること）、`out/manifest.json` にイメージのサイズと SHA-256 を
+  書きます（ビルド開始時に空で書き、1 枚ごとに更新）。`examples/batch` は 3 セッションのテンプレートです。
 * `--json`（コマンドの前後どちらでも可）で stdout が **JSON Lines** になります（GUI 連携用）：
   `step`、`progress`（`fraction` 0〜1）、`log`、最後に `result` か `error`。
   終了コード：0 成功、1 エラー、2 プロジェクト不正、3 ツール不足、4 外部ツール失敗。

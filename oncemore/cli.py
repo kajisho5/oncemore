@@ -281,6 +281,17 @@ def cmd_iso(args, rep):
     return 0
 
 
+def cmd_batch(args, rep):
+    from . import batch
+    res = batch.run(args.template, args.sessions, args.output, rep, fast=args.fast,
+                    cache=not args.no_cache)
+    lines = [f"  {i['image']}  {_size(i['bytes'])}  sha256 {i['sha256']}  verified"
+             for i in res["images"]]
+    rep.result(res, f"{len(res['images'])} image(s) written and verified; manifest "
+                    f"{res['manifest']}\n" + "\n".join(lines))
+    return 0
+
+
 def _layer_break_arg(v):
     if v in ("auto", "none") or (v.isdigit() and int(v) > 0):
         return v
@@ -445,6 +456,20 @@ def make_parser():
                         "the project's disc.format")
     build_opts(s)
     s.set_defaults(func=cmd_iso)
+
+    s = sub.add_parser("batch", parents=[common],
+                       help="one verified DVD image per row of a CSV, from a template "
+                            "project, with a manifest")
+    s.add_argument("template", help="the template project (file or directory); {{column}} "
+                                    "in its texts takes each row's value")
+    s.add_argument("sessions", help="CSV with a header row and a `name` column (each "
+                                    "image is <name>.iso)")
+    s.add_argument("-o", "--output", required=True,
+                   help="folder for the images and manifest.json")
+    s.add_argument("--fast", action="store_true", help="1-pass encoding (default 2)")
+    s.add_argument("--no-cache", action="store_true",
+                   help="encode everything again (default: reuse the template's cache)")
+    s.set_defaults(func=cmd_batch)
 
     s = sub.add_parser("burn", parents=[common], help="write a disc image to a blank DVD or BD")
     s.add_argument("iso", help="the .iso made by `oncemore iso`")

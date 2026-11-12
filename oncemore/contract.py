@@ -17,6 +17,7 @@ COMMANDS = {
     "disc.simulate": ("simulate", "press remote-control keys on the project (no encoding)"),
     "disc.author": ("build", "author VIDEO_TS (or a Blu-ray BDMV) into a directory"),
     "disc.image": ("iso", "build and write an ISO image"),
+    "disc.batch_images": ("batch", "one verified DVD image per row of a CSV, with a manifest"),
     "disc.burn": ("burn", "write a disc image to a blank DVD or BD"),
     "disc.chapter_suggestions": ("scenes", "find the scene changes in a video: chapter suggestions"),
     "disc.transcode": ("transcode", "encode titles now; the next build or iso reuses them"),
