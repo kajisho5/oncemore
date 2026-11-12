@@ -3186,3 +3186,14 @@ template project and a CSV with a row per session.
   in an image or another session's label fails verification, and that the
   CSV's problems are named by row before anything is built.
 
+
+## 141. 1.4.0: one disc per session, in batch
+
+`oncemore batch` (§140), the per-cue caption warnings of dvdcc 0.2.0 (§139),
+the root `SKILL.md` (§138) and `oncemore contract --json` go out as 1.4.0,
+published by the release workflow run by hand (§128); notes in
+`docs/release-notes/v1.4.0.md`. A minor release: a new command, and the
+contract gains `disc.batch_images`; projects of 1.3 open unchanged.
+
+* `tests/test_promises.py` (`test_signed_and_notarised_from_1_0`): the notes
+  of the current version exist and name its zips.
