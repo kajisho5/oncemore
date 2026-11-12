@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "disc": {
+    "label": "{{label}}",
+    "standard": "NTSC",
+    "aspect": "4:3",
+    "first_play": "menu:main"
+  },
+  "titles": [
+    {
+      "id": "talk",
+      "name": "{{speaker}}",
+      "source": "media/{{video}}",
+      "end_action": "menu:main"
+    }
+  ],
+  "menus": [
+    {
+      "id": "main",
+      "background": null,
+      "texts": [
+        {"text": "ANNUAL MEETING 2026", "x": 80, "y": 80, "size": 40},
+        {"text": "{{speaker}}", "x": 80, "y": 150, "size": 32},
+        {"text": "{{talk}}", "x": 80, "y": 195, "size": 24}
+      ],
+      "buttons": [
+        {"id": "play", "label": "PLAY", "x": 80, "y": 280, "action": "title:talk"}
+      ]
+    }
+  ]
+}

@@ -387,6 +387,7 @@ oncemore simulate <project> --keys down,enter,menu   # press remote keys, no enc
 oncemore import-psd <project> design.psd --menu main [--first-play]   # a menu from Photoshop
 oncemore gui [<dir>] [--port N] [--no-browser] # the authoring app
 oncemore transcode <project> [--title ID] [--fast] [--status]  # encode a DVD's titles ahead of the build
+oncemore batch <template> sessions.csv -o out/ [--fast] [--no-cache]   # one verified DVD image per CSV row, with a manifest
 oncemore burn out.iso [--device DEV] [--layer-break auto|none|SECTOR]   # write the image to a blank DVD or BD (macOS: hdiutil, else growisofs)
 oncemore clean <project>                       # delete the encode cache (made again by the next build)
 oncemore scenes video.mp4 [--sensitivity low|medium|high] [--min-gap S]   # scene changes: chapter suggestions
@@ -408,6 +409,17 @@ oncemore contract [--json]                     # machine-readable contract (AI V
 * Intermediate files go to `out/.work/` (for `iso`: a hidden build directory
   next to the ISO) and are deleted on success unless `--keep-work` is given.
   Every external command's log is in `.work/logs/`.
+* `batch` makes one disc per session (a congress handing each speaker the
+  recording of their talk): the template is an ordinary DVD project, and
+  `{{column}}` in any of its texts (the disc label, a title's source or name,
+  a menu text) takes the value of that column in each row of the CSV (a
+  header row, UTF-8). The `name` column is required: each image is
+  `out/<name>.iso`. Every row is checked, with its media, before anything is
+  encoded. Each image is read back and verified (its volume name is the
+  label; every VIDEO_TS file in it, found through the image's ISO 9660
+  directory, has the size and SHA-256 of the authored file), and
+  `out/manifest.json` lists the images with their size and SHA-256 (rewritten
+  after each one). `examples/batch` is a three-session template.
 * `--json` (before or after the command) switches to **JSON Lines** on stdout
   for GUIs and scripts: `step`, `progress` (`fraction` 0–1), `log`, and a final
   `result` or `error` object. Exit codes: 0 ok, 1 error, 2 invalid project,
