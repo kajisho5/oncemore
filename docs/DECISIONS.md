@@ -3120,3 +3120,24 @@ ffmpeg-skill does.
   * every subcommand and every command in the contract is named;
   * the MCP tools table lists exactly the server's tools;
   * the exit codes of the error classes are given.
+
+## 139. Caption notes cue by cue (dvdcc 0.2.0)
+
+dvdcc 0.2.0 reports what a pop-on caption cannot carry as written cue by
+cue: each note names the cue's number and start time
+(`cue 3 at 00:00:06.500: ...`) instead of one total line for the whole file
+("N character(s) have no closed-caption character and became spaces"), and
+it says more: lines longer than 32 characters (wrapped), words longer than
+a row, rows past the fourth (left out), WebVTT vertical text, and a caption
+shown late. `captions.check(cues)` returns the same findings as data. It
+also drops WebVTT ruby readings (`<rt>`, `<rp>`) and decodes WebVTT
+entities.
+
+oncemore takes the release with `tools/vendor.py dvdcc --pypi 0.2.0`. The
+notes reach `validate` and `build` as warnings on `titles[N].captions`, one
+per finding, as before; nothing in oncemore parsed the old text.
+
+* `tests/test_captions.py` (`test_notes_cue_by_cue`, `test_pop_on`): the
+  notes of a subtitle file through oncemore name their cue and time, and
+  `check` finds the cue that has characters with no caption character;
+  both fail with dvdcc 0.1.1.

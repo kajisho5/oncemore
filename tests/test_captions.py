@@ -77,7 +77,27 @@ class TestBytes(unittest.TestCase):
         # too much text right after the previous one: shown late, said so
         long = ["x" * 32] * 4
         s, notes = captions.from_cues([Cue(1.0, 1.1, ["a"]), Cue(1.2, 3.0, long)])
-        self.assertTrue(any("late" in n for n in notes), notes)
+        self.assertTrue(any(n.startswith("cue 2 at 00:00:01.200: shown") and "late" in n
+                            for n in notes), notes)
+
+    def test_notes_cue_by_cue(self):
+        # dvdcc 0.2.0: each note names its cue and time (DECISIONS §139)
+        d = tempfile.mkdtemp(prefix="oncemore-cc-")
+        self.addCleanup(shutil.rmtree, d, True)
+        path = os.path.join(d, "notes.srt")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("1\n00:00:01,000 --> 00:00:02,000\nFine\n\n"
+                    "2\n00:00:03,000 --> 00:00:04,000\nこんにちは Hi\n\n"
+                    "3\n00:00:06,500 --> 00:00:08,000\n" + "word " * 8 + "\n")
+        _, notes = oncemore_captions.load(path)
+        self.assertEqual(notes, [
+            "cue 2 at 00:00:03.000: 5 character(s) have no closed-caption character "
+            "and become spaces: こんにちは",
+            "cue 3 at 00:00:06.500: line 1 is 39 characters, a caption row holds 32: "
+            "wrapped onto 2 rows"])
+        # what the notes come from, cue by cue
+        problems = captions.check([Cue(1.0, 2.0, ["Fine"]), Cue(3.0, 4.0, ["こんにちは Hi"])])
+        self.assertEqual([(p["cue"], p["kind"]) for p in problems], [(2, "characters")])
 
     def test_scc(self):
         s = captions.parse_scc("Scenarist_SCC V1.0\n\n00:00:01:00\t9420 9420 94ae\n\n"
