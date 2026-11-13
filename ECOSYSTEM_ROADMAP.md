@@ -5,7 +5,7 @@ Written from a read-only audit of this repository on 2026-10-30. Each step below
 
 ## Where it stands
 
-v1.3.0, Mac disc app: init, testdisc, validate, import-psd, simulate, build, iso, burn, scenes, transcode, preview-menu, batch, gui, doctor, mcp. 74 test modules. Vendors bdmvkit, vtskit, udfkit, dvdcc.
+v1.4.0, Mac disc app: init, testdisc, validate, import-psd, simulate, build, iso, burn, scenes, transcode, preview-menu, batch, gui, doctor, mcp. 76 test modules. Vendors bdmvkit, vtskit, udfkit, dvdcc.
 
 ## What this repository owns
 
