@@ -1,3 +1,3 @@
 vtskit, https://github.com/kajisho5/vtskit (LGPL-3.0-or-later, see COPYING.LESSER)
-copied from PyPI vtskit 0.3.1 (vtskit-0.3.1-py3-none-any.whl, sha256 acd49045a2cf24be29581cd638cb9473ec49aa25edef280ea743579463e3dde4)
+copied from PyPI vtskit 0.4.0 (vtskit-0.4.0-py3-none-any.whl, sha256 c7c279eb3476963e598d2df8719111278a2d50f073469e4d4f66e1679085108b)
 the package vtskit/ only; its tests stay upstream
