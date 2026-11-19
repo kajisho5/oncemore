@@ -396,6 +396,10 @@ oncemore mcp [--root DIR]                      # tools for AI assistants (MCP, b
 oncemore contract [--json]                     # machine-readable contract (AI Video Production OS)
 ```
 
+`contract/contract.json` is the contract committed as a file (the `oncemore contract --json` output, unchanged), so
+any release's contract is `git show vX.Y.Z:contract/contract.json`, with nothing installed or run. Regenerate it
+with `python contract/generate.py` after a contract change or a version bump; a unit test fails when it is stale.
+
 * `<project>` is a `project.oncemore.json` file or the directory containing it.
 * `validate` also checks the navigation: titles, menus and playlists nothing
   leads to, and menus without a way out, are reported as warnings
