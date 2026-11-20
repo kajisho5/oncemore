@@ -1,3 +1,3 @@
 udfkit, https://github.com/kajisho5/udfkit (Apache-2.0, see LICENSE and NOTICE)
-copied from PyPI udfkit 0.1.0 (udfkit-0.1.0-py3-none-any.whl, sha256 e0d92f18f98aa1eb9574f295d3e6b48c2493222c10d7be5c8f7619fccde0c6ad)
+copied from PyPI udfkit 0.2.1 (udfkit-0.2.1-py3-none-any.whl, sha256 9e607df782da5db7ef110b87434fb08ed78e1e7ef373436c6c240a97de46f205)
 the package udfkit/ only; its tests stay upstream
