@@ -40,6 +40,8 @@ the install hint from the output.
 | Disc folder (VIDEO_TS, BDMV, or web) | `oncemore build <project> -o out/ [--format dvd\|bluray\|web] [--fast] [--keep-work] [--no-cache] --json` |
 | Disc image | `oncemore iso <project> -o disc.iso [--format dvd\|bluray] [--iso-tool auto\|builtin\|hdiutil\|genisoimage\|mkisofs\|xorriso] [--build-dir DIR] [--fast] [--keep-work] [--no-cache] --json` |
 | One verified DVD image per CSV row (`{{column}}` in the template's texts), with `manifest.json` | `oncemore batch <template> sessions.csv -o out/ [--fast] [--no-cache] --json` |
+| A disc from a typed build request (titles, named chapters, menu texts, subtitle tracks; `schema/build-request.schema.json`): check it and get its token | `oncemore request request.json --json` |
+| Build that request once the user has confirmed what `request` showed | `oncemore iso --request request.json --confirm <token> -o disc.iso [--fast] --json` (or `build --request ... -o out/`) |
 | Burn the image (only on request) | `oncemore burn disc.iso [--device DEV] [--layer-break auto\|none\|SECTOR] --json` |
 | Delete the encode cache | `oncemore clean <project> --json` |
 | What this skill declares | `oncemore contract --json` |
@@ -89,7 +91,12 @@ project (or bad arguments), `3` missing tools (also `doctor` not ready),
 with no way out) in `navigation`, and size warnings in `warnings`; `iso`
 returns `iso`, `iso_bytes` and, for a dual-layer DVD, `layer_break`; `batch`
 returns `manifest` (the path of `manifest.json`) and `images` (each `name`,
-`image`, `label`, `bytes`, `sha256` and what `verified` read back).
+`image`, `label`, `bytes`, `sha256` and what `verified` read back);
+`request` returns the project it makes (`project`), the size plan,
+`chapters` per title and the `confirm` token (plus `next`, the command that
+builds it); `iso --request` adds `verified: {"chapters": [...]}` for a DVD.
+Show the user what `request` returned and build only after they confirm; a
+changed request or media file needs a new token (exit 2 otherwise).
 
 ## What needs macOS
 

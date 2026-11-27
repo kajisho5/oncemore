@@ -34,7 +34,7 @@ packages = ["oncemore", "oncemore.gui", "oncemore._vendor", "oncemore._vendor.vt
             "oncemore._vendor.bdmvkit"]
 
 [tool.setuptools.package-data]
-oncemore = ["project.schema.json", "webplayer/*"]
+oncemore = ["project.schema.json", "build-request.schema.json", "webplayer/*"]
 "oncemore._vendor.vtskit" = ["UPSTREAM", "COPYING.LESSER"]
 "oncemore._vendor.udfkit" = ["UPSTREAM", "LICENSE", "NOTICE"]
 "oncemore._vendor.dvdcc" = ["UPSTREAM", "LICENSE", "NOTICE"]

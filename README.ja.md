@@ -264,6 +264,8 @@ oncemore import-psd <project> design.psd --menu main [--first-play]   # Photosho
 oncemore gui [<dir>] [--port N] [--no-browser] # オーサリングアプリ
 oncemore transcode <project> [--title ID] [--fast] [--status]  # DVD のタイトルを書き出し前にエンコード
 oncemore batch <template> sessions.csv -o out/ [--fast] [--no-cache]   # CSV の 1 行ごとに検証済みの DVD イメージ＋マニフェスト
+oncemore request request.json                  # ビルド依頼（タイトル・チャプター・メニューの文字・字幕）を確認し、確認トークンを出す
+oncemore iso --request request.json --confirm TOKEN -o disc.iso   # それを作る（build --request も可）
 oncemore burn out.iso [--device DEV] [--layer-break auto|none|SECTOR]   # イメージを空の DVD／BD に書き込み（macOS は hdiutil、他は growisofs）
 oncemore clean <プロジェクト>                   # エンコードキャッシュを削除（次のビルドで作り直し）
 oncemore scenes video.mp4 [--sensitivity low|medium|high] [--min-gap 秒]   # シーンチェンジ（チャプター候補）
@@ -287,6 +289,15 @@ oncemore contract [--json]                     # 機械可読な契約（AI Vide
   （ボリューム名がラベルであること、イメージの ISO 9660 ディレクトリから見つけた VIDEO_TS の各ファイルが
   書き出したファイルと同じサイズと SHA-256 であること）、`out/manifest.json` にイメージのサイズと SHA-256 を
   書きます（ビルド開始時に空で書き、1 枚ごとに更新）。`examples/batch` は 3 セッションのテンプレートです。
+* `request` はプロジェクトの代わりに**ビルド依頼**を受け取ります。別のプログラム（編集エージェントが自分の計画から）
+  ディスクに入れたいものを [schema/build-request.schema.json](schema/build-request.schema.json)
+  （`oncemore/build-request@1`）の形で書いたもので、再生順のタイトル（最大 5 つ。それぞれの素材、名前付きのチャプター
+  ＝セッションごとに 1 チャプター、字幕トラック）、メニューの見出しと 3 行までの文字、ラベル、形式です。oncemore はそこから
+  プロジェクトを作り（見出しと文字のメニュー、PLAY か PLAY ALL とタイトルごとのボタン、チャプター名のチャプターメニュー）、
+  `validate` と同じように確認して `confirm` トークンを出します。`build` と `iso` は `--request` のとき、そのトークンが
+  あるときだけ作ります。トークンは依頼の SHA-256 と、依頼が名指すファイルのサイズと更新時刻から作るので、依頼かファイルが
+  変われば作り直しです。DVD イメージは書き出した後に読み戻し、各タイトルの IFO のチャプター数が依頼どおりかを確かめます
+  （`verified`）。`examples/request` は 3 セッションの 1 日分です。
 * `--json`（コマンドの前後どちらでも可）で stdout が **JSON Lines** になります（GUI 連携用）：
   `step`、`progress`（`fraction` 0〜1）、`log`、最後に `result` か `error`。
   終了コード：0 成功、1 エラー、2 プロジェクト不正、3 ツール不足、4 外部ツール失敗。

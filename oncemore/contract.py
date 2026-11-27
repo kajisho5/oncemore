@@ -18,6 +18,8 @@ COMMANDS = {
     "disc.author": ("build", "author VIDEO_TS (or a Blu-ray BDMV) into a directory"),
     "disc.image": ("iso", "build and write an ISO image"),
     "disc.batch_images": ("batch", "one verified DVD image per row of a CSV, with a manifest"),
+    "disc.build_request": ("request", "check a typed build request (titles, chapters, menu texts, subtitle "
+                                      "tracks) and give the token build / iso --request --confirm need"),
     "disc.burn": ("burn", "write a disc image to a blank DVD or BD"),
     "disc.chapter_suggestions": ("scenes", "find the scene changes in a video: chapter suggestions"),
     "disc.transcode": ("transcode", "encode titles now; the next build or iso reuses them"),
@@ -43,6 +45,14 @@ def contract():
                          "copy protection of any kind", "network access of any kind"],
         "tools": [{"tool_id": f"{SKILL_ID}/{cmd}", "command": cmd, "description": desc}
                   for cmd, desc in COMMANDS.values()],
+        "build_request": {"schema": "oncemore/build-request@1",
+                          "schema_file": "schema/build-request.schema.json",
+                          "check": ["oncemore", "request", "<request.json>", "--json"],
+                          "run": ["oncemore", "iso", "--request", "<request.json>", "--confirm", "<token>",
+                                  "-o", "<disc.iso>", "--json"],
+                          "confirm": "the token is the request's SHA-256 with the size and modification time "
+                                     "of every file it names; a changed request or file needs a new one",
+                          "verified": "a DVD image is read back: each title's chapters are the request's"},
         "execution": {"canonical_invocation": ["oncemore", "<command>", "...", "--json"],
                       "output": "JSON Lines on stdout with --json; the last line is the result",
                       "mcp": ["oncemore", "mcp"], "network": False, "shell": False},
