@@ -27,7 +27,7 @@ The agent names oncemore in a handoff when a plan asks for a disc (step 3, video
   - Done when: marketplace-ready
 - [x] **3. (agent side) handoff-only SkillSpec disc_author** — names oncemore when a plan asks for a disc ([video-production-agent#109](https://github.com/kajisho5/video-production-agent/pull/109), its ADR-094: `job.disc_author=true` → a BLOCKED step whose handoff names oncemore; no adapter, nothing authored by the agent)
   - Done when: handoff test
-- [ ] **4. Build from the agent's request** — a typed build request (titles, chapters, menu texts, subtitle tracks) produced from the agent's IR and run by `oncemore build --json` after CONFIRM, so a disc is no longer only a handoff. Field review 2026-11-05 (Velisa ROADMAP, third round)
+- [x] **4. Build from the agent's request** — [#165](https://github.com/kajisho5/oncemore/pull/165): a typed build request (titles, chapters, menu texts, subtitle tracks) produced from the agent's IR and run by `oncemore build --json` after CONFIRM, so a disc is no longer only a handoff. Field review 2026-11-05 (Velisa ROADMAP, third round)
   - なぜ要るか：編集が終わった記録映像から、そのまま記録ディスクまで一続きで作れる
   - Done when: a fixture IR with three sessions builds a disc image with three chapters
 - [x] **5. One disc per session, in batch** — [#152](https://github.com/kajisho5/oncemore/pull/152): a CSV of sessions builds one image per row with the same menu template, each verified, with a manifest of images and checksums
