@@ -237,8 +237,56 @@ def cmd_scenes(args, rep):
     return 0
 
 
+def _project_of(args):
+    """The project to build: the project file, or a confirmed build request
+    (DECISIONS §142). Returns (project, request or None)."""
+    if bool(args.project) == bool(args.request):
+        raise ProjectError("give either a project or --request", [{"path": "project",
+                           "message": "a project file or folder, or --request <request.json>"}])
+    if args.request:
+        from . import request as requestmod
+        return requestmod.confirmed(args.request, args.confirm)[::-1]
+    if args.confirm:
+        raise ProjectError("--confirm goes with --request", [{"path": "--confirm",
+                           "message": "a project is built as it is; only a build request is confirmed"}])
+    return load_project(args.project), None
+
+
+def cmd_request(args, rep):
+    """Check a build request as validate would and give its token."""
+    from . import request as requestmod
+    request, project, data, tok = requestmod.load(args.request)
+    fmt = project.disc.format
+    infos, plan = build.inspect(project, rep, bd=fmt != "dvd")
+    s = build.summary(project, infos, plan)
+    for w in s["warnings"]:
+        rep.warn(w)
+    s.update({"request": os.path.abspath(args.request), "format": fmt, "project": data, "confirm": tok,
+              "chapters": requestmod.expected_chapters(request),
+              "next": ["oncemore", "iso", "--request", os.path.abspath(args.request), "--confirm", tok,
+                       "-o", "<disc.iso>", "--json"]})
+    lines = [f"Build request OK: {project.disc.label} ({fmt}), {len(project.titles)} title(s)"]
+    for t, n in zip(request["titles"], s["chapters"]):
+        lines.append(f"  {t['name']}: {n} chapter(s), {len(t.get('subtitles') or [])} subtitle track(s)")
+    lines += [f"  estimated size: {_gib(s['estimated_bytes'])} of {_gib(s['capacity_bytes'])}", "",
+              f"To build it: oncemore iso --request {args.request} --confirm {tok} -o disc.iso"]
+    rep.result(s, "\n".join(lines))
+    return 0
+
+
+def _check_chapters(res, request, image, rep):
+    """A DVD image built from a request, read back: each title's chapters."""
+    from . import request as requestmod
+    got = requestmod.dvd_chapters(image)
+    want = requestmod.expected_chapters(request)
+    if got != want:
+        raise OncemoreError(f"{image}: the titles have {got} chapters, the request asked for {want}")
+    res["chapters"] = got
+    res["verified"] = {"chapters": got}
+
+
 def cmd_build(args, rep):
-    project = load_project(args.project)
+    project, _ = _project_of(args)
     args.format = args.format or project.disc.format     # (the project's authoring mode)
     if args.format == "web":
         res = web.build_web(project, args.output, rep, fast=args.fast, keep_work=args.keep_work)
@@ -257,7 +305,7 @@ def cmd_build(args, rep):
 
 
 def cmd_iso(args, rep):
-    project = load_project(args.project)
+    project, request = _project_of(args)
     args.format = args.format or project.disc.format
     if args.format == "bluray":
         if args.iso_tool not in ("auto", "builtin"):
@@ -272,6 +320,8 @@ def cmd_iso(args, rep):
     res = build.build_iso(project, args.output, rep, fast=args.fast, keep_work=args.keep_work,
                           iso_tool=args.iso_tool, build_dir=args.build_dir,
                           cache=not args.no_cache)
+    if request is not None:
+        _check_chapters(res, request, res["iso"], rep)
     msg = f"ISO written to {res['iso']} ({_gib(res['iso_bytes'])}, {res['iso_tool']})"
     lb = res.get("layer_break")
     if lb:
@@ -433,9 +483,21 @@ def make_parser():
                         help="encode everything again (default: reuse unchanged titles and "
                              "menus from <project>/.oncemore-cache)")
 
+    def request_opts(sp):
+        sp.add_argument("--request", help="build a confirmed build request (request.json) instead "
+                                          "of a project")
+        sp.add_argument("--confirm", help="the token `oncemore request` gave for that request")
+
+    s = sub.add_parser("request", parents=[common],
+                       help="check a build request (titles, chapters, menu texts, subtitles) and "
+                            "give the token that confirms it")
+    s.add_argument("request", help="the request file (oncemore/build-request@1)")
+    s.set_defaults(func=cmd_request)
+
     s = sub.add_parser("build", parents=[common],
                        help="author VIDEO_TS (or a Blu-ray BDMV) into a directory")
-    s.add_argument("project", help=proj_help)
+    s.add_argument("project", nargs="?", help=proj_help)
+    request_opts(s)
     s.add_argument("-o", "--output", required=True, help="output directory")
     s.add_argument("--format", choices=["dvd", "bluray", "web"],
                    help="dvd = VIDEO_TS; bluray = BDMV in HD; web = a folder a browser plays "
@@ -445,7 +507,8 @@ def make_parser():
     s.set_defaults(func=cmd_build)
 
     s = sub.add_parser("iso", parents=[common], help="build and write an ISO image")
-    s.add_argument("project", help=proj_help)
+    s.add_argument("project", nargs="?", help=proj_help)
+    request_opts(s)
     s.add_argument("-o", "--output", required=True, help="output .iso file")
     s.add_argument("--iso-tool", default="auto",
                    choices=["auto", "builtin", "hdiutil", "genisoimage", "mkisofs", "xorriso"],

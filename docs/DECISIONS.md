@@ -3197,3 +3197,55 @@ contract gains `disc.batch_images`; projects of 1.3 open unchanged.
 
 * `tests/test_promises.py` (`test_signed_and_notarised_from_1_0`): the notes
   of the current version exist and name its zips.
+
+
+## 142. A disc from a typed build request
+
+An editing agent that has finished a recording could only name oncemore in a
+handoff; the disc was then made by hand from the same titles, chapters and
+menu texts the agent already had (ECOSYSTEM_ROADMAP.md step 4).
+
+`oncemore request request.json` reads a **build request** and `oncemore iso
+--request request.json --confirm TOKEN` (or `build --request`) builds it.
+
+* The request is `schema/build-request.schema.json`
+  (`oncemore/build-request@1`, a copy in the package, checked equal by a
+  test): the label, `dvd` or `bluray`, the standard and aspect, a menu
+  heading with up to three lines and the button labels, and up to five
+  titles in play order, each with its source, chapters with names and
+  subtitle tracks. It holds what the asker decides (what is on the disc and
+  what it is called), not how oncemore lays it out; a project can say more,
+  and anyone who needs more writes a project.
+* oncemore makes the project: one menu (heading, lines, PLAY or PLAY ALL and
+  a button per title, CHAPTERS for a single title with chapters; with several
+  titles, the button of a title with chapters opens its chapter menu, whose
+  first chapter plays it from the start), a chapter
+  menu labelled with the chapter names for every title with more than one
+  chapter, every title back to the menu at its end. Five titles is what fits
+  the menu's grid on NTSC with the heading and three lines.
+* The project is built as if its file were the request: paths are relative
+  to the request, and the encode cache is the request folder's. No project
+  file is written.
+* **Confirmation.** The agent's plan asks the user to confirm a disc before
+  it is made (approval CONFIRM); the token carries that confirmation to the
+  build. `request` checks the request as `validate` does (media probed, size
+  plan) and prints the project it makes and a token: the SHA-256 of the
+  request's canonical JSON with the size and modification time of every file
+  it names (16 hex). `--request` builds only with that token, and checks it
+  before the media are looked at; a different token, or none, exits 2 and
+  says to run `request` again. Hashing the media themselves was left out:
+  a day's recording is many gigabytes, and size with modification time tells
+  a replaced file.
+* **Read back.** A DVD image built from a request is read back: the title
+  table in VIDEO_TS.IFO and the part-of-title table of each VTS_nn_0.IFO
+  (found through the image's ISO 9660 directory) give each title's chapters,
+  which must agree with each other and with the request (`verified`). A
+  Blu-ray image (UDF 2.50 only) is not read back.
+* The contract gains `disc.build_request` (`oncemore/request`) and a
+  `build_request` section naming the schema, the commands and the token;
+  nothing else in it changes.
+* The agent's side (writing the request from its plan and running it after
+  the user confirms) is the agent's step; the request is the interface.
+* `examples/request` is a day with three sessions; `tests/test_request.py`
+  builds it into an image whose title has three chapters, read back, and
+  checks that a missing, wrong or stale token is refused.

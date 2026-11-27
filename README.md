@@ -388,6 +388,8 @@ oncemore import-psd <project> design.psd --menu main [--first-play]   # a menu f
 oncemore gui [<dir>] [--port N] [--no-browser] # the authoring app
 oncemore transcode <project> [--title ID] [--fast] [--status]  # encode a DVD's titles ahead of the build
 oncemore batch <template> sessions.csv -o out/ [--fast] [--no-cache]   # one verified DVD image per CSV row, with a manifest
+oncemore request request.json                  # check a build request (titles, chapters, menu texts, subtitles) and give its token
+oncemore iso --request request.json --confirm TOKEN -o disc.iso   # build it (also build --request)
 oncemore burn out.iso [--device DEV] [--layer-break auto|none|SECTOR]   # write the image to a blank DVD or BD (macOS: hdiutil, else growisofs)
 oncemore clean <project>                       # delete the encode cache (made again by the next build)
 oncemore scenes video.mp4 [--sensitivity low|medium|high] [--min-gap S]   # scene changes: chapter suggestions
@@ -424,6 +426,21 @@ with `python contract/generate.py` after a contract change or a version bump; a 
   directory, has the size and SHA-256 of the authored file), and
   `out/manifest.json` lists the images with their size and SHA-256 (written
   empty when the builds start, then after each image). `examples/batch` is a three-session template.
+* `request` takes a **build request** instead of a project: what another
+  program (an editing agent, from its plan) asks the disc to hold, in the
+  shape of [schema/build-request.schema.json](schema/build-request.schema.json)
+  (`oncemore/build-request@1`): up to five titles in play order, each with
+  its source, named chapters (a session per chapter) and subtitle tracks, a
+  menu heading and up to three lines, the label and the format. oncemore
+  makes the project from it (a menu with the heading and lines, PLAY or PLAY
+  ALL and a button per title, which opens the title's chapter menu when it has
+  chapters, a chapter menu of the chapter names), checks it
+  as `validate` does and prints a `confirm` token. `build` and `iso` with
+  `--request` build only with that token, which is the request's SHA-256 with
+  the size and modification time of every file it names: a changed request or
+  file needs a new one. A DVD image is read back after it is written: each
+  title's chapters in its IFO files must be the request's (`verified`).
+  `examples/request` is a day with three sessions.
 * `--json` (before or after the command) switches to **JSON Lines** on stdout
   for GUIs and scripts: `step`, `progress` (`fraction` 0–1), `log`, and a final
   `result` or `error` object. Exit codes: 0 ok, 1 error, 2 invalid project,

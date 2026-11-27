@@ -1,0 +1,24 @@
+{
+  "schema": "oncemore/build-request@1",
+  "format": "dvd",
+  "label": "ANNUAL_MEETING_2026",
+  "standard": "NTSC",
+  "aspect": "16:9",
+  "menu": {
+    "heading": "Annual Meeting 2026",
+    "texts": ["Day 1 - Main hall"],
+    "chapters_label": "SESSIONS"
+  },
+  "titles": [
+    {
+      "name": "Day 1",
+      "source": "media/day1.mp4",
+      "chapters": [
+        {"time": 0, "name": "Opening remarks"},
+        {"time": 3, "name": "Keynote"},
+        {"time": 6, "name": "Panel discussion"}
+      ],
+      "subtitles": [{"file": "media/day1.en.srt", "lang": "en", "default": false}]
+    }
+  ]
+}
