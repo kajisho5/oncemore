@@ -433,7 +433,8 @@ with `python contract/generate.py` after a contract change or a version bump; a 
   its source, named chapters (a session per chapter) and subtitle tracks, a
   menu heading and up to three lines, the label and the format. oncemore
   makes the project from it (a menu with the heading and lines, PLAY or PLAY
-  ALL and a button per title, a chapter menu of the chapter names), checks it
+  ALL and a button per title, which opens the title's chapter menu when it has
+  chapters, a chapter menu of the chapter names), checks it
   as `validate` does and prints a `confirm` token. `build` and `iso` with
   `--request` build only with that token, which is the request's SHA-256 with
   the size and modification time of every file it names: a changed request or

@@ -66,8 +66,9 @@ class TestRequest(unittest.TestCase):
     def test_several_titles_get_a_button_each(self):
         self.request["titles"].append({"name": "Day 2", "source": "media/day2.mp4"})
         p = requestmod.to_project(self.request)
+        # Day 1 has chapters: its button opens its chapter menu
         self.assertEqual([(b["label"], b["action"]) for b in p["menus"][0]["buttons"]],
-                         [("PLAY ALL", "playall"), ("Day 1", "title:t1"), ("Day 2", "title:t2")])
+                         [("PLAY ALL", "playall"), ("Day 1", "menu:chapters_t1"), ("Day 2", "title:t2")])
         self.assertEqual(p["titles"][1]["chapters"], [{"time": 0}])
         self.assertNotIn("auto_chapter_menu", p["titles"][1])
 
@@ -77,9 +78,19 @@ class TestRequest(unittest.TestCase):
 
     def test_bluray(self):
         self.request["format"] = "bluray"
+        path = self.write(self.request)
         disc = requestmod.to_project(self.request)["disc"]
         self.assertEqual(disc["format"], "bluray")
-        self.assertNotIn("standard", disc)
+        # the project it makes passes the project schema (media not checked)
+        from oncemore.project import build_project
+        build_project(requestmod.to_project(self.request), path, check_files=False)
+
+    def test_the_project_passes_the_schema_and_navigation(self):
+        path = self.write(self.request)
+        from oncemore.project import build_project
+        build_project(requestmod.to_project(self.request), path, check_files=False)
+        self.request["titles"].append({"name": "Day 2", "source": "media/day2.mp4"})
+        build_project(requestmod.to_project(self.request), path, check_files=False)
 
     def test_schema_errors(self):
         bad = dict(self.request, extra=1)

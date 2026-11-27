@@ -90,7 +90,10 @@ def to_project(request):
             title["auto_chapter_menu"] = {"id": f"chapters_{tid}", "title": t["name"], "back": "menu:main"}
         titles.append(title)
         if many:
-            buttons.append({"id": f"title_{tid}", "label": t["name"], "action": f"title:{tid}"})
+            # a title with chapters opens its chapter menu (its first chapter
+            # plays it from the start), so every chapter menu is reachable
+            buttons.append({"id": f"title_{tid}", "label": t["name"],
+                            "action": f"menu:chapters_{tid}" if len(chapters) > 1 else f"title:{tid}"})
         if len(chapters) > 1 and not many:
             buttons.append({"id": "chapters", "label": menu.get("chapters_label") or "CHAPTERS",
                             "action": f"menu:chapters_{tid}"})
@@ -99,11 +102,10 @@ def to_project(request):
               for k, line in enumerate(menu.get("texts") or [])]
     for k, b in enumerate(buttons):
         b.update({"x": _LEFT, "y": _BUTTON_Y + k * _BUTTON_STEP})
-    disc = {"label": request["label"], "aspect": request.get("aspect", "16:9"), "first_play": "menu:main"}
+    disc = {"label": request["label"], "standard": request.get("standard", "NTSC"),
+            "aspect": request.get("aspect", "16:9"), "first_play": "menu:main"}
     if request.get("format", "dvd") == "bluray":
         disc["format"] = "bluray"
-    else:
-        disc["standard"] = request.get("standard", "NTSC")
     return {"version": 1, "disc": disc, "titles": titles,
             "menus": [{"id": "main", "background": None, "texts": texts, "buttons": buttons}]}
 
@@ -122,7 +124,7 @@ def token(request, path):
     h = hashlib.sha256(json.dumps(request, sort_keys=True, ensure_ascii=False,
                                   separators=(",", ":")).encode("utf-8"))
     for name in sorted(set(_files(request))):
-        full = os.path.join(base, name)
+        full = os.path.normpath(os.path.join(base, os.path.expanduser(name)))   # (as the project resolves it)
         st = os.stat(full) if os.path.isfile(full) else None
         h.update(f"\0{name}\0{st.st_size if st else -1}\0{st.st_mtime_ns if st else -1}".encode("utf-8"))
     return h.hexdigest()[:16]

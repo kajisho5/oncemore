@@ -3217,7 +3217,9 @@ menu texts the agent already had (ECOSYSTEM_ROADMAP.md step 4).
   what it is called), not how oncemore lays it out; a project can say more,
   and anyone who needs more writes a project.
 * oncemore makes the project: one menu (heading, lines, PLAY or PLAY ALL and
-  a button per title, CHAPTERS for a single title with chapters), a chapter
+  a button per title, CHAPTERS for a single title with chapters; with several
+  titles, the button of a title with chapters opens its chapter menu, whose
+  first chapter plays it from the start), a chapter
   menu labelled with the chapter names for every title with more than one
   chapter, every title back to the menu at its end. Five titles is what fits
   the menu's grid on NTSC with the heading and three lines.
